@@ -20,9 +20,11 @@ const NODE_SIZES = {
 
 const ConstellationGraph = ({ onNodeSelect }) => {
   const svgRef = useRef(null)
+  const containerRef = useRef(null)
   const { user } = useAuth()
   const [nodes, setNodes] = useState([])
   const [loading, setLoading] = useState(true)
+  const [dims, setDims] = useState({ width: 0, height: 0 })
 
   const fetchNodes = useCallback(async () => {
     const { data } = await supabase.from('nodes').select('*').eq('user_id', user.id)
@@ -32,11 +34,21 @@ const ConstellationGraph = ({ onNodeSelect }) => {
 
   useEffect(() => { fetchNodes() }, [fetchNodes])
 
+  // ResizeObserver so SVG always knows its real dimensions
   useEffect(() => {
-    if (!nodes.length || !svgRef.current) return
+    if (!containerRef.current) return
+    const ro = new ResizeObserver(entries => {
+      const { width, height } = entries[0].contentRect
+      setDims({ width, height })
+    })
+    ro.observe(containerRef.current)
+    return () => ro.disconnect()
+  }, [])
 
-    const width = svgRef.current.clientWidth
-    const height = svgRef.current.clientHeight
+  useEffect(() => {
+    if (!nodes.length || !svgRef.current || !dims.width) return
+
+    const { width, height } = dims
 
     const svg = d3.select(svgRef.current)
     svg.selectAll('*').remove()
@@ -160,11 +172,14 @@ const ConstellationGraph = ({ onNodeSelect }) => {
   )
 
   return (
-    <svg
-      ref={svgRef}
-      className="w-full h-full"
-      style={{ position: 'absolute', inset: 0 }}
-    />
+    <div ref={containerRef} style={{ position: 'absolute', inset: 0 }}>
+      <svg
+        ref={svgRef}
+        width={dims.width}
+        height={dims.height}
+        style={{ display: 'block' }}
+      />
+    </div>
   )
 }
 
