@@ -25,9 +25,9 @@ export const AuthProvider = ({ children }) => {
   }, [])
 
   const fetchProfile = async (userId) => {
-    let { data } = await supabase.from('profiles').select('*').eq('id', userId).single()
-    if (!data) {
-      // First login — seed profile + data
+    const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single()
+    if (error && error.code === 'PGRST116') {
+      // PGRST116 = no rows found — first login
       const { data: newProfile } = await supabase
         .from('profiles')
         .insert({ id: userId })
@@ -57,11 +57,9 @@ export const AuthProvider = ({ children }) => {
 
     // Seed subnodes
     await supabase.from('nodes').insert(
-      DEFAULT_SUBNODES.map(n => ({
-        ...n,
+      DEFAULT_SUBNODES.map(({ parentTitle, ...n }) => ({
         user_id: userId,
         parent_id: nodeMap[n.parentTitle] || null,
-        parentTitle: undefined,
       }))
     )
   }
@@ -77,8 +75,9 @@ export const AuthProvider = ({ children }) => {
   }
 
   const addXP = async (amount) => {
-    const newXP = (profile?.xp || 0) + amount
-    await updateProfile({ xp: newXP })
+    await supabase.rpc('increment_xp', { user_id: user.id, amount })
+    const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single()
+    setProfile(data)
   }
 
   const signInWithGoogle = () =>
