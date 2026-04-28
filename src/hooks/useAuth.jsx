@@ -58,8 +58,9 @@ export const AuthProvider = ({ children }) => {
     // Seed subnodes
     await supabase.from('nodes').insert(
       DEFAULT_SUBNODES.map(({ parentTitle, ...n }) => ({
+        ...n,
         user_id: userId,
-        parent_id: nodeMap[n.parentTitle] || null,
+        parent_id: nodeMap[parentTitle] || null,
       }))
     )
   }
