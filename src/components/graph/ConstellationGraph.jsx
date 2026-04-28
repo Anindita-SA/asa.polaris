@@ -163,7 +163,7 @@ const ConstellationGraph = ({ onNodeSelect }) => {
           })
       })
 
-  }, [nodes, onNodeSelect])
+  }, [nodes, dims, onNodeSelect])
 
   if (loading) return (
     <div className="flex items-center justify-center h-full">
