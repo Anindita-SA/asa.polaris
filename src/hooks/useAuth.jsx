@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { DEFAULT_MILESTONES, DEFAULT_NODES, DEFAULT_SUBNODES } from '../data/defaults'
 
 const AuthContext = createContext(null)
+let seeding = false
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
@@ -26,7 +27,7 @@ export const AuthProvider = ({ children }) => {
 
   const fetchProfile = async (userId) => {
     const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single()
-    if (error && error.code === 'PGRST116') {
+    if (error?.code === 'PGRST116') {
       // PGRST116 = no rows found — first login
       const { data: newProfile } = await supabase
         .from('profiles')
@@ -35,34 +36,58 @@ export const AuthProvider = ({ children }) => {
         .single()
       await seedUserData(userId)
       setProfile(newProfile)
-    } else {
-      setProfile(data)
+      return
     }
+
+    if (error) return
+
+    // Profile exists — if seed failed on previous login, self-heal by backfilling nodes/milestones.
+    const [{ count: nodeCount }, { count: milestoneCount }] = await Promise.all([
+      supabase.from('nodes').select('*', { count: 'exact', head: true }).eq('user_id', userId),
+      supabase.from('milestones').select('*', { count: 'exact', head: true }).eq('user_id', userId),
+    ])
+
+    if ((nodeCount || 0) === 0 || (milestoneCount || 0) === 0) {
+      await seedUserData(userId)
+    }
+
+    setProfile(data)
   }
 
   const seedUserData = async (userId) => {
-    // Seed milestones
-    await supabase.from('milestones').insert(
-      DEFAULT_MILESTONES.map(m => ({ ...m, user_id: userId }))
-    )
+    if (seeding) return
+    seeding = true
+    try {
+      const [{ data: existingNodes }, { data: existingMilestones }] = await Promise.all([
+        supabase.from('nodes').select('id, title').eq('user_id', userId),
+        supabase.from('milestones').select('id, title').eq('user_id', userId),
+      ])
 
-    // Seed root + main nodes
-    const { data: insertedNodes } = await supabase.from('nodes').insert(
-      DEFAULT_NODES.map(n => ({ ...n, user_id: userId }))
-    ).select()
+      if (!existingMilestones?.length) {
+        await supabase.from('milestones').insert(
+          DEFAULT_MILESTONES.map(m => ({ ...m, user_id: userId }))
+        )
+      }
 
-    // Map titles to IDs for parent lookup
-    const nodeMap = {}
-    insertedNodes.forEach(n => { nodeMap[n.title] = n.id })
+      if (!existingNodes?.length) {
+        const { data: insertedNodes } = await supabase.from('nodes').insert(
+          DEFAULT_NODES.map(n => ({ ...n, user_id: userId }))
+        ).select()
 
-    // Seed subnodes
-    await supabase.from('nodes').insert(
-      DEFAULT_SUBNODES.map(({ parentTitle, ...n }) => ({
-        ...n,
-        user_id: userId,
-        parent_id: nodeMap[parentTitle] || null,
-      }))
-    )
+        const nodeMap = {}
+        insertedNodes.forEach(n => { nodeMap[n.title] = n.id })
+
+        await supabase.from('nodes').insert(
+          DEFAULT_SUBNODES.map(({ parentTitle, ...n }) => ({
+            ...n,
+            user_id: userId,
+            parent_id: nodeMap[parentTitle] || null,
+          }))
+        )
+      }
+    } finally {
+      seeding = false
+    }
   }
 
   const updateProfile = async (updates) => {

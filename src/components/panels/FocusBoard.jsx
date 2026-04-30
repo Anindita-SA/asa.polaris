@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
-import { Flame, Archive, Plus, X, ArrowUp, Check } from 'lucide-react'
+import { Flame, Archive, Plus, X, ArrowUp, Check, Zap } from 'lucide-react'
 
 const CATEGORIES = ['academic', 'portfolio', 'application', 'health', 'creative', 'research']
 
@@ -11,6 +11,10 @@ const FocusBoard = () => {
   const [backburner, setBackburner] = useState([])
   const [showModal, setShowModal] = useState(null) // 'focus' | 'backburner'
   const [form, setForm] = useState({ title: '', category: 'academic', why_now: '', why_deferred: '', context_snapshot: '', revisit_after: '' })
+  const [subtasks, setSubtasks] = useState({})
+  const [breakdownTarget, setBreakdownTarget] = useState(null)
+  const [taskDescription, setTaskDescription] = useState('')
+  const [generatedSteps, setGeneratedSteps] = useState([])
 
   useEffect(() => {
     fetchFocus()
@@ -20,6 +24,18 @@ const FocusBoard = () => {
   const fetchFocus = async () => {
     const { data } = await supabase.from('focus_items').select('*').eq('user_id', user.id).eq('status', 'active').order('created_at')
     setFocusItems(data || [])
+    const targetIds = (data || []).map(item => item.id)
+    if (targetIds.length) {
+      const { data: subtasksRows } = await supabase.from('subtasks').select('*').eq('user_id', user.id).eq('parent_type', 'focus').in('parent_id', targetIds).order('position')
+      const grouped = {}
+      ;(subtasksRows || []).forEach(row => {
+        grouped[row.parent_id] = grouped[row.parent_id] || []
+        grouped[row.parent_id].push(row)
+      })
+      setSubtasks(grouped)
+    } else {
+      setSubtasks({})
+    }
   }
 
   const fetchBackburner = async () => {
@@ -70,6 +86,48 @@ const FocusBoard = () => {
     fetchBackburner()
   }
 
+  const breakDownTask = async () => {
+    const key = import.meta.env.VITE_ANTHROPIC_API_KEY
+    if (!key || !taskDescription.trim()) return
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: 'You are a task breakdown assistant. Given a project or task, return ONLY a JSON array of 5-10 short, specific, actionable steps. No markdown, no preamble, just the JSON array of strings.',
+        messages: [{ role: 'user', content: taskDescription }],
+      }),
+    })
+    const data = await response.json()
+    const text = data?.content?.[0]?.text || '[]'
+    setGeneratedSteps(JSON.parse(text))
+  }
+
+  const saveSubtasks = async () => {
+    if (!generatedSteps.length || !breakdownTarget) return
+    await supabase.from('subtasks').insert(generatedSteps.map((title, idx) => ({
+      user_id: user.id,
+      parent_id: breakdownTarget.id,
+      parent_type: 'focus',
+      title,
+      position: idx,
+    })))
+    setBreakdownTarget(null)
+    setTaskDescription('')
+    setGeneratedSteps([])
+    fetchFocus()
+  }
+
+  const toggleSubtask = async (task) => {
+    await supabase.from('subtasks').update({ completed: !task.completed }).eq('id', task.id).eq('user_id', user.id)
+    fetchFocus()
+  }
+
   const slots = [0, 1, 2]
 
   return (
@@ -101,6 +159,18 @@ const FocusBoard = () => {
                       </div>
                       <p className="text-sm text-starlight font-body">{item.title}</p>
                       {item.why_now && <p className="text-xs text-dim mt-1 italic">"{item.why_now}"</p>}
+                      <button onClick={() => { setBreakdownTarget(item); setTaskDescription(item.title); }} className="text-xs text-gold mt-2 flex items-center gap-1">
+                        <Zap className="w-3 h-3" /> Break it down
+                      </button>
+                      {subtasks[item.id]?.length > 0 && (
+                        <div className="mt-2 space-y-1">
+                          {subtasks[item.id].map(task => (
+                            <button key={task.id} onClick={() => toggleSubtask(task)} className="block text-xs text-left">
+                              <span className={task.completed ? 'text-emerald line-through' : 'text-starlight'}>{task.completed ? '✓' : '○'} {task.title}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                     <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button onClick={() => completeFocus(item)} title="Complete" className="text-dim hover:text-emerald transition-colors p-1"><Check className="w-3.5 h-3.5" /></button>
@@ -191,6 +261,18 @@ const FocusBoard = () => {
                 </button>
               </>
             )}
+          </div>
+        </div>
+      )}
+      {breakdownTarget && (
+        <div className="modal-overlay fixed inset-0 bg-void/80 z-50 flex items-center justify-center p-4" onClick={e => e.target === e.currentTarget && setBreakdownTarget(null)}>
+          <div className="modal-content glass border border-blue-900/30 rounded-2xl p-6 w-full max-w-lg space-y-3">
+            <h3 className="font-display text-starlight">Break down: {breakdownTarget.title}</h3>
+            <textarea rows={4} value={taskDescription} onChange={e => setTaskDescription(e.target.value)}
+              className="w-full bg-stardust/50 text-sm text-starlight border border-blue-900/20 rounded-lg px-3 py-2 outline-none resize-none" />
+            <button onClick={breakDownTask} className="w-full py-2 bg-gold/20 border border-gold/30 text-gold rounded-lg text-sm">BREAK IT DOWN</button>
+            {generatedSteps.map((step, idx) => <p key={idx} className="text-xs text-starlight">{idx + 1}. {step}</p>)}
+            {!!generatedSteps.length && <button onClick={saveSubtasks} className="w-full py-2 bg-pulsar/20 border border-pulsar/30 text-pulsar rounded-lg text-sm">SAVE TO POLARIS</button>}
           </div>
         </div>
       )}

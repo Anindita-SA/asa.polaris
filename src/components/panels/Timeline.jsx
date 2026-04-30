@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
-import { Check, Flag, Clock, AlertCircle } from 'lucide-react'
+import { Check, Flag, Clock, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react'
 
 const statusConfig = {
   upcoming: { color: 'text-dim border-blue-900/30 bg-stardust/30', icon: Clock, label: 'Upcoming' },
@@ -13,6 +13,7 @@ const statusConfig = {
 const Timeline = () => {
   const { user, addXP } = useAuth()
   const [milestones, setMilestones] = useState([])
+  const [expanded, setExpanded] = useState(false)
 
   useEffect(() => { fetchMilestones() }, [])
 
@@ -46,6 +47,7 @@ const Timeline = () => {
   const upcoming = milestones.filter(m => m.status !== 'done')
   const done = milestones.filter(m => m.status === 'done')
   const nextMilestone = upcoming[0]
+  const percentDone = milestones.length ? Math.round((done.length / milestones.length) * 100) : 0
 
   return (
     <div className="h-full overflow-y-auto p-6">
@@ -65,8 +67,18 @@ const Timeline = () => {
           </div>
         )}
 
+        <button onClick={() => setExpanded(v => !v)} className="glass border border-blue-900/20 rounded-xl p-4 w-full text-left">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm text-starlight font-body">{done.length} / {milestones.length} milestones complete</p>
+            {expanded ? <ChevronUp className="w-4 h-4 text-dim" /> : <ChevronDown className="w-4 h-4 text-dim" />}
+          </div>
+          <div className="h-1.5 bg-stardust rounded-full overflow-hidden">
+            <div className="h-full bg-gradient-to-r from-emerald to-pulsar transition-all duration-500" style={{ width: `${percentDone}%` }} />
+          </div>
+        </button>
+
         {/* Timeline */}
-        <div className="relative">
+        {expanded && <div className="relative">
           {/* Vertical line */}
           <div className="absolute left-4 top-0 bottom-0 w-px bg-gradient-to-b from-pulsar/30 via-blue-900/20 to-transparent" />
 
@@ -128,7 +140,7 @@ const Timeline = () => {
               )
             })}
           </div>
-        </div>
+        </div>}
 
         {/* Done section */}
         {done.length > 0 && (

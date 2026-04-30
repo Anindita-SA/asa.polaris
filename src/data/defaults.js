@@ -1,5 +1,5 @@
 export const DEFAULT_MILESTONES = [
-  { title: 'Deploy concrete speaker to portfolio', deadline: '2026-05-15', status: 'upcoming', xp_reward: 150 },
+  { title: 'Deploy concrete speaker to portfolio', deadline: '2026-05-15', status: 'done', xp_reward: 150 },
   { title: 'DAB survey paper submitted', deadline: '2026-06-30', status: 'upcoming', xp_reward: 200 },
   { title: 'CHAARG PCB complete + documented', deadline: '2026-08-31', status: 'upcoming', xp_reward: 200 },
   { title: 'Cold email TU Delft / TU/e faculty', deadline: '2026-08-31', status: 'upcoming', xp_reward: 100 },

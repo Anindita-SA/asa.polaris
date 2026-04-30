@@ -132,6 +132,51 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 // alter table habit_logs enable row level security;
 // create policy "own habit_logs" on habit_logs for all using (auth.uid() = user_id);
 //
+// -- Eulogies (append-only)
+// create table eulogies (
+//   id uuid primary key default uuid_generate_v4(),
+//   user_id uuid references auth.users not null,
+//   content text not null,
+//   version_label text,
+//   written_date date default current_date,
+//   created_at timestamptz default now()
+// );
+// alter table eulogies enable row level security;
+// create policy "own eulogies" on eulogies for all using (auth.uid() = user_id);
+//
+// -- Pomodoro logs
+// create table pomodoro_logs (
+//   id uuid primary key default uuid_generate_v4(),
+//   user_id uuid references auth.users not null,
+//   date date default current_date,
+//   duration_minutes integer not null,
+//   node_id uuid references nodes(id),
+//   label text,
+//   created_at timestamptz default now()
+// );
+// alter table pomodoro_logs enable row level security;
+// create policy "own pomodoro" on pomodoro_logs for all using (auth.uid() = user_id);
+//
+// -- Subtasks
+// create table subtasks (
+//   id uuid primary key default uuid_generate_v4(),
+//   user_id uuid references auth.users not null,
+//   parent_id uuid,
+//   parent_type text,
+//   title text not null,
+//   completed boolean default false,
+//   position integer default 0,
+//   created_at timestamptz default now()
+// );
+// alter table subtasks enable row level security;
+// create policy "own subtasks" on subtasks for all using (auth.uid() = user_id);
+//
+// -- Required RPC
+// create or replace function increment_xp(user_id uuid, amount int)
+// returns void language sql security definer as $$
+//   update profiles set xp = xp + amount where id = user_id;
+// $$;
+//
 // -- Storage bucket for journal photos
 // insert into storage.buckets (id, name, public) values ('journal-photos', 'journal-photos', false);
 // create policy "own photos" on storage.objects for all using (auth.uid()::text = (storage.foldername(name))[1]);

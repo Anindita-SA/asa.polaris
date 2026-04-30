@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
-import { X, Target, Flag, Plus, Check } from 'lucide-react'
+import { X, Target, Flag, Plus, Check, Zap } from 'lucide-react'
 
 const NODE_COLORS = {
   root: 'text-gold border-gold/30',
@@ -16,11 +16,16 @@ const NodePanel = ({ node, onClose }) => {
   const [milestones, setMilestones] = useState([])
   const [addingGoal, setAddingGoal] = useState(false)
   const [newGoal, setNewGoal] = useState({ title: '', scope: 'weekly', target: '', unit: '' })
+  const [subtasks, setSubtasks] = useState([])
+  const [showBreakdown, setShowBreakdown] = useState(false)
+  const [taskDescription, setTaskDescription] = useState('')
+  const [generatedSteps, setGeneratedSteps] = useState([])
 
   useEffect(() => {
     if (!node) return
     fetchGoals()
     fetchMilestones()
+    fetchSubtasks()
   }, [node])
 
   const fetchGoals = async () => {
@@ -31,6 +36,12 @@ const NodePanel = ({ node, onClose }) => {
   const fetchMilestones = async () => {
     const { data } = await supabase.from('milestones').select('*').eq('user_id', user.id)
     setMilestones(data || [])
+  }
+
+  const fetchSubtasks = async () => {
+    const { data } = await supabase.from('subtasks').select('*')
+      .eq('user_id', user.id).eq('parent_type', 'node').eq('parent_id', node.id).order('position')
+    setSubtasks(data || [])
   }
 
   const addGoal = async () => {
@@ -59,6 +70,49 @@ const NodePanel = ({ node, onClose }) => {
     await supabase.from('milestones').update({ status: 'done' }).eq('id', ms.id)
     await addXP(ms.xp_reward || 100)
     fetchMilestones()
+  }
+
+  const breakDownTask = async () => {
+    const key = import.meta.env.VITE_ANTHROPIC_API_KEY
+    if (!key || !taskDescription.trim()) return
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: 'You are a task breakdown assistant. Given a project or task, return ONLY a JSON array of 5-10 short, specific, actionable steps. No markdown, no preamble, just the JSON array of strings.',
+        messages: [{ role: 'user', content: taskDescription }],
+      }),
+    })
+    const data = await response.json()
+    const text = data?.content?.[0]?.text || '[]'
+    const parsed = JSON.parse(text)
+    setGeneratedSteps(Array.isArray(parsed) ? parsed : [])
+  }
+
+  const saveSubtasks = async () => {
+    if (!generatedSteps.length) return
+    await supabase.from('subtasks').insert(generatedSteps.map((title, idx) => ({
+      user_id: user.id,
+      parent_id: node.id,
+      parent_type: 'node',
+      title,
+      position: idx,
+    })))
+    setShowBreakdown(false)
+    setGeneratedSteps([])
+    setTaskDescription('')
+    fetchSubtasks()
+  }
+
+  const toggleSubtask = async (task) => {
+    await supabase.from('subtasks').update({ completed: !task.completed }).eq('id', task.id).eq('user_id', user.id)
+    fetchSubtasks()
   }
 
   if (!node) return null
@@ -98,6 +152,9 @@ const NodePanel = ({ node, onClose }) => {
               <Plus className="w-3.5 h-3.5" />
             </button>
           </div>
+          <button onClick={() => setShowBreakdown(true)} className="mb-2 text-xs text-gold flex items-center gap-1">
+            <Zap className="w-3 h-3" /> Break it down
+          </button>
 
           {addingGoal && (
             <div className="mb-3 p-3 bg-cosmic/40 rounded-lg border border-blue-900/20 space-y-2">
@@ -148,6 +205,19 @@ const NodePanel = ({ node, onClose }) => {
           </div>
         </div>
 
+        {!!subtasks.length && (
+          <div>
+            <p className="text-xs font-display tracking-widest text-dim uppercase mb-2">Subtasks</p>
+            <div className="space-y-1">
+              {subtasks.map(task => (
+                <button key={task.id} onClick={() => toggleSubtask(task)} className="w-full text-left text-xs py-1 text-starlight/90">
+                  <span className={task.completed ? 'text-emerald line-through' : 'text-starlight'}>{task.completed ? '✓' : '○'} {task.title}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Linked milestones */}
         {nodeTypeMilestones.length > 0 && (
           <div>
@@ -172,6 +242,19 @@ const NodePanel = ({ node, onClose }) => {
           </div>
         )}
       </div>
+      {showBreakdown && (
+        <div className="modal-overlay fixed inset-0 bg-void/80 z-50 flex items-center justify-center p-4" onClick={e => e.target === e.currentTarget && setShowBreakdown(false)}>
+          <div className="modal-content glass border border-blue-900/30 rounded-2xl p-6 w-full max-w-lg space-y-3">
+            <h3 className="font-display text-starlight">Task breakdown</h3>
+            <textarea rows={4} value={taskDescription} onChange={e => setTaskDescription(e.target.value)}
+              className="w-full bg-stardust/50 text-sm text-starlight border border-blue-900/20 rounded-lg px-3 py-2 outline-none resize-none"
+              placeholder="Describe what you need to break down..." />
+            <button onClick={breakDownTask} className="w-full py-2 bg-gold/20 border border-gold/30 text-gold rounded-lg text-sm">BREAK IT DOWN</button>
+            {generatedSteps.map((step, idx) => <p key={idx} className="text-xs text-starlight">{idx + 1}. {step}</p>)}
+            {!!generatedSteps.length && <button onClick={saveSubtasks} className="w-full py-2 bg-pulsar/20 border border-pulsar/30 text-pulsar rounded-lg text-sm">SAVE TO POLARIS</button>}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

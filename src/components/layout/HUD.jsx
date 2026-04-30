@@ -1,14 +1,17 @@
 import { useState } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { getLevelInfo } from '../../data/defaults'
-import { Star, LogOut, Edit2, Check } from 'lucide-react'
+import { Star, LogOut, Edit2, Check, Timer, Settings } from 'lucide-react'
+import { supabase } from '../../lib/supabase'
+import { useEffect } from 'react'
 
-const HUD = ({ activeView, setActiveView }) => {
-  const { profile, updateProfile, signOut } = useAuth()
+const HUD = ({ activeView, setActiveView, onOpenSettings }) => {
+  const { profile, user, updateProfile, signOut } = useAuth()
   const [editingAnchor, setEditingAnchor] = useState(false)
   const [editingChapter, setEditingChapter] = useState(false)
   const [anchorText, setAnchorText] = useState('')
   const [chapterText, setChapterText] = useState('')
+  const [todayMinutes, setTodayMinutes] = useState(0)
 
   const xp = profile?.xp || 0
   const { current, next, progress } = getLevelInfo(xp)
@@ -32,12 +35,27 @@ const HUD = ({ activeView, setActiveView }) => {
     { id: 'fitness', label: 'Fitness' },
   ]
 
+  useEffect(() => {
+    const fetchTodayFocus = async () => {
+      if (!user?.id) return
+      const today = new Date().toISOString().slice(0, 10)
+      const { data } = await supabase
+        .from('pomodoro_logs')
+        .select('duration_minutes')
+        .eq('user_id', user.id)
+        .eq('date', today)
+      const total = (data || []).reduce((sum, row) => sum + (row.duration_minutes || 0), 0)
+      setTodayMinutes(total)
+    }
+    fetchTodayFocus()
+  }, [user?.id, activeView])
+
   return (
     <div className="fixed top-0 left-0 right-0 z-50 glass border-b border-blue-900/20">
       <div className="flex items-center h-14 px-4 gap-4">
         {/* Logo */}
         <div className="flex items-center gap-2 min-w-fit">
-          <Star className="text-gold w-4 h-4" fill="currentColor" />
+          <Star className="text-gold w-4 h-4" />
           <span className="font-display text-sm tracking-[0.2em] text-starlight">POLARIS</span>
         </div>
 
@@ -100,6 +118,15 @@ const HUD = ({ activeView, setActiveView }) => {
 
         <div className="w-px h-6 bg-blue-900/40" />
 
+        <div className="flex items-center gap-1 min-w-fit text-dim">
+          <Timer className="w-3.5 h-3.5" />
+          <span className="text-xs font-mono">
+            {Math.floor(todayMinutes / 60)}h {todayMinutes % 60}m
+          </span>
+        </div>
+
+        <div className="w-px h-6 bg-blue-900/40" />
+
         {/* XP bar */}
         <div className="flex items-center gap-2 min-w-fit">
           <div className="text-right hidden sm:block">
@@ -115,6 +142,9 @@ const HUD = ({ activeView, setActiveView }) => {
           <span className="text-xs font-display text-nova">Lv.{current.level}</span>
         </div>
 
+        <button onClick={onOpenSettings} className="text-dim hover:text-nova transition-colors ml-1">
+          <Settings className="w-4 h-4" />
+        </button>
         <button onClick={signOut} className="text-dim hover:text-danger transition-colors ml-1">
           <LogOut className="w-4 h-4" />
         </button>
