@@ -19,9 +19,9 @@ const FitnessBridge = () => {
       const since = format(subDays(new Date(), 14), 'yyyy-MM-dd')
 
       const [w, m, wt] = await Promise.all([
-        supabase.from('workout_logs').select('*').eq('user_id', user.id).gte('created_at', since).order('created_at', { ascending: false }).limit(10),
-        supabase.from('meal_logs').select('*').eq('user_id', user.id).gte('created_at', since).order('created_at', { ascending: false }).limit(10),
-        supabase.from('weight_logs').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(14),
+        supabase.from('workout_logs').select('*').eq('user_id', user.id).gte('log_date', since).order('log_date', { ascending: false }).limit(50),
+        supabase.from('meal_logs').select('*').eq('user_id', user.id).gte('log_date', since).order('log_date', { ascending: false }).limit(20),
+        supabase.from('weight_logs').select('*').eq('user_id', user.id).order('log_date', { ascending: false }).limit(14),
       ])
 
       setWorkouts(w.data || [])
@@ -34,10 +34,11 @@ const FitnessBridge = () => {
     }
   }
 
+  const sessionDates = [...new Set(workouts.map(w => w.log_date))]
   const latestWeight = weights[0]
   const prevWeight = weights[1]
   const weightDelta = latestWeight && prevWeight
-    ? (parseFloat(latestWeight.weight) - parseFloat(prevWeight.weight)).toFixed(1)
+    ? (parseFloat(latestWeight.weight_kg) - parseFloat(prevWeight.weight_kg)).toFixed(1)
     : null
 
   if (loading) return (
@@ -65,8 +66,8 @@ const FitnessBridge = () => {
         <div className="grid grid-cols-3 gap-3">
           <div className="glass border border-blue-900/20 rounded-xl p-4 text-center">
             <Activity className="w-4 h-4 text-pulsar mx-auto mb-2" />
-            <p className="font-display text-2xl text-starlight">{workouts.length}</p>
-            <p className="text-xs text-dim font-body mt-1">Workouts</p>
+            <p className="font-display text-2xl text-starlight">{sessionDates.length}</p>
+            <p className="text-xs text-dim font-body mt-1">Workout sessions</p>
           </div>
           <div className="glass border border-blue-900/20 rounded-xl p-4 text-center">
             <Utensils className="w-4 h-4 text-emerald mx-auto mb-2" />
@@ -75,7 +76,7 @@ const FitnessBridge = () => {
           </div>
           <div className="glass border border-blue-900/20 rounded-xl p-4 text-center">
             <Scale className="w-4 h-4 text-aurora mx-auto mb-2" />
-            <p className="font-display text-2xl text-starlight">{latestWeight ? `${latestWeight.weight}` : '—'}</p>
+            <p className="font-display text-2xl text-starlight">{latestWeight ? `${latestWeight.weight_kg}` : '—'}</p>
             {weightDelta && (
               <p className={`text-xs font-mono mt-1 ${parseFloat(weightDelta) < 0 ? 'text-emerald' : 'text-gold'}`}>
                 {parseFloat(weightDelta) > 0 ? '+' : ''}{weightDelta} kg
@@ -94,11 +95,11 @@ const FitnessBridge = () => {
             {workouts.slice(0, 5).map((w, i) => (
               <div key={w.id || i} className="flex items-start justify-between py-2 border-b border-blue-900/10 last:border-0">
                 <div>
-                  <p className="text-sm text-starlight/80 font-body">{w.workout_type || w.type || w.name || 'Workout'}</p>
+                  <p className="text-sm text-starlight/80 font-body">{w.day_type || 'Workout'}</p>
                   {w.notes && <p className="text-xs text-dim mt-0.5 italic">{w.notes}</p>}
                 </div>
                 <span className="text-xs font-mono text-dim flex-shrink-0 ml-3">
-                  {format(new Date(w.created_at || w.date), 'd MMM')}
+                  {format(new Date(w.log_date), 'd MMM')}
                 </span>
               </div>
             ))}
@@ -115,11 +116,11 @@ const FitnessBridge = () => {
             {meals.slice(0, 5).map((m, i) => (
               <div key={m.id || i} className="flex items-start justify-between py-2 border-b border-blue-900/10 last:border-0">
                 <div>
-                  <p className="text-sm text-starlight/80 font-body">{m.meal_name || m.name || m.food || 'Meal'}</p>
-                  {m.calories && <p className="text-xs text-dim mt-0.5">{m.calories} kcal</p>}
+                  <p className="text-sm text-starlight/80 font-body">{m.food_name || 'Meal'}</p>
+                  <p className="text-xs text-dim mt-0.5">{m.kcal || 0} kcal · P{m.protein || 0} C{m.carbs || 0} F{m.fat || 0} · {m.meal_tag || 'meal'}</p>
                 </div>
                 <span className="text-xs font-mono text-dim flex-shrink-0 ml-3">
-                  {format(new Date(m.created_at || m.date), 'd MMM')}
+                  {format(new Date(m.log_date), 'd MMM')}
                 </span>
               </div>
             ))}
@@ -135,8 +136,8 @@ const FitnessBridge = () => {
           <div className="space-y-1">
             {weights.slice(0, 10).map((w, i) => (
               <div key={w.id || i} className="flex items-center justify-between py-1.5 border-b border-blue-900/10 last:border-0">
-                <span className="text-xs font-mono text-dim">{format(new Date(w.created_at || w.date), 'd MMM yyyy')}</span>
-                <span className="text-sm font-mono text-starlight">{w.weight} kg</span>
+                <span className="text-xs font-mono text-dim">{format(new Date(w.log_date), 'd MMM yyyy')}</span>
+                <span className="text-sm font-mono text-starlight">{w.weight_kg} kg</span>
               </div>
             ))}
             {!weights.length && <p className="text-xs text-dim italic font-body">No weight entries yet.</p>}
