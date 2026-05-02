@@ -1,66 +1,20 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { DEFAULT_MILESTONES, DEFAULT_NODES, DEFAULT_SUBNODES } from '../data/defaults'
 
 const AuthContext = createContext(null)
+
 let seeding = false
+let seedingPromise = null
 
-export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null)
-  const [profile, setProfile] = useState(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
-      if (session?.user) fetchProfile(session.user.id)
-      setLoading(false)
-    })
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
-      if (session?.user) fetchProfile(session.user.id)
-    })
-
-    return () => subscription.unsubscribe()
-  }, [])
-
-  const fetchProfile = async (userId) => {
-    const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single()
-    if (error?.code === 'PGRST116') {
-      // PGRST116 = no rows found — first login
-      const { data: newProfile } = await supabase
-        .from('profiles')
-        .insert({ id: userId })
-        .select()
-        .single()
-      await seedUserData(userId)
-      setProfile(newProfile)
-      return
-    }
-
-    if (error) return
-
-    // Profile exists — if seed failed on previous login, self-heal by backfilling nodes/milestones.
-    const [{ count: nodeCount }, { count: milestoneCount }] = await Promise.all([
-      supabase.from('nodes').select('*', { count: 'exact', head: true }).eq('user_id', userId),
-      supabase.from('milestones').select('*', { count: 'exact', head: true }).eq('user_id', userId),
-    ])
-
-    if ((nodeCount || 0) === 0 || (milestoneCount || 0) === 0) {
-      await seedUserData(userId)
-    }
-
-    setProfile(data)
-  }
-
-  const seedUserData = async (userId) => {
-    if (seeding) return
-    seeding = true
+const seedUserData = async (userId) => {
+  if (seeding) return seedingPromise
+  seeding = true
+  seedingPromise = (async () => {
     try {
       const [{ data: existingNodes }, { data: existingMilestones }] = await Promise.all([
-        supabase.from('nodes').select('id, title').eq('user_id', userId),
-        supabase.from('milestones').select('id, title').eq('user_id', userId),
+        supabase.from('nodes').select('id').eq('user_id', userId),
+        supabase.from('milestones').select('id').eq('user_id', userId),
       ])
 
       if (!existingMilestones?.length) {
@@ -70,9 +24,15 @@ export const AuthProvider = ({ children }) => {
       }
 
       if (!existingNodes?.length) {
-        const { data: insertedNodes } = await supabase.from('nodes').insert(
-          DEFAULT_NODES.map(n => ({ ...n, user_id: userId }))
-        ).select()
+        const { data: insertedNodes, error } = await supabase
+          .from('nodes')
+          .insert(DEFAULT_NODES.map(n => ({ ...n, user_id: userId })))
+          .select()
+
+        if (error || !insertedNodes?.length) {
+          console.error('Node insert failed:', error)
+          return
+        }
 
         const nodeMap = {}
         insertedNodes.forEach(n => { nodeMap[n.title] = n.id })
@@ -85,18 +45,92 @@ export const AuthProvider = ({ children }) => {
           }))
         )
       }
+    } catch (e) {
+      console.error('Seeding error:', e)
     } finally {
       seeding = false
+      seedingPromise = null
+    }
+  })()
+  return seedingPromise
+}
+
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null)
+  const [profile, setProfile] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const fetchingFor = useRef(null)
+
+  const fetchProfile = async (userId) => {
+    if (fetchingFor.current === userId) return
+    fetchingFor.current = userId
+
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single()
+
+      if (error?.code === 'PGRST116') {
+        const { data: newProfile, error: insertError } = await supabase
+          .from('profiles')
+          .insert({ id: userId })
+          .select()
+          .single()
+
+        if (insertError) { console.error('Profile insert error:', insertError); return }
+        await seedUserData(userId)
+        setProfile(newProfile)
+        return
+      }
+
+      if (error) { console.error('Profile fetch error:', error); return }
+
+      const { count } = await supabase
+        .from('nodes')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+
+      if (count === 0) await seedUserData(userId)
+
+      const { data: freshProfile } = await supabase
+        .from('profiles').select('*').eq('id', userId).single()
+
+      setProfile(freshProfile || data)
+    } finally {
+      fetchingFor.current = null
     }
   }
 
+  useEffect(() => {
+    let mounted = true
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!mounted) return
+      const u = session?.user ?? null
+      setUser(u)
+      if (u) fetchProfile(u.id)
+      setLoading(false)
+    })
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!mounted) return
+      const u = session?.user ?? null
+      setUser(u)
+      if (u) fetchProfile(u.id)
+      else { setProfile(null); fetchingFor.current = null }
+    })
+
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
+  }, [])
+
   const updateProfile = async (updates) => {
     const { data } = await supabase
-      .from('profiles')
-      .update(updates)
-      .eq('id', user.id)
-      .select()
-      .single()
+      .from('profiles').update(updates).eq('id', user.id).select().single()
     setProfile(data)
   }
 
@@ -112,7 +146,11 @@ export const AuthProvider = ({ children }) => {
       options: { redirectTo: window.location.origin + '/asa.polaris/' },
     })
 
-  const signOut = () => supabase.auth.signOut()
+  const signOut = () => {
+    fetchingFor.current = null
+    seeding = false
+    return supabase.auth.signOut()
+  }
 
   return (
     <AuthContext.Provider value={{ user, profile, loading, signInWithGoogle, signOut, updateProfile, addXP }}>
