@@ -19,8 +19,8 @@ const FitnessBridge = () => {
       const since = format(subDays(new Date(), 14), 'yyyy-MM-dd')
 
       const [w, m, wt] = await Promise.all([
-        supabase.from('workout_logs').select('*').eq('user_id', user.id).gte('log_date', since).order('log_date', { ascending: false }).limit(50),
-        supabase.from('meal_logs').select('*').eq('user_id', user.id).gte('log_date', since).order('log_date', { ascending: false }).limit(20),
+        supabase.from('workout_logs').select('*').eq('user_id', user.id).gte('log_date', since).order('log_date', { ascending: false }).limit(10),
+        supabase.from('meal_logs').select('*').eq('user_id', user.id).gte('log_date', since).order('log_date', { ascending: false }).limit(10),
         supabase.from('weight_logs').select('*').eq('user_id', user.id).order('log_date', { ascending: false }).limit(14),
       ])
 
