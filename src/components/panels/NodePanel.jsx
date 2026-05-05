@@ -121,6 +121,10 @@ const NodePanel = ({ node, onClose }) => {
   const scopeOrder = ['weekly', 'monthly', 'quarterly', 'yearly', '5yr']
 
   const nodeTypeMilestones = milestones.filter(m => {
+    // Exact match via note string (our new standard)
+    if (m.note && m.note.includes(`[Node: ${node.id}]`)) return true
+    
+    // Fallback keyword matching for legacy default milestones
     const titleLower = m.title.toLowerCase()
     if (node.type === 'career') return titleLower.includes('portfolio') || titleLower.includes('chaarg') || titleLower.includes('email') || titleLower.includes('application')
     if (node.type === 'academic') return titleLower.includes('dab') || titleLower.includes('survey') || titleLower.includes('moi') || titleLower.includes('ielts')
