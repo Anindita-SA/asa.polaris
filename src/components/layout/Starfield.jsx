@@ -22,7 +22,18 @@ const Starfield = () => {
   ], [])
 
   return (
-    <div className="starfield">
+    <div className="starfield" style={{
+      background: 'linear-gradient(45deg, #0b101e, #0a0a14, #0b101e, #130b1e)',
+      backgroundSize: '400% 400%',
+      animation: 'gradientBg 30s ease infinite'
+    }}>
+      <style>{`
+        @keyframes gradientBg {
+          0% { background-position: 0% 50% }
+          50% { background-position: 100% 50% }
+          100% { background-position: 0% 50% }
+        }
+      `}</style>
       {nebulae.map((n, i) => (
         <div
           key={i}

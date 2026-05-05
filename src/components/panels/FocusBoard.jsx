@@ -10,8 +10,9 @@ const FocusBoard = () => {
   const [focusItems, setFocusItems] = useState([])
   const [backburner, setBackburner] = useState([])
   const [showModal, setShowModal] = useState(null) // 'focus' | 'backburner'
-  const [form, setForm] = useState({ title: '', category: 'academic', why_now: '', why_deferred: '', context_snapshot: '', revisit_after: '' })
+  const [form, setForm] = useState({ title: '', category: 'academic', why_now: '', why_deferred: '', context_snapshot: '', revisit_after: '', linkedMilestone: '' })
   const [subtasks, setSubtasks] = useState({})
+  const [milestones, setMilestones] = useState([])
   const [breakdownTarget, setBreakdownTarget] = useState(null)
   const [taskDescription, setTaskDescription] = useState('')
   const [generatedSteps, setGeneratedSteps] = useState([])
@@ -19,7 +20,13 @@ const FocusBoard = () => {
   useEffect(() => {
     fetchFocus()
     fetchBackburner()
+    fetchMilestones()
   }, [])
+
+  const fetchMilestones = async () => {
+    const { data } = await supabase.from('milestones').select('id, title').eq('user_id', user.id).neq('status', 'done')
+    setMilestones(data || [])
+  }
 
   const fetchFocus = async () => {
     const { data } = await supabase.from('focus_items').select('*').eq('user_id', user.id).eq('status', 'active').order('created_at')
@@ -46,8 +53,9 @@ const FocusBoard = () => {
   const addFocus = async () => {
     if (focusItems.length >= 3) return
     if (!form.title) return
-    await supabase.from('focus_items').insert({ title: form.title, category: form.category, why_now: form.why_now, user_id: user.id })
-    setForm(f => ({ ...f, title: '', why_now: '' }))
+    const finalWhyNow = form.linkedMilestone ? `Milestone: ${form.linkedMilestone}` : form.why_now
+    await supabase.from('focus_items').insert({ title: form.title, category: form.category, why_now: finalWhyNow, user_id: user.id })
+    setForm(f => ({ ...f, title: '', why_now: '', linkedMilestone: '' }))
     setShowModal(null)
     fetchFocus()
   }
@@ -242,8 +250,15 @@ const FocusBoard = () => {
                   value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}>
                   {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
-                <input placeholder="Why now? (optional)" className="w-full bg-stardust/50 text-sm text-starlight border border-blue-900/20 rounded-lg px-3 py-2 outline-none focus:border-pulsar/40 font-body"
-                  value={form.why_now} onChange={e => setForm(f => ({ ...f, why_now: e.target.value }))} />
+                <select className="w-full bg-stardust/50 text-sm text-dim border border-blue-900/20 rounded-lg px-3 py-2 outline-none"
+                  value={form.linkedMilestone} onChange={e => setForm(f => ({ ...f, linkedMilestone: e.target.value, why_now: '' }))}>
+                  <option value="">No milestone linked</option>
+                  {milestones.map(m => <option key={m.id} value={m.title}>{m.title}</option>)}
+                </select>
+                {!form.linkedMilestone && (
+                  <input placeholder="Why now? (optional)" className="w-full bg-stardust/50 text-sm text-starlight border border-blue-900/20 rounded-lg px-3 py-2 outline-none focus:border-pulsar/40 font-body"
+                    value={form.why_now} onChange={e => setForm(f => ({ ...f, why_now: e.target.value }))} />
+                )}
                 <button onClick={addFocus} disabled={focusItems.length >= 3} className="w-full py-2 bg-pulsar/20 border border-pulsar/30 text-pulsar text-sm font-display tracking-wider rounded-lg hover:bg-pulsar/30 transition-colors disabled:opacity-40">
                   {focusItems.length >= 3 ? 'FOCUS FULL (max 3)' : 'ADD TO FOCUS'}
                 </button>
@@ -252,7 +267,7 @@ const FocusBoard = () => {
               <>
                 <input placeholder="Why deferred?" className="w-full bg-stardust/50 text-sm text-starlight border border-blue-900/20 rounded-lg px-3 py-2 outline-none focus:border-pulsar/40 font-body"
                   value={form.why_deferred} onChange={e => setForm(f => ({ ...f, why_deferred: e.target.value }))} />
-                <textarea placeholder="Context snapshot — what you know so far" rows={2} className="w-full bg-stardust/50 text-sm text-starlight border border-blue-900/20 rounded-lg px-3 py-2 outline-none focus:border-pulsar/40 font-body resize-none"
+                <textarea placeholder="Context snapshot - what you know so far" rows={2} className="w-full bg-stardust/50 text-sm text-starlight border border-blue-900/20 rounded-lg px-3 py-2 outline-none focus:border-pulsar/40 font-body resize-none"
                   value={form.context_snapshot} onChange={e => setForm(f => ({ ...f, context_snapshot: e.target.value }))} />
                 <input type="date" className="w-full bg-stardust/50 text-sm text-dim border border-blue-900/20 rounded-lg px-3 py-2 outline-none"
                   value={form.revisit_after} onChange={e => setForm(f => ({ ...f, revisit_after: e.target.value }))} />

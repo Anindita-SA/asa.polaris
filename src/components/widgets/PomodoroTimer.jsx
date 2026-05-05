@@ -1,97 +1,311 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { Pause, Play, RotateCcw } from 'lucide-react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
+import { Settings, X, Maximize2, Minimize2, RotateCcw } from 'lucide-react'
 
-const PomodoroTimer = ({ nodes = [] }) => {
+import Starfield from '../layout/Starfield'
+
+const MODE_CONFIG = {
+  focus: { label: 'Pomodoro', default: 25, color: '#3b82f6' },
+  short: { label: 'Short Break', default: 5, color: '#10b981' },
+  long: { label: 'Long Break', default: 15, color: '#8b5cf6' },
+}
+
+const PomodoroTimer = () => {
   const { user } = useAuth()
+  const [mode, setMode] = useState('focus')
   const [isRunning, setIsRunning] = useState(false)
-  const [isBreak, setIsBreak] = useState(false)
-  const [workMinutes, setWorkMinutes] = useState(25)
-  const [breakMinutes, setBreakMinutes] = useState(5)
-  const [remaining, setRemaining] = useState(25 * 60)
-  const [selectedNodeId, setSelectedNodeId] = useState('')
-  const [label, setLabel] = useState('')
-  const intervalRef = useRef(null)
+  const [autoRestart, setAutoRestart] = useState(false)
+  const [isExpanded, setIsExpanded] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
+  const [durations, setDurations] = useState({ focus: 25, short: 5, long: 15 })
+  const [timeLeft, setTimeLeft] = useState(25 * 60)
+  const [linkedItem, setLinkedItem] = useState('')
+  const [pos, setPos] = useState({ x: -1, y: -1 })
+  const [sessionStart, setSessionStart] = useState(null)
+  const [nodes, setNodes] = useState([])
 
-  const totalSeconds = (isBreak ? breakMinutes : workMinutes) * 60
-  const progress = 1 - remaining / totalSeconds
-  const ring = useMemo(() => {
-    const r = 34
-    const c = 2 * Math.PI * r
-    return { r, c, offset: c * (1 - progress) }
-  }, [progress])
+  const isDragging = useRef(false)
+  const dragOffset = useRef({ x: 0, y: 0 })
+  const widgetRef = useRef(null)
 
   useEffect(() => {
-    clearInterval(intervalRef.current)
+    if (user?.id) {
+      supabase.from('nodes').select('*').eq('user_id', user.id).then(({ data }) => {
+        if (data) setNodes(data)
+      })
+    }
+  }, [user?.id])
+
+  // Init position bottom-right
+  useEffect(() => {
+    setPos({ x: window.innerWidth - 290, y: window.innerHeight - 230 })
+  }, [])
+
+  const totalSeconds = durations[mode] * 60
+  const color = MODE_CONFIG[mode].color
+
+  // Tick
+  useEffect(() => {
     if (!isRunning) return
-    intervalRef.current = setInterval(() => {
-      setRemaining(prev => {
-        if (prev > 1) return prev - 1
-        return 0
+    const id = setInterval(() => {
+      setTimeLeft(t => {
+        if (t <= 1) {
+          // Log session if focus mode
+          if (mode === 'focus' && sessionStart) {
+            const mins = Math.round((Date.now() - sessionStart) / 60000)
+            if (mins > 0) {
+              supabase.from('pomodoro_logs').insert({
+                user_id: user.id,
+                duration_minutes: mins,
+                label: linkedItem || null,
+              }).then(() => { })
+            }
+          }
+          if (autoRestart) {
+            const next = mode === 'focus' ? 'short' : 'focus'
+            setMode(next)
+            setTimeLeft(durations[next] * 60)
+            setSessionStart(Date.now())
+            return durations[next] * 60
+          }
+          setIsRunning(false)
+          setSessionStart(null)
+          return 0
+        }
+        return t - 1
       })
     }, 1000)
-    return () => clearInterval(intervalRef.current)
-  }, [isRunning])
+    return () => clearInterval(id)
+  }, [isRunning, autoRestart, mode, durations, sessionStart, linkedItem, user?.id])
 
+  // Reset on mode change
   useEffect(() => {
-    if (remaining > 0) return
-    const completeSession = async () => {
-      if (!isBreak) {
-        await supabase.from('pomodoro_logs').insert({
-          user_id: user.id,
-          date: new Date().toISOString().slice(0, 10),
-          duration_minutes: workMinutes,
-          node_id: selectedNodeId || null,
-          label: label || null,
-        })
-      }
-      const nextIsBreak = !isBreak
-      setIsBreak(nextIsBreak)
-      setRemaining((nextIsBreak ? breakMinutes : workMinutes) * 60)
-      setIsRunning(false)
-    }
-    completeSession()
-  }, [remaining])
-
-  const format = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
-  const reset = () => {
+    setTimeLeft(durations[mode] * 60)
     setIsRunning(false)
-    setIsBreak(false)
-    setRemaining(workMinutes * 60)
+    setSessionStart(null)
+  }, [mode])
+
+  const handleClockClick = () => {
+    if (!isRunning) setSessionStart(Date.now())
+    else if (timeLeft === totalSeconds) setSessionStart(null)
+    setIsRunning(r => !r)
   }
 
-  return (
-    <div className="fixed right-4 bottom-4 z-[60] glass border border-blue-900/30 rounded-2xl p-3 w-64 space-y-2">
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-display tracking-wider text-starlight">{isBreak ? 'BREAK' : 'FOCUS'}</p>
-        <div className="flex gap-2 text-xs text-dim">
-          <input type="number" value={workMinutes} min={10} max={90} onChange={e => setWorkMinutes(parseInt(e.target.value || '25', 10))}
-            className="w-12 bg-stardust/60 rounded px-1.5 py-0.5 outline-none" />
-          <input type="number" value={breakMinutes} min={3} max={30} onChange={e => setBreakMinutes(parseInt(e.target.value || '5', 10))}
-            className="w-12 bg-stardust/60 rounded px-1.5 py-0.5 outline-none" />
+  const handleReset = (e) => {
+    e.stopPropagation()
+    setTimeLeft(durations[mode] * 60)
+    setIsRunning(false)
+    setSessionStart(null)
+  }
+
+  // Drag
+  const onMouseDown = (e) => {
+    if (isExpanded || e.target.closest('button') || e.target.closest('select')) return
+    isDragging.current = true
+    dragOffset.current = { x: e.clientX - pos.x, y: e.clientY - pos.y }
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('mouseup', onMouseUp)
+  }
+
+  const onMouseMove = useCallback((e) => {
+    if (!isDragging.current) return
+    setPos({ x: e.clientX - dragOffset.current.x, y: e.clientY - dragOffset.current.y })
+  }, [])
+
+  const onMouseUp = useCallback(() => {
+    isDragging.current = false
+    window.removeEventListener('mousemove', onMouseMove)
+    window.removeEventListener('mouseup', onMouseUp)
+  }, [onMouseMove])
+
+  const mins = String(Math.floor(timeLeft / 60)).padStart(2, '0')
+  const secs = String(timeLeft % 60).padStart(2, '0')
+  const circumference = 2 * Math.PI * 54
+  const dashoffset = circumference * (1 - timeLeft / totalSeconds)
+
+  // ── EXPANDED (fullscreen) ────────────────────────────────────────────────
+  if (isExpanded) return (
+    <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-void/90 overflow-hidden">
+      {/* Animated Starfield Background */}
+      <div className="absolute inset-0 z-0">
+        <Starfield />
+      </div>
+
+      <div className="relative z-10 flex flex-col items-center w-full max-w-sm">
+        {/* Mode tabs */}
+        <div className="flex w-full mb-8 bg-blue-900/10 rounded-xl p-1 border border-blue-900/20">
+          {Object.entries(MODE_CONFIG).map(([key, cfg]) => (
+            <button key={key} onClick={() => setMode(key)}
+              className={`flex-1 py-2 rounded-lg text-sm font-body transition-all ${mode === key
+                  ? 'text-starlight shadow-sm'
+                  : 'text-dim hover:text-starlight hover:bg-blue-900/10'
+                }`}
+              style={mode === key ? { background: color } : {}}>
+              {cfg.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Linked Task Selector */}
+        <div className="mb-8">
+          <select value={linkedItem} onChange={e => setLinkedItem(e.target.value)}
+            className="bg-stardust text-sm text-starlight border border-blue-900/30 rounded-lg px-4 py-2 outline-none font-body min-w-[200px] text-center appearance-none shadow-lg">
+            <option value="">No Node Linked</option>
+            {nodes.map(n => <option key={n.id} value={n.title}>{n.title}</option>)}
+          </select>
+        </div>
+
+        {/* Giant clock */}
+        <div className="relative w-80 h-80 flex items-center justify-center cursor-pointer group"
+          onClick={handleClockClick}>
+          <svg viewBox="0 0 120 120" className="absolute inset-0 w-full h-full -rotate-90 drop-shadow-2xl">
+            <circle cx="60" cy="60" r="54" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="4" />
+            <circle cx="60" cy="60" r="54" fill="none" stroke={color} strokeWidth="4"
+              strokeDasharray={circumference} strokeDashoffset={dashoffset}
+              strokeLinecap="round" style={{ transition: 'stroke-dashoffset 1s linear' }} />
+          </svg>
+          <div className="relative text-center select-none">
+            <p className="text-sm font-body text-dim mb-2 uppercase tracking-widest">{MODE_CONFIG[mode].label}</p>
+            <p className="text-7xl font-display text-starlight tracking-tight leading-none mb-2">
+              {mins}:{secs}
+            </p>
+            <p className="text-sm font-body transition-opacity"
+              style={{ color, opacity: isRunning ? 1 : 0.8 }}>
+              {isRunning ? 'Running...' : 'Ready?'}
+            </p>
+          </div>
+        </div>
+
+        {/* Controls */}
+        <div className="flex items-center gap-4 mt-10">
+          <button onClick={handleClockClick}
+            className="w-14 h-14 rounded-xl border border-blue-900/30 text-starlight bg-blue-900/20 hover:bg-blue-900/40 flex items-center justify-center transition-all shadow-lg">
+            {isRunning ? (
+              <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+            ) : (
+              <svg className="w-6 h-6 fill-current ml-1" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            )}
+          </button>
+          <button onClick={handleReset}
+            className="w-12 h-12 rounded-xl border border-blue-900/30 text-dim bg-stardust/40 hover:bg-stardust/80 hover:text-starlight flex items-center justify-center transition-all shadow-lg">
+            <RotateCcw className="w-5 h-5" />
+          </button>
+          <button onClick={() => setAutoRestart(r => !r)}
+            title="Auto-restart loop"
+            className={`w-12 h-12 rounded-xl border border-blue-900/30 flex items-center justify-center transition-all shadow-lg text-2xl pb-1 ${autoRestart ? 'bg-blue-900/20 text-starlight' : 'bg-stardust/40 text-dim hover:text-starlight hover:bg-stardust/80'}`}
+            style={autoRestart ? { borderColor: color, color } : {}}>
+            ∞
+          </button>
+        </div>
+
+        {/* Quick input / minimize */}
+        <div className="mt-8 flex items-center gap-3 w-full">
+          <input type="text" placeholder="What's cookin?" value={linkedItem} onChange={e => setLinkedItem(e.target.value)}
+            className="flex-1 bg-stardust/50 text-starlight border border-blue-900/30 rounded-xl px-4 py-3 outline-none font-body text-sm placeholder:text-dim text-center" />
+          <button onClick={() => setIsExpanded(false)}
+            className="w-11 h-11 rounded-xl border border-blue-900/30 text-dim bg-stardust/40 hover:bg-stardust/80 hover:text-starlight flex items-center justify-center transition-all flex-shrink-0">
+            <Minimize2 className="w-5 h-5" />
+          </button>
         </div>
       </div>
-      <div className="flex items-center gap-3">
-        <svg width="82" height="82">
-          <circle cx="41" cy="41" r={ring.r} stroke="#1e2d4a" strokeWidth="6" fill="none" />
-          <circle cx="41" cy="41" r={ring.r} stroke="#3b82f6" strokeWidth="6" fill="none"
-            strokeDasharray={ring.c} strokeDashoffset={ring.offset} strokeLinecap="round" transform="rotate(-90 41 41)" />
-          <text x="41" y="45" textAnchor="middle" fill="#e2e8f0" fontSize="12" fontFamily="JetBrains Mono">{format(remaining)}</text>
-        </svg>
-        <div className="flex-1 space-y-2">
-          <div className="flex gap-1">
-            <button onClick={() => setIsRunning(v => !v)} className="p-1.5 rounded bg-pulsar/20 text-pulsar"><Play className="w-3.5 h-3.5" /></button>
-            <button onClick={() => setIsRunning(false)} className="p-1.5 rounded bg-stardust text-dim"><Pause className="w-3.5 h-3.5" /></button>
-            <button onClick={reset} className="p-1.5 rounded bg-stardust text-dim"><RotateCcw className="w-3.5 h-3.5" /></button>
-          </div>
-          <select value={selectedNodeId} onChange={e => setSelectedNodeId(e.target.value)} className="w-full bg-stardust/60 text-xs rounded px-2 py-1">
-            <option value="">No node linked</option>
-            {nodes.map(node => <option key={node.id} value={node.id}>{node.title}</option>)}
-          </select>
-          <input value={label} onChange={e => setLabel(e.target.value)} placeholder="What are you working on?"
-            className="w-full bg-stardust/60 text-xs rounded px-2 py-1 outline-none text-starlight" />
+    </div>
+  )
+
+  // ── WIDGET (compact, draggable) ──────────────────────────────────────────
+  if (pos.x < 0) return null
+
+  return (
+    <div ref={widgetRef}
+      className="fixed z-40 glass border border-blue-900/20 rounded-2xl select-none"
+      style={{ left: pos.x, top: pos.y, width: 260 }}
+      onMouseDown={onMouseDown}>
+
+      {/* Header */}
+      <div className="flex items-center justify-between px-3 pt-3 pb-1">
+        <div className="flex gap-1">
+          {Object.entries(MODE_CONFIG).map(([key, cfg]) => (
+            <button key={key} onClick={() => setMode(key)}
+              className={`px-2 py-0.5 text-xs rounded font-body transition-all ${mode === key ? 'text-starlight' : 'text-dim hover:text-starlight'
+                }`}
+              style={mode === key ? { color, borderBottom: `1px solid ${color}` } : {}}>
+              {key === 'focus' ? 'Focus' : key === 'short' ? 'Short' : 'Long'}
+            </button>
+          ))}
         </div>
+        <div className="flex gap-1">
+          <button onClick={() => setShowSettings(s => !s)}
+            className="text-dim hover:text-starlight transition-colors p-1">
+            <Settings className="w-3 h-3" />
+          </button>
+          <button onClick={() => setIsExpanded(true)}
+            className="text-dim hover:text-starlight transition-colors p-1">
+            <Maximize2 className="w-3 h-3" />
+          </button>
+        </div>
+      </div>
+
+      {/* Settings panel */}
+      {showSettings && (
+        <div className="px-3 pb-2 space-y-1">
+          {Object.entries(durations).map(([key, val]) => (
+            <div key={key} className="flex items-center justify-between">
+              <span className="text-xs text-dim font-body capitalize">{key}</span>
+              <input type="number" value={val} min={1} max={60}
+                onChange={e => {
+                  const v = parseInt(e.target.value) || 1
+                  setDurations(d => ({ ...d, [key]: v }))
+                  if (key === mode) setTimeLeft(v * 60)
+                }}
+                className="w-14 bg-stardust text-xs text-starlight border border-blue-900/20 rounded px-2 py-0.5 outline-none font-mono text-center" />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Clock face - click to start/pause */}
+      <div className="flex flex-col items-center px-3 pb-3">
+        <div className="relative w-28 h-28 flex items-center justify-center cursor-pointer group mt-1"
+          onClick={handleClockClick}>
+          <svg viewBox="0 0 120 120" className="absolute inset-0 w-full h-full -rotate-90">
+            <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="4" />
+            <circle cx="60" cy="60" r="50" fill="none" stroke={color} strokeWidth="4"
+              strokeDasharray={2 * Math.PI * 50}
+              strokeDashoffset={(2 * Math.PI * 50) * (1 - timeLeft / totalSeconds)}
+              strokeLinecap="round" style={{ transition: 'stroke-dashoffset 1s linear' }} />
+          </svg>
+          <div className="relative text-center">
+            <p className="text-xl font-mono text-starlight leading-none">{mins}:{secs}</p>
+            <p className="text-xs font-body mt-0.5 opacity-60"
+              style={{ color }}>
+              {isRunning ? '▌▌ pause' : '▶ start'}
+            </p>
+          </div>
+        </div>
+
+        {/* Controls row */}
+        <div className="flex items-center gap-3 mt-2">
+          <button onClick={handleReset}
+            className="text-dim hover:text-starlight transition-colors p-1">
+            <RotateCcw className="w-3.5 h-3.5" />
+          </button>
+          <button onClick={() => setAutoRestart(r => !r)}
+            title="Auto-restart loop"
+            className={`text-lg leading-none transition-all px-1 ${autoRestart ? 'opacity-100' : 'opacity-30 hover:opacity-60'
+              }`}
+            style={autoRestart ? { color } : { color: '#64748b' }}>
+            ∞
+          </button>
+        </div>
+
+        {/* Task link */}
+        {nodes.length > 0 && (
+          <select value={linkedItem} onChange={e => setLinkedItem(e.target.value)}
+            className="mt-2 w-full bg-stardust/40 text-xs text-dim border border-blue-900/10 rounded-lg px-2 py-1 outline-none font-body">
+            <option value="">No node linked</option>
+            {nodes.map(n => <option key={n.id} value={n.title}>{n.title}</option>)}
+          </select>
+        )}
       </div>
     </div>
   )
