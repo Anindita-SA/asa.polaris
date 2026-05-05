@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { Settings, X, Maximize2, Minimize2, RotateCcw } from 'lucide-react'
@@ -11,19 +11,51 @@ const MODE_CONFIG = {
   long: { label: 'Long Break', default: 15, color: '#8b5cf6' },
 }
 
+const POMODORO_STORAGE_KEY = 'polaris_pomodoro_state'
+const loadSavedState = () => {
+  try {
+    const s = localStorage.getItem(POMODORO_STORAGE_KEY)
+    if (s) {
+      const parsed = JSON.parse(s)
+      if (parsed.isRunning && parsed.lastTick) {
+        const elapsedSecs = Math.floor((Date.now() - parsed.lastTick) / 1000)
+        parsed.timeLeft = Math.max(0, parsed.timeLeft - elapsedSecs)
+        if (parsed.timeLeft === 0) parsed.isRunning = false
+      }
+      if (parsed) {
+        console.log('Pomodoro loaded from storage:', parsed)
+      }
+      return parsed
+    }
+  } catch (e) { console.error('Failed to load pomodoro state', e) }
+  return null
+}
+
+let cachedState = null
+const getInitialState = () => {
+  if (cachedState) return cachedState
+  cachedState = loadSavedState() || {}
+  return cachedState
+}
+
 const PomodoroTimer = () => {
   const { user } = useAuth()
-  const [mode, setMode] = useState('focus')
-  const [isRunning, setIsRunning] = useState(false)
-  const [autoRestart, setAutoRestart] = useState(false)
-  const [isExpanded, setIsExpanded] = useState(false)
+  
+  // Use lazy initializers so we only read storage once per mount and never rely on useMemo memoization
+  const [mode, setMode] = useState(() => getInitialState().mode || 'focus')
+  const [isRunning, setIsRunning] = useState(() => getInitialState().isRunning || false)
+  const [autoRestart, setAutoRestart] = useState(() => getInitialState().autoRestart || false)
+  const [isExpanded, setIsExpanded] = useState(() => getInitialState().isExpanded || false)
   const [showSettings, setShowSettings] = useState(false)
-  const [durations, setDurations] = useState({ focus: 25, short: 5, long: 15 })
-  const [timeLeft, setTimeLeft] = useState(25 * 60)
-  const [linkedItem, setLinkedItem] = useState('')
-  const [comment, setComment] = useState('')
+  const [durations, setDurations] = useState(() => getInitialState().durations || { focus: 25, short: 5, long: 15 })
+  const [timeLeft, setTimeLeft] = useState(() => {
+    const s = getInitialState()
+    return s.timeLeft ?? (s.durations?.focus ? s.durations.focus * 60 : 25 * 60)
+  })
+  const [linkedItem, setLinkedItem] = useState(() => getInitialState().linkedItem || '')
+  const [comment, setComment] = useState(() => getInitialState().comment || '')
   const [pos, setPos] = useState({ x: -1, y: -1 })
-  const [sessionStart, setSessionStart] = useState(null)
+  const [sessionStart, setSessionStart] = useState(() => getInitialState().sessionStart || null)
   const [nodes, setNodes] = useState([])
 
   const isDragging = useRef(false)
@@ -45,6 +77,15 @@ const PomodoroTimer = () => {
 
   const totalSeconds = durations[mode] * 60
   const color = MODE_CONFIG[mode].color
+
+  // Persist state
+  useEffect(() => {
+    localStorage.setItem(POMODORO_STORAGE_KEY, JSON.stringify({
+      mode, isRunning, autoRestart, isExpanded, durations, timeLeft, linkedItem, comment, sessionStart,
+      lastTick: Date.now()
+    }))
+  }, [mode, isRunning, autoRestart, isExpanded, durations, timeLeft, linkedItem, comment, sessionStart])
+
 
   // Tick
   useEffect(() => {
@@ -82,12 +123,15 @@ const PomodoroTimer = () => {
     return () => clearInterval(id)
   }, [isRunning, autoRestart, mode, durations, sessionStart, linkedItem, comment, user?.id])
 
-  // Reset on mode change
+  // Only reset the timer if the mode actually changes (ignores Strict Mode double mounts)
+  const prevModeRef = useRef(mode)
   useEffect(() => {
+    if (prevModeRef.current === mode) return
+    prevModeRef.current = mode
     setTimeLeft(durations[mode] * 60)
     setIsRunning(false)
     setSessionStart(null)
-  }, [mode])
+  }, [mode, durations])
 
   const handleClockClick = () => {
     if (!isRunning) setSessionStart(Date.now())
@@ -220,10 +264,10 @@ const PomodoroTimer = () => {
 
   return (
     <div ref={widgetRef}
-      className="fixed z-40 glass border border-blue-900/20 rounded-2xl select-none"
+      className="fixed z-40 glass border border-blue-900/20 rounded-2xl select-none group"
       style={{ left: pos.x, top: pos.y, width: 260 }}
       onMouseDown={onMouseDown}>
-
+      
       {/* Header */}
       <div className="flex items-center justify-between px-3 pt-3 pb-1">
         <div className="flex gap-1">
