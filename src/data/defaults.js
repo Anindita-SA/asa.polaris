@@ -19,17 +19,17 @@ export const DEFAULT_NODES = [
 
 export const DEFAULT_SUBNODES = [
   // Career
-  { type: 'career', title: 'Portfolio', description: 'anindita-sa.github.io — projects, case studies', x_pos: 0.1, y_pos: 0.15, parentTitle: 'Career' },
-  { type: 'career', title: 'MSc Applications', description: 'TU Delft IPD, TU/e — 36-program tracker', x_pos: 0.2, y_pos: 0.12, parentTitle: 'Career' },
+  { type: 'career', title: 'Portfolio', description: 'anindita-sa.github.io - projects, case studies', x_pos: 0.1, y_pos: 0.15, parentTitle: 'Career' },
+  { type: 'career', title: 'MSc Applications', description: 'TU Delft IPD, TU/e - 36-program tracker', x_pos: 0.2, y_pos: 0.12, parentTitle: 'Career' },
   { type: 'career', title: 'CHAARG', description: 'LiPo mod board PCB project', x_pos: 0.3, y_pos: 0.1, parentTitle: 'Career' },
   // Academic
   { type: 'academic', title: 'DAB Converter', description: 'Research under Dr. Vignesh Kumar', x_pos: 0.7, y_pos: 0.12, parentTitle: 'Academics' },
-  { type: 'academic', title: 'Survey Paper', description: 'DAB control strategies — IEEE Access / Energies', x_pos: 0.82, y_pos: 0.15, parentTitle: 'Academics' },
+  { type: 'academic', title: 'Survey Paper', description: 'DAB control strategies - IEEE Access / Energies', x_pos: 0.82, y_pos: 0.15, parentTitle: 'Academics' },
   { type: 'academic', title: 'Coursework', description: 'PSPS, MPMC, EEE core', x_pos: 0.88, y_pos: 0.25, parentTitle: 'Academics' },
   // Self
-  { type: 'self', title: 'Fitness', description: 'Greek Commoner Workout — Athena physique', x_pos: 0.35, y_pos: 0.88, parentTitle: 'Self' },
+  { type: 'self', title: 'Fitness', description: 'Greek Commoner Workout - Athena physique', x_pos: 0.35, y_pos: 0.88, parentTitle: 'Self' },
   { type: 'self', title: 'Creative', description: 'Substack, conservation art, Deskimon', x_pos: 0.5, y_pos: 0.92, parentTitle: 'Self' },
-  { type: 'self', title: 'Financial', description: 'FI roadmap — entrepreneurship within 7-10yr', x_pos: 0.65, y_pos: 0.88, parentTitle: 'Self' },
+  { type: 'self', title: 'Financial', description: 'FI roadmap - entrepreneurship within 7-10yr', x_pos: 0.65, y_pos: 0.88, parentTitle: 'Self' },
 ]
 
 export const LEVEL_NAMES = [

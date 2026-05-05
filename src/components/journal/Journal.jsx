@@ -1,17 +1,32 @@
 import { useEffect, useState, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
-import { Camera, Plus, Check, X, Flame } from 'lucide-react'
-import { format, subDays, eachDayOfInterval, startOfDay } from 'date-fns'
+import { Camera, Plus, Check, X, Flame, ChevronLeft, ChevronRight, Calendar } from 'lucide-react'
+import { format, subDays, eachDayOfInterval, startOfDay, isToday, addDays } from 'date-fns'
+import YearInPixels from './YearInPixels'
+
+const MOODS = [
+  { id: 'amazing', label: 'Amazing', color: 'bg-blue-500' },
+  { id: 'average', label: 'Average', color: 'bg-slate-400' },
+  { id: 'ehh', label: 'Ehh', color: 'bg-teal-600' },
+  { id: 'stressed', label: 'Stressed', color: 'bg-amber-500' },
+  { id: 'angry', label: 'Angry/Sad', color: 'bg-purple-600' },
+  { id: 'sick', label: 'Sick/Bad', color: 'bg-red-500' },
+  { id: 'unspeakable', label: 'Unspeakable', color: 'bg-slate-900' }
+]
 
 const Journal = () => {
   const { user, addXP } = useAuth()
-  const [today] = useState(format(new Date(), 'yyyy-MM-dd'))
+  const [selectedDate, setSelectedDate] = useState(new Date())
+  const dateStr = format(selectedDate, 'yyyy-MM-dd')
+  
   const [highlight, setHighlight] = useState(null)
+  const [oneLiner, setOneLiner] = useState('')
   const [highlightText, setHighlightText] = useState('')
+  const [mood, setMood] = useState(null)
+  
   const [habits, setHabits] = useState([])
   const [habitLogs, setHabitLogs] = useState([])
-  const [heatmapLogs, setHeatmapLogs] = useState([])
   const [uploading, setUploading] = useState(false)
   const [addingHabit, setAddingHabit] = useState(false)
   const [newHabitTitle, setNewHabitTitle] = useState('')
@@ -22,12 +37,31 @@ const Journal = () => {
     fetchHighlight()
     fetchHabits()
     fetchHabitLogs()
-    fetchHeatmap()
-  }, [])
+    fetchMood()
+  }, [dateStr])
 
   const fetchHighlight = async () => {
-    const { data } = await supabase.from('highlights').select('*').eq('user_id', user.id).eq('date', today).single()
-    if (data) { setHighlight(data); setHighlightText(data.text || '') }
+    setHighlight(null)
+    setOneLiner('')
+    setHighlightText('')
+    
+    const { data } = await supabase.from('highlights').select('*').eq('user_id', user.id).eq('date', dateStr).order('id', { ascending: false }).limit(1)
+    if (data && data.length > 0) { 
+      setHighlight(data[0])
+      const fullText = data[0].text || ''
+      const parts = fullText.split('|||')
+      if (parts.length > 1) {
+        setOneLiner(parts[0])
+        setHighlightText(parts[1])
+      } else {
+        setHighlightText(fullText)
+      }
+    }
+  }
+
+  const fetchMood = async () => {
+    const { data } = await supabase.from('mood_logs').select('mood').eq('user_id', user.id).eq('log_date', dateStr).maybeSingle()
+    setMood(data?.mood || null)
   }
 
   const fetchHabits = async () => {
@@ -36,43 +70,59 @@ const Journal = () => {
   }
 
   const fetchHabitLogs = async () => {
-    const { data } = await supabase.from('habit_logs').select('*').eq('user_id', user.id).eq('date', today)
+    const { data } = await supabase.from('habit_logs').select('*').eq('user_id', user.id).eq('date', dateStr)
     setHabitLogs(data || [])
-  }
-
-  const fetchHeatmap = async () => {
-    const since = format(subDays(new Date(), 90), 'yyyy-MM-dd')
-    const { data } = await supabase.from('habit_logs').select('date').eq('user_id', user.id).gte('date', since)
-    setHeatmapLogs(data || [])
   }
 
   const saveHighlight = async () => {
     setSaving(true)
+    const combinedText = `${oneLiner}|||${highlightText}`
     if (highlight) {
-      await supabase.from('highlights').update({ text: highlightText }).eq('id', highlight.id)
+      await supabase.from('highlights').update({ text: combinedText }).eq('id', highlight.id)
     } else {
-      const { data } = await supabase.from('highlights').insert({ user_id: user.id, date: today, text: highlightText }).select().single()
-      setHighlight(data)
+      const { data } = await supabase.from('highlights').insert({ user_id: user.id, date: dateStr, text: combinedText }).select().limit(1)
+      if (data && data.length > 0) setHighlight(data[0])
       await addXP(20)
     }
     setSaving(false)
+  }
+
+  const saveMood = async (m) => {
+    setMood(m)
+    const { data: existing } = await supabase.from('mood_logs').select('id').eq('user_id', user.id).eq('log_date', dateStr).maybeSingle()
+    if (existing) {
+      await supabase.from('mood_logs').update({ mood: m }).eq('id', existing.id)
+    } else {
+      await supabase.from('mood_logs').insert({ user_id: user.id, log_date: dateStr, mood: m })
+      await addXP(5)
+    }
   }
 
   const uploadPhoto = async (e) => {
     const file = e.target.files[0]
     if (!file) return
     setUploading(true)
-    const path = `${user.id}/${today}-${Date.now()}`
+    const ext = file.name.split('.').pop()
+    const path = `${user.id}/${dateStr}-${Date.now()}.${ext}`
     const { error } = await supabase.storage.from('journal-photos').upload(path, file)
-    if (!error) {
-      const { data: { publicUrl } } = supabase.storage.from('journal-photos').getPublicUrl(path)
-      if (highlight) {
-        await supabase.from('highlights').update({ photo_url: publicUrl }).eq('id', highlight.id)
-        setHighlight(h => ({ ...h, photo_url: publicUrl }))
-      } else {
-        const { data } = await supabase.from('highlights').insert({ user_id: user.id, date: today, photo_url: publicUrl }).select().single()
-        setHighlight(data)
-      }
+    
+    if (error) {
+      alert(`Upload failed: ${error.message}`); setUploading(false); return
+    }
+
+    const { data: signData, error: signError } = await supabase.storage.from('journal-photos').createSignedUrl(path, 60 * 60 * 24 * 365 * 10)
+    if (signError) {
+      alert(`Could not sign URL: ${signError.message}`); setUploading(false); return
+    }
+
+    const publicUrl = signData.signedUrl
+    const combinedText = `${oneLiner}|||${highlightText}`
+    if (highlight) {
+      await supabase.from('highlights').update({ photo_url: publicUrl, text: combinedText }).eq('id', highlight.id)
+      setHighlight(h => ({ ...h, photo_url: publicUrl, text: combinedText }))
+    } else {
+      const { data } = await supabase.from('highlights').insert({ user_id: user.id, date: dateStr, text: combinedText, photo_url: publicUrl }).select().limit(1)
+      if (data && data.length > 0) setHighlight(data[0])
     }
     setUploading(false)
   }
@@ -83,162 +133,149 @@ const Journal = () => {
       await supabase.from('habit_logs').delete().eq('id', logged.id)
       setHabitLogs(prev => prev.filter(l => l.id !== logged.id))
     } else {
-      const { data } = await supabase.from('habit_logs').insert({ user_id: user.id, habit_id: habit.id, date: today }).select().single()
+      const { data } = await supabase.from('habit_logs').insert({ user_id: user.id, habit_id: habit.id, date: dateStr }).select().single()
       setHabitLogs(prev => [...prev, data])
       await addXP(habit.xp_reward || 10)
     }
-    fetchHeatmap()
   }
 
   const addHabit = async () => {
     if (!newHabitTitle) return
     await supabase.from('habits').insert({ user_id: user.id, title: newHabitTitle, xp_reward: 10 })
-    setNewHabitTitle('')
-    setAddingHabit(false)
-    fetchHabits()
+    setNewHabitTitle(''); setAddingHabit(false); fetchHabits()
   }
 
   const deleteHabit = async (id) => {
-    await supabase.from('habits').delete().eq('id', id)
-    fetchHabits()
+    await supabase.from('habits').delete().eq('id', id); fetchHabits()
   }
-
-  // Heatmap: last 91 days in 13 weeks
-  const heatmapDays = eachDayOfInterval({ start: subDays(new Date(), 90), end: new Date() })
-  const loggedDates = new Set(heatmapLogs.map(l => l.date))
-
-  // Streak calc
-  let streak = 0
-  for (let i = 0; i < 365; i++) {
-    const d = format(subDays(new Date(), i), 'yyyy-MM-dd')
-    if (loggedDates.has(d)) streak++
-    else break
-  }
-
-  const weeks = []
-  let week = []
-  heatmapDays.forEach((day, i) => {
-    week.push(day)
-    if (week.length === 7 || i === heatmapDays.length - 1) { weeks.push(week); week = [] }
-  })
 
   return (
-    <div className="h-full overflow-y-auto p-6">
+    <div className="h-full overflow-y-auto p-6 scrollbar-hide">
       <div className="max-w-2xl mx-auto space-y-6">
+        
+        {/* Date Navigator */}
+        <div className="flex items-center justify-between glass border border-blue-900/20 rounded-xl px-4 py-2">
+          <button onClick={() => setSelectedDate(subDays(selectedDate, 1))} className="p-2 hover:bg-white/5 rounded-lg text-dim hover:text-nova transition-all">
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          <div className="flex items-center gap-3">
+            <Calendar className="w-4 h-4 text-pulsar" />
+            <span className="font-display tracking-widest text-starlight text-sm uppercase">
+              {isToday(selectedDate) ? 'Today' : format(selectedDate, 'EEE, d MMM yyyy')}
+            </span>
+          </div>
+          <button onClick={() => setSelectedDate(addDays(selectedDate, 1))} className="p-2 hover:bg-white/5 rounded-lg text-dim hover:text-nova transition-all">
+            <ChevronRight className="w-5 h-5" />
+          </button>
+        </div>
 
-        {/* Daily Highlight */}
+        {/* Daily Highlight & Mood */}
         <div className="glass border border-blue-900/20 rounded-xl p-5">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-display tracking-wider text-starlight text-sm">Today's Highlight</h3>
-            <span className="text-xs font-mono text-dim">{format(new Date(), 'EEE, d MMM yyyy')}</span>
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="font-display tracking-wider text-starlight text-xs uppercase opacity-60">Daily Snapshot</h3>
+            <div className="flex gap-1.5">
+              {MOODS.map(m => (
+                <button
+                  key={m.id}
+                  onClick={() => saveMood(m.id)}
+                  title={m.label}
+                  className={`w-5 h-5 rounded-sm transition-all duration-300 ${
+                    mood === m.id ? `${m.color} ring-2 ring-nova ring-offset-2 ring-offset-void scale-110` : 'bg-stardust/10 hover:bg-stardust/20'
+                  }`}
+                />
+              ))}
+            </div>
           </div>
 
+          <input
+            placeholder="One liner for today..."
+            value={oneLiner}
+            onChange={e => setOneLiner(e.target.value)}
+            className="w-full bg-transparent text-xl text-gold font-display outline-none mb-3 placeholder:text-gold/20"
+          />
+
           <textarea
-            placeholder="What was the one thing that made today worth it?"
+            placeholder="Write more about your day here..."
             rows={3}
             value={highlightText}
             onChange={e => setHighlightText(e.target.value)}
-            className="w-full bg-transparent text-sm text-starlight/90 font-body italic outline-none resize-none placeholder:text-dim/40 leading-relaxed"
+            className="w-full bg-transparent text-sm text-starlight/90 font-body outline-none resize-none placeholder:text-dim/40 leading-relaxed mb-4"
           />
 
           {/* Photo */}
           {highlight?.photo_url ? (
-            <div className="mt-3 relative group">
-              <img src={highlight.photo_url} alt="highlight" className="w-full h-48 object-cover rounded-lg" />
-              <div className="absolute inset-0 bg-void/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
-                <button onClick={() => fileRef.current?.click()} className="text-xs text-starlight font-body">Change photo</button>
+            <div className="relative group rounded-xl overflow-hidden border border-blue-900/20">
+              <img src={highlight.photo_url} alt="highlight" className="w-full h-64 object-cover" />
+              <div className="absolute inset-0 bg-void/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <button onClick={() => fileRef.current?.click()} className="text-xs text-starlight font-body bg-void/80 px-4 py-2 rounded-full border border-blue-900/40">Change photo</button>
               </div>
             </div>
           ) : (
             <button onClick={() => fileRef.current?.click()}
-              className="mt-3 w-full border border-dashed border-blue-900/30 rounded-lg py-4 flex items-center justify-center gap-2 text-dim hover:text-nova hover:border-nova/30 transition-all text-xs font-body">
-              <Camera className="w-4 h-4" />
-              {uploading ? 'Uploading...' : 'Add a photo'}
+              className="w-full border border-dashed border-blue-900/30 rounded-xl py-8 flex flex-col items-center justify-center gap-3 text-dim hover:text-nova hover:border-nova/30 transition-all text-xs font-body group">
+              <Camera className="w-6 h-6 opacity-40 group-hover:opacity-100" />
+              {uploading ? 'Capturing...' : 'Capture a memory'}
             </button>
           )}
           <input type="file" accept="image/*" ref={fileRef} onChange={uploadPhoto} className="hidden" />
 
-          <div className="flex justify-end mt-3">
+          <div className="flex justify-end mt-6 pt-4 border-t border-blue-900/10">
             <button onClick={saveHighlight} disabled={saving}
-              className="text-xs px-4 py-1.5 bg-pulsar/20 border border-pulsar/30 text-pulsar font-display tracking-wider rounded-lg hover:bg-pulsar/30 transition-colors disabled:opacity-40">
-              {saving ? 'SAVING...' : 'SAVE'}
+              className="text-[10px] px-6 py-2 bg-pulsar/10 border border-pulsar/30 text-pulsar font-display tracking-widest rounded-lg hover:bg-pulsar/20 transition-all disabled:opacity-40 uppercase">
+              {saving ? 'Transmitting...' : 'Sync Entry'}
             </button>
           </div>
         </div>
 
-        {/* Habits */}
-        <div className="glass border border-blue-900/20 rounded-xl p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-display tracking-wider text-starlight text-sm flex items-center gap-2">
-              <Flame className="w-3.5 h-3.5 text-gold" />
-              Habits
-              <span className="text-xs font-mono text-gold ml-1">{streak > 0 ? `${streak}d streak` : ''}</span>
-            </h3>
-            <button onClick={() => setAddingHabit(!addingHabit)} className="text-dim hover:text-nova transition-colors">
-              <Plus className="w-4 h-4" />
-            </button>
-          </div>
+        {/* Side by side: Year in Pixels and Habit Spread */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Year in Pixels (Left) */}
+          <YearInPixels userId={user.id} onDateSelect={setSelectedDate} selectedDate={selectedDate} />
 
-          {addingHabit && (
-            <div className="flex gap-2 mb-4">
-              <input placeholder="New habit..." autoFocus
-                className="flex-1 bg-stardust/50 text-sm text-starlight border border-blue-900/20 rounded-lg px-3 py-1.5 outline-none focus:border-pulsar/40 font-body"
-                value={newHabitTitle} onChange={e => setNewHabitTitle(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && addHabit()} />
-              <button onClick={addHabit} className="text-emerald hover:text-emerald/70 transition-colors"><Check className="w-4 h-4" /></button>
+          {/* Habit Spread (Right) */}
+          <div className="glass border border-blue-900/40 rounded-xl p-5 shadow-lg bg-void/30">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="font-display tracking-wider text-starlight text-xs uppercase opacity-80 flex items-center gap-2">
+                <Flame className="w-3 h-3 text-gold" />
+                Monthly Habit Stack
+              </h3>
+              <button onClick={() => setAddingHabit(!addingHabit)} className="text-dim hover:text-nova transition-colors">
+                <Plus className="w-4 h-4" />
+              </button>
             </div>
-          )}
 
-          <div className="space-y-2">
-            {habits.map(habit => {
-              const done = habitLogs.some(l => l.habit_id === habit.id)
-              return (
-                <div key={habit.id} className="flex items-center gap-3 group">
-                  <button onClick={() => toggleHabit(habit)}
-                    className={`w-5 h-5 rounded border flex items-center justify-center flex-shrink-0 transition-all ${
-                      done ? 'border-emerald bg-emerald/20 text-emerald' : 'border-blue-900/40 text-transparent hover:border-pulsar/40'
-                    }`}>
-                    <Check className="w-3 h-3" />
-                  </button>
-                  <span className={`text-sm font-body flex-1 ${done ? 'text-dim line-through' : 'text-starlight/80'}`}>{habit.title}</span>
-                  {done && <span className="text-xs font-mono text-gold/60">+{habit.xp_reward || 10}xp</span>}
-                  <button onClick={() => deleteHabit(habit.id)} className="text-dim hover:text-danger opacity-0 group-hover:opacity-100 transition-all">
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
-              )
-            })}
-            {!habits.length && <p className="text-xs text-dim italic font-body">Add your first habit above.</p>}
-          </div>
-        </div>
-
-        {/* Heatmap */}
-        <div className="glass border border-blue-900/20 rounded-xl p-5">
-          <h3 className="font-display tracking-wider text-starlight text-sm mb-4">Activity — last 90 days</h3>
-          <div className="flex gap-1 overflow-x-auto pb-1">
-            {weeks.map((week, wi) => (
-              <div key={wi} className="flex flex-col gap-1">
-                {week.map((day, di) => {
-                  const dateStr = format(day, 'yyyy-MM-dd')
-                  const active = loggedDates.has(dateStr)
-                  const isToday = dateStr === today
-                  return (
-                    <div key={di} title={dateStr}
-                      className={`habit-cell border ${
-                        isToday ? 'border-pulsar/60' :
-                        active ? 'border-emerald/20' : 'border-blue-900/10'
-                      } ${active ? 'bg-emerald/40' : 'bg-stardust/30'}`}
-                    />
-                  )
-                })}
+            {addingHabit && (
+              <div className="flex gap-2 mb-6">
+                <input placeholder="New habit..." autoFocus
+                  className="flex-1 bg-stardust/10 text-sm text-starlight border border-blue-900/30 rounded-lg px-4 py-2 outline-none focus:border-pulsar/40 font-body"
+                  value={newHabitTitle} onChange={e => setNewHabitTitle(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && addHabit()} />
+                <button onClick={addHabit} className="px-4 bg-emerald/20 text-emerald border border-emerald/30 rounded-lg text-xs font-display">ADD</button>
               </div>
-            ))}
-          </div>
-          <div className="flex items-center gap-2 mt-3">
-            <div className="habit-cell bg-stardust/30 border border-blue-900/10" />
-            <span className="text-xs text-dim font-mono">no activity</span>
-            <div className="habit-cell bg-emerald/40 border border-emerald/20 ml-2" />
-            <span className="text-xs text-dim font-mono">active</span>
+            )}
+
+            <div className="grid grid-cols-1 gap-3">
+              {habits.map(habit => {
+                const done = habitLogs.some(l => l.habit_id === habit.id)
+                return (
+                  <div key={habit.id} className="flex items-center gap-4 p-3 rounded-lg border border-blue-900/20 bg-white/5 group hover:border-pulsar/30 transition-all">
+                    <button onClick={() => toggleHabit(habit)}
+                      className={`w-6 h-6 rounded flex items-center justify-center flex-shrink-0 transition-all border-2 ${
+                        done ? 'border-emerald bg-emerald/40 text-starlight shadow-[0_0_10px_rgba(16,185,129,0.3)]' : 'border-blue-900/40 text-transparent hover:border-pulsar/60'
+                      }`}>
+                      <Check className="w-4 h-4" />
+                    </button>
+                    <div className="flex-1">
+                      <p className={`text-sm font-body ${done ? 'text-dim line-through' : 'text-starlight'}`}>{habit.title}</p>
+                    </div>
+                    <button onClick={() => deleteHabit(habit.id)} className="text-dim hover:text-danger opacity-0 group-hover:opacity-100 transition-all p-1">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+            {!habits.length && <p className="text-xs text-dim italic font-body text-center py-4">No habits defined yet.</p>}
           </div>
         </div>
 

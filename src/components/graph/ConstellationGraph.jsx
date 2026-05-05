@@ -11,208 +11,204 @@ const NODE_COLORS = {
   self: '#10b981',
 }
 
-const NODE_SIZES = {
+const NODE_RADIUS = {
   root: 20,
   career: 16,
   academic: 16,
   self: 16,
-  sub: 8,
+  sub: 9,
 }
 
 const ConstellationGraph = ({ onNodeSelect }) => {
   const svgRef = useRef(null)
   const containerRef = useRef(null)
+  const simulationRef = useRef(null)
   const { user } = useAuth()
   const [nodes, setNodes] = useState([])
   const [loading, setLoading] = useState(true)
   const [dims, setDims] = useState({ width: 0, height: 0 })
-  const [showAddNode, setShowAddNode] = useState(false)
-  const [newNode, setNewNode] = useState({ title: '', type: 'career', parent_id: '', description: '' })
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [addForm, setAddForm] = useState({ title: '', type: 'career', description: '', parentTitle: '' })
 
   const fetchNodes = useCallback(async () => {
-    const { data } = await supabase.from('nodes').select('*').eq('user_id', user.id)
-    setNodes(data || [])
+    if (!user?.id) return
+    let { data, error } = await supabase.from('nodes').select('*').eq('user_id', user.id)
+    if (error) return
+
+    // Auto-create Polaris root if it doesn't exist
+    if (!data.some(n => n.type === 'root')) {
+      const { data: rootNode } = await supabase.from('nodes').insert({
+        user_id: user.id,
+        title: 'Polaris',
+        type: 'root',
+        description: 'Your North Star',
+        x_pos: 0.5,
+        y_pos: 0.5
+      }).select().single()
+      if (rootNode) data = [...data, rootNode]
+    }
+    
+    setNodes(data)
     setLoading(false)
-  }, [user.id])
+  }, [user?.id])
 
   useEffect(() => { fetchNodes() }, [fetchNodes])
 
-  // ResizeObserver so SVG always knows its real dimensions
   useEffect(() => {
     if (!containerRef.current) return
     const ro = new ResizeObserver(entries => {
       const { width, height } = entries[0].contentRect
-      setDims({ width, height })
+      if (width > 0 && height > 0) setDims({ width, height })
     })
     ro.observe(containerRef.current)
     return () => ro.disconnect()
   }, [])
 
   useEffect(() => {
-    if (!nodes.length || !svgRef.current || !dims.width) return
+    if (!nodes.length || !svgRef.current || !dims.width || !dims.height) return
 
     const { width, height } = dims
+    if (simulationRef.current) simulationRef.current.stop()
 
     const svg = d3.select(svgRef.current)
     svg.selectAll('*').remove()
 
-    // Defs: glow filter
-    const defs = svg.append('defs')
-    const filter = defs.append('filter').attr('id', 'glow')
-    filter.append('feGaussianBlur').attr('stdDeviation', '4').attr('result', 'coloredBlur')
-    const feMerge = filter.append('feMerge')
-    feMerge.append('feMergeNode').attr('in', 'coloredBlur')
-    feMerge.append('feMergeNode').attr('in', 'SourceGraphic')
-
-    const prepared = nodes.map(n => ({
-      ...n,
-      x: (n.x_pos || 0.5) * width,
-      y: (n.y_pos || 0.5) * height,
-    }))
-
-    // Build links
-    const links = []
-    prepared.forEach(n => {
-      if (n.parent_id) {
-        const parent = prepared.find(p => p.id === n.parent_id)
-        if (parent) links.push({ source: parent, target: n })
+    const nodeData = nodes.map(n => {
+      const isXValid = n.x_pos !== null && Number.isFinite(n.x_pos)
+      const isYValid = n.y_pos !== null && Number.isFinite(n.y_pos)
+      return {
+        ...n,
+        x: isXValid ? n.x_pos * width : width / 2 + (Math.random() - 0.5) * 50,
+        y: isYValid ? n.y_pos * height : height / 2 + (Math.random() - 0.5) * 50,
       }
     })
 
-    const linkLayer = svg.append('g')
-    const nodeLayer = svg.append('g')
+    const nodeById = {}
+    nodeData.forEach(n => { nodeById[n.id] = n })
 
-    const linkSelection = linkLayer.selectAll('line')
-      .data(links)
-      .enter().append('line')
-      .attr('stroke', d => `${NODE_COLORS[d.source.type] || '#3b82f6'}33`)
-      .attr('stroke-width', 1)
-      .attr('stroke-linecap', 'round')
-
-    const nodeGroups = nodeLayer.selectAll('g')
-      .data(prepared)
-      .enter().append('g')
-      .attr('transform', d => `translate(${d.x}, ${d.y})`)
-      .style('cursor', 'pointer')
-      .on('click', (_, d) => onNodeSelect(d))
+    const rootNode = nodeData.find(n => n.type === 'root')
+    const linkData = []
+    nodeData.forEach(n => {
+      if (n.type === 'root') return
+      const parent = (n.parent_id && nodeById[n.parent_id]) ? nodeById[n.parent_id] : rootNode
+      if (parent) {
+        linkData.push({ source: parent.id, target: n.id })
+      }
+    })
 
     const isMain = d => !d.parent_id || d.type === 'root'
-    const getSize = d => isMain(d) ? (NODE_SIZES[d.type] || 10) : NODE_SIZES.sub
+    const getR = d => isMain(d) ? 8 : 4
+    const getColor = d => NODE_COLORS[d.type] || '#64748b'
 
-    // Outer glow ring for main nodes
-    nodeGroups.filter(isMain).append('circle')
-      .attr('r', d => getSize(d) + 8)
-      .attr('fill', 'none')
-      .attr('stroke', d => `${NODE_COLORS[d.type]}30`)
+    // Create a container group for zooming/panning
+    const graphGroup = svg.append('g').attr('class', 'graph-container')
+
+    // Links
+    const linkGroup = graphGroup.append('g').attr('class', 'links-layer')
+    const linkLines = linkGroup.selectAll('line')
+      .data(linkData).enter().append('line')
+      .attr('stroke', d => `${getColor(d.source)}50`)
       .attr('stroke-width', 1)
 
-    // Main circle
+    // Nodes
+    const nodeGroupContainer = graphGroup.append('g').attr('class', 'nodes-layer')
+    const nodeGroups = nodeGroupContainer.selectAll('g.node')
+      .data(nodeData).enter().append('g')
+      .attr('class', 'node')
+      .attr('transform', d => `translate(${d.x || width/2},${d.y || height/2})`)
+      .style('cursor', 'pointer')
+      .call(d3.drag()
+        .on('start', (event, d) => {
+          if (!event.active) simulation.alphaTarget(0.3).restart()
+          d.fx = d.x; d.fy = d.y
+        })
+        .on('drag', (event, d) => { d.fx = event.x; d.fy = event.y })
+        .on('end', async (event, d) => {
+          if (!event.active) simulation.alphaTarget(0)
+          d.fx = null; d.fy = null
+          
+          if (!d.x || !d.y) return // safeguard against nan crashes
+          const xr = Math.max(0, Math.min(1, d.x / width))
+          const yr = Math.max(0, Math.min(1, d.y / height))
+          await supabase.from('nodes').update({ x_pos: xr, y_pos: yr }).eq('id', d.id)
+        })
+      )
+      .on('click', (event, d) => { event.stopPropagation(); onNodeSelect(d) })
+
+    // Single solid circle like Obsidian
     nodeGroups.append('circle')
-      .attr('r', d => getSize(d))
-      .attr('fill', d => `${NODE_COLORS[d.type] || '#3b82f6'}22`)
-      .attr('stroke', d => NODE_COLORS[d.type] || '#3b82f6')
-      .attr('stroke-width', d => isMain(d) ? 1.5 : 1)
-      .attr('filter', 'url(#glow)')
+      .attr('r', d => getR(d))
+      .attr('fill', d => getColor(d))
+      .attr('stroke', '#0f172a')
+      .attr('stroke-width', 1.5)
 
-    // Center dot
-    nodeGroups.append('circle')
-      .attr('r', d => isMain(d) ? 3 : 2)
-      .attr('fill', d => NODE_COLORS[d.type] || '#3b82f6')
-
-    // Labels
-    nodeGroups.filter(isMain).append('text')
-      .attr('y', d => getSize(d) + 14)
+    // Clean text labels
+    nodeGroups.append('text')
+      .attr('y', d => getR(d) + 14)
       .attr('text-anchor', 'middle')
-      .attr('font-family', 'Instrument Serif, serif')
-      .attr('font-size', d => (d.type === 'root' ? '13px' : '11px'))
-      .attr('fill', '#e2e8f0')
-      .attr('opacity', 0.6)
-      .text(d => d.title)
+      .attr('font-family', 'sans-serif')
+      .attr('font-size', '10px')
+      .attr('fill', '#94a3b8')
+      .attr('opacity', 0.8)
+      .attr('pointer-events', 'none')
+      .text(d => d.title || 'Unknown Node')
 
-    nodeGroups.filter(d => !isMain(d)).append('text')
-      .attr('y', d => getSize(d) + 12)
-      .attr('text-anchor', 'middle')
-      .attr('font-family', 'Instrument Serif, serif')
-      .attr('font-size', '9px')
-      .attr('fill', d => NODE_COLORS[d.type] || '#64748b')
-      .attr('opacity', 0.5)
-      .text(d => d.title)
-
-    // Hover effect
+    // Hover effects
     nodeGroups
-      .on('mouseenter', function(_, d) {
-        d3.select(this).selectAll('text').transition().duration(200).attr('opacity', 1)
-        d3.select(this).selectAll('circle')
-          .transition().duration(200)
-          .attr('r', function() {
-            const r = parseFloat(d3.select(this).attr('r'))
-            return r * 1.2
-          })
+      .on('mouseenter', function (_, d) {
+        d3.select(this).select('text').transition().duration(150).attr('opacity', 1).attr('fill', '#ffffff')
+        d3.select(this).select('circle').transition().duration(150).attr('r', getR(d) * 1.5)
       })
-      .on('mouseleave', function(_, d) {
-        d3.select(this).selectAll('text').transition().duration(200).attr('opacity', 0.6)
-        d3.select(this).selectAll('circle')
-          .transition().duration(200)
-          .attr('r', function(_, i) {
-            const sizes = isMain(d)
-              ? [getSize(d) + 8, getSize(d), isMain(d) ? 3 : 2]
-              : [getSize(d), isMain(d) ? 3 : 2]
-            return sizes[i] || getSize(d)
-          })
+      .on('mouseleave', function (_, d) {
+        d3.select(this).select('text').transition().duration(150).attr('opacity', 0.8).attr('fill', '#94a3b8')
+        d3.select(this).select('circle').transition().duration(150).attr('r', getR(d))
       })
 
-    const simulation = d3.forceSimulation(prepared)
-      .force('link', d3.forceLink(links).id(d => d.id).distance(120).strength(0.5))
-      .force('charge', d3.forceManyBody().strength(-300))
-      .force('center', d3.forceCenter(width / 2, height / 2))
-      .force('collision', d3.forceCollide().radius(d => getSize(d) + 20))
+    // Force simulation configured for clustered Obsidian feel
+    const simulation = d3.forceSimulation(nodeData)
+      .force('link', d3.forceLink(linkData).id(d => d.id).distance(d => {
+        const sourceNode = typeof d.source === 'object' ? d.source : nodeById[d.source]
+        return sourceNode && isMain(sourceNode) ? 50 : 20
+      }).strength(1))
+      .force('charge', d3.forceManyBody().strength(-40))
+      .force('center', d3.forceCenter(width / 2, height / 2).strength(0.05))
+      .force('collision', d3.forceCollide().radius(d => getR(d) + 8).strength(1))
       .on('tick', () => {
-        linkSelection
-          .attr('x1', d => d.source.x)
-          .attr('y1', d => d.source.y)
-          .attr('x2', d => d.target.x)
-          .attr('y2', d => d.target.y)
-        nodeGroups.attr('transform', d => `translate(${d.x}, ${d.y})`)
+        linkLines
+          .attr('x1', d => d.source.x || width/2).attr('y1', d => d.source.y || height/2)
+          .attr('x2', d => d.target.x || width/2).attr('y2', d => d.target.y || height/2)
+        nodeGroups.attr('transform', d => `translate(${d.x || width/2},${d.y || height/2})`)
       })
 
-    const drag = d3.drag()
-      .on('start', (event, d) => {
-        if (!event.active) simulation.alphaTarget(0.3).restart()
-        d.fx = d.x
-        d.fy = d.y
+    // Set up zoom AFTER simulation is configured
+    const zoom = d3.zoom()
+      .scaleExtent([0.2, 4])
+      .on('zoom', (event) => {
+        graphGroup.attr('transform', event.transform)
       })
-      .on('drag', (event, d) => {
-        d.fx = event.x
-        d.fy = event.y
-      })
-      .on('end', async (event, d) => {
-        if (!event.active) simulation.alphaTarget(0)
-        d.fx = null
-        d.fy = null
-        await supabase.from('nodes').update({
-          x_pos: Math.max(0, Math.min(1, d.x / width)),
-          y_pos: Math.max(0, Math.min(1, d.y / height)),
-        }).eq('id', d.id).eq('user_id', user.id)
-      })
+    svg.call(zoom)
 
-    nodeGroups.call(drag)
+    simulationRef.current = simulation
     return () => simulation.stop()
   }, [nodes, dims, onNodeSelect])
 
   const addNode = async () => {
-    if (!newNode.title.trim()) return
-    const payload = {
-      title: newNode.title.trim(),
-      description: newNode.description.trim(),
-      type: newNode.type,
+    if (!addForm.title) return
+    const parentNode = nodes.find(n => n.title === addForm.parentTitle)
+    const fallbackParent = nodes.find(n => n.type === 'root')
+    const parentId = parentNode?.id || fallbackParent?.id || null
+
+    await supabase.from('nodes').insert({
       user_id: user.id,
-      parent_id: newNode.parent_id || null,
-      x_pos: 0.5,
-      y_pos: 0.5,
-    }
-    await supabase.from('nodes').insert(payload)
-    setShowAddNode(false)
-    setNewNode({ title: '', type: 'career', parent_id: '', description: '' })
+      title: addForm.title,
+      type: addForm.type,
+      description: addForm.description,
+      parent_id: parentId,
+      x_pos: 0.4 + Math.random() * 0.2,
+      y_pos: 0.4 + Math.random() * 0.2,
+    })
+    setAddForm({ title: '', type: 'career', description: '', parentTitle: '' })
+    setShowAddModal(false)
     fetchNodes()
   }
 
@@ -222,43 +218,47 @@ const ConstellationGraph = ({ onNodeSelect }) => {
     </div>
   )
 
+  const mainNodes = nodes.filter(n => !n.parent_id || n.type === 'root')
+
   return (
     <div ref={containerRef} style={{ position: 'absolute', inset: 0 }}>
-      <svg
-        ref={svgRef}
-        width={dims.width}
-        height={dims.height}
-        style={{ display: 'block' }}
-      />
-      <button
-        onClick={() => setShowAddNode(true)}
-        className="absolute right-4 bottom-4 z-30 glass border border-pulsar/30 rounded-full w-11 h-11 flex items-center justify-center text-pulsar hover:text-nova"
-      >
-        <Plus className="w-5 h-5" />
+      <svg ref={svgRef} width={dims.width} height={dims.height} style={{ display: 'block' }} />
+
+      <button onClick={() => setShowAddModal(true)}
+        className="absolute bottom-6 right-6 w-10 h-10 rounded-full glass border border-pulsar/30 text-pulsar hover:bg-pulsar/20 transition-all flex items-center justify-center z-10"
+        title="Add node">
+        <Plus className="w-4 h-4" />
       </button>
-      {showAddNode && (
-        <div className="modal-overlay absolute inset-0 bg-void/70 z-40 flex items-center justify-center p-4" onClick={e => e.target === e.currentTarget && setShowAddNode(false)}>
-          <div className="modal-content glass border border-blue-900/30 rounded-2xl p-5 w-full max-w-md space-y-3">
+
+      {showAddModal && (
+        <div className="modal-overlay fixed inset-0 bg-void/80 z-50 flex items-center justify-center p-4"
+          onClick={e => e.target === e.currentTarget && setShowAddModal(false)}>
+          <div className="modal-content glass border border-blue-900/30 rounded-2xl p-6 w-full max-w-sm space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="font-display text-starlight">Add node</h3>
-              <button onClick={() => setShowAddNode(false)} className="text-dim hover:text-starlight"><X className="w-4 h-4" /></button>
+              <h3 className="font-display text-starlight tracking-wider">New Star</h3>
+              <button onClick={() => setShowAddModal(false)}><X className="w-4 h-4 text-dim" /></button>
             </div>
-            <input className="w-full bg-stardust/50 text-sm text-starlight border border-blue-900/20 rounded-lg px-3 py-2 outline-none" placeholder="Title"
-              value={newNode.title} onChange={e => setNewNode(v => ({ ...v, title: e.target.value }))} />
-            <select className="w-full bg-stardust/50 text-sm text-dim border border-blue-900/20 rounded-lg px-3 py-2 outline-none"
-              value={newNode.type} onChange={e => setNewNode(v => ({ ...v, type: e.target.value }))}>
-              <option value="career">career</option>
-              <option value="academic">academic</option>
-              <option value="self">self</option>
+            <input placeholder="Title" value={addForm.title}
+              onChange={e => setAddForm(f => ({ ...f, title: e.target.value }))}
+              className="w-full bg-stardust/50 text-sm text-starlight border border-blue-900/20 rounded-lg px-3 py-2 outline-none focus:border-pulsar/40 font-body" />
+            <select value={addForm.type} onChange={e => setAddForm(f => ({ ...f, type: e.target.value }))}
+              className="w-full bg-stardust/50 text-sm text-dim border border-blue-900/20 rounded-lg px-3 py-2 outline-none">
+              <option value="career">Career</option>
+              <option value="academic">Academic</option>
+              <option value="self">Self</option>
             </select>
-            <select className="w-full bg-stardust/50 text-sm text-dim border border-blue-900/20 rounded-lg px-3 py-2 outline-none"
-              value={newNode.parent_id} onChange={e => setNewNode(v => ({ ...v, parent_id: e.target.value }))}>
-              <option value="">No parent</option>
-              {nodes.map(node => <option key={node.id} value={node.id}>{node.title}</option>)}
+            <select value={addForm.parentTitle} onChange={e => setAddForm(f => ({ ...f, parentTitle: e.target.value }))}
+              className="w-full bg-stardust/50 text-sm text-dim border border-blue-900/20 rounded-lg px-3 py-2 outline-none">
+              <option value="">No parent (main node)</option>
+              {mainNodes.map(n => <option key={n.id} value={n.title}>{n.title}</option>)}
             </select>
-            <textarea className="w-full bg-stardust/50 text-sm text-starlight border border-blue-900/20 rounded-lg px-3 py-2 outline-none resize-none" rows={2}
-              placeholder="Description" value={newNode.description} onChange={e => setNewNode(v => ({ ...v, description: e.target.value }))} />
-            <button onClick={addNode} className="w-full py-2 bg-pulsar/20 border border-pulsar/30 text-pulsar text-sm font-display rounded-lg">SAVE NODE</button>
+            <input placeholder="Description (optional)" value={addForm.description}
+              onChange={e => setAddForm(f => ({ ...f, description: e.target.value }))}
+              className="w-full bg-stardust/50 text-sm text-starlight border border-blue-900/20 rounded-lg px-3 py-2 outline-none focus:border-pulsar/40 font-body" />
+            <button onClick={addNode}
+              className="w-full py-2 bg-pulsar/20 border border-pulsar/30 text-pulsar text-sm font-display tracking-wider rounded-lg hover:bg-pulsar/30 transition-colors">
+              ADD STAR
+            </button>
           </div>
         </div>
       )}
