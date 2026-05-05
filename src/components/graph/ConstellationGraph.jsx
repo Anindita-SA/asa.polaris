@@ -1,214 +1,187 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from 'react'
 import * as d3 from 'd3'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { Plus, X } from 'lucide-react'
 
-const NODE_COLORS = {
-  root: '#f59e0b',
-  career: '#3b82f6',
+const COLORS = {
+  root:     '#f59e0b',
+  career:   '#3b82f6',
   academic: '#8b5cf6',
-  self: '#10b981',
+  self:     '#10b981',
+  subnode:  '#38bdf8',
+  topic:    '#475569',
 }
+const RADIUS = { root: 10, career: 6, academic: 6, self: 6, subnode: 4, topic: 2.5 }
+const col = t => COLORS[t] || '#64748b'
+const rad = t => RADIUS[t] || 5
 
-const NODE_RADIUS = {
-  root: 20,
-  career: 16,
-  academic: 16,
-  self: 16,
-  sub: 9,
-}
-
-const ConstellationGraph = ({ onNodeSelect }) => {
-  const svgRef = useRef(null)
+const ConstellationGraph = forwardRef(({ onNodeSelect }, ref) => {
+  const svgRef       = useRef(null)
   const containerRef = useRef(null)
-  const simulationRef = useRef(null)
-  const { user } = useAuth()
-  const [nodes, setNodes] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [dims, setDims] = useState({ width: 0, height: 0 })
-  const [showAddModal, setShowAddModal] = useState(false)
-  const [addForm, setAddForm] = useState({ title: '', type: 'career', description: '', parentTitle: '' })
+  const simRef       = useRef(null)
+  const { user }     = useAuth()
 
+  const [nodes,     setNodes]     = useState([])
+  const [loading,   setLoading]   = useState(true)
+  // tick counter — incrementing forces the draw useEffect to re-run on resize
+  const [tick, setTick] = useState(0)
+
+  const [showModal, setShowModal] = useState(false)
+  const [form, setForm] = useState({ title: '', type: 'career', description: '' })
+
+  // ── fetch ──────────────────────────────────────────────────────────────────
   const fetchNodes = useCallback(async () => {
     if (!user?.id) return
-    let { data, error } = await supabase.from('nodes').select('*').eq('user_id', user.id)
+    const { data, error } = await supabase.from('nodes').select('*').eq('user_id', user.id)
     if (error) return
 
-    // Auto-create Polaris root if it doesn't exist
-    if (!data.some(n => n.type === 'root')) {
-      const { data: rootNode } = await supabase.from('nodes').insert({
-        user_id: user.id,
-        title: 'Polaris',
-        type: 'root',
-        description: 'Your North Star',
-        x_pos: 0.5,
-        y_pos: 0.5
+    let rows = data || []
+    if (!rows.some(n => n.type === 'root')) {
+      const { data: root } = await supabase.from('nodes').insert({
+        user_id: user.id, title: 'Polaris', type: 'root',
+        description: 'Your North Star', x_pos: 0.5, y_pos: 0.5,
       }).select().single()
-      if (rootNode) data = [...data, rootNode]
+      if (root) rows = [root, ...rows]
     }
-    
-    setNodes(data)
+
+    setNodes(rows)
     setLoading(false)
   }, [user?.id])
 
+  useImperativeHandle(ref, () => ({ refresh: fetchNodes }))
   useEffect(() => { fetchNodes() }, [fetchNodes])
 
+  // ── window resize → force redraw ───────────────────────────────────────────
   useEffect(() => {
-    if (!containerRef.current) return
-    const ro = new ResizeObserver(entries => {
-      const { width, height } = entries[0].contentRect
-      if (width > 0 && height > 0) setDims({ width, height })
-    })
-    ro.observe(containerRef.current)
-    return () => ro.disconnect()
+    const onResize = () => setTick(t => t + 1)
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
   }, [])
 
+  // ── draw ───────────────────────────────────────────────────────────────────
+  // Reads container size SYNCHRONOUSLY at effect time — no race with state.
   useEffect(() => {
-    if (!nodes.length || !svgRef.current || !dims.width || !dims.height) return
+    if (!nodes.length || !svgRef.current || !containerRef.current) return
 
-    const { width, height } = dims
-    if (simulationRef.current) simulationRef.current.stop()
+    // Read dims right now, synchronously
+    const rect = containerRef.current.getBoundingClientRect()
+    let w = rect.width
+    let h = rect.height
+
+    // Fallback: if container still reports 0 (e.g. first paint), retry after a frame
+    if (!w || !h) {
+      const id = requestAnimationFrame(() => setTick(t => t + 1))
+      return () => cancelAnimationFrame(id)
+    }
+
+    if (simRef.current) simRef.current.stop()
+
+    const nodeData = nodes.map(n => ({
+      ...n,
+      x: w / 2 + (Math.random() - 0.5) * 120,
+      y: h / 2 + (Math.random() - 0.5) * 120,
+    }))
+
+    const byId = {}
+    nodeData.forEach(n => { byId[n.id] = n })
+    const root = nodeData.find(n => n.type === 'root')
+
+    const links = []
+    nodeData.forEach(n => {
+      if (n.type === 'root') return
+      const pid = (n.parent_id && byId[n.parent_id]) ? n.parent_id : root?.id
+      if (pid) links.push({ source: pid, target: n.id })
+    })
 
     const svg = d3.select(svgRef.current)
     svg.selectAll('*').remove()
+    svg.attr('width', w).attr('height', h)
 
-    const nodeData = nodes.map(n => {
-      const isXValid = n.x_pos !== null && Number.isFinite(n.x_pos)
-      const isYValid = n.y_pos !== null && Number.isFinite(n.y_pos)
-      return {
-        ...n,
-        x: isXValid ? n.x_pos * width : width / 2 + (Math.random() - 0.5) * 50,
-        y: isYValid ? n.y_pos * height : height / 2 + (Math.random() - 0.5) * 50,
-      }
-    })
+    const g = svg.append('g')
 
-    const nodeById = {}
-    nodeData.forEach(n => { nodeById[n.id] = n })
-
-    const rootNode = nodeData.find(n => n.type === 'root')
-    const linkData = []
-    nodeData.forEach(n => {
-      if (n.type === 'root') return
-      const parent = (n.parent_id && nodeById[n.parent_id]) ? nodeById[n.parent_id] : rootNode
-      if (parent) {
-        linkData.push({ source: parent.id, target: n.id })
-      }
-    })
-
-    const isMain = d => !d.parent_id || d.type === 'root'
-    const getR = d => isMain(d) ? 8 : 4
-    const getColor = d => NODE_COLORS[d.type] || '#64748b'
-
-    // Create a container group for zooming/panning
-    const graphGroup = svg.append('g').attr('class', 'graph-container')
-
-    // Links
-    const linkGroup = graphGroup.append('g').attr('class', 'links-layer')
-    const linkLines = linkGroup.selectAll('line')
-      .data(linkData).enter().append('line')
-      .attr('stroke', d => `${getColor(d.source)}50`)
+    const linkSel = g.append('g')
+      .selectAll('line').data(links).join('line')
+      .attr('stroke', '#3b82f630')
       .attr('stroke-width', 1)
 
-    // Nodes
-    const nodeGroupContainer = graphGroup.append('g').attr('class', 'nodes-layer')
-    const nodeGroups = nodeGroupContainer.selectAll('g.node')
-      .data(nodeData).enter().append('g')
-      .attr('class', 'node')
-      .attr('transform', d => `translate(${d.x || width/2},${d.y || height/2})`)
+    const nodeSel = g.append('g')
+      .selectAll('g').data(nodeData).join('g')
       .style('cursor', 'pointer')
-      .call(d3.drag()
-        .on('start', (event, d) => {
-          if (!event.active) simulation.alphaTarget(0.3).restart()
-          d.fx = d.x; d.fy = d.y
-        })
-        .on('drag', (event, d) => { d.fx = event.x; d.fy = event.y })
-        .on('end', async (event, d) => {
-          if (!event.active) simulation.alphaTarget(0)
-          d.fx = null; d.fy = null
-          
-          if (!d.x || !d.y) return // safeguard against nan crashes
-          const xr = Math.max(0, Math.min(1, d.x / width))
-          const yr = Math.max(0, Math.min(1, d.y / height))
-          await supabase.from('nodes').update({ x_pos: xr, y_pos: yr }).eq('id', d.id)
-        })
-      )
-      .on('click', (event, d) => { event.stopPropagation(); onNodeSelect(d) })
+      .on('click', (e, d) => { e.stopPropagation(); onNodeSelect(d) })
 
-    // Single solid circle like Obsidian
-    nodeGroups.append('circle')
-      .attr('r', d => getR(d))
-      .attr('fill', d => getColor(d))
-      .attr('stroke', '#0f172a')
+    nodeSel.append('circle')
+      .attr('r', d => rad(d.type))
+      .attr('fill', d => col(d.type))
+      .attr('stroke', '#0a0c1a')
       .attr('stroke-width', 1.5)
 
-    // Clean text labels
-    nodeGroups.append('text')
-      .attr('y', d => getR(d) + 14)
+    nodeSel.filter(d => d.type !== 'topic')
+      .append('text')
+      .text(d => d.title)
+      .attr('dy', d => rad(d.type) + 12)
       .attr('text-anchor', 'middle')
-      .attr('font-family', 'sans-serif')
-      .attr('font-size', '10px')
+      .attr('font-size', d => d.type === 'root' ? 11 : 9)
       .attr('fill', '#94a3b8')
-      .attr('opacity', 0.8)
       .attr('pointer-events', 'none')
-      .text(d => d.title || 'Unknown Node')
 
-    // Hover effects
-    nodeGroups
+    nodeSel
       .on('mouseenter', function (_, d) {
-        d3.select(this).select('text').transition().duration(150).attr('opacity', 1).attr('fill', '#ffffff')
-        d3.select(this).select('circle').transition().duration(150).attr('r', getR(d) * 1.5)
+        d3.select(this).select('circle').attr('r', rad(d.type) * 1.6)
+        d3.select(this).select('text').attr('fill', '#fff')
       })
       .on('mouseleave', function (_, d) {
-        d3.select(this).select('text').transition().duration(150).attr('opacity', 0.8).attr('fill', '#94a3b8')
-        d3.select(this).select('circle').transition().duration(150).attr('r', getR(d))
+        d3.select(this).select('circle').attr('r', rad(d.type))
+        d3.select(this).select('text').attr('fill', '#94a3b8')
       })
 
-    // Force simulation configured for clustered Obsidian feel
-    const simulation = d3.forceSimulation(nodeData)
-      .force('link', d3.forceLink(linkData).id(d => d.id).distance(d => {
-        const sourceNode = typeof d.source === 'object' ? d.source : nodeById[d.source]
-        return sourceNode && isMain(sourceNode) ? 50 : 20
-      }).strength(1))
-      .force('charge', d3.forceManyBody().strength(-40))
-      .force('center', d3.forceCenter(width / 2, height / 2).strength(0.05))
-      .force('collision', d3.forceCollide().radius(d => getR(d) + 8).strength(1))
+    const sim = d3.forceSimulation(nodeData)
+      .force('link',
+        d3.forceLink(links).id(d => d.id)
+          .distance(d => d.source.type === 'root' ? 100 : d.source.type === 'subnode' ? 30 : 55)
+          .strength(1)
+      )
+      .force('charge', d3.forceManyBody().strength(-80))
+      .force('center',  d3.forceCenter(w / 2, h / 2))
+      .force('collide', d3.forceCollide(d => rad(d.type) + 8))
       .on('tick', () => {
-        linkLines
-          .attr('x1', d => d.source.x || width/2).attr('y1', d => d.source.y || height/2)
-          .attr('x2', d => d.target.x || width/2).attr('y2', d => d.target.y || height/2)
-        nodeGroups.attr('transform', d => `translate(${d.x || width/2},${d.y || height/2})`)
+        linkSel
+          .attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+          .attr('x2', d => d.target.x).attr('y2', d => d.target.y)
+        nodeSel.attr('transform', d =>
+          `translate(${isFinite(d.x) ? d.x : w/2},${isFinite(d.y) ? d.y : h/2})`
+        )
       })
 
-    // Set up zoom AFTER simulation is configured
-    const zoom = d3.zoom()
-      .scaleExtent([0.2, 4])
-      .on('zoom', (event) => {
-        graphGroup.attr('transform', event.transform)
-      })
-    svg.call(zoom)
+    nodeSel.call(
+      d3.drag()
+        .on('start', (e, d) => { if (!e.active) sim.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y })
+        .on('drag',  (e, d) => { d.fx = e.x; d.fy = e.y })
+        .on('end',   async (e, d) => {
+          if (!e.active) sim.alphaTarget(0)
+          d.fx = null; d.fy = null
+          if (isFinite(d.x) && isFinite(d.y))
+            await supabase.from('nodes').update({ x_pos: d.x / w, y_pos: d.y / h }).eq('id', d.id)
+        })
+    )
 
-    simulationRef.current = simulation
-    return () => simulation.stop()
-  }, [nodes, dims, onNodeSelect])
+    svg.call(d3.zoom().scaleExtent([0.1, 6]).on('zoom', e => g.attr('transform', e.transform)))
 
+    simRef.current = sim
+    return () => sim.stop()
+  }, [nodes, tick, onNodeSelect])  // tick forces retry when window resizes or first paint hasn't settled
+
+  // ── add ────────────────────────────────────────────────────────────────────
   const addNode = async () => {
-    if (!addForm.title) return
-    const parentNode = nodes.find(n => n.title === addForm.parentTitle)
-    const fallbackParent = nodes.find(n => n.type === 'root')
-    const parentId = parentNode?.id || fallbackParent?.id || null
-
+    if (!form.title.trim()) return
+    const root = nodes.find(n => n.type === 'root')
     await supabase.from('nodes').insert({
-      user_id: user.id,
-      title: addForm.title,
-      type: addForm.type,
-      description: addForm.description,
-      parent_id: parentId,
-      x_pos: 0.4 + Math.random() * 0.2,
-      y_pos: 0.4 + Math.random() * 0.2,
+      user_id: user.id, title: form.title.trim(), type: form.type,
+      description: form.description, parent_id: root?.id ?? null,
+      x_pos: 0.45 + Math.random() * 0.1, y_pos: 0.45 + Math.random() * 0.1,
     })
-    setAddForm({ title: '', type: 'career', description: '', parentTitle: '' })
-    setShowAddModal(false)
+    setForm({ title: '', type: 'career', description: '' })
+    setShowModal(false)
     fetchNodes()
   }
 
@@ -218,42 +191,36 @@ const ConstellationGraph = ({ onNodeSelect }) => {
     </div>
   )
 
-  const mainNodes = nodes.filter(n => !n.parent_id || n.type === 'root')
-
   return (
     <div ref={containerRef} style={{ position: 'absolute', inset: 0 }}>
-      <svg ref={svgRef} width={dims.width} height={dims.height} style={{ display: 'block' }} />
+      <svg ref={svgRef} style={{ display: 'block' }} />
 
-      <button onClick={() => setShowAddModal(true)}
-        className="absolute bottom-6 right-6 w-10 h-10 rounded-full glass border border-pulsar/30 text-pulsar hover:bg-pulsar/20 transition-all flex items-center justify-center z-10"
-        title="Add node">
+      <button onClick={() => setShowModal(true)}
+        className="absolute bottom-6 right-6 w-10 h-10 rounded-full glass border border-pulsar/30 text-pulsar hover:bg-pulsar/20 transition-all flex items-center justify-center z-10">
         <Plus className="w-4 h-4" />
       </button>
 
-      {showAddModal && (
+      {showModal && (
         <div className="modal-overlay fixed inset-0 bg-void/80 z-50 flex items-center justify-center p-4"
-          onClick={e => e.target === e.currentTarget && setShowAddModal(false)}>
+          onClick={e => e.target === e.currentTarget && setShowModal(false)}>
           <div className="modal-content glass border border-blue-900/30 rounded-2xl p-6 w-full max-w-sm space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="font-display text-starlight tracking-wider">New Star</h3>
-              <button onClick={() => setShowAddModal(false)}><X className="w-4 h-4 text-dim" /></button>
+              <button onClick={() => setShowModal(false)}><X className="w-4 h-4 text-dim" /></button>
             </div>
-            <input placeholder="Title" value={addForm.title}
-              onChange={e => setAddForm(f => ({ ...f, title: e.target.value }))}
+            <input placeholder="Title" value={form.title}
+              onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+              onKeyDown={e => e.key === 'Enter' && addNode()}
+              autoFocus
               className="w-full bg-stardust/50 text-sm text-starlight border border-blue-900/20 rounded-lg px-3 py-2 outline-none focus:border-pulsar/40 font-body" />
-            <select value={addForm.type} onChange={e => setAddForm(f => ({ ...f, type: e.target.value }))}
+            <select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))}
               className="w-full bg-stardust/50 text-sm text-dim border border-blue-900/20 rounded-lg px-3 py-2 outline-none">
               <option value="career">Career</option>
               <option value="academic">Academic</option>
               <option value="self">Self</option>
             </select>
-            <select value={addForm.parentTitle} onChange={e => setAddForm(f => ({ ...f, parentTitle: e.target.value }))}
-              className="w-full bg-stardust/50 text-sm text-dim border border-blue-900/20 rounded-lg px-3 py-2 outline-none">
-              <option value="">No parent (main node)</option>
-              {mainNodes.map(n => <option key={n.id} value={n.title}>{n.title}</option>)}
-            </select>
-            <input placeholder="Description (optional)" value={addForm.description}
-              onChange={e => setAddForm(f => ({ ...f, description: e.target.value }))}
+            <input placeholder="Description (optional)" value={form.description}
+              onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
               className="w-full bg-stardust/50 text-sm text-starlight border border-blue-900/20 rounded-lg px-3 py-2 outline-none focus:border-pulsar/40 font-body" />
             <button onClick={addNode}
               className="w-full py-2 bg-pulsar/20 border border-pulsar/30 text-pulsar text-sm font-display tracking-wider rounded-lg hover:bg-pulsar/30 transition-colors">
@@ -264,6 +231,7 @@ const ConstellationGraph = ({ onNodeSelect }) => {
       )}
     </div>
   )
-}
+})
 
+ConstellationGraph.displayName = 'ConstellationGraph'
 export default ConstellationGraph

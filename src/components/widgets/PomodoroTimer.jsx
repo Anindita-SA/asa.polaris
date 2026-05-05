@@ -21,6 +21,7 @@ const PomodoroTimer = () => {
   const [durations, setDurations] = useState({ focus: 25, short: 5, long: 15 })
   const [timeLeft, setTimeLeft] = useState(25 * 60)
   const [linkedItem, setLinkedItem] = useState('')
+  const [comment, setComment] = useState('')
   const [pos, setPos] = useState({ x: -1, y: -1 })
   const [sessionStart, setSessionStart] = useState(null)
   const [nodes, setNodes] = useState([])
@@ -55,10 +56,12 @@ const PomodoroTimer = () => {
           if (mode === 'focus' && sessionStart) {
             const mins = Math.round((Date.now() - sessionStart) / 60000)
             if (mins > 0) {
+              const today = new Date().toISOString().slice(0, 10)
               supabase.from('pomodoro_logs').insert({
                 user_id: user.id,
                 duration_minutes: mins,
-                label: linkedItem || null,
+                label: linkedItem || comment || null,
+                date: today,
               }).then(() => { })
             }
           }
@@ -77,7 +80,7 @@ const PomodoroTimer = () => {
       })
     }, 1000)
     return () => clearInterval(id)
-  }, [isRunning, autoRestart, mode, durations, sessionStart, linkedItem, user?.id])
+  }, [isRunning, autoRestart, mode, durations, sessionStart, linkedItem, comment, user?.id])
 
   // Reset on mode change
   useEffect(() => {
@@ -147,8 +150,8 @@ const PomodoroTimer = () => {
           ))}
         </div>
 
-        {/* Linked Task Selector */}
-        <div className="mb-8">
+        {/* Linked Node Selector */}
+        <div className="mb-4 w-full flex justify-center">
           <select value={linkedItem} onChange={e => setLinkedItem(e.target.value)}
             className="bg-stardust text-sm text-starlight border border-blue-900/30 rounded-lg px-4 py-2 outline-none font-body min-w-[200px] text-center appearance-none shadow-lg">
             <option value="">No Node Linked</option>
@@ -199,9 +202,9 @@ const PomodoroTimer = () => {
           </button>
         </div>
 
-        {/* Quick input / minimize */}
+        {/* What's cookin — free text + minimize */}
         <div className="mt-8 flex items-center gap-3 w-full">
-          <input type="text" placeholder="What's cookin?" value={linkedItem} onChange={e => setLinkedItem(e.target.value)}
+          <input type="text" placeholder="What's cookin?" value={comment} onChange={e => setComment(e.target.value)}
             className="flex-1 bg-stardust/50 text-starlight border border-blue-900/30 rounded-xl px-4 py-3 outline-none font-body text-sm placeholder:text-dim text-center" />
           <button onClick={() => setIsExpanded(false)}
             className="w-11 h-11 rounded-xl border border-blue-900/30 text-dim bg-stardust/40 hover:bg-stardust/80 hover:text-starlight flex items-center justify-center transition-all flex-shrink-0">
@@ -298,14 +301,23 @@ const PomodoroTimer = () => {
           </button>
         </div>
 
-        {/* Task link */}
-        {nodes.length > 0 && (
-          <select value={linkedItem} onChange={e => setLinkedItem(e.target.value)}
-            className="mt-2 w-full bg-stardust/40 text-xs text-dim border border-blue-900/10 rounded-lg px-2 py-1 outline-none font-body">
-            <option value="">No node linked</option>
-            {nodes.map(n => <option key={n.id} value={n.title}>{n.title}</option>)}
-          </select>
-        )}
+        {/* Comment + node link in compact view */}
+        <div className="mt-2 w-full space-y-1.5">
+          <input
+            type="text"
+            placeholder="What's cookin?"
+            value={comment}
+            onChange={e => setComment(e.target.value)}
+            className="w-full bg-stardust/40 text-xs text-starlight border border-blue-900/10 rounded-lg px-2 py-1.5 outline-none font-body placeholder:text-dim"
+          />
+          {nodes.length > 0 && (
+            <select value={linkedItem} onChange={e => setLinkedItem(e.target.value)}
+              className="w-full bg-stardust/40 text-xs text-dim border border-blue-900/10 rounded-lg px-2 py-1 outline-none font-body">
+              <option value="">No node linked</option>
+              {nodes.map(n => <option key={n.id} value={n.title}>{n.title}</option>)}
+            </select>
+          )}
+        </div>
       </div>
     </div>
   )
