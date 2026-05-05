@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import HUD from '../components/layout/HUD'
 import Starfield from '../components/layout/Starfield'
 import ConstellationGraph from '../components/graph/ConstellationGraph'
@@ -17,6 +17,8 @@ const Dashboard = () => {
   const [activeView, setActiveView] = useState('graph')
   const [selectedNode, setSelectedNode] = useState(null)
   const [anchorCollapsed, setAnchorCollapsed] = useState(false)
+  const graphRef = useRef(null)
+  const refreshGraph = () => graphRef.current?.refresh()
 
   const renderView = () => {
     switch (activeView) {
@@ -42,7 +44,7 @@ const Dashboard = () => {
           <AnchorPanel collapsed={anchorCollapsed} onToggle={() => setAnchorCollapsed(v => !v)} />
           <div className={`absolute inset-0 transition-opacity duration-300 ${activeView === 'graph' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
             }`}>
-            <ConstellationGraph onNodeSelect={setSelectedNode} />
+            <ConstellationGraph ref={graphRef} onNodeSelect={setSelectedNode} />
           </div>
 
           {activeView !== 'graph' && (
@@ -52,7 +54,7 @@ const Dashboard = () => {
           )}
 
           {activeView === 'graph' && selectedNode && (
-            <NodePanel node={selectedNode} onClose={() => setSelectedNode(null)} />
+            <NodePanel node={selectedNode} onClose={() => setSelectedNode(null)} onRefreshGraph={refreshGraph} />
           )}
         </div>
       </div>
