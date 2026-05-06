@@ -94,7 +94,7 @@ const HUD = ({ activeView, setActiveView }) => {
               <button
                 key={item.id}
                 onClick={() => setActiveView(item.id)}
-                className={`px-2.5 py-1 text-xs font-body rounded transition-all ${activeView === item.id
+                className={`px-2.5 py-1 text-sm font-body rounded transition-all ${activeView === item.id
                   ? 'text-starlight bg-cosmic border border-pulsar/30'
                   : 'text-dim hover:text-starlight'
                   }`}

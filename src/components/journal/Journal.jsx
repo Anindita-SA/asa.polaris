@@ -33,6 +33,7 @@ const Journal = () => {
   const [addingHabit, setAddingHabit] = useState(false)
   const [newHabitTitle, setNewHabitTitle] = useState('')
   const [saving, setSaving] = useState(false)
+  const [bottomView, setBottomView] = useState('habit')
   const fileRef = useRef()
 
   useEffect(() => {
@@ -232,44 +233,72 @@ const Journal = () => {
           </div>
         </div>
 
-        {/* Side by side: Year in Pixels and Habit Spread */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Year in Pixels (Left) */}
-          <YearInPixels userId={user.id} onDateSelect={setSelectedDate} selectedDate={selectedDate} />
-
-          {/* Habit Spread (Right) — Monthly Grid */}
-          <div className="glass border border-blue-900/40 rounded-xl p-5 shadow-lg bg-void/30">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-display tracking-wider text-starlight text-xs uppercase opacity-80 flex items-center gap-2">
-                <Flame className="w-3 h-3 text-gold" />
-                Monthly Habit Stack — {format(selectedDate, 'MMMM yyyy')}
-              </h3>
-              <button onClick={() => setAddingHabit(!addingHabit)} className="text-dim hover:text-nova transition-colors">
-                <Plus className="w-4 h-4" />
-              </button>
-            </div>
-
-            {addingHabit && (
-              <div className="flex gap-2 mb-4">
-                <input placeholder="New habit..." autoFocus
-                  className="flex-1 bg-stardust/10 text-sm text-starlight border border-blue-900/30 rounded-lg px-4 py-2 outline-none focus:border-pulsar/40 font-body"
-                  value={newHabitTitle} onChange={e => setNewHabitTitle(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && addHabit()} />
-                <button onClick={addHabit} className="px-4 bg-emerald/20 text-emerald border border-emerald/30 rounded-lg text-xs font-display">ADD</button>
-              </div>
-            )}
-
-            {/* Month grid */}
-            <MonthlyHabitGrid 
-              habits={habits} 
-              userId={user.id} 
-              selectedDate={selectedDate} 
-              addXP={addXP}
-              onDelete={deleteHabit}
-              onRefetch={fetchHabits}
-            />
-            {!habits.length && <p className="text-xs text-dim italic font-body text-center py-4">No habits defined yet.</p>}
+        {/* Sleek Toggle on top of Bottom Section */}
+        <div className="flex justify-center border-b border-blue-900/20 pb-4">
+          <div className="flex bg-void/50 p-1 rounded-xl border border-blue-900/20">
+            <button
+              onClick={() => setBottomView('habit')}
+              className={`px-4 py-1.5 rounded-lg text-xs font-display tracking-wider transition-all uppercase ${
+                bottomView === 'habit'
+                  ? 'bg-pulsar/20 text-pulsar border border-pulsar/30'
+                  : 'text-dim hover:text-starlight'
+              }`}
+            >
+              Habit Tracker
+            </button>
+            <button
+              onClick={() => setBottomView('pixels')}
+              className={`px-4 py-1.5 rounded-lg text-xs font-display tracking-wider transition-all uppercase ${
+                bottomView === 'pixels'
+                  ? 'bg-nova/20 text-nova border border-nova/30'
+                  : 'text-dim hover:text-starlight'
+              }`}
+            >
+              Year in Pixels
+            </button>
           </div>
+        </div>
+
+        {/* Dynamic Display based on Toggle */}
+        <div className="w-full">
+          {bottomView === 'pixels' ? (
+            <div className="glass border border-blue-900/40 rounded-xl p-5 shadow-lg bg-void/30">
+              <YearInPixels userId={user.id} onDateSelect={setSelectedDate} selectedDate={selectedDate} />
+            </div>
+          ) : (
+            <div className="glass border border-blue-900/40 rounded-xl p-5 shadow-lg bg-void/30">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-display tracking-wider text-starlight text-xs uppercase opacity-80 flex items-center gap-2">
+                  <Flame className="w-3 h-3 text-gold" />
+                  Monthly Habit Stack — {format(selectedDate, 'MMMM yyyy')}
+                </h3>
+                <button onClick={() => setAddingHabit(!addingHabit)} className="text-dim hover:text-nova transition-colors">
+                  <Plus className="w-4 h-4" />
+                </button>
+              </div>
+
+              {addingHabit && (
+                <div className="flex gap-2 mb-4">
+                  <input placeholder="New habit..." autoFocus
+                    className="flex-1 bg-stardust/10 text-sm text-starlight border border-blue-900/30 rounded-lg px-4 py-2 outline-none focus:border-pulsar/40 font-body"
+                    value={newHabitTitle} onChange={e => setNewHabitTitle(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && addHabit()} />
+                  <button onClick={addHabit} className="px-4 bg-emerald/20 text-emerald border border-emerald/30 rounded-lg text-xs font-display">ADD</button>
+                </div>
+              )}
+
+              {/* Month grid */}
+              <MonthlyHabitGrid 
+                habits={habits} 
+                userId={user.id} 
+                selectedDate={selectedDate} 
+                addXP={addXP}
+                onDelete={deleteHabit}
+                onRefetch={fetchHabits}
+              />
+              {!habits.length && <p className="text-xs text-dim italic font-body text-center py-4">No habits defined yet.</p>}
+            </div>
+          )}
         </div>
 
       </div>

@@ -69,7 +69,7 @@ const MonthlyHabitGrid = ({ habits, userId, selectedDate, addXP, onDelete, onRef
       <table className="w-full border-collapse min-w-[500px]">
         <thead>
           <tr>
-            <th className="text-left text-[9px] font-mono text-dim uppercase tracking-wider pb-2 pr-3 min-w-[140px] sticky left-0 bg-void/80 z-10">
+            <th className="text-left text-xs font-mono text-dim uppercase tracking-wider pb-2 pr-3 min-w-[240px] sticky left-0 bg-void/80 z-10">
               Habit
             </th>
             {days.map(day => {
@@ -97,14 +97,14 @@ const MonthlyHabitGrid = ({ habits, userId, selectedDate, addXP, onDelete, onRef
                       <div className="flex items-center gap-1 flex-1">
                         <input value={editTitle} onChange={e => setEditTitle(e.target.value)}
                           onKeyDown={e => e.key === 'Enter' && saveHabitTitle(habit.id)}
-                          className="flex-1 bg-transparent border-b border-pulsar text-[10px] text-starlight outline-none font-body"
+                          className="flex-1 bg-transparent border-b border-pulsar text-sm text-starlight outline-none font-body"
                           autoFocus />
                         <button onClick={() => saveHabitTitle(habit.id)} className="text-emerald"><Check className="w-3 h-3" /></button>
                         <button onClick={() => setEditingHabit(null)} className="text-dim"><X className="w-3 h-3" /></button>
                       </div>
                     ) : (
                       <>
-                        <span className="text-[10px] font-body text-starlight/80 truncate max-w-[120px]" title={habit.title}>
+                        <span className="text-sm font-body text-starlight/90 truncate max-w-[220px]" title={habit.title}>
                           {habit.title}
                         </span>
                         <button onClick={() => { setEditingHabit(habit.id); setEditTitle(habit.title) }}
