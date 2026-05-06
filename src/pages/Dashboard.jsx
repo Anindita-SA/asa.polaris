@@ -12,6 +12,8 @@ import AnchorPanel from '../components/anchor/AnchorPanel'
 import ProgressDashboard from '../components/widgets/ProgressDashboard'
 import PomodoroTimer from '../components/widgets/PomodoroTimer'
 import MusicPlayer from '../components/widgets/MusicPlayer'
+import CalendarView from '../components/panels/CalendarView'
+import Curriculum from '../components/panels/Curriculum'
 
 const Dashboard = () => {
   const [activeView, setActiveView] = useState('graph')
@@ -27,6 +29,8 @@ const Dashboard = () => {
       case 'progress': return <ProgressDashboard />
       case 'timeline': return <Timeline />
       case 'journal': return <Journal />
+      case 'calendar': return <CalendarView />
+      case 'curriculum': return <Curriculum />
       case 'fitness': return <FitnessBridge />
       default: return null
     }

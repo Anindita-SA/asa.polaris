@@ -79,26 +79,57 @@ const Timeline = () => {
     return Math.ceil(diff / (1000 * 60 * 60 * 24))
   }
 
+  const [aiLoading, setAiLoading] = useState(false)
+
   const breakDownTask = async () => {
-    const key = import.meta.env.VITE_ANTHROPIC_API_KEY
+    const key = import.meta.env.VITE_GROQ_API_KEY
     if (!key || !taskDescription.trim()) return
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': key,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        system: 'You are a task breakdown assistant. Given a project or task, return ONLY a JSON array of 5-10 short, specific, actionable steps. No markdown, no preamble, just the JSON array of strings.',
-        messages: [{ role: 'user', content: taskDescription }],
-      }),
-    })
-    const data = await response.json()
-    const text = data?.content?.[0]?.text || '[]'
-    setGeneratedSteps(JSON.parse(text))
+    setAiLoading(true)
+
+    const systemPrompt = `You are an ADHD-friendly task coach for a university student named Anindita who is studying EEE at NIT Trichy, India. She is working toward MSc applications in Europe, research papers, hardware projects, and creative work.
+
+Your job is to break down a task or project into TINY, CONCRETE, DOPAMINE-FRIENDLY steps that feel achievable — not overwhelming.
+
+Rules:
+- Return ONLY a valid JSON array of strings. No markdown, no explanation, no preamble.
+- Each step must be a single, clear physical or digital action (e.g., "Open KiCad and load CHAARG-L schematic" not "Work on PCB").
+- Keep each step completable in 5-15 minutes max.
+- Use encouraging, specific language. Say "Open Zotero and tag 3 papers as 'DAB control'" not "Organize papers".
+- Include the FIRST tiny step to overcome inertia (e.g., "Open the file", "Create a blank document titled X").
+- Add time estimates in parentheses like "(~5 min)" at the end of each step.
+- Return 5-8 steps. Never more than 10.
+- If the task is vague, make reasonable assumptions and pick the most impactful interpretation.`
+
+    try {
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${key}`,
+        },
+        body: JSON.stringify({
+          model: 'llama-3.3-70b-versatile',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: `Break this down into ADHD-friendly micro-steps: "${taskDescription}"` },
+          ],
+          temperature: 0.7,
+          max_tokens: 1024,
+          response_format: { type: 'json_object' },
+        }),
+      })
+      const data = await response.json()
+      const text = data?.choices?.[0]?.message?.content || '[]'
+      const parsed = JSON.parse(text)
+      // Handle both { steps: [...] } and plain [...] formats
+      const steps = Array.isArray(parsed) ? parsed : (parsed.steps || parsed.tasks || Object.values(parsed)[0] || [])
+      setGeneratedSteps(steps)
+    } catch (err) {
+      console.error('AI breakdown failed:', err)
+      setGeneratedSteps(['⚠ AI breakdown failed — try again or add steps manually'])
+    } finally {
+      setAiLoading(false)
+    }
   }
 
   const saveSubtasks = async () => {
@@ -296,7 +327,9 @@ const Timeline = () => {
 
             <textarea rows={2} value={taskDescription} onChange={e => setTaskDescription(e.target.value)}
               className="w-full bg-stardust/50 text-sm text-starlight border border-blue-900/20 rounded-lg px-3 py-2 outline-none resize-none" placeholder="Describe the task for AI..." />
-            <button onClick={breakDownTask} className="w-full py-2 bg-gold/20 border border-gold/30 text-gold hover:bg-gold/30 transition-colors rounded-lg text-sm">GENERATE STEPS</button>
+            <button onClick={breakDownTask} disabled={aiLoading} className="w-full py-2 bg-gold/20 border border-gold/30 text-gold hover:bg-gold/30 transition-colors rounded-lg text-sm disabled:opacity-50 disabled:cursor-wait">
+              {aiLoading ? '⏳ BREAKING IT DOWN...' : 'GENERATE STEPS'}
+            </button>
 
             {generatedSteps.length > 0 && (
               <div className="mt-4 space-y-2 max-h-48 overflow-y-auto pr-2">
