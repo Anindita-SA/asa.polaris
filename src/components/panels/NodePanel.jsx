@@ -59,9 +59,11 @@ const NodePanel = ({ node, onClose, onRefreshGraph }) => {
     setGoals(g.data || [])
     setMilestones(m.data || [])
     setSubtasks(s.data || [])
-    // Build children tree: direct children of this node
+    // Build children tree: direct children of this node (or top-level nodes if this is root)
     const allNodes = c.data || []
-    const directChildren = allNodes.filter(n => n.parent_id === node.id)
+    const directChildren = allNodes.filter(n => 
+      n.parent_id === node.id || (node.type === 'root' && !n.parent_id && n.id !== node.id)
+    )
     // For each subnode, attach topics
     const tree = directChildren.map(sub => ({
       ...sub,

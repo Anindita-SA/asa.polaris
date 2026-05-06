@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
-import { Settings, X, Maximize2, Minimize2, RotateCcw } from 'lucide-react'
+import { Settings, X, Maximize2, Minimize2, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react'
 
 import Starfield from '../layout/Starfield'
 
@@ -39,7 +39,7 @@ const getInitialState = () => {
 }
 
 const PomodoroTimer = () => {
-  const { user } = useAuth()
+  const { user, addXP } = useAuth()
   
   // Use lazy initializers so we only read storage once per mount and never rely on useMemo memoization
   const [mode, setMode] = useState(() => getInitialState().mode || 'focus')
@@ -57,6 +57,12 @@ const PomodoroTimer = () => {
   const [pos, setPos] = useState({ x: -1, y: -1 })
   const [sessionStart, setSessionStart] = useState(() => getInitialState().sessionStart || null)
   const [nodes, setNodes] = useState([])
+  const [collapsed, setCollapsed] = useState(() => {
+    try { return localStorage.getItem('polaris_pomo_collapsed') === 'true' } catch { return false }
+  })
+  const [ioType, setIoType] = useState(() => {
+    try { return localStorage.getItem('polaris_pomo_iotype') || 'output' } catch { return 'output' }
+  })
 
   const isDragging = useRef(false)
   const dragOffset = useRef({ x: 0, y: 0 })
@@ -96,14 +102,24 @@ const PomodoroTimer = () => {
           // Log session if focus mode
           if (mode === 'focus' && sessionStart) {
             const mins = Math.round((Date.now() - sessionStart) / 60000)
-            if (mins > 0) {
+            if (mins > 0 && user?.id) {
               const today = new Date().toISOString().slice(0, 10)
               supabase.from('pomodoro_logs').insert({
                 user_id: user.id,
                 duration_minutes: mins,
                 label: linkedItem || comment || null,
                 date: today,
-              }).then(() => { })
+              }).then(() => {
+                if (addXP) addXP(mins) // 1 XP per minute of focus
+              })
+              // Auto-log to IO balance
+              supabase.from('io_logs').insert({
+                user_id: user.id,
+                type: ioType,
+                category: linkedItem || comment || 'focus session',
+                minutes: mins,
+                date: today,
+              })
             }
           }
           if (autoRestart) {
@@ -268,7 +284,7 @@ const PomodoroTimer = () => {
       style={{ left: pos.x, top: pos.y, width: 260 }}
       onMouseDown={onMouseDown}>
       
-      {/* Header */}
+      {/* Header - always visible */}
       <div className="flex items-center justify-between px-3 pt-3 pb-1">
         <div className="flex gap-1">
           {Object.entries(MODE_CONFIG).map(([key, cfg]) => (
@@ -281,6 +297,10 @@ const PomodoroTimer = () => {
           ))}
         </div>
         <div className="flex gap-1">
+          <button onClick={() => { setCollapsed(c => { localStorage.setItem('polaris_pomo_collapsed', !c); return !c }) }}
+            className="text-dim hover:text-starlight transition-colors p-1">
+            {collapsed ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+          </button>
           <button onClick={() => setShowSettings(s => !s)}
             className="text-dim hover:text-starlight transition-colors p-1">
             <Settings className="w-3 h-3" />
@@ -292,77 +312,114 @@ const PomodoroTimer = () => {
         </div>
       </div>
 
-      {/* Settings panel */}
-      {showSettings && (
-        <div className="px-3 pb-2 space-y-1">
-          {Object.entries(durations).map(([key, val]) => (
-            <div key={key} className="flex items-center justify-between">
-              <span className="text-xs text-dim font-body capitalize">{key}</span>
-              <input type="number" value={val} min={1} max={60}
-                onChange={e => {
-                  const v = parseInt(e.target.value) || 1
-                  setDurations(d => ({ ...d, [key]: v }))
-                  if (key === mode) setTimeLeft(v * 60)
-                }}
-                className="w-14 bg-stardust text-xs text-starlight border border-blue-900/20 rounded px-2 py-0.5 outline-none font-mono text-center" />
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Clock face - click to start/pause */}
-      <div className="flex flex-col items-center px-3 pb-3">
-        <div className="relative w-28 h-28 flex items-center justify-center cursor-pointer group mt-1"
-          onClick={handleClockClick}>
-          <svg viewBox="0 0 120 120" className="absolute inset-0 w-full h-full -rotate-90">
-            <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="4" />
-            <circle cx="60" cy="60" r="50" fill="none" stroke={color} strokeWidth="4"
-              strokeDasharray={2 * Math.PI * 50}
-              strokeDashoffset={(2 * Math.PI * 50) * (1 - timeLeft / totalSeconds)}
-              strokeLinecap="round" style={{ transition: 'stroke-dashoffset 1s linear' }} />
-          </svg>
-          <div className="relative text-center">
-            <p className="text-xl font-mono text-starlight leading-none">{mins}:{secs}</p>
-            <p className="text-xs font-body mt-0.5 opacity-60"
-              style={{ color }}>
-              {isRunning ? '▌▌ pause' : '▶ start'}
-            </p>
+      {/* Collapsed: just show time + status inline */}
+      {collapsed ? (
+        <div className="px-3 pb-3 flex items-center justify-between">
+          <p className="text-lg font-mono text-starlight">{mins}:{secs}</p>
+          <div className="flex items-center gap-2">
+            <button onClick={handleClockClick}
+              className="w-7 h-7 rounded-lg border border-blue-900/30 flex items-center justify-center transition-all"
+              style={{ color, borderColor: `${color}50` }}>
+              {isRunning ? (
+                <svg className="w-3 h-3 fill-current" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+              ) : (
+                <svg className="w-3.5 h-3.5 fill-current ml-0.5" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+              )}
+            </button>
+            <button onClick={handleReset} className="text-dim hover:text-starlight transition-colors p-0.5">
+              <RotateCcw className="w-3 h-3" />
+            </button>
           </div>
         </div>
-
-        {/* Controls row */}
-        <div className="flex items-center gap-3 mt-2">
-          <button onClick={handleReset}
-            className="text-dim hover:text-starlight transition-colors p-1">
-            <RotateCcw className="w-3.5 h-3.5" />
-          </button>
-          <button onClick={() => setAutoRestart(r => !r)}
-            title="Auto-restart loop"
-            className={`text-lg leading-none transition-all px-1 ${autoRestart ? 'opacity-100' : 'opacity-30 hover:opacity-60'
-              }`}
-            style={autoRestart ? { color } : { color: '#64748b' }}>
-            ∞
-          </button>
-        </div>
-
-        {/* Comment + node link in compact view */}
-        <div className="mt-2 w-full space-y-1.5">
-          <input
-            type="text"
-            placeholder="What's cookin?"
-            value={comment}
-            onChange={e => setComment(e.target.value)}
-            className="w-full bg-stardust/40 text-xs text-starlight border border-blue-900/10 rounded-lg px-2 py-1.5 outline-none font-body placeholder:text-dim"
-          />
-          {nodes.length > 0 && (
-            <select value={linkedItem} onChange={e => setLinkedItem(e.target.value)}
-              className="w-full bg-stardust/40 text-xs text-dim border border-blue-900/10 rounded-lg px-2 py-1 outline-none font-body">
-              <option value="">No node linked</option>
-              {nodes.map(n => <option key={n.id} value={n.title}>{n.title}</option>)}
-            </select>
+      ) : (
+        <>
+          {/* Settings panel */}
+          {showSettings && (
+            <div className="px-3 pb-2 space-y-1">
+              {Object.entries(durations).map(([key, val]) => (
+                <div key={key} className="flex items-center justify-between">
+                  <span className="text-xs text-dim font-body capitalize">{key}</span>
+                  <input type="number" value={val} min={1} max={60}
+                    onChange={e => {
+                      const v = parseInt(e.target.value) || 1
+                      setDurations(d => ({ ...d, [key]: v }))
+                      if (key === mode) setTimeLeft(v * 60)
+                    }}
+                    className="w-14 bg-stardust text-xs text-starlight border border-blue-900/20 rounded px-2 py-0.5 outline-none font-mono text-center" />
+                </div>
+              ))}
+            </div>
           )}
-        </div>
-      </div>
+
+          {/* Clock face - just the visual ring + time, no play/pause overlay */}
+          <div className="flex flex-col items-center px-3 pb-3">
+            <div className="relative w-28 h-28 flex items-center justify-center mt-1">
+              <svg viewBox="0 0 120 120" className="absolute inset-0 w-full h-full -rotate-90">
+                <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="4" />
+                <circle cx="60" cy="60" r="50" fill="none" stroke={color} strokeWidth="4"
+                  strokeDasharray={2 * Math.PI * 50}
+                  strokeDashoffset={(2 * Math.PI * 50) * (1 - timeLeft / totalSeconds)}
+                  strokeLinecap="round" style={{ transition: 'stroke-dashoffset 1s linear' }} />
+              </svg>
+              <div className="relative text-center">
+                <p className="text-xl font-mono text-starlight leading-none">{mins}:{secs}</p>
+              </div>
+            </div>
+
+            {/* Controls row: play/pause + restart + loop */}
+            <div className="flex items-center gap-3 mt-2">
+              <button onClick={handleClockClick}
+                className="w-8 h-8 rounded-lg border border-blue-900/30 flex items-center justify-center transition-all hover:bg-blue-900/20"
+                style={{ color, borderColor: `${color}50` }}>
+                {isRunning ? (
+                  <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                ) : (
+                  <svg className="w-4 h-4 fill-current ml-0.5" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                )}
+              </button>
+              <button onClick={handleReset}
+                className="text-dim hover:text-starlight transition-colors p-1">
+                <RotateCcw className="w-3.5 h-3.5" />
+              </button>
+              <button onClick={() => setAutoRestart(r => !r)}
+                title="Auto-restart loop"
+                className={`text-lg leading-none transition-all px-1 ${autoRestart ? 'opacity-100' : 'opacity-30 hover:opacity-60'
+                  }`}
+                style={autoRestart ? { color } : { color: '#64748b' }}>
+                ∞
+              </button>
+            </div>
+
+            {/* IO Type toggle + Comment + node link */}
+            <div className="mt-2 w-full space-y-1.5">
+              <div className="flex rounded-lg overflow-hidden border border-blue-900/20">
+                <button onClick={() => { setIoType('input'); localStorage.setItem('polaris_pomo_iotype', 'input') }}
+                  className={`flex-1 text-xs py-1 font-body transition-all ${ioType === 'input' ? 'bg-amber-500/20 text-amber-400 border-r border-blue-900/20' : 'text-dim hover:text-starlight border-r border-blue-900/20'}`}>
+                  📥 Input
+                </button>
+                <button onClick={() => { setIoType('output'); localStorage.setItem('polaris_pomo_iotype', 'output') }}
+                  className={`flex-1 text-xs py-1 font-body transition-all ${ioType === 'output' ? 'bg-emerald-500/20 text-emerald-400' : 'text-dim hover:text-starlight'}`}>
+                  📤 Output
+                </button>
+              </div>
+              <input
+                type="text"
+                placeholder="What's cookin?"
+                value={comment}
+                onChange={e => setComment(e.target.value)}
+                className="w-full bg-stardust/40 text-xs text-starlight border border-blue-900/10 rounded-lg px-2 py-1.5 outline-none font-body placeholder:text-dim"
+              />
+              {nodes.length > 0 && (
+                <select value={linkedItem} onChange={e => setLinkedItem(e.target.value)}
+                  className="w-full bg-stardust/40 text-xs text-dim border border-blue-900/10 rounded-lg px-2 py-1 outline-none font-body">
+                  <option value="">No node linked</option>
+                  {nodes.map(n => <option key={n.id} value={n.title}>{n.title}</option>)}
+                </select>
+              )}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }

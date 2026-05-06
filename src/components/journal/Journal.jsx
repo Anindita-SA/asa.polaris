@@ -4,6 +4,8 @@ import { useAuth } from '../../hooks/useAuth'
 import { Camera, Plus, Check, X, Flame, ChevronLeft, ChevronRight, Calendar } from 'lucide-react'
 import { format, subDays, eachDayOfInterval, startOfDay, isToday, addDays } from 'date-fns'
 import YearInPixels from './YearInPixels'
+import DailyRitual from './DailyRitual'
+import MonthlyHabitGrid from './MonthlyHabitGrid'
 
 const MOODS = [
   { id: 'amazing', label: 'Amazing', color: 'bg-blue-500' },
@@ -169,6 +171,9 @@ const Journal = () => {
           </button>
         </div>
 
+        {/* Daily Ritual Stack */}
+        <DailyRitual dateStr={dateStr} />
+
         {/* Daily Highlight & Mood */}
         <div className="glass border border-blue-900/20 rounded-xl p-5">
           <div className="flex items-center justify-between mb-6">
@@ -232,12 +237,12 @@ const Journal = () => {
           {/* Year in Pixels (Left) */}
           <YearInPixels userId={user.id} onDateSelect={setSelectedDate} selectedDate={selectedDate} />
 
-          {/* Habit Spread (Right) */}
+          {/* Habit Spread (Right) — Monthly Grid */}
           <div className="glass border border-blue-900/40 rounded-xl p-5 shadow-lg bg-void/30">
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between mb-4">
               <h3 className="font-display tracking-wider text-starlight text-xs uppercase opacity-80 flex items-center gap-2">
                 <Flame className="w-3 h-3 text-gold" />
-                Monthly Habit Stack
+                Monthly Habit Stack — {format(selectedDate, 'MMMM yyyy')}
               </h3>
               <button onClick={() => setAddingHabit(!addingHabit)} className="text-dim hover:text-nova transition-colors">
                 <Plus className="w-4 h-4" />
@@ -245,7 +250,7 @@ const Journal = () => {
             </div>
 
             {addingHabit && (
-              <div className="flex gap-2 mb-6">
+              <div className="flex gap-2 mb-4">
                 <input placeholder="New habit..." autoFocus
                   className="flex-1 bg-stardust/10 text-sm text-starlight border border-blue-900/30 rounded-lg px-4 py-2 outline-none focus:border-pulsar/40 font-body"
                   value={newHabitTitle} onChange={e => setNewHabitTitle(e.target.value)}
@@ -254,27 +259,15 @@ const Journal = () => {
               </div>
             )}
 
-            <div className="grid grid-cols-1 gap-3">
-              {habits.map(habit => {
-                const done = habitLogs.some(l => l.habit_id === habit.id)
-                return (
-                  <div key={habit.id} className="flex items-center gap-4 p-3 rounded-lg border border-blue-900/20 bg-white/5 group hover:border-pulsar/30 transition-all">
-                    <button onClick={() => toggleHabit(habit)}
-                      className={`w-6 h-6 rounded flex items-center justify-center flex-shrink-0 transition-all border-2 ${
-                        done ? 'border-emerald bg-emerald/40 text-starlight shadow-[0_0_10px_rgba(16,185,129,0.3)]' : 'border-blue-900/40 text-transparent hover:border-pulsar/60'
-                      }`}>
-                      <Check className="w-4 h-4" />
-                    </button>
-                    <div className="flex-1">
-                      <p className={`text-sm font-body ${done ? 'text-dim line-through' : 'text-starlight'}`}>{habit.title}</p>
-                    </div>
-                    <button onClick={() => deleteHabit(habit.id)} className="text-dim hover:text-danger opacity-0 group-hover:opacity-100 transition-all p-1">
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                )
-              })}
-            </div>
+            {/* Month grid */}
+            <MonthlyHabitGrid 
+              habits={habits} 
+              userId={user.id} 
+              selectedDate={selectedDate} 
+              addXP={addXP}
+              onDelete={deleteHabit}
+              onRefetch={fetchHabits}
+            />
             {!habits.length && <p className="text-xs text-dim italic font-body text-center py-4">No habits defined yet.</p>}
           </div>
         </div>
