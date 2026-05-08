@@ -11,6 +11,7 @@ const FocusBoard = () => {
   const [backburner, setBackburner] = useState([])
   const [showModal, setShowModal] = useState(null) // 'focus' | 'backburner'
   const [form, setForm] = useState({ title: '', category: 'academic', why_now: '', why_deferred: '', context_snapshot: '', revisit_after: '', linkedMilestone: '' })
+  const [draggedItemIdx, setDraggedItemIdx] = useState(null)
   const [subtasks, setSubtasks] = useState({})
   const [milestones, setMilestones] = useState([])
   const [breakdownTarget, setBreakdownTarget] = useState(null)
@@ -29,7 +30,7 @@ const FocusBoard = () => {
   }
 
   const fetchFocus = async () => {
-    const { data } = await supabase.from('focus_items').select('*').eq('user_id', user.id).eq('status', 'active').order('created_at')
+    const { data } = await supabase.from('focus_items').select('*').eq('user_id', user.id).eq('status', 'active').order('position', { ascending: true }).order('created_at')
     setFocusItems(data || [])
     const targetIds = (data || []).map(item => item.id)
     if (targetIds.length) {
@@ -54,7 +55,7 @@ const FocusBoard = () => {
     if (focusItems.length >= 3) return
     if (!form.title) return
     const finalWhyNow = form.linkedMilestone ? `Milestone: ${form.linkedMilestone}` : form.why_now
-    await supabase.from('focus_items').insert({ title: form.title, category: form.category, why_now: finalWhyNow, user_id: user.id })
+    await supabase.from('focus_items').insert({ title: form.title, category: form.category, why_now: finalWhyNow, position: focusItems.length, user_id: user.id })
     setForm(f => ({ ...f, title: '', why_now: '', linkedMilestone: '' }))
     setShowModal(null)
     fetchFocus()
@@ -136,6 +137,29 @@ const FocusBoard = () => {
     fetchFocus()
   }
 
+  const handleDragStart = (idx) => {
+    setDraggedItemIdx(idx)
+  }
+
+  const handleDragOver = (e) => {
+    e.preventDefault() // required to allow dropping
+  }
+
+  const handleDrop = async (idx) => {
+    if (draggedItemIdx === null || draggedItemIdx === idx) return
+    const newItems = [...focusItems]
+    const [dragged] = newItems.splice(draggedItemIdx, 1)
+    newItems.splice(idx, 0, dragged)
+    
+    setFocusItems(newItems)
+    setDraggedItemIdx(null)
+    
+    // Update all positions
+    for (let i = 0; i < newItems.length; i++) {
+      await supabase.from('focus_items').update({ position: i }).eq('id', newItems[i].id)
+    }
+  }
+
   const slots = [0, 1, 2]
 
   return (
@@ -155,7 +179,12 @@ const FocusBoard = () => {
             {slots.map(i => {
               const item = focusItems[i]
               return item ? (
-                <div key={item.id} className="glass glass-hover p-4 rounded-xl border border-blue-900/20 relative group">
+                <div key={item.id} 
+                  draggable
+                  onDragStart={() => handleDragStart(i)}
+                  onDragOver={handleDragOver}
+                  onDrop={() => handleDrop(i)}
+                  className="glass glass-hover p-4 rounded-xl border border-blue-900/20 relative group cursor-grab active:cursor-grabbing hover:-translate-y-1 transition-transform">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
@@ -187,7 +216,10 @@ const FocusBoard = () => {
                   </div>
                 </div>
               ) : (
-                <div key={i} className={`border border-dashed border-blue-900/30 rounded-xl p-4 flex items-center justify-center ${focusItems.length <= i ? 'opacity-60' : 'opacity-20'}`}>
+                <div key={i} 
+                  onDragOver={handleDragOver}
+                  onDrop={() => handleDrop(focusItems.length)}
+                  className={`border border-dashed border-blue-900/30 rounded-xl p-4 flex items-center justify-center ${focusItems.length <= i ? 'opacity-60' : 'opacity-20'}`}>
                   {focusItems.length <= i && i === focusItems.length ? (
                     <button onClick={() => setShowModal('focus')} className="flex items-center gap-2 text-dim hover:text-nova transition-colors text-xs font-body">
                       <Plus className="w-3.5 h-3.5" /> Add focus item

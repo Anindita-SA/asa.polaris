@@ -220,3 +220,28 @@
   letter-spacing: 0.03em;
   font-style: normal;
 }
+
+@keyframes nodeTwinkle {
+  0% { opacity: 0.6; transform: scale(0.95); }
+  100% { opacity: 1; transform: scale(1.05); }
+}
+
+/* Premium Habit Grid Additions */
+.habit-cell {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+.habit-cell:hover {
+  transform: scale(1.4) translateY(-1px);
+  z-index: 10;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
+.habit-row {
+  transition: background-color 0.2s ease;
+}
+.habit-row:hover {
+  background-color: rgba(255,255,255,0.02);
+}
