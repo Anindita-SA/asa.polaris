@@ -64,6 +64,7 @@ const PomodoroTimer = () => {
     try { return localStorage.getItem('polaris_pomo_iotype') || 'output' } catch { return 'output' }
   })
 
+  const clickOrigin = useRef(null)
   const isDragging = useRef(false)
   const dragOffset = useRef({ x: 0, y: 0 })
   const widgetRef = useRef(null)
@@ -137,7 +138,7 @@ const PomodoroTimer = () => {
       })
     }, 1000)
     return () => clearInterval(id)
-  }, [isRunning, autoRestart, mode, durations, sessionStart, linkedItem, comment, user?.id])
+  }, [isRunning, autoRestart, mode, durations, sessionStart, linkedItem, comment, user?.id, ioType])
 
   // Only reset the timer if the mode actually changes (ignores Strict Mode double mounts)
   const prevModeRef = useRef(mode)
@@ -164,20 +165,37 @@ const PomodoroTimer = () => {
 
   // Drag
   const onMouseDown = (e) => {
-    if (isExpanded || e.target.closest('button') || e.target.closest('select')) return
-    isDragging.current = true
+    if (isExpanded || e.target.closest('button') || e.target.closest('select') || e.target.closest('input')) return
+    clickOrigin.current = { x: e.clientX, y: e.clientY }
+    isDragging.current = false
     dragOffset.current = { x: e.clientX - pos.x, y: e.clientY - pos.y }
     window.addEventListener('mousemove', onMouseMove)
     window.addEventListener('mouseup', onMouseUp)
   }
 
   const onMouseMove = useCallback((e) => {
-    if (!isDragging.current) return
-    setPos({ x: e.clientX - dragOffset.current.x, y: e.clientY - dragOffset.current.y })
+    if (!clickOrigin.current) return
+    if (!isDragging.current) {
+      const dx = Math.abs(e.clientX - clickOrigin.current.x)
+      const dy = Math.abs(e.clientY - clickOrigin.current.y)
+      if (dx > 3 || dy > 3) isDragging.current = true
+      else return
+    }
+    
+    let newX = e.clientX - dragOffset.current.x
+    let newY = e.clientY - dragOffset.current.y
+    const snap = 35
+    if (newX < snap) newX = 0
+    if (newY < snap) newY = 0
+    if (window.innerWidth - (newX + 260) < snap) newX = window.innerWidth - 260
+    if (window.innerHeight - (newY + 180) < snap) newY = window.innerHeight - 180
+
+    setPos({ x: newX, y: newY })
   }, [])
 
   const onMouseUp = useCallback(() => {
     isDragging.current = false
+    clickOrigin.current = null
     window.removeEventListener('mousemove', onMouseMove)
     window.removeEventListener('mouseup', onMouseUp)
   }, [onMouseMove])
@@ -262,14 +280,27 @@ const PomodoroTimer = () => {
           </button>
         </div>
 
-        {/* What's cookin — free text + minimize */}
-        <div className="mt-8 flex items-center gap-3 w-full">
-          <input type="text" placeholder="What's cookin?" value={comment} onChange={e => setComment(e.target.value)}
-            className="flex-1 bg-stardust/50 text-starlight border border-blue-900/30 rounded-xl px-4 py-3 outline-none font-body text-sm placeholder:text-dim text-center" />
-          <button onClick={() => setIsExpanded(false)}
-            className="w-11 h-11 rounded-xl border border-blue-900/30 text-dim bg-stardust/40 hover:bg-stardust/80 hover:text-starlight flex items-center justify-center transition-all flex-shrink-0">
-            <Minimize2 className="w-5 h-5" />
-          </button>
+        <div className="mt-8 flex flex-col gap-3 w-full">
+          {/* IO Type toggle */}
+          <div className="flex rounded-lg overflow-hidden border border-blue-900/20">
+            <button onClick={() => { setIoType('input'); localStorage.setItem('polaris_pomo_iotype', 'input') }}
+              className={`flex-1 text-xs py-2 font-body transition-all ${ioType === 'input' ? 'bg-amber-500/20 text-amber-400 border-r border-blue-900/20' : 'bg-stardust/40 text-dim hover:text-starlight border-r border-blue-900/20'}`}>
+              📥 Input
+            </button>
+            <button onClick={() => { setIoType('output'); localStorage.setItem('polaris_pomo_iotype', 'output') }}
+              className={`flex-1 text-xs py-2 font-body transition-all ${ioType === 'output' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-stardust/40 text-dim hover:text-starlight'}`}>
+              📤 Output
+            </button>
+          </div>
+          
+          <div className="flex items-center gap-3 w-full">
+            <input type="text" placeholder="What's cookin?" value={comment} onChange={e => setComment(e.target.value)}
+              className="flex-1 bg-stardust/50 text-starlight border border-blue-900/30 rounded-xl px-4 py-3 outline-none font-body text-sm placeholder:text-dim text-center" />
+            <button onClick={() => setIsExpanded(false)}
+              className="w-11 h-11 rounded-xl border border-blue-900/30 text-dim bg-stardust/40 hover:bg-stardust/80 hover:text-starlight flex items-center justify-center transition-all flex-shrink-0">
+              <Minimize2 className="w-5 h-5" />
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -339,12 +370,14 @@ const PomodoroTimer = () => {
               {Object.entries(durations).map(([key, val]) => (
                 <div key={key} className="flex items-center justify-between">
                   <span className="text-xs text-dim font-body capitalize">{key}</span>
-                  <input type="number" value={val} min={1} max={60}
-                    onChange={e => {
+                  <input type="number" defaultValue={val} min={1} max={180}
+                    onBlur={e => {
                       const v = parseInt(e.target.value) || 1
+                      e.target.value = v
                       setDurations(d => ({ ...d, [key]: v }))
                       if (key === mode) setTimeLeft(v * 60)
                     }}
+                    onKeyDown={e => e.key === 'Enter' && e.target.blur()}
                     className="w-14 bg-stardust text-xs text-starlight border border-blue-900/20 rounded px-2 py-0.5 outline-none font-mono text-center" />
                 </div>
               ))}

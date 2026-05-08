@@ -73,10 +73,11 @@ const YearInPixels = ({ userId, onDateSelect, selectedDate }) => {
       .from('mood_logs')
       .delete()
       .eq('log_date', dateStr)
+      .eq('user_id', userId)
 
     const { error } = await supabase
       .from('mood_logs')
-      .insert({ log_date: dateStr, mood: moodId })
+      .insert({ log_date: dateStr, mood: moodId, user_id: userId })
 
     if (error) console.error('YearInPixels save error:', error)
 
@@ -92,6 +93,7 @@ const YearInPixels = ({ userId, onDateSelect, selectedDate }) => {
       .from('mood_logs')
       .delete()
       .eq('log_date', popover.dateStr)
+      .eq('user_id', userId)
     setSaving(false)
     setPopover(null)
     fetchMoods()
