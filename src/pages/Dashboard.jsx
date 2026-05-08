@@ -18,7 +18,7 @@ import Curriculum from '../components/panels/Curriculum'
 const Dashboard = () => {
   const [activeView, setActiveView] = useState('graph')
   const [selectedNode, setSelectedNode] = useState(null)
-  const [anchorCollapsed, setAnchorCollapsed] = useState(false)
+  const [anchorCollapsed, setAnchorCollapsed] = useState(true)
   const graphRef = useRef(null)
   const refreshGraph = () => graphRef.current?.refresh()
 

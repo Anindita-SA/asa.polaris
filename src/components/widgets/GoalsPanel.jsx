@@ -26,7 +26,8 @@ const GoalsPanel = () => {
   const [activeScope, setActiveScope] = useState('weekly')
   const [goals, setGoals] = useState([])
   const [showModal, setShowModal] = useState(false)
-  const [form, setForm] = useState({ title: '', target: '', unit: '', scope: 'weekly', xp_reward: 50 })
+  const [form, setForm] = useState({ title: '', target: '', unit: '', scope: 'weekly', xp_reward: 50, parent_goal_id: '' })
+  const [allGoals, setAllGoals] = useState([])
 
   useEffect(() => { fetchGoals() }, [activeScope])
 
@@ -35,17 +36,25 @@ const GoalsPanel = () => {
       .select('*').eq('user_id', user.id).eq('scope', activeScope)
       .order('created_at', { ascending: false })
     setGoals(data || [])
+    
+    const { data: all } = await supabase.from('goals')
+      .select('id, title, scope').eq('user_id', user.id)
+    setAllGoals(all || [])
   }
 
   const addGoal = async () => {
     if (!form.title || !form.target) return
-    await supabase.from('goals').insert({
-      ...form,
-      user_id: user.id,
+    const payload = {
+      title: form.title,
       target: parseFloat(form.target),
+      unit: form.unit,
+      scope: form.scope,
       xp_reward: parseInt(form.xp_reward),
-    })
-    setForm({ title: '', target: '', unit: '', scope: activeScope, xp_reward: 50 })
+      parent_goal_id: form.parent_goal_id || null,
+      user_id: user.id
+    }
+    await supabase.from('goals').insert(payload)
+    setForm({ title: '', target: '', unit: '', scope: activeScope, xp_reward: 50, parent_goal_id: '' })
     setShowModal(false)
     fetchGoals()
   }
@@ -53,8 +62,13 @@ const GoalsPanel = () => {
   const updateProgress = async (goal, delta) => {
     const newCurrent = Math.max(0, Math.min(goal.current + delta, goal.target))
     const completed = newCurrent >= goal.target
+    
+    // Optimistic UI
+    setGoals(prev => prev.map(g => g.id === goal.id ? { ...g, current: newCurrent, completed } : g))
+    
     await supabase.from('goals').update({ current: newCurrent, completed }).eq('id', goal.id)
     if (completed && !goal.completed) await addXP(goal.xp_reward)
+    if (!completed && goal.completed) await addXP(-(goal.xp_reward || 0))
     fetchGoals()
   }
 
@@ -103,7 +117,12 @@ const GoalsPanel = () => {
                 <div className="flex items-start justify-between mb-3">
                   <div>
                     <p className={`text-sm font-body ${goal.completed ? 'text-dim line-through' : 'text-starlight'}`}>{goal.title}</p>
-                    {goal.completed && <span className="text-xs text-emerald font-mono">+{goal.xp_reward} XP ✦</span>}
+                    {goal.parent_goal_id && (
+                      <p className="text-[10px] text-dim/60 font-body flex items-center gap-1 mt-0.5">
+                        ↳ Links to: {allGoals.find(g => g.id === goal.parent_goal_id)?.title || 'Unknown'}
+                      </p>
+                    )}
+                    {goal.completed && <span className="text-xs text-emerald font-mono mt-1 block">+{goal.xp_reward} XP ✦</span>}
                   </div>
                   <button onClick={() => deleteGoal(goal.id)} className="text-dim hover:text-danger opacity-0 group-hover:opacity-100 transition-all">
                     <X className="w-3.5 h-3.5" />
@@ -122,7 +141,12 @@ const GoalsPanel = () => {
                     <span className="text-blue-900/60 mx-1">·</span>
                     <span className={SCOPE_COLORS[activeScope].split(' ')[0]}>{Math.round(pct)}%</span>
                   </span>
-                  {!goal.completed && (
+                  {goal.completed ? (
+                    <button onClick={() => updateProgress(goal, -1)} title="Undo completion"
+                      className="w-5 h-5 rounded border border-emerald/30 text-emerald hover:text-danger text-xs flex items-center justify-center hover:bg-emerald/10 transition-colors">
+                      <X className="w-3 h-3" />
+                    </button>
+                  ) : (
                     <div className="flex items-center gap-1">
                       <button onClick={() => updateProgress(goal, -1)}
                         className="w-5 h-5 rounded border border-blue-900/30 text-dim hover:text-starlight text-xs flex items-center justify-center transition-colors">−</button>
@@ -179,6 +203,18 @@ const GoalsPanel = () => {
               <input type="number" className="w-20 bg-stardust/50 text-sm text-gold border border-gold/20 rounded-lg px-3 py-2 outline-none font-mono"
                 value={form.xp_reward} onChange={e => setForm(f => ({ ...f, xp_reward: e.target.value }))} />
             </div>
+            {activeScope !== '5yr' && (
+              <select className="w-full bg-stardust/50 text-sm text-dim border border-blue-900/20 rounded-lg px-3 py-2 outline-none font-body"
+                value={form.parent_goal_id} onChange={e => setForm(f => ({ ...f, parent_goal_id: e.target.value }))}>
+                <option value="">No parent goal linked</option>
+                {allGoals.filter(g => {
+                  const ranks = { weekly: 1, monthly: 2, quarterly: 3, yearly: 4, '5yr': 5 }
+                  return ranks[g.scope] > ranks[activeScope]
+                }).map(g => (
+                  <option key={g.id} value={g.id}>{g.title} ({g.scope})</option>
+                ))}
+              </select>
+            )}
             <button onClick={addGoal}
               className={`w-full py-2 border text-sm font-display tracking-wider rounded-lg transition-colors ${SCOPE_COLORS[activeScope]} hover:opacity-80`}>
               ADD GOAL

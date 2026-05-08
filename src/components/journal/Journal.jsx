@@ -6,6 +6,7 @@ import { format, subDays, eachDayOfInterval, startOfDay, isToday, addDays } from
 import YearInPixels from './YearInPixels'
 import DailyRitual from './DailyRitual'
 import MonthlyHabitGrid from './MonthlyHabitGrid'
+import DailyTasks from './DailyTasks'
 
 const MOODS = [
   { id: 'amazing', label: 'Amazing', color: 'bg-blue-500' },
@@ -135,6 +136,7 @@ const Journal = () => {
     if (logged) {
       await supabase.from('habit_logs').delete().eq('id', logged.id)
       setHabitLogs(prev => prev.filter(l => l.id !== logged.id))
+      await addXP(-(habit.xp_reward || 10))
     } else {
       const { data } = await supabase.from('habit_logs').insert({ user_id: user.id, habit_id: habit.id, date: dateStr }).select().single()
       setHabitLogs(prev => [...prev, data])
@@ -174,6 +176,9 @@ const Journal = () => {
 
         {/* Daily Ritual Stack */}
         <DailyRitual dateStr={dateStr} />
+
+        {/* ADHD Daily Target Tasks */}
+        <DailyTasks dateStr={dateStr} />
 
         {/* Daily Highlight & Mood */}
         <div className="glass border border-blue-900/20 rounded-xl p-5">

@@ -296,27 +296,39 @@ export const DEFAULT_CURRICULUM = [
 
 export const LEVEL_NAMES = [
   { level: 1, name: 'Stargazer', minXp: 0 },
-  { level: 2, name: 'Apprentice Inventor', minXp: 200 },
-  { level: 3, name: 'Circuit Weaver', minXp: 500 },
-  { level: 4, name: 'Signal Architect', minXp: 1000 },
-  { level: 5, name: 'Renaissance Engineer', minXp: 2000 },
-  { level: 6, name: 'Polaris Navigator', minXp: 3500 },
-  { level: 7, name: 'Constellation Maker', minXp: 5500 },
-  { level: 8, name: 'Da Vinci Inheritor', minXp: 8000 },
+  { level: 2, name: 'Apprentice Inventor', minXp: 1000 },
+  { level: 3, name: 'Circuit Weaver', minXp: 2500 },
+  { level: 4, name: 'Signal Architect', minXp: 5000 },
+  { level: 5, name: 'Renaissance Engineer', minXp: 8500 },
+  { level: 6, name: 'Polaris Navigator', minXp: 13000 },
+  { level: 7, name: 'Constellation Maker', minXp: 19000 },
+  { level: 8, name: 'Da Vinci Inheritor', minXp: 27000 },
 ]
 
 export const getLevelInfo = (xp) => {
-  let current = LEVEL_NAMES[0]
-  let next = LEVEL_NAMES[1]
-  for (let i = LEVEL_NAMES.length - 1; i >= 0; i--) {
-    if (xp >= LEVEL_NAMES[i].minXp) {
-      current = LEVEL_NAMES[i]
-      next = LEVEL_NAMES[i + 1] || null
-      break
+  let current, next, progress
+  
+  if (xp >= 27000) {
+    const extraLevel = Math.floor((xp - 27000) / 10000) + 1
+    const level = 8 + extraLevel
+    const minXp = 27000 + (extraLevel - 1) * 10000
+    const nextMinXp = 27000 + extraLevel * 10000
+    
+    current = { level, name: `Grandmaster Inventor (Grade ${extraLevel})`, minXp }
+    next = { level: level + 1, name: `Grandmaster Inventor (Grade ${extraLevel + 1})`, minXp: nextMinXp }
+    progress = ((xp - current.minXp) / (next.minXp - current.minXp)) * 100
+  } else {
+    current = LEVEL_NAMES[0]
+    next = LEVEL_NAMES[1]
+    for (let i = LEVEL_NAMES.length - 1; i >= 0; i--) {
+      if (xp >= LEVEL_NAMES[i].minXp) {
+        current = LEVEL_NAMES[i]
+        next = LEVEL_NAMES[i + 1] || null
+        break
+      }
     }
+    progress = next ? ((xp - current.minXp) / (next.minXp - current.minXp)) * 100 : 100
   }
-  const progress = next
-    ? ((xp - current.minXp) / (next.minXp - current.minXp)) * 100
-    : 100
+  
   return { current, next, progress }
 }

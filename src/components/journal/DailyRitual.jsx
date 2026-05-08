@@ -26,11 +26,11 @@ const DailyRitual = ({ dateStr }) => {
   }, [expanded])
 
   useEffect(() => {
-    if (user && expanded) {
+    if (user) {
       fetchItems()
       fetchLogs()
     }
-  }, [user, dateStr, expanded])
+  }, [user, dateStr])
 
   const fetchItems = async () => {
     if (!user?.id) return
@@ -60,6 +60,7 @@ const DailyRitual = ({ dateStr }) => {
       // Uncheck
       await supabase.from('ritual_logs').delete().eq('id', log.id)
       setLogs(prev => prev.filter(l => l.id !== log.id))
+      await addXP(-5)
     } else {
       // Check
       const { data } = await supabase.from('ritual_logs').insert({
@@ -144,7 +145,7 @@ const DailyRitual = ({ dateStr }) => {
           </div>
           
           <button 
-            onClick={(e) => { e.stopPropagation(); setEditing(!editing) }}
+            onClick={(e) => { e.stopPropagation(); setEditing(!editing); if (!editing) setExpanded(true); }}
             className={`p-1.5 rounded-md transition-colors ${editing ? 'bg-pulsar/20 text-pulsar' : 'hover:bg-white/10 text-dim'}`}
           >
             <Edit2 className="w-4 h-4" />

@@ -50,37 +50,29 @@ const seedUserData = async (userId) => {
         )
       }
 
-      // 3. Seed Goals (additive — skip existing titles)
-      const { data: existingGoals } = await supabase.from('goals').select('title').eq('user_id', userId)
-      const existingGoalTitles = new Set((existingGoals || []).map(g => g.title))
-      const newGoals = DEFAULT_GOALS
-        .filter(g => !existingGoalTitles.has(g.title))
-        .map(({ node_title, ...g }) => ({ ...g, user_id: userId }))
-      if (newGoals.length) await supabase.from('goals').insert(newGoals)
+      // 3. Seed Goals (only if none exist)
+      const { data: existingGoals } = await supabase.from('goals').select('id').eq('user_id', userId).limit(1)
+      if (!existingGoals?.length) {
+        await supabase.from('goals').insert(DEFAULT_GOALS.map(({ node_title, ...g }) => ({ ...g, user_id: userId })))
+      }
 
-      // 4. Seed Habits (additive)
-      const { data: existingHabits } = await supabase.from('habits').select('title').eq('user_id', userId)
-      const existingHabitTitles = new Set((existingHabits || []).map(h => h.title))
-      const newHabits = DEFAULT_HABITS
-        .filter(h => !existingHabitTitles.has(h.title))
-        .map(h => ({ ...h, user_id: userId }))
-      if (newHabits.length) await supabase.from('habits').insert(newHabits)
+      // 4. Seed Habits (only if none exist)
+      const { data: existingHabits } = await supabase.from('habits').select('id').eq('user_id', userId).limit(1)
+      if (!existingHabits?.length) {
+        await supabase.from('habits').insert(DEFAULT_HABITS.map(h => ({ ...h, user_id: userId })))
+      }
 
-      // 5. Seed Focus Items (additive)
-      const { data: existingFocus } = await supabase.from('focus_items').select('title').eq('user_id', userId)
-      const existingFocusTitles = new Set((existingFocus || []).map(f => f.title))
-      const newFocus = DEFAULT_FOCUS_ITEMS
-        .filter(f => !existingFocusTitles.has(f.title))
-        .map(f => ({ ...f, user_id: userId, status: 'active' }))
-      if (newFocus.length) await supabase.from('focus_items').insert(newFocus)
+      // 5. Seed Focus Items (only if none exist)
+      const { data: existingFocus } = await supabase.from('focus_items').select('id').eq('user_id', userId).limit(1)
+      if (!existingFocus?.length) {
+        await supabase.from('focus_items').insert(DEFAULT_FOCUS_ITEMS.map(f => ({ ...f, user_id: userId, status: 'active' })))
+      }
 
-      // 6. Seed Backburner (additive)
-      const { data: existingBackburner } = await supabase.from('backburner').select('title').eq('user_id', userId)
-      const existingBackburnerTitles = new Set((existingBackburner || []).map(b => b.title))
-      const newBackburner = DEFAULT_BACKBURNER
-        .filter(b => !existingBackburnerTitles.has(b.title))
-        .map(b => ({ ...b, user_id: userId }))
-      if (newBackburner.length) await supabase.from('backburner').insert(newBackburner)
+      // 6. Seed Backburner (only if none exist)
+      const { data: existingBackburner } = await supabase.from('backburner').select('id').eq('user_id', userId).limit(1)
+      if (!existingBackburner?.length) {
+        await supabase.from('backburner').insert(DEFAULT_BACKBURNER.map(b => ({ ...b, user_id: userId })))
+      }
 
       // 7. Seed Eulogy (only if none exists)
       const { data: existingEulogies } = await supabase.from('eulogies').select('id').eq('user_id', userId)
@@ -93,28 +85,27 @@ const seedUserData = async (userId) => {
         })
       }
 
-      // 8. Seed Curriculum (additive)
-      const { data: existingChapters } = await supabase.from('curriculum_chapters').select('title, id, node_title').eq('user_id', userId)
-      const existingChapterKeys = new Set((existingChapters || []).map(c => `${c.node_title}::${c.title}`))
-      for (const chapter of DEFAULT_CURRICULUM) {
-        const key = `${chapter.node_title}::${chapter.title}`
-        if (existingChapterKeys.has(key)) continue
-        const { data: inserted } = await supabase.from('curriculum_chapters').insert({
-          user_id: userId,
-          title: chapter.title,
-          description: chapter.description || null,
-          node_title: chapter.node_title,
-          position: 0,
-        }).select('id').single()
-        if (inserted?.id && chapter.topics?.length) {
-          await supabase.from('curriculum_topics').insert(
-            chapter.topics.map((t, idx) => ({
-              user_id: userId,
-              chapter_id: inserted.id,
-              title: t,
-              position: idx,
-            }))
-          )
+      // 8. Seed Curriculum (only if none exists)
+      const { data: existingChapters } = await supabase.from('curriculum_chapters').select('id').eq('user_id', userId).limit(1)
+      if (!existingChapters?.length) {
+        for (const chapter of DEFAULT_CURRICULUM) {
+          const { data: inserted } = await supabase.from('curriculum_chapters').insert({
+            user_id: userId,
+            title: chapter.title,
+            description: chapter.description || null,
+            node_title: chapter.node_title,
+            position: 0,
+          }).select('id').single()
+          if (inserted?.id && chapter.topics?.length) {
+            await supabase.from('curriculum_topics').insert(
+              chapter.topics.map((t, idx) => ({
+                user_id: userId,
+                chapter_id: inserted.id,
+                title: t,
+                position: idx,
+              }))
+            )
+          }
         }
       }
     } catch (e) {
@@ -220,7 +211,8 @@ export const AuthProvider = ({ children }) => {
       provider: 'google',
       options: { 
         redirectTo: window.location.origin + '/asa.polaris/',
-        scopes: 'https://www.googleapis.com/auth/calendar.readonly'
+        scopes: 'https://www.googleapis.com/auth/calendar.readonly',
+        queryParams: { access_type: 'offline', prompt: 'consent' },
       },
     })
 

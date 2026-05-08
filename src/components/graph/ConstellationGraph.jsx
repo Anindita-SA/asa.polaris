@@ -115,6 +115,7 @@ const ConstellationGraph = forwardRef(({ onNodeSelect }, ref) => {
       .attr('fill', d => col(d.type))
       .attr('stroke', '#0a0c1a')
       .attr('stroke-width', 1.5)
+      .style('animation', d => `nodeTwinkle ${2 + Math.random() * 3}s infinite alternate ease-in-out ${Math.random() * 2}s`)
 
     nodeSel.filter(d => d.type !== 'topic')
       .append('text')
@@ -136,6 +137,8 @@ const ConstellationGraph = forwardRef(({ onNodeSelect }, ref) => {
       })
 
     const sim = d3.forceSimulation(nodeData)
+      .alphaDecay(0.005)
+      .alphaMin(0.001)
       .force('link',
         d3.forceLink(links).id(d => d.id)
           .distance(d => d.source.type === 'root' ? 100 : d.source.type === 'subnode' ? 30 : 55)
@@ -145,6 +148,16 @@ const ConstellationGraph = forwardRef(({ onNodeSelect }, ref) => {
       .force('center',  d3.forceCenter(w / 2, h / 2))
       .force('collide', d3.forceCollide(d => rad(d.type) + 8))
       .on('tick', () => {
+        // Apply continuous slight drifting force for perpetual floating
+        nodeData.forEach(d => {
+          if (!d.fx && !d.fy && d.type !== 'root') {
+            d.vx += (Math.random() - 0.5) * 0.05
+            d.vy += (Math.random() - 0.5) * 0.05
+          }
+        })
+        // Keep alpha bumped slightly to never fully stop
+        if (sim.alpha() < 0.05) sim.alphaTarget(0.02)
+        
         linkSel
           .attr('x1', d => d.source.x).attr('y1', d => d.source.y)
           .attr('x2', d => d.target.x).attr('y2', d => d.target.y)
