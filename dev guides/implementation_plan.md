@@ -116,7 +116,15 @@ This document outlines the engineering step-by-step implementation plan for the 
 
 ---
 
-### Component 14: Reverted AI Fitness Coach XP
+### Component 14: One-Click Guest Demo Mode
+* **Files:** [useAuth.jsx](file:///e:/Academic%20files/Competiton%20and%20Project%20files/Polaris/asa.polaris/src/hooks/useAuth.jsx) · [Login.jsx](file:///e:/Academic%20files/Competiton%20and%20Project%20files/Polaris/asa.polaris/src/pages/Login.jsx)
+* **Modifications:**
+  1. **signInAsGuest Function:** Add a background authentication function to `useAuth` that logs into a shared demo profile `guest@polaris.com`. If the user does not exist in the database, it signs up and automatically seeds the profile with all defaults on the fly.
+  2. **Demo Button:** Add a beautiful glassmorphic `"✨ Try as Guest / Demo Mode"` button on the `Login.jsx` interface, giving Claude agents and portfolio visitors a zero-friction, one-click entry to explore the live, fully functional commands deck.
+
+---
+
+### Component 15: Reverted AI Fitness Coach XP
 * **Files:** [FitnessBridge.jsx](file:///e:/Academic%20files/Competiton%20and%20Project%20files/Polaris/asa.polaris/src/components/panels/FitnessBridge.jsx)
 * **Modifications:**
   1. Completely remove `addXP` call and references to numeric XP rewards from the Groq coach prompt and completion logs.
@@ -136,3 +144,4 @@ This document outlines the engineering step-by-step implementation plan for the 
 9. **Pomodoro I/O Overhaul:** Toggle between Input and Output, select a standard category, log early, and confirm the `IOBalanceBar` immediately reflects the minutes.
 10. **Spatial Drill-Down:** Click a node on the Constellation Map and confirm Goals/Timeline display filtered items properly.
 11. **Media Watchlist:** Add a Book or Show in the Media tab, specify a completed date, personal context note, and 5-star rating. Confirm it displays beautifully.
+12. **Guest Login:** Click "Try as Guest" on the login screen and verify you immediately enter the fully-loaded dashboard.

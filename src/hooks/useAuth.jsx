@@ -216,6 +216,35 @@ export const AuthProvider = ({ children }) => {
       },
     })
 
+  const signInAsGuest = async () => {
+    setLoading(true)
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: 'guest@polaris.com',
+        password: 'polarisguest123',
+      })
+      if (error) {
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email: 'guest@polaris.com',
+          password: 'polarisguest123',
+        })
+        if (signUpError) {
+          console.error('Guest sign up error:', signUpError)
+        } else if (signUpData?.user) {
+          setUser(signUpData.user)
+          await fetchProfile(signUpData.user.id)
+        }
+      } else if (data?.user) {
+        setUser(data.user)
+        await fetchProfile(data.user.id)
+      }
+    } catch (err) {
+      console.error('Guest sign in failed:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const signOut = () => {
     fetchingFor.current = null
     seeding = false
@@ -223,7 +252,7 @@ export const AuthProvider = ({ children }) => {
   }
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, providerToken, signInWithGoogle, signOut, updateProfile, addXP }}>
+    <AuthContext.Provider value={{ user, profile, loading, providerToken, signInWithGoogle, signInAsGuest, signOut, updateProfile, addXP }}>
       {children}
     </AuthContext.Provider>
   )
