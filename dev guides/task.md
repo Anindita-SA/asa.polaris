@@ -1,0 +1,12 @@
+- `[x]` **Phase 1: Critical Glitches**
+  - `[x]` Fix Year in Pixels `delete()` missing `user_id` constraint.
+  - `[x]` Fix MusicPlayer unopenable and undraggable header bugs.
+- `[x]` **Phase 2: Pomodoro Enhancements**
+  - `[x]` Add `ioType` to timer `useEffect` dependencies.
+  - `[x]` Fix custom timer input UX (prevent immediate snap-to on type).
+- `[x]` **Phase 3: Visuals & UX**
+  - `[x]` Fix Node Twinkling dark borders in `global.css`.
+  - `[x]` Implement Optimistic UI for `GoalsPanel.jsx`.
+- `[x]` **Phase 4: AI & Fitness**
+  - `[x]` Add Weekly AI Verdict to `FitnessBridge.jsx`.
+  - `[x]` Implement XP reward injection from AI response.
