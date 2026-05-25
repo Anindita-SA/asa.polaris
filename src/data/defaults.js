@@ -294,41 +294,48 @@ export const DEFAULT_CURRICULUM = [
 
 // ── Leveling System ───────────────────────────────────────────────────────────
 
-export const LEVEL_NAMES = [
-  { level: 1, name: 'Stargazer', minXp: 0 },
-  { level: 2, name: 'Apprentice Inventor', minXp: 1000 },
-  { level: 3, name: 'Circuit Weaver', minXp: 2500 },
-  { level: 4, name: 'Signal Architect', minXp: 5000 },
-  { level: 5, name: 'Renaissance Engineer', minXp: 8500 },
-  { level: 6, name: 'Polaris Navigator', minXp: 13000 },
-  { level: 7, name: 'Constellation Maker', minXp: 19000 },
-  { level: 8, name: 'Da Vinci Inheritor', minXp: 27000 },
-]
+export const TIERS = [
+  "Stargazer", "Apprentice Inventor", "Circuit Weaver", "Signal Architect",
+  "Logic Designer", "Hardware Tinkerer", "Embedded Coder", "System Planner",
+  "Renaissance Engineer", "Polaris Navigator", "Constellation Maker", "Da Vinci Inheritor",
+  "Algorithmic Alchemist", "Dynamic Modeler", "Quantum Engineer", "Celestial Cartographer",
+  "Cosmic Architect", "Galaxy Weaver", "Infinite Explorer", "Ascended Visionary"
+];
 
 export const getLevelInfo = (xp) => {
-  let current, next, progress
+  // XP required to reach Level L is 15 * L^2
+  // Therefore, Level = floor(sqrt(xp / 15))
+  // Level 1: 0 - 59 XP, Level 2: 60 - 134 XP...
+  const level = Math.max(1, Math.floor(Math.sqrt(xp / 15)));
+  const nextLevel = level + 1;
   
-  if (xp >= 27000) {
-    const extraLevel = Math.floor((xp - 27000) / 10000) + 1
-    const level = 8 + extraLevel
-    const minXp = 27000 + (extraLevel - 1) * 10000
-    const nextMinXp = 27000 + extraLevel * 10000
-    
-    current = { level, name: `Grandmaster Inventor (Grade ${extraLevel})`, minXp }
-    next = { level: level + 1, name: `Grandmaster Inventor (Grade ${extraLevel + 1})`, minXp: nextMinXp }
-    progress = ((xp - current.minXp) / (next.minXp - current.minXp)) * 100
-  } else {
-    current = LEVEL_NAMES[0]
-    next = LEVEL_NAMES[1]
-    for (let i = LEVEL_NAMES.length - 1; i >= 0; i--) {
-      if (xp >= LEVEL_NAMES[i].minXp) {
-        current = LEVEL_NAMES[i]
-        next = LEVEL_NAMES[i + 1] || null
-        break
-      }
-    }
-    progress = next ? ((xp - current.minXp) / (next.minXp - current.minXp)) * 100 : 100
-  }
+  const currentMinXp = 15 * Math.pow(level, 2);
+  const nextMinXp = 15 * Math.pow(nextLevel, 2);
   
-  return { current, next, progress }
+  // Real progress between current and next level
+  // Since level is derived from floor(sqrt(xp/15)), at Level 1, minXp is 15, but you can have 0 XP. 
+  // Let's adjust floor boundary: The actual XP requirement for Level L is 15 * L^2
+  // Wait, if xp = 0, level = 0. But we enforce Math.max(1, ...).
+  // So for Level 1, the range is 0 to 59. 
+  const effectiveCurrentMinXp = level === 1 ? 0 : currentMinXp;
+  
+  let progress = ((xp - effectiveCurrentMinXp) / (nextMinXp - effectiveCurrentMinXp)) * 100;
+  progress = Math.max(0, Math.min(100, progress));
+
+  const tierIdx = Math.min(Math.floor((level - 1) / 10), TIERS.length - 1);
+  const tierName = TIERS[tierIdx];
+  const grade = 10 - ((level - 1) % 10);
+  const name = `${tierName}, Grade ${grade}`;
+
+  // Calculate next tier info to show exactly what's next
+  const nextTierIdx = Math.min(Math.floor((nextLevel - 1) / 10), TIERS.length - 1);
+  const nextTierName = TIERS[nextTierIdx];
+  const nextGrade = 10 - ((nextLevel - 1) % 10);
+  const nextName = `${nextTierName}, Grade ${nextGrade}`;
+
+  return {
+    current: { level, name, minXp: effectiveCurrentMinXp },
+    next: { level: nextLevel, name: nextName, minXp: nextMinXp },
+    progress
+  };
 }

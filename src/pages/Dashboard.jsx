@@ -22,12 +22,21 @@ const Dashboard = () => {
   const graphRef = useRef(null)
   const refreshGraph = () => graphRef.current?.refresh()
 
+  const jumpToNode = async (nodeId) => {
+    const { supabase } = await import('../lib/supabase')
+    const { data } = await supabase.from('nodes').select('*').eq('id', nodeId).single()
+    if (data) {
+      setSelectedNode(data)
+      setActiveView('graph')
+    }
+  }
+
   const renderView = () => {
     switch (activeView) {
       case 'focus': return <FocusBoard />
-      case 'goals': return <GoalsPanel />
+      case 'goals': return <GoalsPanel filterNodeId={selectedNode?.id} onJumpToNode={jumpToNode} />
       case 'progress': return <ProgressDashboard />
-      case 'timeline': return <Timeline />
+      case 'timeline': return <Timeline filterNodeId={selectedNode?.id} onJumpToNode={jumpToNode} />
       case 'journal': return <Journal />
       case 'calendar': return <CalendarView />
       case 'curriculum': return <Curriculum />
@@ -42,7 +51,7 @@ const Dashboard = () => {
       <div className="relative z-10 h-full flex flex-col">
         <HUD
           activeView={activeView}
-          setActiveView={(v) => { setActiveView(v); setSelectedNode(null) }}
+          setActiveView={setActiveView}
         />
         <div className="flex-1 mt-14 relative overflow-hidden">
           <AnchorPanel collapsed={anchorCollapsed} onToggle={() => setAnchorCollapsed(v => !v)} />

@@ -18,8 +18,10 @@ const MOODS = [
   { id: 'unspeakable', label: 'Unspeakable', color: 'bg-slate-900' }
 ]
 
+import { XP } from '../../data/xpRewards'
+
 const Journal = () => {
-  const { user, addXP } = useAuth()
+  const { user, addXP, trackXP } = useAuth()
   const [selectedDate, setSelectedDate] = useState(new Date())
   const dateStr = format(selectedDate, 'yyyy-MM-dd')
   
@@ -86,7 +88,7 @@ const Journal = () => {
     } else {
       const { data } = await supabase.from('highlights').insert({ user_id: user.id, date: dateStr, text: combinedText }).select().limit(1)
       if (data && data.length > 0) setHighlight(data[0])
-      await addXP(20)
+      await addXP(XP.JOURNAL_ENTRY)
     }
     setSaving(false)
   }
@@ -98,7 +100,7 @@ const Journal = () => {
       await supabase.from('mood_logs').update({ mood: m }).eq('id', existing.id)
     } else {
       await supabase.from('mood_logs').insert({ user_id: user.id, log_date: dateStr, mood: m })
-      await addXP(5)
+      await addXP(XP.JOURNAL_PHOTO)
     }
   }
 
@@ -133,15 +135,15 @@ const Journal = () => {
 
   const toggleHabit = async (habit) => {
     const logged = habitLogs.find(l => l.habit_id === habit.id)
+    const wasLogged = !!logged
     if (logged) {
       await supabase.from('habit_logs').delete().eq('id', logged.id)
       setHabitLogs(prev => prev.filter(l => l.id !== logged.id))
-      await addXP(-(habit.xp_reward || 10))
     } else {
       const { data } = await supabase.from('habit_logs').insert({ user_id: user.id, habit_id: habit.id, date: dateStr }).select().single()
       setHabitLogs(prev => [...prev, data])
-      await addXP(habit.xp_reward || 10)
     }
+    trackXP(wasLogged, !wasLogged, habit.xp_reward || XP.HABIT_CHECK)
   }
 
   const addHabit = async () => {
@@ -298,6 +300,7 @@ const Journal = () => {
                 userId={user.id} 
                 selectedDate={selectedDate} 
                 addXP={addXP}
+                trackXP={trackXP}
                 onDelete={deleteHabit}
                 onRefetch={fetchHabits}
               />

@@ -20,7 +20,7 @@ export default {
         danger: '#ef4444',
       },
       fontFamily: {
-        display: ['"Instrument Serif"', 'serif'],
+        display: ['"DM Serif Display"', 'serif'],
         body: ['"Raleway"', 'sans-serif'],
         mono: ['"JetBrains Mono"', 'monospace'],
       },

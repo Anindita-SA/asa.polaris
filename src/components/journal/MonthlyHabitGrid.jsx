@@ -3,7 +3,9 @@ import { supabase } from '../../lib/supabase'
 import { startOfMonth, endOfMonth, eachDayOfInterval, format, isToday, isBefore } from 'date-fns'
 import { Edit2, Check, X, Trash2 } from 'lucide-react'
 
-const MonthlyHabitGrid = ({ habits, userId, selectedDate, addXP, onDelete, onRefetch }) => {
+import { XP } from '../../data/xpRewards'
+
+const MonthlyHabitGrid = ({ habits, userId, selectedDate, addXP, trackXP, onDelete, onRefetch }) => {
   const [monthLogs, setMonthLogs] = useState([])
   const [editingHabit, setEditingHabit] = useState(null)
   const [editTitle, setEditTitle] = useState('')
@@ -34,6 +36,7 @@ const MonthlyHabitGrid = ({ habits, userId, selectedDate, addXP, onDelete, onRef
 
   const toggleDay = async (habit, dateStr) => {
     const existing = monthLogs.find(l => l.habit_id === habit.id && l.date === dateStr)
+    const wasLogged = !!existing
     if (existing) {
       await supabase.from('habit_logs').delete().eq('id', existing.id)
       setMonthLogs(prev => prev.filter(l => l.id !== existing.id))
@@ -41,11 +44,9 @@ const MonthlyHabitGrid = ({ habits, userId, selectedDate, addXP, onDelete, onRef
       const { data } = await supabase.from('habit_logs').insert({ 
         user_id: userId, habit_id: habit.id, date: dateStr 
       }).select().single()
-      if (data) {
-        setMonthLogs(prev => [...prev, data])
-        await addXP(habit.xp_reward || 10)
-      }
+      if (data) setMonthLogs(prev => [...prev, data])
     }
+    trackXP(wasLogged, !wasLogged, habit.xp_reward || XP.HABIT_CHECK)
   }
 
   const saveHabitTitle = async (habitId) => {

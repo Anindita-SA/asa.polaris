@@ -3,6 +3,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { getLevelInfo } from '../../data/defaults'
 import { Star, LogOut, Edit2, Check, Menu, X } from 'lucide-react'
 import IOBalanceBar from '../widgets/IOBalanceBar'
+import StatsModal from '../modals/StatsModal'
 
 const HUD = ({ activeView, setActiveView }) => {
   const { profile, updateProfile, signOut } = useAuth()
@@ -11,6 +12,7 @@ const HUD = ({ activeView, setActiveView }) => {
   const [anchorText, setAnchorText] = useState('')
   const [chapterText, setChapterText] = useState('')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [isStatsOpen, setIsStatsOpen] = useState(false)
 
   const xp = profile?.xp || 0
   const { current, next, progress } = getLevelInfo(xp)
@@ -107,10 +109,10 @@ const HUD = ({ activeView, setActiveView }) => {
           <div className="w-px h-6 bg-blue-900/40 hidden lg:block" />
 
           {/* Stacked bars: XP + IO */}
-          <div className="flex flex-col gap-0.5 flex-1 min-w-[140px] max-w-[350px]">
+          <div onClick={() => setIsStatsOpen(true)} className="flex flex-col gap-0.5 flex-1 min-w-[140px] max-w-[350px] cursor-pointer group hover:bg-white/5 p-1 rounded transition-colors -ml-1">
             {/* XP row */}
             <div className="flex items-center gap-2">
-              <span className="text-xs font-display text-gold tracking-wider whitespace-nowrap hidden sm:inline">{current.name}</span>
+              <span className="text-xs font-display text-gold tracking-wider whitespace-nowrap hidden sm:inline group-hover:text-nova transition-colors">{current.name}</span>
               <div className="flex-1 h-1.5 bg-stardust rounded-full overflow-hidden">
                 <div
                   className="h-full bg-gradient-to-r from-gold to-nova rounded-full xp-bar-fill transition-all duration-700"
@@ -118,16 +120,19 @@ const HUD = ({ activeView, setActiveView }) => {
                 />
               </div>
               <span className="text-xs font-mono text-dim whitespace-nowrap">{xp}{next ? `/${next.minXp}` : ''}</span>
-              <span className="text-xs font-display text-nova">Lv.{current.level}</span>
+              <span className="text-xs font-display text-nova group-hover:text-gold transition-colors">Lv.{current.level}</span>
             </div>
             {/* IO row */}
-            <IOBalanceBar />
+            <div className="pointer-events-none">
+              <IOBalanceBar />
+            </div>
           </div>
 
           {/* Logout */}
           <button onClick={signOut} className="text-dim hover:text-danger transition-colors ml-1 hidden sm:block">
             <LogOut className="w-4 h-4" />
           </button>
+
 
           {/* Mobile hamburger */}
           <button onClick={() => setMobileMenuOpen(v => !v)} className="lg:hidden text-dim hover:text-starlight transition-colors ml-1">
@@ -167,6 +172,8 @@ const HUD = ({ activeView, setActiveView }) => {
           </div>
         </div>
       )}
+
+      {isStatsOpen && <StatsModal onClose={() => setIsStatsOpen(false)} />}
     </>
   )
 }
