@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
-import { Check, Flag, Clock, AlertCircle, ChevronDown, ChevronUp, Zap, Plus, X } from 'lucide-react'
+import { Check, Flag, Clock, AlertCircle, ChevronDown, ChevronUp, Zap, Plus, X, Compass } from 'lucide-react'
+import { XP } from '../../data/xpRewards'
 
 const statusConfig = {
   upcoming: { color: 'text-dim border-blue-900/30 bg-stardust/30', icon: Clock, label: 'Upcoming' },
@@ -10,8 +11,8 @@ const statusConfig = {
   overdue: { color: 'text-danger border-danger/30 bg-danger/5', icon: AlertCircle, label: 'Overdue' },
 }
 
-const Timeline = () => {
-  const { user, addXP } = useAuth()
+const Timeline = ({ filterNodeId, onJumpToNode }) => {
+  const { user, trackXP } = useAuth()
   const [milestones, setMilestones] = useState([])
   const [nodes, setNodes] = useState([])
   const [expanded, setExpanded] = useState(false)
@@ -28,9 +29,15 @@ const Timeline = () => {
 
   const fetchMilestones = async () => {
     const { data } = await supabase.from('milestones').select('*').eq('user_id', user.id).order('deadline')
+    
+    let processed = data || []
+    if (filterNodeId) {
+      processed = processed.filter(m => m.note?.includes(`[Node: ${filterNodeId}]`))
+    }
+
     // Auto-flag overdue
     const now = new Date()
-    const processed = (data || []).map(m => ({
+    processed = processed.map(m => ({
       ...m,
       status: m.status !== 'done' && new Date(m.deadline) < now ? 'overdue' : m.status
     }))
@@ -66,7 +73,7 @@ const Timeline = () => {
 
   const updateStatus = async (ms, status) => {
     await supabase.from('milestones').update({ status }).eq('id', ms.id)
-    if (status === 'done' && ms.status !== 'done') await addXP(ms.xp_reward || 100)
+    trackXP(ms.status === 'done', status === 'done', ms.xp_reward || XP.MILESTONE_COMPLETE)
     fetchMilestones()
   }
 
@@ -91,7 +98,7 @@ const Timeline = () => {
 Your job is to break down a task or project into TINY, CONCRETE, DOPAMINE-FRIENDLY steps that feel achievable — not overwhelming.
 
 Rules:
-- Return ONLY a valid JSON array of strings. No markdown, no explanation, no preamble.
+- Return ONLY a valid JSON object with a single key "steps" containing an array of strings. Example: { "steps": ["step 1", "step 2"] }
 - Each step must be a single, clear physical or digital action (e.g., "Open KiCad and load CHAARG-L schematic" not "Work on PCB").
 - Keep each step completable in 5-15 minutes max.
 - Use encouraging, specific language. Say "Open Zotero and tag 3 papers as 'DAB control'" not "Organize papers".
@@ -119,14 +126,18 @@ Rules:
         }),
       })
       const data = await response.json()
-      const text = data?.choices?.[0]?.message?.content || '[]'
-      const parsed = JSON.parse(text)
-      // Handle both { steps: [...] } and plain [...] formats
-      const steps = Array.isArray(parsed) ? parsed : (parsed.steps || parsed.tasks || Object.values(parsed)[0] || [])
-      setGeneratedSteps(steps)
+      const text = data?.choices?.[0]?.message?.content || '{"steps":[]}'
+      try {
+        const parsed = JSON.parse(text)
+        const steps = Array.isArray(parsed.steps) ? parsed.steps : (Array.isArray(parsed) ? parsed : Object.values(parsed)[0] || [])
+        setGeneratedSteps(steps.length ? steps : ['⚠ AI could not generate steps. Try a different description.'])
+      } catch (parseError) {
+        console.error('JSON Parse failed:', text)
+        setGeneratedSteps(['⚠ AI response was malformed. Please try again.'])
+      }
     } catch (err) {
       console.error('AI breakdown failed:', err)
-      setGeneratedSteps(['⚠ AI breakdown failed — try again or add steps manually'])
+      setGeneratedSteps(['⚠ AI breakdown failed due to network or API error — try again.'])
     } finally {
       setAiLoading(false)
     }
@@ -245,6 +256,17 @@ Rules:
                         )}
                         {ms.xp_reward && <span className="text-gold/60">+{ms.xp_reward}xp</span>}
                       </div>
+                      
+                      {ms.note && ms.note.includes('[Node:') && (
+                        <button onClick={(e) => { 
+                            e.stopPropagation(); 
+                            const match = ms.note.match(/\[Node: (.*?)\]/); 
+                            if(match && onJumpToNode) onJumpToNode(match[1]) 
+                          }}
+                          className="text-[10px] text-nova/80 hover:text-nova transition-colors font-body flex items-center gap-1 mt-1">
+                          <Compass className="w-3 h-3" /> Node: {nodes.find(n => n.id === ms.note.match(/\[Node: (.*?)\]/)?.[1])?.title || 'Unknown'}
+                        </button>
+                      )}
 
                       {/* Subtasks */}
                       {subtasks[ms.id]?.length > 0 && (

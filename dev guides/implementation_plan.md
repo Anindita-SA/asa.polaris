@@ -116,15 +116,22 @@ This document outlines the engineering step-by-step implementation plan for the 
 
 ---
 
-### Component 14: One-Click Guest Demo Mode
+### Component 14: [COMPLETED] One-Click Guest Demo Mode
 * **Files:** [useAuth.jsx](file:///e:/Academic%20files/Competiton%20and%20Project%20files/Polaris/asa.polaris/src/hooks/useAuth.jsx) · [Login.jsx](file:///e:/Academic%20files/Competiton%20and%20Project%20files/Polaris/asa.polaris/src/pages/Login.jsx)
-* **Modifications:**
-  1. **signInAsGuest Function:** Add a background authentication function to `useAuth` that logs into a shared demo profile `guest@polaris.com`. If the user does not exist in the database, it signs up and automatically seeds the profile with all defaults on the fly.
-  2. **Demo Button:** Add a beautiful glassmorphic `"✨ Try as Guest / Demo Mode"` button on the `Login.jsx` interface, giving Claude agents and portfolio visitors a zero-friction, one-click entry to explore the live, fully functional commands deck.
+* **Status:** Live & Validated. Included in project codebase.
 
 ---
 
-### Component 15: Reverted AI Fitness Coach XP
+### Component 15: Interactive Stats Nav & Insights Modal
+* **Files:** [HUD.jsx](file:///e:/Academic%20files/Competiton%20and%20Project%20files/Polaris/asa.polaris/src/components/layout/HUD.jsx) · [StatsModal.jsx](file:///e:/Academic%20files/Competiton%20and%20Project%20files/Polaris/asa.polaris/src/components/modals/StatsModal.jsx)
+* **Modifications:**
+  1. **Clickable Top Nav:** Wrap the XP and I/O stack in `HUD.jsx` with a cursor-pointer container toggling an `isStatsOpen` state boolean.
+  2. **The Ascension Path (Evolution):** Inside the modal, display a visually grand detailed view of the current Rank insignia, total accrued lifetime XP, and an explicitly rendered "Roadmap to Next Rank" (e.g. progress gap to unlock Grade 2).
+  3. **The I/O Chronology (History):** Fetch and group `io_logs` by date to display a 7-day historical summary of Input minutes vs Output minutes. Include a "Life Balance Ratio" indicator highlighting historical focus skew.
+
+---
+
+### Component 16: Reverted AI Fitness Coach XP
 * **Files:** [FitnessBridge.jsx](file:///e:/Academic%20files/Competiton%20and%20Project%20files/Polaris/asa.polaris/src/components/panels/FitnessBridge.jsx)
 * **Modifications:**
   1. Completely remove `addXP` call and references to numeric XP rewards from the Groq coach prompt and completion logs.
@@ -144,4 +151,4 @@ This document outlines the engineering step-by-step implementation plan for the 
 9. **Pomodoro I/O Overhaul:** Toggle between Input and Output, select a standard category, log early, and confirm the `IOBalanceBar` immediately reflects the minutes.
 10. **Spatial Drill-Down:** Click a node on the Constellation Map and confirm Goals/Timeline display filtered items properly.
 11. **Media Watchlist:** Add a Book or Show in the Media tab, specify a completed date, personal context note, and 5-star rating. Confirm it displays beautifully.
-12. **Guest Login:** Click "Try as Guest" on the login screen and verify you immediately enter the fully-loaded dashboard.
+12. **Top Nav Modal:** Click the top nav XP/IO stack, verify it smoothly opens the Stats Modal, displays future rank progression, and fetches historical I/O metrics correctly.

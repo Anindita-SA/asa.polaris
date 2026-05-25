@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
+import { XP } from '../../data/xpRewards'
 import { Flame, Archive, Plus, X, ArrowUp, Check, Zap } from 'lucide-react'
 
 const CATEGORIES = ['academic', 'portfolio', 'application', 'health', 'creative', 'research']
@@ -63,7 +64,7 @@ const FocusBoard = () => {
 
   const completeFocus = async (item) => {
     await supabase.from('focus_items').update({ status: 'done' }).eq('id', item.id)
-    await addXP(75)
+    await addXP(XP.FOCUS_COMPLETE)
     fetchFocus()
   }
 

@@ -59,11 +59,10 @@ const FitnessBridge = () => {
 
     const summary = `Workouts: ${workouts.length}. Meals: ${meals.length}. Weight Change: ${weightDelta || 0}kg. Recent exercises: ${workouts.slice(0, 5).map(w => w.day_type).join(', ')}.`
     
-    const systemPrompt = `You are a tough-love but encouraging AI fitness coach. Analyze the user's past 14 days of fitness data.
+    const systemPrompt = `You are a highly analytical, clinical, and strategic AI fitness coach. Analyze the user's past 14 days of fitness data. Provide purely clinical/strategic feedback without hallucinating rewards.
     Respond ONLY with a valid JSON object in this format:
     {
-      "verdict": "A 2-3 sentence engaging review of their performance. Use emojis.",
-      "xp_reward": A number between 0 and 50 based on consistency and effort.
+      "verdict": "A 2-3 sentence strategic review of their performance and recommendations. Be direct and objective."
     }`
 
     try {
@@ -86,7 +85,6 @@ const FitnessBridge = () => {
         const result = { ...parsed, date: new Date().toISOString() }
         setVerdict(result)
         localStorage.setItem('polaris_fitness_verdict', JSON.stringify(result))
-        if (parsed.xp_reward && addXP) addXP(parsed.xp_reward)
       }
     } catch (e) {
       console.error(e)

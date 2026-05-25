@@ -9,8 +9,10 @@ const TIME_GROUPS = [
   { id: 'evening', label: 'Evening', icon: Moon, color: 'text-pulsar' }
 ]
 
+import { XP } from '../../data/xpRewards'
+
 const DailyRitual = ({ dateStr }) => {
-  const { user, addXP } = useAuth()
+  const { user, trackXP } = useAuth()
   const [expanded, setExpanded] = useState(() => {
     return localStorage.getItem('polaris_ritual_expanded') === 'true'
   })
@@ -56,24 +58,19 @@ const DailyRitual = ({ dateStr }) => {
     if (editing || !user?.id) return
 
     const log = logs.find(l => l.item_id === item.id)
+    const wasLogged = !!log
     if (log) {
-      // Uncheck
       await supabase.from('ritual_logs').delete().eq('id', log.id)
       setLogs(prev => prev.filter(l => l.id !== log.id))
-      await addXP(-5)
     } else {
-      // Check
       const { data } = await supabase.from('ritual_logs').insert({
         user_id: user.id,
         item_id: item.id,
         date: dateStr
       }).select().single()
-      
-      if (data) {
-        setLogs(prev => [...prev, data])
-        await addXP(5)
-      }
+      if (data) setLogs(prev => [...prev, data])
     }
+    trackXP(wasLogged, !wasLogged, XP.RITUAL_CHECK)
   }
 
   const addItem = async () => {

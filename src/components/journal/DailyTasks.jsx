@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
-import { Check, X, Plus, Sparkles } from 'lucide-react'
+import { Check, X, Plus, Sparkles, RefreshCw } from 'lucide-react'
 import { playChime } from '../../lib/sound'
+import { XP } from '../../data/xpRewards'
 
 const DailyTasks = ({ dateStr }) => {
-  const { user, addXP } = useAuth()
+  const { user, trackXP } = useAuth()
   const [tasks, setTasks] = useState([])
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [isAdding, setIsAdding] = useState(false)
@@ -21,7 +22,36 @@ const DailyTasks = ({ dateStr }) => {
       .eq('user_id', user.id)
       .eq('date', dateStr)
       .order('created_at', { ascending: true })
-    setTasks(data || [])
+      
+    if (data && data.length > 0) {
+      setTasks(data)
+    } else {
+      // Auto-clone past recurring tasks
+      const { data: pastRecurring } = await supabase
+        .from('daily_tasks')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('recurring', true)
+        .lt('date', dateStr)
+
+      if (pastRecurring && pastRecurring.length > 0) {
+        const uniqueTitles = [...new Set(pastRecurring.map(t => t.title))]
+        const clonedTasks = uniqueTitles.map(title => ({
+          user_id: user.id,
+          title,
+          date: dateStr,
+          recurring: true,
+          completed: false
+        }))
+        const { data: inserted } = await supabase
+          .from('daily_tasks')
+          .insert(clonedTasks)
+          .select()
+        setTasks(inserted || [])
+      } else {
+        setTasks([])
+      }
+    }
   }
 
   const addTask = async () => {
@@ -33,6 +63,7 @@ const DailyTasks = ({ dateStr }) => {
       user_id: user.id,
       title: newTaskTitle,
       date: dateStr,
+      recurring: false
     }).select().single()
     
     if (data) {
@@ -45,15 +76,15 @@ const DailyTasks = ({ dateStr }) => {
   const toggleTask = async (task) => {
     const completed = !task.completed
     await supabase.from('daily_tasks').update({ completed }).eq('id', task.id)
-    
     setTasks(prev => prev.map(t => t.id === task.id ? { ...t, completed } : t))
-    
-    if (completed) {
-      playChime('success')
-      await addXP(3) // small dopamine hit XP
-    } else {
-      await addXP(-3)
-    }
+    if (completed) playChime('success')
+    trackXP(task.completed, completed, XP.TASK_COMPLETE)
+  }
+
+  const toggleRecurring = async (task) => {
+    const recurring = !task.recurring
+    await supabase.from('daily_tasks').update({ recurring }).eq('id', task.id)
+    setTasks(prev => prev.map(t => t.id === task.id ? { ...t, recurring } : t))
   }
 
   const deleteTask = async (id) => {
@@ -99,9 +130,14 @@ const DailyTasks = ({ dateStr }) => {
               {task.title}
             </span>
             
-            <button onClick={() => deleteTask(task.id)} className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-dim hover:text-danger">
-              <X className="w-3.5 h-3.5" />
-            </button>
+            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button onClick={() => toggleRecurring(task)} className={`p-1 transition-colors ${task.recurring ? 'text-pulsar' : 'text-dim hover:text-pulsar'}`} title={task.recurring ? 'Repeating Task' : 'Make Repeating'}>
+                <RefreshCw className="w-3.5 h-3.5" />
+              </button>
+              <button onClick={() => deleteTask(task.id)} className="p-1 text-dim hover:text-danger">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
         ))}
 

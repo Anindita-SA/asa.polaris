@@ -3,8 +3,9 @@ import { supabase } from '../lib/supabase'
 import { 
   DEFAULT_MILESTONES, DEFAULT_NODES, DEFAULT_SUBNODES,
   DEFAULT_GOALS, DEFAULT_HABITS, DEFAULT_FOCUS_ITEMS, DEFAULT_BACKBURNER, DEFAULT_EULOGY,
-  DEFAULT_CLARITY_ANCHOR, DEFAULT_CURRENT_CHAPTER, DEFAULT_CURRICULUM
+  DEFAULT_CLARITY_ANCHOR, DEFAULT_CURRENT_CHAPTER
 } from '../data/defaults'
+import { CURRICULUM_CATEGORIES, SEED_CURRICULA, SEED_MEDIA_LOG } from '../data/curriculumDefaults'
 
 const AuthContext = createContext(null)
 
@@ -85,27 +86,61 @@ const seedUserData = async (userId) => {
         })
       }
 
-      // 8. Seed Curriculum (only if none exists)
-      const { data: existingChapters } = await supabase.from('curriculum_chapters').select('id').eq('user_id', userId).limit(1)
-      if (!existingChapters?.length) {
-        for (const chapter of DEFAULT_CURRICULUM) {
-          const { data: inserted } = await supabase.from('curriculum_chapters').insert({
-            user_id: userId,
-            title: chapter.title,
-            description: chapter.description || null,
-            node_title: chapter.node_title,
-            position: 0,
+      // 8. Seed Curriculum v2 (categories + curricula + topics + resources + media_log)
+      const { data: existingCats, error: catCheckErr } = await supabase.from('curriculum_categories').select('id').eq('user_id', userId).limit(1)
+      console.log('[Seed] curriculum_categories check:', existingCats?.length || 0, 'existing', catCheckErr ? `ERROR: ${catCheckErr.message}` : 'OK')
+      if (!existingCats?.length && !catCheckErr) {
+        // Insert categories
+        const catMap = {}
+        for (const cat of CURRICULUM_CATEGORIES) {
+          const { data: inserted, error: catErr } = await supabase.from('curriculum_categories').insert({
+            user_id: userId, title: cat.title, accent_color: cat.accent_color, position: cat.position,
+          }).select('id, title').single()
+          if (catErr) console.error('[Seed] category insert error:', cat.title, catErr.message)
+          if (inserted) catMap[inserted.title] = inserted.id
+        }
+
+        // Insert curricula with topics and resources
+        for (let i = 0; i < SEED_CURRICULA.length; i++) {
+          const c = SEED_CURRICULA[i]
+          const categoryId = catMap[c.category]
+          if (!categoryId) continue
+
+          const { data: curr } = await supabase.from('curricula').insert({
+            user_id: userId, category_id: categoryId, title: c.title,
+            description: c.description, estimated_hours: c.estimated_hours, position: i,
           }).select('id').single()
-          if (inserted?.id && chapter.topics?.length) {
+          if (!curr?.id) continue
+
+          // Insert topics
+          if (c.topics?.length) {
             await supabase.from('curriculum_topics').insert(
-              chapter.topics.map((t, idx) => ({
-                user_id: userId,
-                chapter_id: inserted.id,
-                title: t,
+              c.topics.map((t, idx) => ({
+                user_id: userId, curriculum_id: curr.id, title: t.title,
+                estimated_hours: t.estimated_hours || null,
+                is_recommended_next: t.is_recommended_next || false,
                 position: idx,
               }))
             )
           }
+
+          // Insert resources
+          if (c.resources?.length) {
+            await supabase.from('curriculum_resources').insert(
+              c.resources.map(r => ({
+                user_id: userId, curriculum_id: curr.id, title: r.title,
+                author: r.author || null, resource_type: r.resource_type || 'book',
+                url: r.url || null,
+              }))
+            )
+          }
+        }
+
+        // Insert media log entries
+        if (SEED_MEDIA_LOG?.length) {
+          await supabase.from('media_log').insert(
+            SEED_MEDIA_LOG.map(m => ({ user_id: userId, ...m }))
+          )
         }
       }
     } catch (e) {
@@ -201,9 +236,44 @@ export const AuthProvider = ({ children }) => {
   }
 
   const addXP = async (amount) => {
-    await supabase.rpc('increment_xp', { user_id: user.id, amount })
-    const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single()
-    setProfile(data)
+    const amt = parseInt(amount, 10)
+    if (isNaN(amt) || amt === 0) return
+
+    // 1. Optimistic local update — UI snaps immediately
+    setProfile(prev => {
+      if (!prev) return prev
+      return { ...prev, xp: Math.max(0, (prev.xp || 0) + amt) }
+    })
+
+    // 2. Persist to DB via RPC (no re-fetch after — the optimistic update IS the truth)
+    const { error } = await supabase.rpc('increment_xp', { user_id: user.id, amount: amt })
+    if (error) {
+      console.error('XP RPC error:', error)
+      // On failure, roll back the optimistic update
+      setProfile(prev => {
+        if (!prev) return prev
+        return { ...prev, xp: Math.max(0, (prev.xp || 0) - amt) }
+      })
+    }
+  }
+
+  /**
+   * trackXP — centralized toggle-safe XP helper.
+   * Components call this instead of manually computing +/- addXP.
+   *
+   * @param {boolean} wasActive - was the item completed/checked BEFORE this action?
+   * @param {boolean} isNowActive - is the item completed/checked AFTER this action?
+   * @param {number}  amount - the absolute XP reward (always positive)
+   *
+   * Examples:
+   *   trackXP(false, true,  10)  →  addXP(+10)  [checking a habit]
+   *   trackXP(true,  false, 10)  →  addXP(-10)  [unchecking a habit]
+   *   trackXP(true,  true,  10)  →  no-op       [no state change]
+   */
+  const trackXP = (wasActive, isNowActive, amount) => {
+    const abs = Math.abs(parseInt(amount, 10) || 0)
+    if (!abs || wasActive === isNowActive) return
+    return addXP(isNowActive ? abs : -abs)
   }
 
   const signInWithGoogle = () =>
@@ -252,7 +322,7 @@ export const AuthProvider = ({ children }) => {
   }
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, providerToken, signInWithGoogle, signInAsGuest, signOut, updateProfile, addXP }}>
+    <AuthContext.Provider value={{ user, profile, loading, providerToken, signInWithGoogle, signInAsGuest, signOut, updateProfile, addXP, trackXP }}>
       {children}
     </AuthContext.Provider>
   )
