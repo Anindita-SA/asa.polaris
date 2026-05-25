@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { X, Target, Flag, Plus, Check, Zap, ChevronRight, ChevronDown, Pencil, Trash2 } from 'lucide-react'
+import { XP } from '../../data/xpRewards'
 
 // ─── Colours ────────────────────────────────────────────────────────────────
 const TYPE_META = {
@@ -118,14 +119,14 @@ const NodePanel = ({ node, onClose, onRefreshGraph }) => {
     const newCurrent = Math.min(goal.current + 1, goal.target)
     const completed = newCurrent >= goal.target
     await supabase.from('goals').update({ current: newCurrent, completed }).eq('id', goal.id)
-    if (completed && !goal.completed) await addXP(goal.xp_reward || 50)
+    if (completed && !goal.completed) await addXP(goal.xp_reward || XP.GOAL_COMPLETE)
     fetchAll()
   }
 
   // ── Milestones ──────────────────────────────────────────────────────────────
   const completeMilestone = async (ms) => {
     await supabase.from('milestones').update({ status: 'done' }).eq('id', ms.id)
-    await addXP(ms.xp_reward || 100)
+    await addXP(ms.xp_reward || XP.MILESTONE_COMPLETE)
     fetchAll()
   }
 

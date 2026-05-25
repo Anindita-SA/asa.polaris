@@ -45,3 +45,16 @@ CREATE TABLE IF NOT EXISTS curriculum_topics (
 ALTER TABLE curriculum_topics ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "own curriculum_topics" ON curriculum_topics;
 CREATE POLICY "own curriculum_topics" ON curriculum_topics FOR ALL USING (auth.uid() = user_id);
+
+-- XP Increment RPC (Supports positive and negative amounts with a floor of 0)
+CREATE OR REPLACE FUNCTION increment_xp(user_id uuid, amount int)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  UPDATE profiles
+  SET xp = GREATEST(0, xp + amount)
+  WHERE id = user_id;
+END;
+$$;

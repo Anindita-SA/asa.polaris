@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { Plus, X } from 'lucide-react'
+import { XP } from '../../data/xpRewards'
 
 const INPUT_CATEGORIES = ['reading', 'lecture', 'video', 'course', 'scrolling', 'other']
 const OUTPUT_CATEGORIES = ['writing', 'building', 'designing', 'coding', 'creating', 'practicing', 'other']
@@ -49,12 +50,11 @@ const IOBalanceBar = () => {
       date: today,
     })
     // XP for output
-    if (logType === 'output') await addXP(5)
-    // Check if ratio just hit 1:1
+    if (logType === 'output') await addXP(XP.IO_OUTPUT_LOG)
     const newOutputMins = outputMins + (logType === 'output' ? logMins : 0)
     const newInputMins = inputMins + (logType === 'input' ? logMins : 0)
     if (newOutputMins >= newInputMins && outputMins < inputMins) {
-      await addXP(10) // bonus for reaching equilibrium
+      await addXP(XP.IO_EQUILIBRIUM)
     }
     setShowQuickLog(false)
     fetchLogs()

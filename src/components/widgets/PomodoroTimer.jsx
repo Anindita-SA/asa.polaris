@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
-import { Settings, X, Maximize2, Minimize2, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react'
+import { Settings, X, Maximize2, Minimize2, RotateCcw, ChevronDown, ChevronUp, Music } from 'lucide-react'
 
 import Starfield from '../layout/Starfield'
 
@@ -10,6 +10,13 @@ const MODE_CONFIG = {
   short: { label: 'Short Break', default: 5, color: '#10b981' },
   long: { label: 'Long Break', default: 15, color: '#8b5cf6' },
 }
+
+const AMBIENT_TRACKS = [
+  { id: 'none', label: 'No Ambient Sound', url: '' },
+  { id: 'rain', label: 'Rain & Thunder', url: 'https://cdn.pixabay.com/download/audio/2021/08/09/audio_dc39bde808.mp3?filename=light-rain-ambient-114354.mp3' },
+  { id: 'space', label: 'Deep Space', url: 'https://cdn.pixabay.com/download/audio/2022/10/25/audio_291c953a99.mp3?filename=deep-space-125026.mp3' },
+  { id: 'binaural', label: 'Alpha Waves', url: 'https://cdn.pixabay.com/download/audio/2022/03/10/audio_c8c8a73467.mp3?filename=alpha-binaural-beats-14-hz-101150.mp3' },
+]
 
 const POMODORO_STORAGE_KEY = 'polaris_pomodoro_state'
 const loadSavedState = () => {
@@ -63,11 +70,22 @@ const PomodoroTimer = () => {
   const [ioType, setIoType] = useState(() => {
     try { return localStorage.getItem('polaris_pomo_iotype') || 'output' } catch { return 'output' }
   })
+  const [ambientTrack, setAmbientTrack] = useState(() => getInitialState().ambientTrack || 'none')
 
   const clickOrigin = useRef(null)
   const isDragging = useRef(false)
   const dragOffset = useRef({ x: 0, y: 0 })
   const widgetRef = useRef(null)
+  const audioRef = useRef(null)
+
+  useEffect(() => {
+    if (!audioRef.current) return
+    if (isRunning && ambientTrack !== 'none') {
+      audioRef.current.play().catch(e => console.log('Audio auto-play prevented', e))
+    } else {
+      audioRef.current.pause()
+    }
+  }, [isRunning, ambientTrack])
 
   useEffect(() => {
     if (user?.id) {
@@ -88,57 +106,65 @@ const PomodoroTimer = () => {
   // Persist state
   useEffect(() => {
     localStorage.setItem(POMODORO_STORAGE_KEY, JSON.stringify({
-      mode, isRunning, autoRestart, isExpanded, durations, timeLeft, linkedItem, comment, sessionStart,
+      mode, isRunning, autoRestart, isExpanded, durations, timeLeft, linkedItem, comment, sessionStart, ambientTrack,
       lastTick: Date.now()
     }))
-  }, [mode, isRunning, autoRestart, isExpanded, durations, timeLeft, linkedItem, comment, sessionStart])
+  }, [mode, isRunning, autoRestart, isExpanded, durations, timeLeft, linkedItem, comment, sessionStart, ambientTrack])
 
 
-  // Tick
+  const completionHandled = useRef(false)
+
+  useEffect(() => {
+    if (isRunning && timeLeft > 0) completionHandled.current = false
+  }, [isRunning, timeLeft])
+
+  // Tick interval ONLY decrements time, entirely decoupled from UI state
   useEffect(() => {
     if (!isRunning) return
     const id = setInterval(() => {
-      setTimeLeft(t => {
-        if (t <= 1) {
-          // Log session if focus mode
-          if (mode === 'focus' && sessionStart) {
-            const mins = Math.round((Date.now() - sessionStart) / 60000)
-            if (mins > 0 && user?.id) {
-              const today = new Date().toISOString().slice(0, 10)
-              supabase.from('pomodoro_logs').insert({
-                user_id: user.id,
-                duration_minutes: mins,
-                label: linkedItem || comment || null,
-                date: today,
-              }).then(() => {
-                if (addXP) addXP(mins) // 1 XP per minute of focus
-              })
-              // Auto-log to IO balance
-              supabase.from('io_logs').insert({
-                user_id: user.id,
-                type: ioType,
-                category: linkedItem || comment || 'focus session',
-                minutes: mins,
-                date: today,
-              })
-            }
-          }
-          if (autoRestart) {
-            const next = mode === 'focus' ? 'short' : 'focus'
-            setMode(next)
-            setTimeLeft(durations[next] * 60)
-            setSessionStart(Date.now())
-            return durations[next] * 60
-          }
-          setIsRunning(false)
-          setSessionStart(null)
-          return 0
-        }
-        return t - 1
-      })
+      setTimeLeft(t => (t > 0 ? t - 1 : 0))
     }, 1000)
     return () => clearInterval(id)
-  }, [isRunning, autoRestart, mode, durations, sessionStart, linkedItem, comment, user?.id, ioType])
+  }, [isRunning])
+
+  // Completion payload fires exactly once when timeLeft hits 0
+  useEffect(() => {
+    if (isRunning && timeLeft === 0 && !completionHandled.current) {
+      completionHandled.current = true
+      setIsRunning(false)
+      setSessionStart(null)
+
+      if (mode === 'focus') {
+        const mins = durations['focus'] || 25
+        if (mins > 0 && user?.id) {
+          const today = new Date().toISOString().slice(0, 10)
+          supabase.from('pomodoro_logs').insert({
+            user_id: user.id,
+            duration_minutes: mins,
+            label: linkedItem || comment || null,
+            date: today,
+          }).then(() => {
+            if (addXP) addXP(mins)
+          })
+          supabase.from('io_logs').insert({
+            user_id: user.id,
+            type: ioType,
+            category: linkedItem || comment || 'focus session',
+            minutes: mins,
+            date: today,
+          })
+        }
+      }
+
+      if (autoRestart) {
+        const next = mode === 'focus' ? 'short' : 'focus'
+        setMode(next)
+        setTimeLeft(durations[next] * 60)
+        setSessionStart(Date.now())
+        setIsRunning(true)
+      }
+    }
+  }, [timeLeft, isRunning, mode, durations, linkedItem, comment, user?.id, ioType, autoRestart])
 
   // Only reset the timer if the mode actually changes (ignores Strict Mode double mounts)
   const prevModeRef = useRef(mode)
@@ -282,13 +308,13 @@ const PomodoroTimer = () => {
 
         <div className="mt-8 flex flex-col gap-3 w-full">
           {/* IO Type toggle */}
-          <div className="flex rounded-lg overflow-hidden border border-blue-900/20">
+          <div className="flex rounded-lg overflow-hidden border border-blue-900/20 bg-stardust/20">
             <button onClick={() => { setIoType('input'); localStorage.setItem('polaris_pomo_iotype', 'input') }}
-              className={`flex-1 text-xs py-2 font-body transition-all ${ioType === 'input' ? 'bg-amber-500/20 text-amber-400 border-r border-blue-900/20' : 'bg-stardust/40 text-dim hover:text-starlight border-r border-blue-900/20'}`}>
+              className={`flex-1 text-xs py-2 font-body transition-all ${ioType === 'input' ? 'bg-blue-900/50 text-amber-400 border-r border-blue-900/20 shadow-inner' : 'text-dim hover:text-starlight border-r border-blue-900/20'}`}>
               📥 Input
             </button>
             <button onClick={() => { setIoType('output'); localStorage.setItem('polaris_pomo_iotype', 'output') }}
-              className={`flex-1 text-xs py-2 font-body transition-all ${ioType === 'output' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-stardust/40 text-dim hover:text-starlight'}`}>
+              className={`flex-1 text-xs py-2 font-body transition-all ${ioType === 'output' ? 'bg-blue-900/50 text-emerald-400 shadow-inner' : 'text-dim hover:text-starlight'}`}>
               📤 Output
             </button>
           </div>
@@ -425,13 +451,13 @@ const PomodoroTimer = () => {
 
             {/* IO Type toggle + Comment + node link */}
             <div className="mt-2 w-full space-y-1.5">
-              <div className="flex rounded-lg overflow-hidden border border-blue-900/20">
+              <div className="flex rounded-lg overflow-hidden border border-blue-900/20 bg-stardust/20">
                 <button onClick={() => { setIoType('input'); localStorage.setItem('polaris_pomo_iotype', 'input') }}
-                  className={`flex-1 text-xs py-1 font-body transition-all ${ioType === 'input' ? 'bg-amber-500/20 text-amber-400 border-r border-blue-900/20' : 'text-dim hover:text-starlight border-r border-blue-900/20'}`}>
+                  className={`flex-1 text-xs py-1.5 font-body transition-all ${ioType === 'input' ? 'bg-blue-900/50 text-amber-400 border-r border-blue-900/20 shadow-inner' : 'text-dim hover:text-starlight border-r border-blue-900/20'}`}>
                   📥 Input
                 </button>
                 <button onClick={() => { setIoType('output'); localStorage.setItem('polaris_pomo_iotype', 'output') }}
-                  className={`flex-1 text-xs py-1 font-body transition-all ${ioType === 'output' ? 'bg-emerald-500/20 text-emerald-400' : 'text-dim hover:text-starlight'}`}>
+                  className={`flex-1 text-xs py-1.5 font-body transition-all ${ioType === 'output' ? 'bg-blue-900/50 text-emerald-400 shadow-inner' : 'text-dim hover:text-starlight'}`}>
                   📤 Output
                 </button>
               </div>
@@ -449,9 +475,26 @@ const PomodoroTimer = () => {
                   {nodes.map(n => <option key={n.id} value={n.title}>{n.title}</option>)}
                 </select>
               )}
+
+              {/* Ambient Audio Selector */}
+              <div className="flex items-center gap-2 w-full bg-stardust/40 border border-blue-900/10 rounded-lg px-2 py-1">
+                <Music className="w-3 h-3 text-dim" />
+                <select value={ambientTrack} onChange={e => setAmbientTrack(e.target.value)}
+                  className="flex-1 bg-transparent text-xs text-dim outline-none font-body">
+                  {AMBIENT_TRACKS.map(t => (
+                    <option key={t.id} value={t.id}>{t.label}</option>
+                  ))}
+                </select>
+              </div>
+
             </div>
           </div>
         </>
+      )}
+
+      {/* Hidden audio element */}
+      {ambientTrack !== 'none' && (
+        <audio ref={audioRef} src={AMBIENT_TRACKS.find(t => t.id === ambientTrack)?.url} loop />
       )}
     </div>
   )
