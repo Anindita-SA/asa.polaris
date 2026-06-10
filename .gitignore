@@ -3,5 +3,4 @@ dist/
 .env
 polaris-backup-*.json
 
-scratch/.env.test
-
+scratch/
