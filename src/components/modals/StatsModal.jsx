@@ -3,14 +3,15 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { X, TrendingUp, Activity, Shield, Award, Plus, Trash2 } from 'lucide-react'
 import { getLevelInfo, TIERS } from '../../data/defaults'
+import ProgressDashboard from '../widgets/ProgressDashboard'
 
 const StatsModal = ({ onClose }) => {
   const { user, profile } = useAuth()
-  const [activeTab, setActiveTab] = useState('evolution')
+  const [activeTab, setActiveTab] = useState('evolution') // 'evolution' | 'io' | 'progress'
   const [ioHistory, setIoHistory] = useState([])
   const [rawLogs, setRawLogs] = useState([])
   const [ioForm, setIoForm] = useState({ type: 'output', category: '', minutes: 25, date: new Date().toISOString().split('T')[0] })
-  
+
   const xp = profile?.xp || 0
   const { current, next, progress } = getLevelInfo(xp)
 
@@ -19,6 +20,7 @@ const StatsModal = ({ onClose }) => {
   }, [activeTab])
 
   const fetchIOHistory = async () => {
+    if (!user) return
     const dates = Array.from({length: 7}, (_, i) => {
       const d = new Date()
       d.setDate(d.getDate() - i)
@@ -29,12 +31,11 @@ const StatsModal = ({ onClose }) => {
       .select('*')
       .eq('user_id', user.id)
       .gte('date', dates[0])
-      
+
     const history = dates.map(dateStr => {
       const dayLogs = data?.filter(l => l.date === dateStr) || []
       const input = dayLogs.filter(l => l.type === 'input').reduce((s, l) => s + l.minutes, 0)
       const output = dayLogs.filter(l => l.type === 'output').reduce((s, l) => s + l.minutes, 0)
-      // formatted date e.g. "Mon"
       const dateObj = new Date(dateStr)
       const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' })
       return { date: dateStr, dayName, input, output }
@@ -51,7 +52,7 @@ const StatsModal = ({ onClose }) => {
   }
 
   const addManualIO = async () => {
-    if (!ioForm.category || !ioForm.minutes || !ioForm.date) return
+    if (!user || !ioForm.category || !ioForm.minutes || !ioForm.date) return
     await supabase.from('io_logs').insert({
       user_id: user.id,
       type: ioForm.type,
@@ -70,36 +71,40 @@ const StatsModal = ({ onClose }) => {
 
   // Evolution Data
   const currentTierIndex = Math.min(Math.floor((current.level - 1) / 10), TIERS.length - 1)
-  const nextMilestoneTierIndex = currentTierIndex + 1
   const xpNeeded = next ? next.minXp - xp : 0
 
   return (
-    <div className="modal-overlay fixed inset-0 bg-void/80 z-[70] flex items-center justify-center p-4 animate-fade-in"
+    <div className="modal-overlay fixed inset-0 bg-void/80 z-[70] flex items-end md:items-center justify-center p-0 md:p-4 animate-fade-in backdrop-blur-sm"
       onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal-content glass border border-blue-900/30 rounded-2xl p-6 w-full max-w-2xl min-h-[500px] max-h-[90vh] flex flex-col">
+      <div className="modal-content glass border border-blue-900/30 rounded-t-2xl rounded-b-none md:rounded-2xl p-6 w-full max-w-full md:max-w-4xl min-h-[520px] max-h-[90vh] flex flex-col bg-[#0c0f14]/95 shadow-2xl">
         
         {/* Header */}
         <div className="flex items-center justify-between mb-6 border-b border-blue-900/20 pb-4">
-          <div className="flex gap-6">
+          <div className="flex flex-wrap gap-4 sm:gap-6">
             <button onClick={() => setActiveTab('evolution')} 
-              className={`flex items-center gap-2 text-sm font-display tracking-widest transition-colors ${activeTab === 'evolution' ? 'text-gold border-b-2 border-gold pb-1' : 'text-dim hover:text-starlight'}`}>
-              <TrendingUp className="w-4 h-4" /> EVOLUTION
+              className={`flex items-center gap-2 text-xs sm:text-sm font-display tracking-widest transition-colors ${activeTab === 'evolution' ? 'text-gold border-b-2 border-gold pb-1 font-bold' : 'text-dim hover:text-starlight'}`}>
+              <Shield className="w-4 h-4 text-gold" /> EVOLUTION
             </button>
+
             <button onClick={() => setActiveTab('io')} 
-              className={`flex items-center gap-2 text-sm font-display tracking-widest transition-colors ${activeTab === 'io' ? 'text-emerald border-b-2 border-emerald pb-1' : 'text-dim hover:text-starlight'}`}>
-              <Activity className="w-4 h-4" /> I/O CHRONOLOGY
+              className={`flex items-center gap-2 text-xs sm:text-sm font-display tracking-widest transition-colors ${activeTab === 'io' ? 'text-emerald border-b-2 border-emerald pb-1 font-bold' : 'text-dim hover:text-starlight'}`}>
+              <Activity className="w-4 h-4 text-emerald" /> I/O CHRONOLOGY
+            </button>
+
+            <button onClick={() => setActiveTab('progress')} 
+              className={`flex items-center gap-2 text-xs sm:text-sm font-display tracking-widest transition-colors ${activeTab === 'progress' ? 'text-pulsar border-b-2 border-pulsar pb-1 font-bold' : 'text-dim hover:text-starlight'}`}>
+              <TrendingUp className="w-4 h-4 text-pulsar" /> PROGRESS
             </button>
           </div>
-          <button onClick={onClose} className="text-dim hover:text-starlight"><X className="w-5 h-5" /></button>
+          <button onClick={onClose} className="text-dim hover:text-starlight p-1 rounded-lg hover:bg-white/5"><X className="w-5 h-5" /></button>
         </div>
 
         {/* Content Body */}
         <div className="flex-1 flex flex-col min-h-0 overflow-y-auto pr-2 scrollbar-hide">
-          {activeTab === 'evolution' ? (
+          {activeTab === 'evolution' && (
             <div className="flex flex-col items-center justify-center space-y-12 py-8 flex-1">
-              
               <div className="text-center space-y-4">
-                <div className="w-24 h-24 mx-auto bg-gradient-to-br from-gold/20 to-nova/20 rounded-full border-4 border-gold/40 flex items-center justify-center animate-pulse-slow shadow-[0_0_40px_rgba(250,204,21,0.2)]">
+                <div className="w-24 h-24 mx-auto bg-gold/20 rounded-full border-4 border-gold/40 flex items-center justify-center animate-pulse-slow shadow-[0_0_40px_rgba(250,204,21,0.2)]">
                   <Shield className="w-12 h-12 text-gold" />
                 </div>
                 <div>
@@ -115,7 +120,7 @@ const StatsModal = ({ onClose }) => {
                     <span>{next.name}</span>
                   </div>
                   <div className="h-3 bg-stardust rounded-full overflow-hidden border border-blue-900/30">
-                    <div className="h-full bg-gradient-to-r from-gold to-nova rounded-full xp-bar-fill transition-all duration-1000 relative"
+                    <div className="h-full bg-gold rounded-full xp-bar-fill transition-all duration-1000 relative"
                       style={{ width: `${progress}%` }}>
                       <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9InBhdHRlcm4iIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTTAgNDBMNDAgMCAwIDAgNDAgNDB6IiBmaWxsPSJub25lIiBzdHJva2U9InJnYmEoMjU1LDI1NSwyNTUsMC4yKSIgc3Ryb2tlLXdpZHRoPSI0Ii8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI3BhdHRlcm4pIi8+PC9zdmc+')] opacity-20 animate-slide-bg" />
                     </div>
@@ -135,11 +140,11 @@ const StatsModal = ({ onClose }) => {
                   </div>
                 ))}
               </div>
-
             </div>
-          ) : (
+          )}
+
+          {activeTab === 'io' && (
             <div className="flex flex-col space-y-8 pt-4 pb-4">
-              
               <div className="grid grid-cols-2 gap-4">
                 <div className="glass p-4 rounded-xl border border-amber-500/20 bg-amber-500/5 flex flex-col items-center">
                   <span className="text-xs font-display tracking-widest text-amber-500/80 mb-1">TOTAL 7-DAY INPUT</span>
@@ -152,7 +157,6 @@ const StatsModal = ({ onClose }) => {
               </div>
 
               <div className="shrink-0 flex items-end justify-between gap-2 h-48 border-b border-blue-900/30 pb-2 relative mt-4">
-                {/* Horizontal guide lines */}
                 <div className="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-20">
                   <div className="w-full h-px bg-starlight" />
                   <div className="w-full h-px bg-starlight" />
@@ -167,10 +171,10 @@ const StatsModal = ({ onClose }) => {
                   return (
                     <div key={i} className="flex-1 flex flex-col items-center justify-end gap-1 h-full group">
                       <div className="flex items-end justify-center gap-1 w-full h-[90%]">
-                        <div className="w-1/3 max-w-[12px] bg-gradient-to-t from-amber-600 to-amber-400 rounded-t transition-all duration-500 relative" style={{ height: `${inPct}%` }}>
+                        <div className="w-1/3 max-w-[12px] bg-amber-500 rounded-t transition-all duration-500 relative" style={{ height: `${inPct}%` }}>
                           <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[9px] font-mono text-amber-400 opacity-0 group-hover:opacity-100">{day.input}</span>
                         </div>
-                        <div className="w-1/3 max-w-[12px] bg-gradient-to-t from-emerald-600 to-emerald-400 rounded-t transition-all duration-500 relative" style={{ height: `${outPct}%` }}>
+                        <div className="w-1/3 max-w-[12px] bg-emerald-500 rounded-t transition-all duration-500 relative" style={{ height: `${outPct}%` }}>
                           <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[9px] font-mono text-emerald-400 opacity-0 group-hover:opacity-100">{day.output}</span>
                         </div>
                       </div>
@@ -233,7 +237,12 @@ const StatsModal = ({ onClose }) => {
                   ))
                 )}
               </div>
+            </div>
+          )}
 
+          {activeTab === 'progress' && (
+            <div className="flex-1 overflow-y-auto">
+              <ProgressDashboard />
             </div>
           )}
         </div>

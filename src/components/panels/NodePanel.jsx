@@ -173,9 +173,9 @@ const NodePanel = ({ node, onClose, onRefreshGraph }) => {
   const scopeOrder = ['weekly', 'monthly', 'quarterly', 'yearly', '5yr']
 
   return (
-    <div className="panel-enter fixed right-0 top-14 bottom-0 w-80 glass border-l border-blue-900/20 z-40 flex flex-col overflow-hidden">
+    <div className="panel-enter relative w-full h-full flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="p-4 border-b border-blue-900/20 flex items-start justify-between flex-shrink-0">
+      <div className="p-4 pr-12 border-b border-blue-900/20 flex items-start justify-between flex-shrink-0">
         <div className="flex-1 min-w-0 pr-2">
           <p className={`text-xs font-mono uppercase tracking-widest mb-1 ${colorClass.split(' ')[0]}`}>
             {meta(node.type).label}
@@ -336,7 +336,7 @@ const NodePanel = ({ node, onClose, onRefreshGraph }) => {
                     </div>
                   </div>
                   <div className="h-1 bg-stardust rounded-full overflow-hidden">
-                    <div className={`h-full rounded-full transition-all duration-500 ${goal.completed ? 'bg-emerald' : 'bg-gradient-to-r from-pulsar to-aurora'}`}
+                    <div className={`h-full rounded-full transition-all duration-500 ${goal.completed ? 'bg-emerald' : 'bg-pulsar'}`}
                       style={{ width: `${pct}%` }} />
                   </div>
                   <div className="flex justify-between mt-0.5">
@@ -399,9 +399,9 @@ const NodePanel = ({ node, onClose, onRefreshGraph }) => {
 
       {/* ── AI Breakdown modal ──────────────────────────────────────────── */}
       {showBreakdown && (
-        <div className="modal-overlay fixed inset-0 bg-void/80 z-50 flex items-center justify-center p-4"
+        <div className="modal-overlay fixed inset-0 bg-void/80 z-50 flex items-end md:items-center justify-center p-0 md:p-4"
           onClick={e => e.target === e.currentTarget && setShowBreakdown(false)}>
-          <div className="modal-content glass border border-blue-900/30 rounded-2xl p-6 w-full max-w-lg space-y-3">
+          <div className="modal-content glass border border-blue-900/30 rounded-t-2xl rounded-b-none md:rounded-2xl p-6 w-full w-full max-w-full md:max-w-lg space-y-3">
             <h3 className="font-display text-starlight">Task breakdown</h3>
             <textarea rows={4} value={taskDescription} onChange={e => setTaskDescription(e.target.value)}
               className="w-full bg-stardust/50 text-sm text-starlight border border-blue-900/20 rounded-lg px-3 py-2 outline-none resize-none"

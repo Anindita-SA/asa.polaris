@@ -125,7 +125,7 @@ const MediaLog = () => {
         {filtered.map(m => {
           const expanded = expandedId === m.id
           return (
-            <div key={m.id} className="glass border border-amber-500/10 rounded-xl p-4 group relative transition-all hover:bg-white/[0.03]">
+            <div key={m.id} className="glass glass-hover hover:-translate-y-1 border border-amber-500/10 rounded-xl p-4 group relative transition-all hover:bg-white/[0.03]">
               <div className="flex gap-3">
                 {/* Cover placeholder */}
                 <div className="w-12 h-16 rounded-lg flex-shrink-0 flex items-center justify-center"

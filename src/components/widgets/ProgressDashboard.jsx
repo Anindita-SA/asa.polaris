@@ -133,7 +133,7 @@ const ProgressDashboard = () => {
                         <p className="font-display text-gold tracking-wider text-lg">{current.name}</p>
                         <p className="text-xs font-mono text-dim mt-1">{xp} XP {next ? `/ ${next.minXp} to ${next.name}` : '- MAX'}</p>
                         <div className="mt-2 h-2 bg-stardust rounded-full overflow-hidden">
-                            <div className="h-full bg-gradient-to-r from-gold to-nova rounded-full xp-bar-fill transition-all duration-700"
+                            <div className="h-full bg-gold rounded-full xp-bar-fill transition-all duration-700"
                                 style={{ width: `${progress}%` }} />
                         </div>
                     </div>

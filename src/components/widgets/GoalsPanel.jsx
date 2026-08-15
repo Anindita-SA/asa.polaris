@@ -3,6 +3,8 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { Plus, X, Check, Trophy, Compass, Edit2, Info, Calendar, Zap, MessageSquare, RefreshCw } from 'lucide-react'
 import { playChime } from '../../lib/sound'
+import { useCelebration } from '../../hooks/useCelebration'
+import { useGoalCompletion } from '../../hooks/useGoalCompletion'
 
 const SCOPES = ['daily', 'weekly', 'monthly', 'quarterly', 'yearly', '5yr']
 
@@ -17,19 +19,17 @@ const SCOPE_COLORS = {
 }
 
 const BAR_COLORS = {
-  daily: 'from-sky to-sky/60',
-  weekly: 'from-emerald to-emerald/60',
-  monthly: 'from-pulsar to-nova',
-  quarterly: 'from-aurora to-pulsar',
-  yearly: 'from-gold to-gold/60',
-  '5yr': 'from-nova to-aurora',
-  side_quest: 'from-orange-400 to-amber-500'
+  daily: 'bg-emerald',
+  weekly: 'bg-pulsar',
+  monthly: 'bg-aurora',
+  yearly: 'bg-gold'
 }
 
 const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
-  const { user, addXP, trackXP } = useAuth()
+  const { user, addXP, trackXP, providerToken } = useAuth()
+  const { updateGoalProgress } = useGoalCompletion()
   const [goalCategory, setGoalCategory] = useState('campaign') // 'campaign' | 'side_quest'
-  const [activeScope, setActiveScope] = useState('weekly')
+  const [activeScope, setActiveScope] = useState('daily')
   const [goals, setGoals] = useState([])
   const [showModal, setShowModal] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
@@ -62,6 +62,61 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
     setAllNodes(nodes || [])
   }
 
+  const createGCalEvent = async (goal, silent = false) => {
+    if (!providerToken) {
+      if (!silent) alert('Google Calendar permission missing. Please log out and sign in again with Google to grant access.')
+      return
+    }
+    const parentName = allGoals.find(g => g.id === goal.parent_goal_id)?.title || 'None'
+    const dateStr = goal.deadline || new Date().toISOString().slice(0, 10)
+    
+    // We create a timed event from 18:00 to 19:00 with reminders
+    const startTime = `${dateStr}T18:00:00`
+    const endTime = `${dateStr}T19:00:00`
+    
+    const event = {
+      summary: `Goal: ${goal.title}`,
+      description: `Goal Context: ${goal.description || ''}\nParent Goal: ${parentName}\nWorkload Target: ${goal.target} ${goal.unit}`,
+      start: {
+        dateTime: startTime,
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+      },
+      end: {
+        dateTime: endTime,
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+      },
+      reminders: {
+        useDefault: false,
+        overrides: [
+          { method: 'popup', minutes: 120 }, // 4:00 PM
+          { method: 'popup', minutes: 30 }   // 5:30 PM
+        ]
+      }
+    }
+
+    try {
+      const res = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${providerToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(event)
+      })
+      if (!res.ok) {
+        if (res.status === 403 || res.status === 401) {
+          if (!silent) alert('Google Calendar permission missing. Please log out and sign in again to grant access.')
+        } else {
+          console.error('GCal Sync Error:', await res.text())
+        }
+      } else {
+        if (!silent) alert('Successfully synced to Google Calendar!')
+      }
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
   const saveGoal = async () => {
     if (!form.title || !form.target) return
     const payload = {
@@ -77,10 +132,19 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
       user_id: user.id
     }
 
+    let savedGoal = { ...payload }
+
     if (isEditing && form.id) {
       await supabase.from('goals').update(payload).eq('id', form.id)
+      savedGoal.id = form.id
     } else {
-      await supabase.from('goals').insert(payload)
+      const { data } = await supabase.from('goals').insert(payload).select().single()
+      if (data) savedGoal = data
+      
+      // Auto-sync new goals if we have a token
+      if (providerToken && savedGoal.id) {
+        createGCalEvent(savedGoal, true)
+      }
     }
 
     setForm(emptyForm)
@@ -106,17 +170,10 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
     setShowModal(true)
   }
 
-  const updateProgress = async (goal, delta) => {
-    const newCurrent = Math.max(0, Math.min(goal.current + delta, goal.target))
-    const completed = newCurrent >= goal.target
-
-    // Optimistic UI
-    setGoals(prev => prev.map(g => g.id === goal.id ? { ...g, current: newCurrent, completed } : g))
-
-    await supabase.from('goals').update({ current: newCurrent, completed }).eq('id', goal.id)
-
-    if (completed && !goal.completed) playChime('success')
-    trackXP(goal.completed, completed, goal.xp_reward || XP.GOAL_COMPLETE)
+  const updateProgress = async (goal, delta, e) => {
+    await updateGoalProgress(goal, delta, (updatedGoal) => {
+      setGoals(prev => prev.map(g => g.id === goal.id ? updatedGoal : g))
+    }, e)
     fetchGoals()
   }
 
@@ -125,14 +182,18 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
     fetchGoals()
   }
 
-  const syncToGCal = (goal) => {
-    const text = encodeURIComponent(goal.title)
-    const parentName = allGoals.find(g => g.id === goal.parent_goal_id)?.title || 'None'
-    const details = encodeURIComponent(`Goal Context: ${goal.description || ''}\nParent Goal: ${parentName}\nWorkload Target: ${goal.target} ${goal.unit}`)
-    const dates = goal.deadline ? `${goal.deadline.replace(/-/g, '')}/${goal.deadline.replace(/-/g, '')}` : ''
-    let url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&details=${details}`
-    if (dates) url += `&dates=${dates}`
-    window.open(url, '_blank')
+  const syncToGCal = async (goal) => {
+    if (providerToken) {
+      await createGCalEvent(goal, false)
+    } else {
+      const text = encodeURIComponent(goal.title)
+      const parentName = allGoals.find(g => g.id === goal.parent_goal_id)?.title || 'None'
+      const details = encodeURIComponent(`Goal Context: ${goal.description || ''}\nParent Goal: ${parentName}\nWorkload Target: ${goal.target} ${goal.unit}`)
+      const dates = goal.deadline ? `${goal.deadline.replace(/-/g, '')}/${goal.deadline.replace(/-/g, '')}` : ''
+      let url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&details=${details}`
+      if (dates) url += `&dates=${dates}`
+      window.open(url, '_blank')
+    }
   }
 
   const auditGoals = async () => {
@@ -165,9 +226,28 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
     }
   }
 
-  const completedCount = goals.filter(g => g.completed).length
-  const totalXP = goals.filter(g => g.completed).reduce((s, g) => s + (g.xp_reward || 0), 0)
+  const migrateGoal = async (id) => {
+    const today = new Date().toISOString().slice(0, 10)
+    await supabase.from('goals').update({ deadline: today }).eq('id', id)
+    fetchGoals()
+  }
+
+  const todayStr = new Date().toISOString().slice(0, 10)
+  const [hidePastCompleted, setHidePastCompleted] = useState(true)
+
   const displayScope = goalCategory === 'side_quest' ? 'side_quest' : activeScope
+
+  const filteredGoals = goals.filter(g => {
+    if (displayScope === 'daily' && hidePastCompleted) {
+      // Hide if it is completed and the deadline was before today
+      if (g.completed && g.deadline && g.deadline < todayStr) return false
+    }
+    return true
+  })
+
+  const completedCount = filteredGoals.filter(g => g.completed).length
+  const totalXP = filteredGoals.filter(g => g.completed).reduce((s, g) => s + (g.xp_reward || 0), 0)
+
 
   return (
     <div className="h-full overflow-y-auto p-6">
@@ -199,24 +279,32 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
           </div>
         )}
 
-        {/* Auditor Feature */}
-        <div className="flex justify-between items-center">
-          {goals.length > 0 ? (
+        {/* Auditor Feature & Filters */}
+        <div className="flex justify-between items-center flex-wrap gap-2">
+          {filteredGoals.length > 0 ? (
             <div className="flex items-center gap-4 px-1 flex-1">
               <div className="flex items-center gap-1.5 text-xs font-mono text-dim">
                 <Trophy className="w-3 h-3 text-gold" />
-                {completedCount}/{goals.length} complete
+                {completedCount}/{filteredGoals.length} complete
               </div>
               <div className="flex-1 h-px bg-blue-900/20 mx-4" />
               <span className="text-xs font-mono text-gold">+{totalXP} XP</span>
             </div>
           ) : <div className="flex-1" />}
           
-          <button onClick={auditGoals} disabled={isAuditing}
-            className="flex items-center gap-2 px-3 py-1.5 glass border border-nova/30 rounded-lg text-nova text-xs font-display hover:bg-nova/10 transition-colors">
-            {isAuditing ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Zap className="w-3 h-3" />}
-            AUDIT GOALS
-          </button>
+          <div className="flex items-center gap-2">
+            {displayScope === 'daily' && (
+              <button onClick={() => setHidePastCompleted(!hidePastCompleted)}
+                className={`text-xs font-body px-2 py-1.5 rounded-lg border transition-colors ${hidePastCompleted ? 'border-sky/30 text-sky bg-sky/10' : 'border-blue-900/30 text-dim hover:text-starlight'}`}>
+                {hidePastCompleted ? 'Hiding Past' : 'Show All'}
+              </button>
+            )}
+            <button onClick={auditGoals} disabled={isAuditing}
+              className="flex items-center gap-2 px-3 py-1.5 glass border border-nova/30 rounded-lg text-nova text-xs font-display hover:bg-nova/10 transition-colors">
+              {isAuditing ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Zap className="w-3 h-3" />}
+              AUDIT GOALS
+            </button>
+          </div>
         </div>
 
         {/* Auditor Feedback Drawer */}
@@ -236,11 +324,12 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
 
         {/* Goals list */}
         <div className="space-y-4">
-          {goals.map(goal => {
+          {filteredGoals.map(goal => {
             const pct = goal.target > 0 ? Math.min((goal.current / goal.target) * 100, 100) : 0
             const isExpanded = expandedGoalId === goal.id
+            const isPastUnfinished = displayScope === 'daily' && !goal.completed && goal.deadline && goal.deadline < todayStr
             return (
-              <div key={goal.id} className={`glass rounded-xl p-4 border ${goal.completed ? 'border-emerald/20 bg-emerald/5' : 'border-blue-900/20'} group transition-all`}>
+              <div key={goal.id} className={`glass glass-hover hover:-translate-y-1 rounded-xl p-4 border ${goal.completed ? 'border-emerald/20 bg-emerald/5' : 'border-blue-900/20'} group transition-all`}>
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1 pr-4">
                     <div className="flex items-center gap-2">
@@ -259,15 +348,20 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
                         <Compass className="w-3 h-3" /> Node: {allNodes.find(n => n.id === goal.node_id)?.title || 'Unknown'}
                       </button>
                     )}
-                    {goal.deadline && (
-                      <p className="text-[10px] text-orange-300/60 font-mono mt-1 flex items-center gap-1">
-                        <Calendar className="w-3 h-3" /> Due: {goal.deadline}
+                    {goal.deadline && !(displayScope === 'daily' && goal.deadline === todayStr) && (
+                      <p className={`text-[10px] font-mono mt-1 flex items-center gap-1 ${isPastUnfinished ? 'text-danger/80' : 'text-orange-300/60'}`}>
+                        <Calendar className="w-3 h-3" /> Due: {goal.deadline} {isPastUnfinished && '(Overdue)'}
                       </p>
                     )}
                     {goal.completed && <span className="text-xs text-emerald font-mono mt-1 block">+{goal.xp_reward} XP ✦</span>}
                   </div>
                   
                   <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                    {isPastUnfinished && (
+                      <button onClick={() => migrateGoal(goal.id)} title="Migrate to Today" className="text-dim hover:text-sky p-1">
+                        <RefreshCw className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                     {displayScope === 'daily' && (
                       <button onClick={() => syncToGCal(goal)} title="Sync to GCal" className="text-dim hover:text-starlight p-1">
                         <Calendar className="w-3.5 h-3.5" />
@@ -291,7 +385,7 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
 
                 {/* Progress bar */}
                 <div className="h-2 bg-stardust rounded-full overflow-hidden mb-2">
-                  <div className={`h-full rounded-full xp-bar-fill bg-gradient-to-r ${BAR_COLORS[displayScope]} transition-all duration-500`}
+                  <div className={`h-full rounded-full xp-bar-fill bg-emerald transition-all duration-500`}
                     style={{ width: `${pct}%` }} />
                 </div>
 
@@ -302,20 +396,24 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
                     <span className={SCOPE_COLORS[displayScope].split(' ')[0]}>{Math.round(pct)}%</span>
                   </span>
                   {goal.completed ? (
-                    <button onClick={() => updateProgress(goal, -1)} title="Undo completion"
-                      className="w-5 h-5 rounded border border-emerald/30 text-emerald hover:text-danger text-xs flex items-center justify-center hover:bg-emerald/10 transition-colors">
-                      <X className="w-3 h-3" />
+                    <button onClick={(e) => updateProgress(goal, -1, e)} title="Undo completion"
+                      className="p-1 hover:text-rose-400 transition-colors">
+                      <X className="w-4 h-4" />
                     </button>
                   ) : (
-                    <div className="flex items-center gap-1">
-                      <button onClick={() => updateProgress(goal, -1)}
-                        className="w-5 h-5 rounded border border-blue-900/30 text-dim hover:text-starlight text-xs flex items-center justify-center transition-colors">−</button>
-                      <button onClick={() => updateProgress(goal, 1)}
-                        className="w-5 h-5 rounded border border-blue-900/30 text-dim hover:text-emerald text-xs flex items-center justify-center transition-colors">+</button>
-                      {goal.current + 1 >= goal.target && (
-                        <button onClick={() => updateProgress(goal, goal.target - goal.current)}
-                          className="w-5 h-5 rounded border border-emerald/30 text-emerald text-xs flex items-center justify-center hover:bg-emerald/10 transition-colors">
-                          <Check className="w-3 h-3" />
+                    <div className="flex gap-2 bg-blue-950/30 rounded-lg p-1 border border-blue-900/40">
+                      <button onClick={(e) => updateProgress(goal, -1, e)}
+                        className="w-8 h-8 rounded hover:bg-white/5 flex items-center justify-center transition-colors">
+                        <span className="text-xl font-light">-</span>
+                      </button>
+                      <button onClick={(e) => updateProgress(goal, 1, e)}
+                        className="w-8 h-8 rounded hover:bg-white/5 flex items-center justify-center transition-colors">
+                        <span className="text-xl font-light">+</span>
+                      </button>
+                      {goal.target > 1 && (
+                        <button onClick={(e) => updateProgress(goal, goal.target - goal.current, e)}
+                          className="px-2 h-8 rounded hover:bg-white/5 flex items-center justify-center text-xs font-mono transition-colors">
+                          MAX
                         </button>
                       )}
                     </div>
@@ -326,7 +424,7 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
           })}
 
           {/* Empty state */}
-          {!goals.length && (
+          {!filteredGoals.length && (
             <div className="text-center py-12">
               <p className="text-dim font-body text-sm italic">No {displayScope} goals yet.</p>
               <p className="text-dim/50 font-body text-xs mt-1">What do you want to accomplish here?</p>
@@ -335,7 +433,15 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
         </div>
 
         {/* Add button */}
-        <button onClick={() => { setForm({ ...emptyForm, scope: activeScope }); setIsEditing(false); setShowModal(true) }}
+        <button onClick={() => { 
+            setForm({ 
+              ...emptyForm, 
+              scope: activeScope, 
+              deadline: activeScope === 'daily' ? new Date().toISOString().slice(0, 10) : '' 
+            }); 
+            setIsEditing(false); 
+            setShowModal(true);
+          }}
           className="w-full py-3 border border-dashed border-blue-900/30 rounded-xl text-dim hover:text-nova hover:border-nova/30 transition-all text-sm font-body flex items-center justify-center gap-2">
           <Plus className="w-4 h-4" /> Add {displayScope} goal
         </button>
@@ -343,9 +449,9 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
 
       {/* Modal for Add / Edit */}
       {showModal && (
-        <div className="modal-overlay fixed inset-0 bg-void/80 z-50 flex items-center justify-center p-4"
+        <div className="modal-overlay fixed inset-0 bg-void/80 z-50 flex items-end md:items-center justify-center p-0 md:p-4"
           onClick={e => e.target === e.currentTarget && setShowModal(false)}>
-          <div className="modal-content glass border border-blue-900/30 rounded-2xl p-6 w-full max-w-md space-y-4 max-h-[90vh] overflow-y-auto">
+          <div className="modal-content glass border border-blue-900/30 rounded-t-2xl rounded-b-none md:rounded-2xl p-6 w-full w-full max-w-full md:max-w-md space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between">
               <h3 className="font-display tracking-wider text-starlight">{isEditing ? 'Edit' : 'New'} {goalCategory === 'side_quest' ? 'Side Quest' : form.scope} Goal</h3>
               <button onClick={() => setShowModal(false)}><X className="w-4 h-4 text-dim" /></button>

@@ -2,7 +2,11 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { XP } from '../../data/xpRewards'
-import { Flame, Archive, Plus, X, ArrowUp, Check, Zap } from 'lucide-react'
+import { Flame, Archive, Plus, X, ArrowUp, Check, Zap, Dices } from 'lucide-react'
+import PomodoroTimer from '../widgets/PomodoroTimer'
+import { useTodaysTasks } from '../../hooks/useTodaysTasks'
+import SurpriseTaskModal from '../modals/SurpriseTaskModal'
+import { motion } from 'framer-motion'
 
 const CATEGORIES = ['academic', 'portfolio', 'application', 'health', 'creative', 'research']
 
@@ -11,6 +15,8 @@ const FocusBoard = () => {
   const [focusItems, setFocusItems] = useState([])
   const [backburner, setBackburner] = useState([])
   const [showModal, setShowModal] = useState(null) // 'focus' | 'backburner'
+  const { tasks, toggleComplete } = useTodaysTasks()
+  const [showSurprise, setShowSurprise] = useState(false)
   const [form, setForm] = useState({ title: '', category: 'academic', why_now: '', why_deferred: '', context_snapshot: '', revisit_after: '', linkedMilestone: '' })
   const [draggedItemIdx, setDraggedItemIdx] = useState(null)
   const [subtasks, setSubtasks] = useState({})
@@ -162,10 +168,29 @@ const FocusBoard = () => {
   }
 
   const slots = [0, 1, 2]
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: { staggerChildren: 0.05 }
+    }
+  }
+
+  const itemVariants = {
+    hidden: { opacity: 0, x: -20 },
+    show: { opacity: 1, x: 0, transition: { type: 'spring', stiffness: 300, damping: 24 } }
+  }
 
   return (
     <div className="h-full overflow-y-auto p-6">
       <div className="max-w-2xl mx-auto space-y-8">
+
+        {/* Mobile Pomodoro Slot */}
+        <div className="md:hidden w-full mb-4">
+          <PomodoroTimer />
+        </div>
+
+
 
         {/* Active Focus */}
         <div>
@@ -267,8 +292,8 @@ const FocusBoard = () => {
 
       {/* Modals */}
       {showModal && (
-        <div className="modal-overlay fixed inset-0 bg-void/80 z-50 flex items-center justify-center p-4" onClick={e => e.target === e.currentTarget && setShowModal(null)}>
-          <div className="modal-content glass border border-blue-900/30 rounded-2xl p-6 w-full max-w-md space-y-4">
+        <div className="modal-overlay fixed inset-0 bg-void/80 z-50 flex items-end md:items-center justify-center p-0 md:p-4" onClick={e => e.target === e.currentTarget && setShowModal(null)}>
+          <div className="modal-content glass border border-blue-900/30 rounded-t-2xl rounded-b-none md:rounded-2xl p-6 w-full w-full max-w-full md:max-w-md space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="font-display tracking-wider text-starlight">{showModal === 'focus' ? 'New Focus Item' : 'Add to Backburner'}</h3>
               <button onClick={() => setShowModal(null)}><X className="w-4 h-4 text-dim hover:text-starlight" /></button>
@@ -313,8 +338,8 @@ const FocusBoard = () => {
         </div>
       )}
       {breakdownTarget && (
-        <div className="modal-overlay fixed inset-0 bg-void/80 z-50 flex items-center justify-center p-4" onClick={e => e.target === e.currentTarget && setBreakdownTarget(null)}>
-          <div className="modal-content glass border border-blue-900/30 rounded-2xl p-6 w-full max-w-lg space-y-3">
+        <div className="modal-overlay fixed inset-0 bg-void/80 z-50 flex items-end md:items-center justify-center p-0 md:p-4" onClick={e => e.target === e.currentTarget && setBreakdownTarget(null)}>
+          <div className="modal-content glass border border-blue-900/30 rounded-t-2xl rounded-b-none md:rounded-2xl p-6 w-full w-full max-w-full md:max-w-lg space-y-3">
             <h3 className="font-display text-starlight">Break down: {breakdownTarget.title}</h3>
             <textarea rows={4} value={taskDescription} onChange={e => setTaskDescription(e.target.value)}
               className="w-full bg-stardust/50 text-sm text-starlight border border-blue-900/20 rounded-lg px-3 py-2 outline-none resize-none" />
@@ -324,6 +349,13 @@ const FocusBoard = () => {
           </div>
         </div>
       )}
+
+      <SurpriseTaskModal 
+        isOpen={showSurprise} 
+        onClose={() => setShowSurprise(false)} 
+        tasks={tasks}
+        toggleComplete={toggleComplete} 
+      />
     </div>
   )
 }

@@ -4,6 +4,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { Check, X, Plus, Sparkles, RefreshCw } from 'lucide-react'
 import { playChime } from '../../lib/sound'
 import { XP } from '../../data/xpRewards'
+import { useCelebration } from '../../hooks/useCelebration'
 
 const DailyTasks = ({ dateStr }) => {
   const { user, trackXP } = useAuth()
@@ -77,7 +78,10 @@ const DailyTasks = ({ dateStr }) => {
     const completed = !task.completed
     await supabase.from('daily_tasks').update({ completed }).eq('id', task.id)
     setTasks(prev => prev.map(t => t.id === task.id ? { ...t, completed } : t))
-    if (completed) playChime('success')
+    if (completed) {
+      playChime('success')
+      celebrate()
+    }
     trackXP(task.completed, completed, XP.TASK_COMPLETE)
   }
 

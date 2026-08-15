@@ -281,7 +281,7 @@ export const AuthProvider = ({ children }) => {
       provider: 'google',
       options: { 
         redirectTo: window.location.origin + '/asa.polaris/',
-        scopes: 'https://www.googleapis.com/auth/calendar.readonly',
+        scopes: 'https://www.googleapis.com/auth/calendar.events',
         queryParams: { access_type: 'offline', prompt: 'consent' },
       },
     })

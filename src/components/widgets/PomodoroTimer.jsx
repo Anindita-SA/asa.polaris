@@ -1,7 +1,9 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
-import { Settings, X, Maximize2, Minimize2, RotateCcw, ChevronDown, ChevronUp, Music } from 'lucide-react'
+import { useTodaysTasks } from '../../hooks/useTodaysTasks'
+import { Settings, X, Maximize2, Minimize2, RotateCcw, ChevronDown, ChevronUp, Music, CheckCircle2, Target } from 'lucide-react'
 
 import Starfield from '../layout/Starfield'
 
@@ -12,10 +14,10 @@ const MODE_CONFIG = {
 }
 
 const AMBIENT_TRACKS = [
-  { id: 'none', label: 'No Ambient Sound', url: '' },
-  { id: 'rain', label: 'Rain & Thunder', url: 'https://cdn.pixabay.com/download/audio/2021/08/09/audio_dc39bde808.mp3?filename=light-rain-ambient-114354.mp3' },
-  { id: 'space', label: 'Deep Space', url: 'https://cdn.pixabay.com/download/audio/2022/10/25/audio_291c953a99.mp3?filename=deep-space-125026.mp3' },
-  { id: 'binaural', label: 'Alpha Waves', url: 'https://cdn.pixabay.com/download/audio/2022/03/10/audio_c8c8a73467.mp3?filename=alpha-binaural-beats-14-hz-101150.mp3' },
+  { name: 'Lofi', url: 'https://www.youtube.com/embed/jfKfPfyJRdk' },
+  { name: 'Rain', url: 'https://www.youtube.com/embed/mPZkdNFkNps' },
+  { name: 'White Noise', url: 'https://www.youtube.com/embed/nMfPqeZjc2c' },
+  { name: 'Space Ambient', url: 'https://www.youtube.com/embed/nCnjCGK-DTA' }
 ]
 
 const POMODORO_STORAGE_KEY = 'polaris_pomodoro_state'
@@ -28,9 +30,6 @@ const loadSavedState = () => {
         const elapsedSecs = Math.floor((Date.now() - parsed.lastTick) / 1000)
         parsed.timeLeft = Math.max(0, parsed.timeLeft - elapsedSecs)
         if (parsed.timeLeft === 0) parsed.isRunning = false
-      }
-      if (parsed) {
-        console.log('Pomodoro loaded from storage:', parsed)
       }
       return parsed
     }
@@ -45,10 +44,21 @@ const getInitialState = () => {
   return cachedState
 }
 
-const PomodoroTimer = () => {
+const inferIO = (task) => {
+  if (!task) return 'input'
+  const title = (task.title || '').toLowerCase()
+  const notes = (task.raw?.notes || '').toLowerCase()
+  if (notes.includes('[output]')) return 'output'
+  if (notes.includes('[input]')) return 'input'
+  if (title.match(/(read|study|learn|research|review|watch|listen|analyze|inspect|notes)/)) return 'input'
+  if (title.match(/(write|code|build|create|print|report|draft|design|submit|make|draw|schematic|pcb|summary)/)) return 'output'
+  return 'input'
+}
+
+const PomodoroTimer = ({ mobilePill = false }) => {
   const { user, addXP } = useAuth()
+  const { tasks: todaysTasks, toggleComplete: toggleTaskComplete } = useTodaysTasks()
   
-  // Use lazy initializers so we only read storage once per mount and never rely on useMemo memoization
   const [mode, setMode] = useState(() => getInitialState().mode || 'focus')
   const [isRunning, setIsRunning] = useState(() => getInitialState().isRunning || false)
   const [autoRestart, setAutoRestart] = useState(() => getInitialState().autoRestart || false)
@@ -57,103 +67,102 @@ const PomodoroTimer = () => {
   const [durations, setDurations] = useState(() => getInitialState().durations || { focus: 25, short: 5, long: 15 })
   const [timeLeft, setTimeLeft] = useState(() => {
     const s = getInitialState()
-    return s.timeLeft ?? (s.durations?.focus ? s.durations.focus * 60 : 25 * 60)
+    if (s.timeLeft !== undefined) return s.timeLeft
+    return (getInitialState().durations?.focus || 25) * 60
   })
-  const [linkedItem, setLinkedItem] = useState(() => getInitialState().linkedItem || '')
-  const [comment, setComment] = useState(() => getInitialState().comment || '')
-  const [pos, setPos] = useState({ x: -1, y: -1 })
-  const [sessionStart, setSessionStart] = useState(() => getInitialState().sessionStart || null)
+
+  const [ioType, setIoType] = useState(() => localStorage.getItem('polaris_pomo_iotype') || 'input')
+  const [comment, setComment] = useState('')
+  const [selectedTaskId, setSelectedTaskId] = useState('')
   const [nodes, setNodes] = useState([])
+  const [linkedItem, setLinkedItem] = useState('')
+  const [goals, setGoals] = useState([])
+  const [linkedGoal, setLinkedGoal] = useState('')
+
   const [collapsed, setCollapsed] = useState(() => {
-    try { return localStorage.getItem('polaris_pomo_collapsed') === 'true' } catch { return false }
+    return localStorage.getItem('polaris_pomo_collapsed') === 'true'
   })
-  const [ioType, setIoType] = useState(() => {
-    try { return localStorage.getItem('polaris_pomo_iotype') || 'output' } catch { return 'output' }
-  })
-  const [ambientTrack, setAmbientTrack] = useState(() => getInitialState().ambientTrack || 'none')
+  const [sessionStart, setSessionStart] = useState(null)
+  
+  // Ambient Audio state
+  const [audioEnabled, setAudioEnabled] = useState(false)
+  const [trackIndex, setTrackIndex] = useState(0)
 
-  const clickOrigin = useRef(null)
-  const isDragging = useRef(false)
-  const dragOffset = useRef({ x: 0, y: 0 })
   const widgetRef = useRef(null)
-  const audioRef = useRef(null)
 
   useEffect(() => {
-    if (!audioRef.current) return
-    if (isRunning && ambientTrack !== 'none') {
-      audioRef.current.play().catch(e => console.log('Audio auto-play prevented', e))
-    } else {
-      audioRef.current.pause()
-    }
-  }, [isRunning, ambientTrack])
+    if (!user) return
+    supabase.from('nodes').select('id, title').eq('user_id', user.id).then(({ data }) => {
+      if (data) setNodes(data)
+    })
+    supabase.from('goals').select('id, title, current, target, unit, completed').eq('user_id', user.id).eq('completed', false).then(({ data }) => {
+      if (data) setGoals(data)
+    })
+  }, [user])
 
+  // Persistence effect
   useEffect(() => {
-    if (user?.id) {
-      supabase.from('nodes').select('*').eq('user_id', user.id).then(({ data }) => {
-        if (data) setNodes(data)
-      })
-    }
-  }, [user?.id])
-
-  // Init position bottom-right
-  useEffect(() => {
-    setPos({ x: window.innerWidth - 290, y: window.innerHeight - 230 })
-  }, [])
-
-  const totalSeconds = durations[mode] * 60
-  const color = MODE_CONFIG[mode].color
-
-  // Persist state
-  useEffect(() => {
-    localStorage.setItem(POMODORO_STORAGE_KEY, JSON.stringify({
-      mode, isRunning, autoRestart, isExpanded, durations, timeLeft, linkedItem, comment, sessionStart, ambientTrack,
+    const stateToSave = {
+      mode,
+      isRunning,
+      autoRestart,
+      isExpanded,
+      durations,
+      timeLeft,
       lastTick: Date.now()
-    }))
-  }, [mode, isRunning, autoRestart, isExpanded, durations, timeLeft, linkedItem, comment, sessionStart, ambientTrack])
+    }
+    localStorage.setItem(POMODORO_STORAGE_KEY, JSON.stringify(stateToSave))
+  }, [mode, isRunning, autoRestart, isExpanded, durations, timeLeft])
 
+  const currentTask = useMemo(() => {
+    return todaysTasks.find(t => t.id === selectedTaskId)
+  }, [todaysTasks, selectedTaskId])
 
-  const completionHandled = useRef(false)
+  const handleSelectTodayTask = (taskId) => {
+    setSelectedTaskId(taskId)
+    const task = todaysTasks.find(t => t.id === taskId)
+    if (task) {
+      setComment(task.title)
+      const inferred = inferIO(task)
+      setIoType(inferred)
+      localStorage.setItem('polaris_pomo_iotype', inferred)
+    }
+  }
 
-  useEffect(() => {
-    if (isRunning && timeLeft > 0) completionHandled.current = false
-  }, [isRunning, timeLeft])
+  const totalSeconds = (durations[mode] || 25) * 60
+  const color = MODE_CONFIG[mode]?.color || '#3b82f6'
 
-  // Tick interval ONLY decrements time, entirely decoupled from UI state
+  // Timer Tick Effect
   useEffect(() => {
     if (!isRunning) return
-    const id = setInterval(() => {
-      setTimeLeft(t => (t > 0 ? t - 1 : 0))
+    const timer = setInterval(() => {
+      setTimeLeft(t => Math.max(0, t - 1))
     }, 1000)
-    return () => clearInterval(id)
+    return () => clearInterval(timer)
   }, [isRunning])
 
-  // Completion payload fires exactly once when timeLeft hits 0
+  // Timer Completion Effect
   useEffect(() => {
-    if (isRunning && timeLeft === 0 && !completionHandled.current) {
-      completionHandled.current = true
+    if (timeLeft === 0 && isRunning) {
       setIsRunning(false)
-      setSessionStart(null)
+      const sound = new Audio('/chime.mp3')
+      sound.play().catch(() => {})
 
-      if (mode === 'focus') {
-        const mins = durations['focus'] || 25
-        if (mins > 0 && user?.id) {
-          const today = new Date().toISOString().slice(0, 10)
-          supabase.from('pomodoro_logs').insert({
-            user_id: user.id,
-            duration_minutes: mins,
-            label: linkedItem || comment || null,
-            date: today,
-          }).then(() => {
-            if (addXP) addXP(mins)
-          })
-          supabase.from('io_logs').insert({
-            user_id: user.id,
-            type: ioType,
-            category: linkedItem || comment || 'focus session',
-            minutes: mins,
-            date: today,
-          })
-        }
+      if (mode === 'focus' && user?.id) {
+        const mins = durations.focus
+        const xpEarned = Math.round(mins * 0.8)
+        if (addXP) addXP(xpEarned)
+
+        supabase.from('focus_sessions').insert({
+          user_id: user.id,
+          duration_minutes: mins,
+          mode: 'focus',
+          io_type: ioType,
+          comment: comment || linkedItem || (currentTask ? currentTask.title : 'Focus Session'),
+          node_title: linkedItem || null,
+          goal_id: linkedGoal || null,
+          created_at: new Date().toISOString()
+        }).then()
       }
 
       if (autoRestart) {
@@ -164,9 +173,8 @@ const PomodoroTimer = () => {
         setIsRunning(true)
       }
     }
-  }, [timeLeft, isRunning, mode, durations, linkedItem, comment, user?.id, ioType, autoRestart])
+  }, [timeLeft, isRunning, mode, durations, linkedItem, comment, user?.id, ioType, autoRestart, addXP, currentTask])
 
-  // Only reset the timer if the mode actually changes (ignores Strict Mode double mounts)
   const prevModeRef = useRef(mode)
   useEffect(() => {
     if (prevModeRef.current === mode) return
@@ -183,69 +191,40 @@ const PomodoroTimer = () => {
   }
 
   const handleReset = (e) => {
-    e.stopPropagation()
+    if (e) e.stopPropagation()
     setTimeLeft(durations[mode] * 60)
     setIsRunning(false)
     setSessionStart(null)
   }
-
-  // Drag
-  const onMouseDown = (e) => {
-    if (isExpanded || e.target.closest('button') || e.target.closest('select') || e.target.closest('input')) return
-    clickOrigin.current = { x: e.clientX, y: e.clientY }
-    isDragging.current = false
-    dragOffset.current = { x: e.clientX - pos.x, y: e.clientY - pos.y }
-    window.addEventListener('mousemove', onMouseMove)
-    window.addEventListener('mouseup', onMouseUp)
-  }
-
-  const onMouseMove = useCallback((e) => {
-    if (!clickOrigin.current) return
-    if (!isDragging.current) {
-      const dx = Math.abs(e.clientX - clickOrigin.current.x)
-      const dy = Math.abs(e.clientY - clickOrigin.current.y)
-      if (dx > 3 || dy > 3) isDragging.current = true
-      else return
-    }
-    
-    let newX = e.clientX - dragOffset.current.x
-    let newY = e.clientY - dragOffset.current.y
-    const snap = 35
-    if (newX < snap) newX = 0
-    if (newY < snap) newY = 0
-    if (window.innerWidth - (newX + 260) < snap) newX = window.innerWidth - 260
-    if (window.innerHeight - (newY + 180) < snap) newY = window.innerHeight - 180
-
-    setPos({ x: newX, y: newY })
-  }, [])
-
-  const onMouseUp = useCallback(() => {
-    isDragging.current = false
-    clickOrigin.current = null
-    window.removeEventListener('mousemove', onMouseMove)
-    window.removeEventListener('mouseup', onMouseUp)
-  }, [onMouseMove])
 
   const mins = String(Math.floor(timeLeft / 60)).padStart(2, '0')
   const secs = String(timeLeft % 60).padStart(2, '0')
   const circumference = 2 * Math.PI * 54
   const dashoffset = circumference * (1 - timeLeft / totalSeconds)
 
-  // ── EXPANDED (fullscreen) ────────────────────────────────────────────────
-  if (isExpanded) return (
+  if (mobilePill) {
+    return (
+      <button onClick={handleClockClick} className={`glass flex items-center justify-center gap-3 px-5 py-2.5 rounded-full border shadow-2xl backdrop-blur-md ${isRunning ? 'border-pulsar/50 text-pulsar' : 'border-blue-900/40 text-starlight'}`}>
+        <span className="font-mono text-lg font-bold tracking-widest">{mins}:{secs}</span>
+        {isRunning ? <div className="w-2.5 h-2.5 rounded-sm bg-pulsar" /> : <div className="w-0 h-0 border-l-[10px] border-y-[6px] border-y-transparent border-l-starlight" />}
+      </button>
+    )
+  }
+
+  // EXPANDED (fullscreen)
+  if (isExpanded) return createPortal(
     <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-void/90 overflow-hidden">
-      {/* Animated Starfield Background */}
       <div className="absolute inset-0 z-0">
         <Starfield />
       </div>
 
       <div className="relative z-10 flex flex-col items-center w-full max-w-sm">
         {/* Mode tabs */}
-        <div className="flex w-full mb-8 bg-blue-900/10 rounded-xl p-1 border border-blue-900/20">
+        <div className="flex w-full mb-6 bg-blue-900/10 rounded-xl p-1 border border-blue-900/20">
           {Object.entries(MODE_CONFIG).map(([key, cfg]) => (
             <button key={key} onClick={() => setMode(key)}
               className={`flex-1 py-2 rounded-lg text-sm font-body transition-all ${mode === key
-                  ? 'text-starlight shadow-sm'
+                  ? 'text-starlight shadow-sm font-bold'
                   : 'text-dim hover:text-starlight hover:bg-blue-900/10'
                 }`}
               style={mode === key ? { background: color } : {}}>
@@ -254,14 +233,23 @@ const PomodoroTimer = () => {
           ))}
         </div>
 
-        {/* Linked Node Selector */}
-        <div className="mb-4 w-full flex justify-center">
-          <select value={linkedItem} onChange={e => setLinkedItem(e.target.value)}
-            className="bg-stardust text-sm text-starlight border border-blue-900/30 rounded-lg px-4 py-2 outline-none font-body min-w-[200px] text-center appearance-none shadow-lg">
-            <option value="">No Node Linked</option>
-            {nodes.map(n => <option key={n.id} value={n.title}>{n.title}</option>)}
-          </select>
-        </div>
+        {/* Today's Task Selector */}
+        {todaysTasks.length > 0 && (
+          <div className="mb-4 w-full">
+            <select
+              value={selectedTaskId}
+              onChange={e => handleSelectTodayTask(e.target.value)}
+              className="w-full bg-stardust/80 text-xs text-starlight border border-amber-400/40 rounded-xl px-3 py-2 outline-none font-body text-center appearance-none shadow-lg"
+            >
+              <option value="">🎯 Select Today's Task to Focus On...</option>
+              {todaysTasks.map(t => (
+                <option key={t.id} value={t.id}>
+                  {t.completed ? '✓ ' : ''}{t.title}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Giant clock */}
         <div className="relative w-80 h-80 flex items-center justify-center cursor-pointer group"
@@ -277,44 +265,19 @@ const PomodoroTimer = () => {
             <p className="text-7xl font-display text-starlight tracking-tight leading-none mb-2">
               {mins}:{secs}
             </p>
-            <p className="text-sm font-body transition-opacity"
-              style={{ color, opacity: isRunning ? 1 : 0.8 }}>
-              {isRunning ? 'Running...' : 'Ready?'}
-            </p>
+            <p className="text-xs text-dim font-mono">{isRunning ? 'Click to pause' : 'Click to start'}</p>
           </div>
-        </div>
-
-        {/* Controls */}
-        <div className="flex items-center gap-4 mt-10">
-          <button onClick={handleClockClick}
-            className="w-14 h-14 rounded-xl border border-blue-900/30 text-starlight bg-blue-900/20 hover:bg-blue-900/40 flex items-center justify-center transition-all shadow-lg">
-            {isRunning ? (
-              <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
-            ) : (
-              <svg className="w-6 h-6 fill-current ml-1" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-            )}
-          </button>
-          <button onClick={handleReset}
-            className="w-12 h-12 rounded-xl border border-blue-900/30 text-dim bg-stardust/40 hover:bg-stardust/80 hover:text-starlight flex items-center justify-center transition-all shadow-lg">
-            <RotateCcw className="w-5 h-5" />
-          </button>
-          <button onClick={() => setAutoRestart(r => !r)}
-            title="Auto-restart loop"
-            className={`w-12 h-12 rounded-xl border border-blue-900/30 flex items-center justify-center transition-all shadow-lg text-2xl pb-1 ${autoRestart ? 'bg-blue-900/20 text-starlight' : 'bg-stardust/40 text-dim hover:text-starlight hover:bg-stardust/80'}`}
-            style={autoRestart ? { borderColor: color, color } : {}}>
-            ∞
-          </button>
         </div>
 
         <div className="mt-8 flex flex-col gap-3 w-full">
           {/* IO Type toggle */}
           <div className="flex rounded-lg overflow-hidden border border-blue-900/20 bg-stardust/20">
             <button onClick={() => { setIoType('input'); localStorage.setItem('polaris_pomo_iotype', 'input') }}
-              className={`flex-1 text-xs py-2 font-body transition-all ${ioType === 'input' ? 'bg-blue-900/50 text-amber-400 border-r border-blue-900/20 shadow-inner' : 'text-dim hover:text-starlight border-r border-blue-900/20'}`}>
+              className={`flex-1 text-xs py-2 font-body transition-all ${ioType === 'input' ? 'bg-blue-900/50 text-amber-400 border-r border-blue-900/20 shadow-inner font-bold' : 'text-dim hover:text-starlight border-r border-blue-900/20'}`}>
               📥 Input
             </button>
             <button onClick={() => { setIoType('output'); localStorage.setItem('polaris_pomo_iotype', 'output') }}
-              className={`flex-1 text-xs py-2 font-body transition-all ${ioType === 'output' ? 'bg-blue-900/50 text-emerald-400 shadow-inner' : 'text-dim hover:text-starlight'}`}>
+              className={`flex-1 text-xs py-2 font-body transition-all ${ioType === 'output' ? 'bg-blue-900/50 text-emerald-400 shadow-inner font-bold' : 'text-dim hover:text-starlight'}`}>
               📤 Output
             </button>
           </div>
@@ -329,25 +292,19 @@ const PomodoroTimer = () => {
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 
-  // ── WIDGET (compact, draggable) ──────────────────────────────────────────
-  if (pos.x < 0) return null
-
+  // WIDGET (anchored)
   return (
-    <div ref={widgetRef}
-      className="fixed z-40 glass border border-blue-900/20 rounded-2xl select-none group"
-      style={{ left: pos.x, top: pos.y, width: 260 }}
-      onMouseDown={onMouseDown}>
-      
-      {/* Header - always visible */}
+    <div ref={widgetRef} className="relative w-full glass rounded-none select-none group">
+      {/* Header */}
       <div className="flex items-center justify-between px-3 pt-3 pb-1">
         <div className="flex gap-1">
           {Object.entries(MODE_CONFIG).map(([key, cfg]) => (
             <button key={key} onClick={() => setMode(key)}
-              className={`px-2 py-0.5 text-xs rounded font-body transition-all ${mode === key ? 'text-starlight' : 'text-dim hover:text-starlight'
-                }`}
+              className={`px-2 py-0.5 text-xs rounded font-body transition-all ${mode === key ? 'text-starlight font-bold' : 'text-dim hover:text-starlight'}`}
               style={mode === key ? { color, borderBottom: `1px solid ${color}` } : {}}>
               {key === 'focus' ? 'Focus' : key === 'short' ? 'Short' : 'Long'}
             </button>
@@ -369,7 +326,7 @@ const PomodoroTimer = () => {
         </div>
       </div>
 
-      {/* Collapsed: just show time + status inline */}
+      {/* Collapsed: inline status */}
       {collapsed ? (
         <div className="px-3 pb-3 flex items-center justify-between">
           <p className="text-lg font-mono text-starlight">{mins}:{secs}</p>
@@ -410,7 +367,7 @@ const PomodoroTimer = () => {
             </div>
           )}
 
-          {/* Clock face - just the visual ring + time, no play/pause overlay */}
+          {/* Clock face */}
           <div className="flex flex-col items-center px-3 pb-3">
             <div className="relative w-28 h-28 flex items-center justify-center mt-1">
               <svg viewBox="0 0 120 120" className="absolute inset-0 w-full h-full -rotate-90">
@@ -425,7 +382,7 @@ const PomodoroTimer = () => {
               </div>
             </div>
 
-            {/* Controls row: play/pause + restart + loop */}
+            {/* Controls row */}
             <div className="flex items-center gap-3 mt-2">
               <button onClick={handleClockClick}
                 className="w-8 h-8 rounded-lg border border-blue-900/30 flex items-center justify-center transition-all hover:bg-blue-900/20"
@@ -436,28 +393,63 @@ const PomodoroTimer = () => {
                   <svg className="w-4 h-4 fill-current ml-0.5" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                 )}
               </button>
-              <button onClick={handleReset}
-                className="text-dim hover:text-starlight transition-colors p-1">
+              <button onClick={handleReset} className="text-dim hover:text-starlight transition-colors p-1">
                 <RotateCcw className="w-3.5 h-3.5" />
               </button>
               <button onClick={() => setAutoRestart(r => !r)}
                 title="Auto-restart loop"
-                className={`text-lg leading-none transition-all px-1 ${autoRestart ? 'opacity-100' : 'opacity-30 hover:opacity-60'
-                  }`}
+                className={`text-lg leading-none transition-all px-1 ${autoRestart ? 'opacity-100' : 'opacity-30 hover:opacity-60'}`}
                 style={autoRestart ? { color } : { color: '#64748b' }}>
-                ∞
+                ⟳
               </button>
             </div>
 
-            {/* IO Type toggle + Comment + node link */}
+            {/* Today's Tasks Selector */}
+            {todaysTasks.length > 0 && (
+              <div className="mt-3 w-full">
+                <select
+                  value={selectedTaskId}
+                  onChange={e => handleSelectTodayTask(e.target.value)}
+                  className="w-full bg-stardust/60 text-xs text-starlight border border-blue-900/30 focus:border-amber-400/60 rounded-lg px-2 py-1.5 outline-none font-body truncate"
+                >
+                  <option value="">🎯 Focus on Today's Task...</option>
+                  {todaysTasks.map(t => (
+                    <option key={t.id} value={t.id}>
+                      {t.completed ? '✓ ' : ''}{t.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Current Active Task Banner */}
+            {currentTask && (
+              <div className="mt-2 w-full glass border border-amber-400/30 bg-amber-400/10 rounded-lg p-2 flex items-center justify-between text-xs">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="text-[10px] font-mono px-1 py-0.5 rounded bg-amber-400/20 text-amber-400 font-bold uppercase shrink-0">
+                    {ioType === 'input' ? '📥 Input' : '📤 Output'}
+                  </span>
+                  <span className="text-starlight font-body truncate leading-snug">{currentTask.title}</span>
+                </div>
+                <button
+                  onClick={() => toggleTaskComplete(currentTask)}
+                  className={`p-1 rounded transition-colors shrink-0 ${currentTask.completed ? 'text-emerald-400' : 'text-dim hover:text-emerald-400'}`}
+                  title={currentTask.completed ? 'Mark incomplete' : 'Mark complete'}
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
+            {/* IO Type toggle + Comment */}
             <div className="mt-2 w-full space-y-1.5">
               <div className="flex rounded-lg overflow-hidden border border-blue-900/20 bg-stardust/20">
                 <button onClick={() => { setIoType('input'); localStorage.setItem('polaris_pomo_iotype', 'input') }}
-                  className={`flex-1 text-xs py-1.5 font-body transition-all ${ioType === 'input' ? 'bg-blue-900/50 text-amber-400 border-r border-blue-900/20 shadow-inner' : 'text-dim hover:text-starlight border-r border-blue-900/20'}`}>
+                  className={`flex-1 text-xs py-1.5 font-body transition-all ${ioType === 'input' ? 'bg-blue-900/50 text-amber-400 border-r border-blue-900/20 shadow-inner font-bold' : 'text-dim hover:text-starlight border-r border-blue-900/20'}`}>
                   📥 Input
                 </button>
                 <button onClick={() => { setIoType('output'); localStorage.setItem('polaris_pomo_iotype', 'output') }}
-                  className={`flex-1 text-xs py-1.5 font-body transition-all ${ioType === 'output' ? 'bg-blue-900/50 text-emerald-400 shadow-inner' : 'text-dim hover:text-starlight'}`}>
+                  className={`flex-1 text-xs py-1.5 font-body transition-all ${ioType === 'output' ? 'bg-blue-900/50 text-emerald-400 shadow-inner font-bold' : 'text-dim hover:text-starlight'}`}>
                   📤 Output
                 </button>
               </div>
@@ -468,33 +460,33 @@ const PomodoroTimer = () => {
                 onChange={e => setComment(e.target.value)}
                 className="w-full bg-stardust/40 text-xs text-starlight border border-blue-900/10 rounded-lg px-2 py-1.5 outline-none font-body placeholder:text-dim"
               />
-              {nodes.length > 0 && (
-                <select value={linkedItem} onChange={e => setLinkedItem(e.target.value)}
-                  className="w-full bg-stardust/40 text-xs text-dim border border-blue-900/10 rounded-lg px-2 py-1 outline-none font-body">
-                  <option value="">No node linked</option>
-                  {nodes.map(n => <option key={n.id} value={n.title}>{n.title}</option>)}
-                </select>
-              )}
 
-              {/* Ambient Audio Selector */}
-              <div className="flex items-center gap-2 w-full bg-stardust/40 border border-blue-900/10 rounded-lg px-2 py-1">
-                <Music className="w-3 h-3 text-dim" />
-                <select value={ambientTrack} onChange={e => setAmbientTrack(e.target.value)}
-                  className="flex-1 bg-transparent text-xs text-dim outline-none font-body">
-                  {AMBIENT_TRACKS.map(t => (
-                    <option key={t.id} value={t.id}>{t.label}</option>
-                  ))}
-                </select>
+              {/* Ambient Audio Widget */}
+              <div className="flex items-center justify-between bg-stardust/20 border border-blue-900/10 rounded-lg px-2 py-1 mt-1">
+                <button onClick={() => setAudioEnabled(e => !e)} className={`flex items-center gap-2 text-xs transition-colors ${audioEnabled ? 'text-emerald-400' : 'text-dim hover:text-starlight'}`}>
+                  <Music className="w-3 h-3 flex-shrink-0" />
+                  {audioEnabled ? 'Audio On' : 'Audio Off'}
+                </button>
+                {audioEnabled && (
+                  <button onClick={() => setTrackIndex(i => (i + 1) % AMBIENT_TRACKS.length)} className="text-xs text-starlight hover:text-nova transition-colors font-body truncate max-w-[120px]">
+                    {AMBIENT_TRACKS[trackIndex].name}
+                  </button>
+                )}
               </div>
-
+              
+              {audioEnabled && isRunning && (
+                <div className="hidden">
+                  <iframe 
+                    width="1" height="1" 
+                    src={`${AMBIENT_TRACKS[trackIndex].url}?autoplay=1&loop=1`} 
+                    allow="autoplay; encrypted-media"
+                    title="Ambient Audio"
+                  />
+                </div>
+              )}
             </div>
           </div>
         </>
-      )}
-
-      {/* Hidden audio element */}
-      {ambientTrack !== 'none' && (
-        <audio ref={audioRef} src={AMBIENT_TRACKS.find(t => t.id === ambientTrack)?.url} loop />
       )}
     </div>
   )

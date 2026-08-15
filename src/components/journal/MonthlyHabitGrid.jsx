@@ -4,8 +4,10 @@ import { startOfMonth, endOfMonth, eachDayOfInterval, format, isToday, isBefore 
 import { Edit2, Check, X, Trash2 } from 'lucide-react'
 
 import { XP } from '../../data/xpRewards'
+import { useCelebration } from '../../hooks/useCelebration'
 
 const MonthlyHabitGrid = ({ habits, userId, selectedDate, addXP, trackXP, onDelete, onRefetch }) => {
+  const { celebrate } = useCelebration()
   const [monthLogs, setMonthLogs] = useState([])
   const [editingHabit, setEditingHabit] = useState(null)
   const [editTitle, setEditTitle] = useState('')
@@ -34,7 +36,7 @@ const MonthlyHabitGrid = ({ habits, userId, selectedDate, addXP, trackXP, onDele
     return monthLogs.some(l => l.habit_id === habitId && l.date === dateStr)
   }
 
-  const toggleDay = async (habit, dateStr) => {
+  const toggleDay = async (habit, dateStr, e) => {
     const existing = monthLogs.find(l => l.habit_id === habit.id && l.date === dateStr)
     const wasLogged = !!existing
     if (existing) {
@@ -44,7 +46,10 @@ const MonthlyHabitGrid = ({ habits, userId, selectedDate, addXP, trackXP, onDele
       const { data } = await supabase.from('habit_logs').insert({ 
         user_id: userId, habit_id: habit.id, date: dateStr 
       }).select().single()
-      if (data) setMonthLogs(prev => [...prev, data])
+      if (data) {
+        setMonthLogs(prev => [...prev, data])
+        celebrate(e ? { x: e.clientX, y: e.clientY } : undefined)
+      }
     }
     trackXP(wasLogged, !wasLogged, habit.xp_reward || XP.HABIT_CHECK)
   }
@@ -128,11 +133,11 @@ const MonthlyHabitGrid = ({ habits, userId, selectedDate, addXP, trackXP, onDele
                   return (
                     <td key={dateStr} className="text-center py-2 px-0 border-b border-blue-900/10">
                       <button
-                        onClick={() => !future && toggleDay(habit, dateStr)}
+                        onClick={(e) => !future && toggleDay(habit, dateStr, e)}
                         disabled={future}
                         className={`habit-cell ${
                           logged 
-                            ? 'bg-gradient-to-br from-emerald to-emerald/80 shadow-[0_0_8px_rgba(16,185,129,0.4)] border border-emerald/50' 
+                            ? 'bg-emerald shadow-[0_0_8px_rgba(16,185,129,0.4)] border border-emerald/50' 
                             : today
                             ? 'bg-gold/20 border border-gold hover:bg-gold/40 hover:shadow-[0_0_8px_rgba(251,191,36,0.3)]'
                             : future

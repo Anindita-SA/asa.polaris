@@ -66,7 +66,10 @@ const ConstellationGraph = forwardRef(({ onNodeSelect }, ref) => {
 
     // Read dims right now, synchronously
     const rect = containerRef.current.getBoundingClientRect()
-    let w = rect.width
+    const computedStyle = window.getComputedStyle(containerRef.current)
+    const padLeft = parseFloat(computedStyle.paddingLeft) || 0
+    const padRight = parseFloat(computedStyle.paddingRight) || 0
+    let w = rect.width - padLeft - padRight
     let h = rect.height
 
     // Fallback: if container still reports 0 (e.g. first paint), retry after a frame
@@ -181,7 +184,25 @@ const ConstellationGraph = forwardRef(({ onNodeSelect }, ref) => {
     svg.call(d3.zoom().scaleExtent([0.1, 6]).on('zoom', e => g.attr('transform', e.transform)))
 
     simRef.current = sim
-    return () => sim.stop()
+
+    const handleResize = () => {
+      if (!containerRef.current) return
+      const rect = containerRef.current.getBoundingClientRect()
+      const computedStyle = window.getComputedStyle(containerRef.current)
+      const padLeft = parseFloat(computedStyle.paddingLeft) || 0
+      const padRight = parseFloat(computedStyle.paddingRight) || 0
+      const w = rect.width - padLeft - padRight
+      const h = rect.height
+      svg.attr('width', w).attr('height', h)
+      sim.force('center', d3.forceCenter(w / 2, h / 2))
+      sim.alpha(0.1).restart()
+    }
+    window.addEventListener('resize', handleResize)
+
+    return () => {
+      sim.stop()
+      window.removeEventListener('resize', handleResize)
+    }
   }, [nodes, tick, onNodeSelect])  // tick forces retry when window resizes or first paint hasn't settled
 
   // ── add ────────────────────────────────────────────────────────────────────
@@ -205,8 +226,8 @@ const ConstellationGraph = forwardRef(({ onNodeSelect }, ref) => {
   )
 
   return (
-    <div ref={containerRef} style={{ position: 'absolute', inset: 0 }}>
-      <svg ref={svgRef} style={{ display: 'block' }} />
+    <div ref={containerRef} className="pl-16 md:pl-0" style={{ position: 'absolute', inset: 0 }}>
+      <svg ref={svgRef} style={{ display: 'block', touchAction: 'none' }} />
 
       <button onClick={() => setShowModal(true)}
         className="absolute bottom-6 right-6 w-10 h-10 rounded-full glass border border-pulsar/30 text-pulsar hover:bg-pulsar/20 transition-all flex items-center justify-center z-10">
@@ -214,9 +235,9 @@ const ConstellationGraph = forwardRef(({ onNodeSelect }, ref) => {
       </button>
 
       {showModal && (
-        <div className="modal-overlay fixed inset-0 bg-void/80 z-50 flex items-center justify-center p-4"
+        <div className="modal-overlay fixed inset-0 bg-void/80 z-50 flex items-end md:items-center justify-center p-0 md:p-4"
           onClick={e => e.target === e.currentTarget && setShowModal(false)}>
-          <div className="modal-content glass border border-blue-900/30 rounded-2xl p-6 w-full max-w-sm space-y-4">
+          <div className="modal-content glass border border-blue-900/30 rounded-t-2xl rounded-b-none md:rounded-2xl p-6 w-full w-full max-w-full md:max-w-sm space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="font-display text-starlight tracking-wider">New Star</h3>
               <button onClick={() => setShowModal(false)}><X className="w-4 h-4 text-dim" /></button>
