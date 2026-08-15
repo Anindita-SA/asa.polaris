@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { useGoogleCalendarSync } from '../../hooks/useGoogleCalendarSync'
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, isSameDay } from 'date-fns'
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, RefreshCcw, Download, ExternalLink, BookOpen, CheckCircle, ShieldCheck, Sparkles, Database, Archive, Check, X, BellRing, Layers } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, RefreshCcw, Database, Archive, Check, X, BellRing, ShieldCheck } from 'lucide-react'
 
 const GOOGLE_COLORS = {
   '1': '#a4bdfc', // Lavender
@@ -18,86 +18,13 @@ const GOOGLE_COLORS = {
   '11': '#dc2127', // Tomato
 }
 
-const IELTS_RESOURCES = [
-  {
-    name: 'ielts.org Official Free Practice Tests',
-    badge: 'Official Exam Interface',
-    desc: 'IELTS Progress Check free sample under "Free IELTS Practice Materials". Real computer-delivered exam format.',
-    url: 'https://www.ielts.org/for-test-takers/sample-test-questions',
-  },
-  {
-    name: 'British Council Road to IELTS',
-    badge: 'Official Calibration',
-    desc: 'Free samples for Reading/Listening/Writing with official body difficulty calibration.',
-    url: 'https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-practice-tests/road-to-ielts',
-  },
-  {
-    name: 'Cambridge IELTS Books 17-19',
-    badge: 'Retired Question Bank',
-    desc: 'Actual retired-question banks examiners pull style from — single most accurate difficulty match.',
-    url: null,
-    note: 'PDFs widely available in study folder'
-  },
-  {
-    name: 'IELTS Liz (ieltsliz.com)',
-    badge: 'Structure & Question Banks',
-    desc: 'Best for Writing Task 2 structure and Speaking Part 2/3 question banks (No random YouTube mocks).',
-    url: 'https://ieltsliz.com',
-  },
-  {
-    name: 'IDP IELTS Prepare App',
-    badge: 'Computer-Delivered Mock',
-    desc: 'Free tier full-length timed mocks in actual computer-delivered interface (on-screen typing & reading navigation).',
-    url: 'https://ielts.idp.com/prepare/article-idp-ielts-prepare-app',
-  },
-]
-
-const IELTS_SCHEDULE = [
-  // Week 1
-  { date: '2026-08-17', week: 1, day: 'Mon', duration: '45m', title: 'Diagnostic Mock (Cambridge 19)', focus: 'Full baseline diagnostic under exam conditions', url: 'https://www.ielts.org/for-test-takers/sample-test-questions' },
-  { date: '2026-08-18', week: 1, day: 'Tue', duration: '45m', title: 'Targeted Drilling — Weakest Section (Drill 1)', focus: 'Focus 45 mins on weakest diagnostic section', url: 'https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-practice-tests/road-to-ielts' },
-  { date: '2026-08-19', week: 1, day: 'Wed', duration: '45m', title: 'Targeted Drilling — Weakest Section (Drill 2)', focus: 'Deep writing structure or reading question types', url: 'https://ieltsliz.com' },
-  { date: '2026-08-20', week: 1, day: 'Thu', duration: '45m', title: 'Targeted Drilling — Weakest Section (Drill 3)', focus: 'Timed section drill (passage or Task 2 essay outline)', url: 'https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-practice-tests/road-to-ielts' },
-  { date: '2026-08-21', week: 1, day: 'Fri', duration: '45m', title: 'Week 1 Review & Error Analysis', focus: 'Review error log before Vignesh research load ramps up', url: 'https://ieltsliz.com' },
-  
-  // Week 2
-  { date: '2026-08-24', week: 2, day: 'Mon', duration: '30m', title: 'Reading & Writing Drilling', focus: 'Reading passage timing (20m) + Task 2 outline (10m)', url: 'https://ieltsliz.com' },
-  { date: '2026-08-25', week: 2, day: 'Tue', duration: '30m', title: 'Listening & Speaking Drilling', focus: 'Listening section audio drill + Speaking Part 2 recording', url: 'https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-practice-tests/road-to-ielts' },
-  { date: '2026-08-26', week: 2, day: 'Wed', duration: '30m', title: 'Reading & Writing Drilling', focus: 'Writing Task 2 essay breakdown (opinion/discussion)', url: 'https://ieltsliz.com' },
-  { date: '2026-08-27', week: 2, day: 'Thu', duration: '30m', title: 'Listening & Speaking Drilling', focus: 'Speaking Part 3 abstract questions & fluency practice', url: 'https://ielts.idp.com/prepare/article-idp-ielts-prepare-app' },
-  { date: '2026-08-28', week: 2, day: 'Fri', duration: '30m', title: 'Reading & Writing Timing Check', focus: 'Timed Reading passage (Cambridge 18) + error review', url: 'https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-practice-tests/road-to-ielts' },
-  
-  // Week 3
-  { date: '2026-08-31', week: 3, day: 'Mon', duration: '25m', title: 'Maintenance — Writing Task 2 Essay Draft', focus: '1 timed Task 2 essay draft / week (25m)', url: 'https://ieltsliz.com' },
-  { date: '2026-09-01', week: 3, day: 'Tue', duration: '25m', title: 'Maintenance — Light Reading Review', focus: 'Review 1 reading passage (light maintenance)', url: 'https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-practice-tests/road-to-ielts' },
-  { date: '2026-09-02', week: 3, day: 'Wed', duration: '25m', title: 'Maintenance — Speaking Part 2 Recording', focus: '1 cue card recording + self-evaluation / week', url: 'https://ieltsliz.com' },
-  { date: '2026-09-03', week: 3, day: 'Thu', duration: '25m', title: 'Maintenance — Light Listening Review', focus: 'Listen to 1 section with transcript check (25m)', url: 'https://www.ielts.org/for-test-takers/sample-test-questions' },
-  { date: '2026-09-04', week: 3, day: 'Fri', duration: '25m', title: 'Maintenance — Vocab & Error Log Polish', focus: 'Academic vocabulary & collocations check (25m)', url: 'https://ieltsliz.com' },
-  
-  // Week 4
-  { date: '2026-09-07', week: 4, day: 'Mon', duration: '45m', title: 'Full Timed Mock (IDP App Computer Interface)', focus: 'Full timed mock on computer interface for typing & navigation', url: 'https://ielts.idp.com/prepare/article-idp-ielts-prepare-app' },
-  { date: '2026-09-08', week: 4, day: 'Tue', duration: '25m', title: 'Pre-booking — Mock Error Analysis', focus: 'Analyze IDP mock mistake areas & navigation quirks', url: 'https://ielts.idp.com/prepare/article-idp-ielts-prepare-app' },
-  { date: '2026-09-09', week: 4, day: 'Wed', duration: '25m', title: 'Pre-booking — Writing Structure Polish', focus: 'Light review of essay structures & transitions', url: 'https://ieltsliz.com' },
-  { date: '2026-09-10', week: 4, day: 'Thu', duration: '25m', title: 'Pre-booking — Speaking Speed Drills', focus: 'Quick warm-up 1 cue card + 2 Part 3 questions aloud', url: 'https://ieltsliz.com' },
-  { date: '2026-09-11', week: 4, day: 'Fri', duration: '20m', title: 'Final Test Strategy & Interface Checklist', focus: 'Final light check of computer interface shortcuts & booking', url: 'https://www.ielts.org/for-test-takers/sample-test-questions' },
-]
-
-const makeGCalUrl = (item) => {
-  const startIso = `${item.date.replace(/-/g, '')}T180000`
-  const endMin = item.duration === '45m' ? '184500' : item.duration === '30m' ? '183000' : '182500'
-  const endIso = `${item.date.replace(/-/g, '')}T${endMin}`
-  const text = encodeURIComponent(`IELTS 2026: ${item.title}`)
-  const details = encodeURIComponent(`IELTS 2026 4-Week Sprint (Polaris Schedule)\nFocus: ${item.focus}\nDuration: ${item.duration}\nResource: ${item.url || 'Cambridge IELTS Books 17-19'}\n\nNote: Skip random YouTube mocks, use verified 2026 official materials.`)
-  return `https://calendar.google.com/calendar/r/eventedit?text=${text}&details=${details}&dates=${startIso}/${endIso}&ctz=Asia/Kolkata`
-}
-
 const CalendarView = () => {
   const { providerToken, signInWithGoogle } = useAuth()
   const [currentWeek, setCurrentWeek] = useState(new Date())
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
-  const [activeTab, setActiveTab] = useState('sprint') // 'sprint' | 'gcal' | 'backups'
+  const [activeTab, setActiveTab] = useState('gcal') // 'gcal' | 'backups'
 
   // Hybrid Sync & Backup Hook
   const {
@@ -165,22 +92,17 @@ const CalendarView = () => {
           <div className="flex items-center gap-3">
             <CalendarIcon className="w-5 h-5 text-sky" />
             <h2 className="font-display text-2xl text-starlight tracking-wider">
-              {activeTab === 'sprint' ? 'IELTS 2026 Sprint & Sub-Calendar' : format(start, 'MMMM yyyy')}
+              {format(start, 'MMMM yyyy')}
             </h2>
           </div>
           <p className="text-xs text-dim mt-0.5">
-            {activeTab === 'sprint' ? 'Weekday-only 4-week front-loaded schedule with current 2026 resources' : 'Google Calendar live grid view'}
+            Google Calendar live grid & multi-calendar Supabase sync
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
           {/* Tab switches */}
           <div className="flex glass border border-blue-900/30 rounded-lg p-1">
-            <button 
-              onClick={() => setActiveTab('sprint')} 
-              className={`px-3 py-1.5 rounded-md text-xs font-display transition-all ${activeTab === 'sprint' ? 'bg-sky/20 text-sky border border-sky/30' : 'text-dim hover:text-starlight'}`}>
-              IELTS 2026 Sprint
-            </button>
             <button 
               onClick={() => setActiveTab('gcal')} 
               className={`px-3 py-1.5 rounded-md text-xs font-display transition-all ${activeTab === 'gcal' ? 'bg-sky/20 text-sky border border-sky/30' : 'text-dim hover:text-starlight'}`}>
@@ -210,13 +132,6 @@ const CalendarView = () => {
             <Archive className="w-3.5 h-3.5" /> Snapshot Backup
           </button>
 
-          <a 
-            href="/ielts_2026_study_schedule.ics" 
-            download="ielts_2026_study_schedule.ics"
-            className="glass border border-blue-900/30 text-dim hover:text-starlight px-3 py-1.5 rounded-lg text-xs font-display flex items-center gap-1.5 transition-all">
-            <Download className="w-3.5 h-3.5" /> .ICS File
-          </a>
-
           {activeTab === 'gcal' && (
             <div className="flex items-center gap-2">
               <button onClick={() => fetchEvents(currentWeek)} disabled={loading}
@@ -241,7 +156,7 @@ const CalendarView = () => {
         </div>
       </div>
 
-      {/* Proposed Schedule Staging Review Bar (Main Control in User's Hand) */}
+      {/* Proposed Schedule Staging Review Bar */}
       {proposedEvents.length > 0 && (
         <div className="bg-amber-500/10 border-b border-amber-500/30 px-6 py-3 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 shrink-0">
           <div className="flex items-center gap-2 text-xs text-amber-300">
@@ -331,123 +246,6 @@ const CalendarView = () => {
             )}
           </div>
         </div>
-      ) : activeTab === 'sprint' ? (
-        <div className="flex-1 overflow-y-auto p-6 space-y-8 scrollbar-hide">
-          
-          {/* Sub-Calendar Info Alert */}
-          <div className="glass border border-sky/30 bg-sky/5 p-4 rounded-xl flex items-start gap-3">
-            <ShieldCheck className="w-5 h-5 text-sky shrink-0 mt-0.5" />
-            <div className="flex-1 text-xs text-starlight space-y-1">
-              <p className="font-display text-sky text-sm">Sub-Calendar Protection & Main Control Architecture</p>
-              <p className="text-dim leading-relaxed">
-                Your primary calendar is protected. You have full manual control to preview, edit, or commit any proposed schedule. To keep your main calendar clean, click <span className="text-emerald-400 font-semibold">".ICS File"</span> or <span className="text-emerald-400 font-semibold">"Snapshot Backup"</span> above to download <code className="text-sky bg-void/50 px-1 py-0.5 rounded">ielts_2026_study_schedule.ics</code>, then import it into a dedicated sub-calendar in Google Calendar.
-              </p>
-            </div>
-          </div>
-
-          {/* 1. Verified 2026 Free Resources Section */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-mono uppercase tracking-widest text-dim flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-amber-400" /> Current Verified 2026 Resources (No Random YouTube Mocks)
-              </h3>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {IELTS_RESOURCES.map((res, i) => (
-                <div key={i} className="glass border border-blue-900/30 p-4 rounded-xl flex flex-col justify-between hover:border-sky/40 transition-all">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-sky/10 border border-sky/30 text-sky uppercase">
-                        {res.badge}
-                      </span>
-                      <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
-                    </div>
-                    <h4 className="text-sm font-display text-starlight leading-snug">{res.name}</h4>
-                    <p className="text-xs text-dim leading-relaxed">{res.desc}</p>
-                    {res.note && <p className="text-[11px] text-amber-400/80 italic">{res.note}</p>}
-                  </div>
-                  {res.url ? (
-                    <a 
-                      href={res.url} 
-                      target="_blank" 
-                      rel="noreferrer" 
-                      className="mt-3 inline-flex items-center justify-center gap-1.5 text-xs text-sky hover:text-starlight bg-sky/10 border border-sky/20 py-1.5 rounded-lg transition-colors">
-                      Open Resource <ExternalLink className="w-3 h-3" />
-                    </a>
-                  ) : (
-                    <span className="mt-3 text-center text-xs text-dim bg-void/30 border border-blue-900/10 py-1.5 rounded-lg">
-                      Local Cambridge PDFs
-                    </span>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* 2. 4-Week Weekday Schedule */}
-          <div className="space-y-6">
-            <h3 className="text-xs font-mono uppercase tracking-widest text-dim flex items-center gap-2">
-              <BookOpen className="w-4 h-4 text-sky" /> Weekday-Only 4-Week Study Schedule (Front-Loaded)
-            </h3>
-
-            {[1, 2, 3, 4].map(weekNum => {
-              const weekSessions = IELTS_SCHEDULE.filter(s => s.week === weekNum)
-              const weekLabel = 
-                weekNum === 1 ? 'Week 1 — Diagnostic & Targeted Drilling (45 min/day)' :
-                weekNum === 2 ? 'Week 2 — Light Drilling (30 min/day, Vignesh research ramps up)' :
-                weekNum === 3 ? 'Week 3 — Maintenance Only (25 min/day, 1 Essay + 1 Speaking/week)' :
-                'Week 4 — Pre-Booking & Computer Interface Mock (20-25 min/day)'
-
-              return (
-                <div key={weekNum} className="glass border border-blue-900/25 rounded-xl p-5 space-y-4">
-                  <div className="flex items-center justify-between border-b border-blue-900/20 pb-3">
-                    <h4 className="font-display text-starlight text-base flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-sky" /> {weekLabel}
-                    </h4>
-                    <span className="text-xs font-mono text-sky bg-sky/10 border border-sky/20 px-2.5 py-1 rounded-full">
-                      5 Weekdays
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-                    {weekSessions.map((s, idx) => (
-                      <div key={idx} className="bg-void/40 border border-blue-900/20 rounded-lg p-3 flex flex-col justify-between space-y-2 hover:border-sky/30 transition-all">
-                        <div className="space-y-1">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-mono font-bold text-sky">{s.day} ({s.date.slice(5)})</span>
-                            <span className="text-[10px] font-mono text-dim bg-stardust/40 px-1.5 py-0.5 rounded">{s.duration}</span>
-                          </div>
-                          <p className="text-xs font-display text-starlight leading-snug line-clamp-2">{s.title}</p>
-                          <p className="text-[11px] text-dim leading-snug">{s.focus}</p>
-                        </div>
-
-                        <div className="pt-2 flex flex-col gap-1 text-[11px]">
-                          {s.url && (
-                            <a 
-                              href={s.url} 
-                              target="_blank" 
-                              rel="noreferrer" 
-                              className="text-sky hover:underline flex items-center gap-1">
-                              Link <ExternalLink className="w-2.5 h-2.5" />
-                            </a>
-                          )}
-                          <a 
-                            href={makeGCalUrl(s)} 
-                            target="_blank" 
-                            rel="noreferrer" 
-                            className="text-amber-400 hover:underline flex items-center gap-1">
-                            + Add to GCal <CalendarIcon className="w-2.5 h-2.5" />
-                          </a>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-
-        </div>
       ) : (
         /* Google Calendar Tab */
         <div className="flex-1 overflow-y-auto p-8 pb-16 scrollbar-hide">
@@ -529,4 +327,3 @@ const CalendarView = () => {
 }
 
 export default CalendarView
-
