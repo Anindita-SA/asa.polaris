@@ -58,61 +58,81 @@ export function useGoogleCalendarSync() {
     }
   }, [user?.id])
 
-  // Main Sync function: Google Calendar -> Supabase
+  // Main Sync function: Discover & sync ALL user calendars (10+ sub-calendars) -> Supabase
   const syncNow = useCallback(async () => {
     if (!user?.id || !providerToken) return null
 
     setIsSyncing(true)
     try {
-      // Fetch 30 days past and 60 days future from GCal
+      // 1. Discover all user sub-calendars
+      const calListRes = await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList', {
+        headers: { Authorization: `Bearer ${providerToken}` }
+      })
+
+      if (!calListRes.ok) throw new Error(`Failed to fetch calendar list (${calListRes.status})`)
+
+      const calListData = await calListRes.json()
+      const calendars = calListData.items || [{ id: 'primary', summary: 'Primary' }]
+
+      // Fetch 30 days past and 60 days future across ALL calendars
       const start = new Date()
       start.setDate(start.getDate() - 30)
       const end = new Date()
       end.setDate(end.getDate() + 60)
 
-      const res = await fetch(
-        `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${start.toISOString()}&timeMax=${end.toISOString()}&singleEvents=true&orderBy=startTime`,
-        { headers: { Authorization: `Bearer ${providerToken}` } }
-      )
+      let totalSyncedCount = 0
 
-      if (!res.ok) throw new Error(`Google Calendar API returned status ${res.status}`)
+      // 2. Fetch events from each calendar in parallel
+      await Promise.all(calendars.map(async (cal) => {
+        try {
+          const res = await fetch(
+            `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events?timeMin=${start.toISOString()}&timeMax=${end.toISOString()}&singleEvents=true&orderBy=startTime`,
+            { headers: { Authorization: `Bearer ${providerToken}` } }
+          )
 
-      const data = await res.json()
-      const gcalItems = data.items || []
+          if (!res.ok) return
 
-      // Upsert into Supabase calendar_events
-      for (const item of gcalItems) {
-        const isAllDay = !item.start?.dateTime
-        const startTime = item.start?.dateTime || item.start?.date
-        const endTime = item.end?.dateTime || item.end?.date
+          const data = await res.json()
+          const gcalItems = data.items || []
+          totalSyncedCount += gcalItems.length
 
-        if (!startTime || !endTime) continue
+          // Upsert into Supabase calendar_events
+          for (const item of gcalItems) {
+            const isAllDay = !item.start?.dateTime
+            const startTime = item.start?.dateTime || item.start?.date
+            const endTime = item.end?.dateTime || item.end?.date
 
-        await supabase.from('calendar_events').upsert({
-          user_id: user.id,
-          gcal_event_id: item.id,
-          summary: item.summary || '(No title)',
-          description: item.description || '',
-          start_time: new Date(startTime).toISOString(),
-          end_time: new Date(endTime).toISOString(),
-          is_all_day: isAllDay,
-          color_id: item.colorId || null,
-          location: item.location || null,
-          source: 'gcal',
-          status: 'confirmed',
-          raw_payload: item,
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'user_id,gcal_event_id' })
-      }
+            if (!startTime || !endTime) continue
+
+            await supabase.from('calendar_events').upsert({
+              user_id: user.id,
+              gcal_event_id: item.id,
+              summary: item.summary || '(No title)',
+              description: item.description || '',
+              start_time: new Date(startTime).toISOString(),
+              end_time: new Date(endTime).toISOString(),
+              is_all_day: isAllDay,
+              color_id: item.colorId || cal.colorId || null,
+              location: cal.summary ? `[${cal.summary}] ${item.location || ''}` : item.location || null,
+              source: 'gcal',
+              status: 'confirmed',
+              raw_payload: { ...item, calendar_name: cal.summary },
+              updated_at: new Date().toISOString()
+            }, { onConflict: 'user_id,gcal_event_id' })
+          }
+        } catch (calErr) {
+          console.warn(`Failed to sync calendar ${cal.summary}:`, calErr)
+        }
+      }))
 
       const timestamp = new Date().toLocaleTimeString()
       setLastSyncedAt(timestamp)
       localStorage.setItem('polaris_last_gcal_sync', timestamp)
 
       await fetchSupabaseSchedule()
-      return { count: gcalItems.length }
+      return { count: totalSyncedCount, calendarCount: calendars.length }
     } catch (e) {
-      console.error('Calendar sync error:', e)
+      console.error('Multi-calendar sync error:', e)
       return { error: e.message }
     } finally {
       setIsSyncing(false)
