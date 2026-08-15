@@ -18,9 +18,13 @@ const AppContent = () => {
   return user ? <Dashboard /> : <Login />
 }
 
+import { CelebrationProvider } from './components/CelebrationEffect'
+
 const App = () => (
   <AuthProvider>
-    <AppContent />
+    <CelebrationProvider>
+      <AppContent />
+    </CelebrationProvider>
   </AuthProvider>
 )
 

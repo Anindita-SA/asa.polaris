@@ -24,8 +24,8 @@ const AddMediaModal = ({ onSave, onClose }) => {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-void/80 backdrop-blur-sm p-4" onClick={onClose}>
-      <div className="glass border border-amber-500/20 rounded-2xl p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto scrollbar-hide space-y-4" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-void/80 backdrop-blur-sm p-0 md:p-4" onClick={onClose}>
+      <div className="glass border border-amber-500/20 rounded-t-2xl rounded-b-none md:rounded-2xl p-6 w-full w-full max-w-full md:max-w-lg max-h-[85vh] overflow-y-auto scrollbar-hide space-y-4" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h2 className="font-display text-lg text-starlight tracking-wider">Log Media</h2>
           <button onClick={onClose} className="text-dim hover:text-starlight transition-colors"><X className="w-5 h-5" /></button>

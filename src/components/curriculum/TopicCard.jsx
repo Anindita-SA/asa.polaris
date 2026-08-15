@@ -50,7 +50,7 @@ const TopicCard = ({ topic, accentColor, pomodoroMins = 0, onUpdate }) => {
   }
 
   return (
-    <div className="glass border border-blue-900/15 rounded-xl p-4 group transition-all hover:bg-white/[0.03]">
+    <div className="glass glass-hover hover:-translate-y-1 border border-blue-900/15 rounded-xl p-4 group transition-all hover:bg-white/[0.03]">
       <div className="flex items-start gap-3">
         {/* Status button */}
         <button

@@ -45,8 +45,8 @@ const SettingsPanel = ({ open, onClose }) => {
   }
 
   return (
-    <div className="modal-overlay fixed inset-0 z-[70] bg-void/75 flex items-center justify-center p-4" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal-content glass border border-blue-900/30 rounded-2xl p-5 w-full max-w-lg space-y-3">
+    <div className="modal-overlay fixed inset-0 z-[70] bg-void/75 flex items-end md:items-center justify-center p-0 md:p-4" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal-content glass border border-blue-900/30 rounded-t-2xl rounded-b-none md:rounded-2xl p-5 w-full w-full max-w-full md:max-w-lg space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="font-display text-starlight">Settings</h3>
           <button onClick={onClose} className="text-dim hover:text-starlight"><X className="w-4 h-4" /></button>

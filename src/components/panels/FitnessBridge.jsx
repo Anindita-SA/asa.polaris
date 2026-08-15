@@ -3,6 +3,8 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { Activity, Scale, Utensils, Zap } from 'lucide-react'
 import { format, subDays } from 'date-fns'
+import RelationshipsView from './RelationshipsView'
+import PlayView from '../orbit/PlayView'
 
 const FitnessBridge = () => {
   const { user, addXP } = useAuth()
@@ -22,9 +24,9 @@ const FitnessBridge = () => {
     try {
       const since = format(subDays(new Date(), 14), 'yyyy-MM-dd')
       const [w, m, wt] = await Promise.all([
-        supabase.from('workout_logs').select('*').gte('log_date', since).order('logged_at', { ascending: false }).limit(50),
-        supabase.from('meal_logs').select('*').gte('log_date', since).order('logged_at', { ascending: false }).limit(30),
-        supabase.from('weight_logs').select('*').order('logged_at', { ascending: false }).limit(14),
+        supabase.from('workout_logs').select('*').eq('user_id', user.id).gte('log_date', since).order('logged_at', { ascending: false }).limit(50),
+        supabase.from('meal_logs').select('*').eq('user_id', user.id).gte('log_date', since).order('logged_at', { ascending: false }).limit(30),
+        supabase.from('weight_logs').select('*').eq('user_id', user.id).order('logged_at', { ascending: false }).limit(14),
       ])
 
       // Group workout rows by date - each unique date = one session
@@ -99,24 +101,59 @@ const FitnessBridge = () => {
     ? (parseFloat(latestWeight.weight_kg) - parseFloat(prevWeight.weight_kg)).toFixed(1)
     : null
 
-  if (loading) return (
-    <div className="flex items-center justify-center h-full">
-      <p className="font-display text-dim tracking-widest text-sm animate-pulse">SYNCING FITNESS DATA...</p>
-    </div>
-  )
+  const [activeSubTab, setActiveSubTab] = useState('fitness')
 
-  if (error) return (
-    <div className="flex items-center justify-center h-full p-6">
-      <div className="glass border border-danger/20 rounded-xl p-6 max-w-md text-center">
-        <p className="text-sm text-danger font-body mb-2">{error}</p>
+  if (loading) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <p className="text-dim font-mono text-sm animate-pulse">Syncing data...</p>
       </div>
-    </div>
-  )
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="h-full flex items-center justify-center p-6">
+        <div className="glass border border-danger/20 rounded-t-2xl rounded-b-none md:rounded-xl p-6 w-full max-w-full md:max-w-md text-center">
+          <p className="text-sm text-danger font-body mb-2">{error}</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="h-full overflow-y-auto p-6">
       <div className="max-w-2xl mx-auto space-y-6">
-        <p className="text-xs font-mono text-dim uppercase tracking-widest">Aloka-Fit Bridge - last 14 days</p>
+        
+        {/* Navigation Pills */}
+        <div className="flex bg-void/50 p-1 rounded-lg border border-blue-900/20 max-w-sm mx-auto">
+          <button 
+            onClick={() => setActiveSubTab('fitness')}
+            className={`flex-1 py-1.5 text-xs font-mono uppercase tracking-widest rounded transition-colors ${activeSubTab === 'fitness' ? 'bg-stardust/80 text-starlight' : 'text-dim hover:text-starlight/70'}`}
+          >
+            Fitness
+          </button>
+          <button 
+            onClick={() => setActiveSubTab('relationships')}
+            className={`flex-1 py-1.5 text-xs font-mono uppercase tracking-widest rounded transition-colors ${activeSubTab === 'relationships' ? 'bg-stardust/80 text-starlight' : 'text-dim hover:text-starlight/70'}`}
+          >
+            Social
+          </button>
+          <button 
+            onClick={() => setActiveSubTab('play')}
+            className={`flex-1 py-1.5 text-xs font-mono uppercase tracking-widest rounded transition-colors ${activeSubTab === 'play' ? 'bg-stardust/80 text-starlight' : 'text-dim hover:text-starlight/70'}`}
+          >
+            Play
+          </button>
+        </div>
+
+        {activeSubTab === 'relationships' ? (
+          <RelationshipsView />
+        ) : activeSubTab === 'play' ? (
+          <PlayView />
+        ) : (
+          <>
+            <p className="text-xs font-mono text-dim uppercase tracking-widest mt-2">Aloka-Fit Bridge - last 14 days</p>
 
         {/* AI Verdict */}
         <div className="glass border border-blue-900/20 rounded-xl p-5 mb-2">
@@ -227,6 +264,8 @@ const FitnessBridge = () => {
             {!weights.length && <p className="text-xs text-dim italic font-body">No weight entries yet.</p>}
           </div>
         </div>
+        </>
+        )}
       </div>
     </div>
   )

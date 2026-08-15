@@ -1,0 +1,288 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Polaris Ecosystem//IELTS 2026 Preparation Schedule//EN
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+X-WR-CALNAME:IELTS 2026 Sprint (Polaris)
+X-WR-TIMEZONE:Asia/Kolkata
+BEGIN:VEVENT
+UID:ielts-2026-sprint-session-1@polaris.app
+DTSTAMP:20260815T140000Z
+DTSTART;TZID=Asia/Kolkata:20260817T180000
+DTEND;TZID=Asia/Kolkata:20260817T184500
+SUMMARY:IELTS W1D1: Diagnostic Mock (Cambridge 19)
+DESCRIPTION:Take full diagnostic mock under authentic exam conditions. Establish baseline scores for Reading\, Listening\, Writing\, and Speaking.\\n\\nKey Resources:\\n- Cambridge IELTS 19\\n- ielts.org practice: https://www.ielts.org/for-test-takers/sample-test-questions\\n- IDP Prepare app: https://ielts.idp.com/prepare/article-idp-ielts-prepare-app
+URL:https://www.ielts.org/for-test-takers/sample-test-questions
+BEGIN:VALARM
+TRIGGER:-PT15M
+ACTION:DISPLAY
+DESCRIPTION:Reminder: IELTS W1D1: Diagnostic Mock (Cambridge 19) in 15 minutes
+END:VALARM
+END:VEVENT
+BEGIN:VEVENT
+UID:ielts-2026-sprint-session-2@polaris.app
+DTSTAMP:20260815T140000Z
+DTSTART;TZID=Asia/Kolkata:20260818T180000
+DTEND;TZID=Asia/Kolkata:20260818T184500
+SUMMARY:IELTS W1D2: Targeted Drilling — Weakest Section (Session 1)
+DESCRIPTION:Focus 45 mins strictly on the weakest section identified in Mon diagnostic mock.\\n\\nKey Resources:\\n- British Council Road to IELTS: https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-practice-tests/road-to-ielts\\n- Cambridge 18-19 retired question banks
+URL:https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-practice-tests/road-to-ielts
+BEGIN:VALARM
+TRIGGER:-PT15M
+ACTION:DISPLAY
+DESCRIPTION:Reminder: IELTS W1D2: Targeted Drilling — Weakest Section (Session 1) in 15 minutes
+END:VALARM
+END:VEVENT
+BEGIN:VEVENT
+UID:ielts-2026-sprint-session-3@polaris.app
+DTSTAMP:20260815T140000Z
+DTSTART;TZID=Asia/Kolkata:20260819T180000
+DTEND;TZID=Asia/Kolkata:20260819T184500
+SUMMARY:IELTS W1D3: Targeted Drilling — Weakest Section (Session 2)
+DESCRIPTION:Deep drill writing structure or difficult listening/reading question types.\\n\\nKey Resources:\\n- IELTS Liz structure guide: https://ieltsliz.com\\n- Cambridge 18 practice tests
+URL:https://ieltsliz.com
+BEGIN:VALARM
+TRIGGER:-PT15M
+ACTION:DISPLAY
+DESCRIPTION:Reminder: IELTS W1D3: Targeted Drilling — Weakest Section (Session 2) in 15 minutes
+END:VALARM
+END:VEVENT
+BEGIN:VEVENT
+UID:ielts-2026-sprint-session-4@polaris.app
+DTSTAMP:20260815T140000Z
+DTSTART;TZID=Asia/Kolkata:20260820T180000
+DTEND;TZID=Asia/Kolkata:20260820T184500
+SUMMARY:IELTS W1D4: Targeted Drilling — Weakest Section (Session 3)
+DESCRIPTION:Timed section drill (e.g. Reading passage under 20 mins or Writing Task 2 essay structure).\\n\\nKey Resources:\\n- Road to IELTS: https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-practice-tests/road-to-ielts\\n- IELTS Liz Writing Task 2: https://ieltsliz.com
+URL:https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-practice-tests/road-to-ielts
+BEGIN:VALARM
+TRIGGER:-PT15M
+ACTION:DISPLAY
+DESCRIPTION:Reminder: IELTS W1D4: Targeted Drilling — Weakest Section (Session 3) in 15 minutes
+END:VALARM
+END:VEVENT
+BEGIN:VEVENT
+UID:ielts-2026-sprint-session-5@polaris.app
+DTSTAMP:20260815T140000Z
+DTSTART;TZID=Asia/Kolkata:20260821T180000
+DTEND;TZID=Asia/Kolkata:20260821T184500
+SUMMARY:IELTS W1D5: Week 1 Drill Review & Error Analysis
+DESCRIPTION:Review error log from Week 1 drills. Annotate mistake patterns before Vignesh research load ramps up.\\n\\nKey Resources:\\n- Cambridge 19 answers & scripts\\n- IELTS Liz mistake breakdown: https://ieltsliz.com
+URL:https://ieltsliz.com
+BEGIN:VALARM
+TRIGGER:-PT15M
+ACTION:DISPLAY
+DESCRIPTION:Reminder: IELTS W1D5: Week 1 Drill Review & Error Analysis in 15 minutes
+END:VALARM
+END:VEVENT
+BEGIN:VEVENT
+UID:ielts-2026-sprint-session-6@polaris.app
+DTSTAMP:20260815T140000Z
+DTSTART;TZID=Asia/Kolkata:20260824T180000
+DTEND;TZID=Asia/Kolkata:20260824T183000
+SUMMARY:IELTS W2D1: Reading & Writing Drilling
+DESCRIPTION:Reading passage timing (15-20 min) + Writing Task 2 intro/body paragraph outline (10 min).\\n\\nKey Resources:\\n- IELTS Liz Task 2 structure: https://ieltsliz.com\\n- British Council Road to IELTS: https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-practice-tests/road-to-ielts
+URL:https://ieltsliz.com
+BEGIN:VALARM
+TRIGGER:-PT15M
+ACTION:DISPLAY
+DESCRIPTION:Reminder: IELTS W2D1: Reading & Writing Drilling in 15 minutes
+END:VALARM
+END:VEVENT
+BEGIN:VEVENT
+UID:ielts-2026-sprint-session-7@polaris.app
+DTSTAMP:20260815T140000Z
+DTSTART;TZID=Asia/Kolkata:20260825T180000
+DTEND;TZID=Asia/Kolkata:20260825T183000
+SUMMARY:IELTS W2D2: Listening & Speaking Drilling
+DESCRIPTION:Listening Part 3/4 audio drill + Speaking Part 2 cue card 2-minute recording.\\n\\nKey Resources:\\n- IELTS Liz Speaking Question Bank: https://ieltsliz.com\\n- Road to IELTS Listening: https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-practice-tests/road-to-ielts
+URL:https://ieltsliz.com
+BEGIN:VALARM
+TRIGGER:-PT15M
+ACTION:DISPLAY
+DESCRIPTION:Reminder: IELTS W2D2: Listening & Speaking Drilling in 15 minutes
+END:VALARM
+END:VEVENT
+BEGIN:VEVENT
+UID:ielts-2026-sprint-session-8@polaris.app
+DTSTAMP:20260815T140000Z
+DTSTART;TZID=Asia/Kolkata:20260826T180000
+DTEND;TZID=Asia/Kolkata:20260826T183000
+SUMMARY:IELTS W2D3: Reading & Writing Drilling
+DESCRIPTION:Writing Task 2 essay breakdown (opinion/discussion essay structure).\\n\\nKey Resources:\\n- IELTS Liz: https://ieltsliz.com\\n- Cambridge 18 Writing samples
+URL:https://ieltsliz.com
+BEGIN:VALARM
+TRIGGER:-PT15M
+ACTION:DISPLAY
+DESCRIPTION:Reminder: IELTS W2D3: Reading & Writing Drilling in 15 minutes
+END:VALARM
+END:VEVENT
+BEGIN:VEVENT
+UID:ielts-2026-sprint-session-9@polaris.app
+DTSTAMP:20260815T140000Z
+DTSTART;TZID=Asia/Kolkata:20260827T180000
+DTEND;TZID=Asia/Kolkata:20260827T183000
+SUMMARY:IELTS W2D4: Listening & Speaking Drilling
+DESCRIPTION:Speaking Part 3 abstract questions response practice & fluency drills.\\n\\nKey Resources:\\n- IELTS Liz Speaking Part 3: https://ieltsliz.com\\n- IDP Prepare app: https://ielts.idp.com/prepare/article-idp-ielts-prepare-app
+URL:https://ielts.idp.com/prepare/article-idp-ielts-prepare-app
+BEGIN:VALARM
+TRIGGER:-PT15M
+ACTION:DISPLAY
+DESCRIPTION:Reminder: IELTS W2D4: Listening & Speaking Drilling in 15 minutes
+END:VALARM
+END:VEVENT
+BEGIN:VEVENT
+UID:ielts-2026-sprint-session-10@polaris.app
+DTSTAMP:20260815T140000Z
+DTSTART;TZID=Asia/Kolkata:20260828T180000
+DTEND;TZID=Asia/Kolkata:20260828T183000
+SUMMARY:IELTS W2D5: Reading & Writing Review
+DESCRIPTION:Timed Reading True/False/Not Given passage + essay edit.\\n\\nKey Resources:\\n- Cambridge 18 Reading passage\\n- Road to IELTS: https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-practice-tests/road-to-ielts
+URL:https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-practice-tests/road-to-ielts
+BEGIN:VALARM
+TRIGGER:-PT15M
+ACTION:DISPLAY
+DESCRIPTION:Reminder: IELTS W2D5: Reading & Writing Review in 15 minutes
+END:VALARM
+END:VEVENT
+BEGIN:VEVENT
+UID:ielts-2026-sprint-session-11@polaris.app
+DTSTAMP:20260815T140000Z
+DTSTART;TZID=Asia/Kolkata:20260831T180000
+DTEND;TZID=Asia/Kolkata:20260831T182500
+SUMMARY:IELTS W3D1: Maintenance — Writing Task 2 Essay Draft
+DESCRIPTION:Timed Task 2 essay draft (25 min). Focus on coherence and Task Achievement.\\n\\nKey Resources:\\n- IELTS Liz Task 2 prompt bank: https://ieltsliz.com
+URL:https://ieltsliz.com
+BEGIN:VALARM
+TRIGGER:-PT15M
+ACTION:DISPLAY
+DESCRIPTION:Reminder: IELTS W3D1: Maintenance — Writing Task 2 Essay Draft in 15 minutes
+END:VALARM
+END:VEVENT
+BEGIN:VEVENT
+UID:ielts-2026-sprint-session-12@polaris.app
+DTSTAMP:20260815T140000Z
+DTSTART;TZID=Asia/Kolkata:20260901T180000
+DTEND;TZID=Asia/Kolkata:20260901T182500
+SUMMARY:IELTS W3D2: Maintenance — Light Reading Review
+DESCRIPTION:Review 1 Reading passage (25 min light maintenance).\\n\\nKey Resources:\\n- British Council Road to IELTS: https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-practice-tests/road-to-ielts
+URL:https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-practice-tests/road-to-ielts
+BEGIN:VALARM
+TRIGGER:-PT15M
+ACTION:DISPLAY
+DESCRIPTION:Reminder: IELTS W3D2: Maintenance — Light Reading Review in 15 minutes
+END:VALARM
+END:VEVENT
+BEGIN:VEVENT
+UID:ielts-2026-sprint-session-13@polaris.app
+DTSTAMP:20260815T140000Z
+DTSTART;TZID=Asia/Kolkata:20260902T180000
+DTEND;TZID=Asia/Kolkata:20260902T182500
+SUMMARY:IELTS W3D3: Maintenance — Speaking Part 2 Recording
+DESCRIPTION:Record 1 cue card response (2 min) + self-listen & review against IELTS band descriptors (23 min).\\n\\nKey Resources:\\n- IELTS Liz Speaking Part 2: https://ieltsliz.com
+URL:https://ieltsliz.com
+BEGIN:VALARM
+TRIGGER:-PT15M
+ACTION:DISPLAY
+DESCRIPTION:Reminder: IELTS W3D3: Maintenance — Speaking Part 2 Recording in 15 minutes
+END:VALARM
+END:VEVENT
+BEGIN:VEVENT
+UID:ielts-2026-sprint-session-14@polaris.app
+DTSTAMP:20260815T140000Z
+DTSTART;TZID=Asia/Kolkata:20260903T180000
+DTEND;TZID=Asia/Kolkata:20260903T182500
+SUMMARY:IELTS W3D4: Maintenance — Light Listening Review
+DESCRIPTION:Listen to 1 Listening section (Section 3 or 4) with transcript check.\\n\\nKey Resources:\\n- ielts.org sample listening: https://www.ielts.org/for-test-takers/sample-test-questions
+URL:https://www.ielts.org/for-test-takers/sample-test-questions
+BEGIN:VALARM
+TRIGGER:-PT15M
+ACTION:DISPLAY
+DESCRIPTION:Reminder: IELTS W3D4: Maintenance — Light Listening Review in 15 minutes
+END:VALARM
+END:VEVENT
+BEGIN:VEVENT
+UID:ielts-2026-sprint-session-15@polaris.app
+DTSTAMP:20260815T140000Z
+DTSTART;TZID=Asia/Kolkata:20260904T180000
+DTEND;TZID=Asia/Kolkata:20260904T182500
+SUMMARY:IELTS W3D5: Maintenance — Light Review & Vocabulary Polish
+DESCRIPTION:Review academic vocabulary lists and collocation notes (25 min).\\n\\nKey Resources:\\n- IELTS Liz vocabulary: https://ieltsliz.com
+URL:https://ieltsliz.com
+BEGIN:VALARM
+TRIGGER:-PT15M
+ACTION:DISPLAY
+DESCRIPTION:Reminder: IELTS W3D5: Maintenance — Light Review & Vocabulary Polish in 15 minutes
+END:VALARM
+END:VEVENT
+BEGIN:VEVENT
+UID:ielts-2026-sprint-session-16@polaris.app
+DTSTAMP:20260815T140000Z
+DTSTART;TZID=Asia/Kolkata:20260907T180000
+DTEND;TZID=Asia/Kolkata:20260907T184500
+SUMMARY:IELTS W4D1: Full Timed Mock (IDP App Computer Interface)
+DESCRIPTION:Perform full timed mock on IDP IELTS Prepare app to get comfortable with on-screen typing\, text highlighting\, and split-screen reading navigation.\\n\\nKey Resources:\\n- IDP IELTS Prepare App: https://ielts.idp.com/prepare/article-idp-ielts-prepare-app\\n- ielts.org official computer practice: https://www.ielts.org/for-test-takers/sample-test-questions
+URL:https://ielts.idp.com/prepare/article-idp-ielts-prepare-app
+BEGIN:VALARM
+TRIGGER:-PT15M
+ACTION:DISPLAY
+DESCRIPTION:Reminder: IELTS W4D1: Full Timed Mock (IDP App Computer Interface) in 15 minutes
+END:VALARM
+END:VEVENT
+BEGIN:VEVENT
+UID:ielts-2026-sprint-session-17@polaris.app
+DTSTAMP:20260815T140000Z
+DTSTART;TZID=Asia/Kolkata:20260908T180000
+DTEND;TZID=Asia/Kolkata:20260908T182500
+SUMMARY:IELTS W4D2: Pre-booking — Mock Error Analysis
+DESCRIPTION:Analyze mistake areas from IDP App mock. Note navigation quirks or typing typos.\\n\\nKey Resources:\\n- IDP Prepare app: https://ielts.idp.com/prepare/article-idp-ielts-prepare-app
+URL:https://ielts.idp.com/prepare/article-idp-ielts-prepare-app
+BEGIN:VALARM
+TRIGGER:-PT15M
+ACTION:DISPLAY
+DESCRIPTION:Reminder: IELTS W4D2: Pre-booking — Mock Error Analysis in 15 minutes
+END:VALARM
+END:VEVENT
+BEGIN:VEVENT
+UID:ielts-2026-sprint-session-18@polaris.app
+DTSTAMP:20260815T140000Z
+DTSTART;TZID=Asia/Kolkata:20260909T180000
+DTEND;TZID=Asia/Kolkata:20260909T182500
+SUMMARY:IELTS W4D3: Pre-booking — Writing Task 2 Structure Refresher
+DESCRIPTION:Refrain from heavy stress. Review essay structures and transitions (25 min).\\n\\nKey Resources:\\n- IELTS Liz Task 2 checklist: https://ieltsliz.com
+URL:https://ieltsliz.com
+BEGIN:VALARM
+TRIGGER:-PT15M
+ACTION:DISPLAY
+DESCRIPTION:Reminder: IELTS W4D3: Pre-booking — Writing Task 2 Structure Refresher in 15 minutes
+END:VALARM
+END:VEVENT
+BEGIN:VEVENT
+UID:ielts-2026-sprint-session-19@polaris.app
+DTSTAMP:20260815T140000Z
+DTSTART;TZID=Asia/Kolkata:20260910T180000
+DTEND;TZID=Asia/Kolkata:20260910T182500
+SUMMARY:IELTS W4D4: Pre-booking — Speaking Part 2/3 Speed Drills
+DESCRIPTION:Quick warm-up speaking 1 cue card + 2 Part 3 questions aloud (20 min).\\n\\nKey Resources:\\n- IELTS Liz Speaking: https://ieltsliz.com
+URL:https://ieltsliz.com
+BEGIN:VALARM
+TRIGGER:-PT15M
+ACTION:DISPLAY
+DESCRIPTION:Reminder: IELTS W4D4: Pre-booking — Speaking Part 2/3 Speed Drills in 15 minutes
+END:VALARM
+END:VEVENT
+BEGIN:VEVENT
+UID:ielts-2026-sprint-session-20@polaris.app
+DTSTAMP:20260815T140000Z
+DTSTART;TZID=Asia/Kolkata:20260911T180000
+DTEND;TZID=Asia/Kolkata:20260911T182000
+SUMMARY:IELTS W4D5: Final Test Strategy & Computer Interface Checklist
+DESCRIPTION:Final light check of computer-delivered interface shortcuts\, timing strategy\, and test booking readiness.\\n\\nKey Resources:\\n- ielts.org official test takers guide: https://www.ielts.org/for-test-takers/sample-test-questions\\n- IDP Prepare app: https://ielts.idp.com/prepare/article-idp-ielts-prepare-app
+URL:https://www.ielts.org/for-test-takers/sample-test-questions
+BEGIN:VALARM
+TRIGGER:-PT15M
+ACTION:DISPLAY
+DESCRIPTION:Reminder: IELTS W4D5: Final Test Strategy & Computer Interface Checklist in 15 minutes
+END:VALARM
+END:VEVENT
+END:VCALENDAR
