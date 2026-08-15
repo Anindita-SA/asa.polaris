@@ -13,9 +13,9 @@ const Login = () => {
         {/* Logo */}
         <div className="space-y-2">
           <div className="flex items-center justify-center gap-3 mb-6">
-            <div className="w-px h-12 bg-gradient-to-b from-transparent via-gold/40 to-transparent" />
+            <div className="w-px h-12 bg-gold/40" />
             <Star className="w-8 h-8 text-gold animate-pulse-slow" fill="currentColor" />
-            <div className="w-px h-12 bg-gradient-to-b from-transparent via-gold/40 to-transparent" />
+            <div className="w-px h-12 bg-gold/40" />
           </div>
           <h1 className="font-display text-5xl tracking-[0.3em] text-starlight">POLARIS</h1>
           <p className="font-body text-dim text-sm tracking-wider italic">your north star</p>

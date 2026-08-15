@@ -57,6 +57,10 @@ export const DEFAULT_GOALS = [
   { node_title: "Solar Scheduler",  scope: "weekly", title: "Work on solar scheduler firmware or hardware",                target: 2,  unit: "sessions", xp_reward: 50 },
   { node_title: "Portfolio",        scope: "weekly", title: "Work on portfolio site or project documentation",             target: 2,  unit: "sessions", xp_reward: 50 },
   { node_title: "MSc Applications", scope: "weekly", title: "Research one university or scholarship on tracker",           target: 1,  unit: "entry",    xp_reward: 50 },
+  { node_title: "MSc Applications", scope: "weekly", title: "Complete IELTS Week 1: Diagnostic mock + targeted drilling (45 min/day)", target: 5, unit: "sessions", xp_reward: 75 },
+  { node_title: "MSc Applications", scope: "weekly", title: "Complete IELTS Week 2: Light drilling (30 min/day)", target: 5, unit: "sessions", xp_reward: 75 },
+  { node_title: "MSc Applications", scope: "weekly", title: "Complete IELTS Week 3: Maintenance — 1 essay + 1 speaking recording (25 min/day)", target: 5, unit: "sessions", xp_reward: 75 },
+  { node_title: "MSc Applications", scope: "weekly", title: "Complete IELTS Week 4: IDP App timed mock + final review (20-25 min/day)", target: 5, unit: "sessions", xp_reward: 75 },
   { node_title: "Fitness",          scope: "weekly", title: "Complete 4 resistance band sessions",                        target: 4,  unit: "sessions", xp_reward: 50 },
   { node_title: "Creative",         scope: "weekly", title: "Write one Substack draft or creative entry",                 target: 1,  unit: "draft",    xp_reward: 50 },
   { node_title: "Coursework",       scope: "weekly", title: "Stay on top of assigned coursework — no backlogs",           target: 1,  unit: "review",   xp_reward: 50 },
@@ -176,15 +180,8 @@ export const DEFAULT_BACKBURNER = [
 // ── Milestones ────────────────────────────────────────────────────────────────
 
 export const DEFAULT_MILESTONES = [
-  { title: 'Deploy concrete speaker to portfolio',   deadline: '2026-05-15', status: 'done',     xp_reward: 150 },
-  { title: 'DAB survey paper submitted',              deadline: '2026-06-30', status: 'upcoming', xp_reward: 200 },
-  { title: 'CHAARG PCB complete + documented',        deadline: '2026-08-31', status: 'upcoming', xp_reward: 200 },
-  { title: 'Cold email TU Delft / TU/e faculty',     deadline: '2026-08-31', status: 'upcoming', xp_reward: 100 },
-  { title: 'MOI certificate from NIT Trichy',         deadline: '2026-09-30', status: 'upcoming', xp_reward: 75  },
-  { title: 'IELTS retake',                            deadline: '2026-09-30', status: 'upcoming', xp_reward: 150 },
-  { title: 'Portfolio fully populated',                deadline: '2026-10-31', status: 'upcoming', xp_reward: 175 },
-  { title: 'Applications open',                       deadline: '2026-11-01', status: 'upcoming', xp_reward: 50  },
-  { title: 'Submit all applications',                 deadline: '2027-01-31', status: 'upcoming', xp_reward: 300 },
+  { title: 'Deploy first project to portfolio', deadline: '2026-08-01', status: 'upcoming', xp_reward: 150 },
+  { title: 'Submit application for masters', deadline: '2026-12-01', status: 'upcoming', xp_reward: 200 }
 ];
 
 // ── Curriculum ────────────────────────────────────────────────────────────────
@@ -225,8 +222,24 @@ export const DEFAULT_CURRICULUM = [
       "SOP writing — narrative arc and differentiation",
       "Cold emailing faculty — template and tracking",
       "Scholarship mapping — SI, Erasmus Mundus, Holland",
-      "IELTS prep strategy — target 7.5+",
+      "IELTS prep strategy — 4-week front-loaded sprint (target 7.5+)",
       "Recommendation letter coordination",
+    ],
+  },
+  {
+    node_title: "Career",
+    title: "IELTS 2026 Preparation Sprint",
+    description: "4-Week front-loaded weekday-only IELTS prep (Official 2026 resources)",
+    topics: [
+      "ielts.org official free practice tests — IELTS Progress Check computer format practice",
+      "British Council Road to IELTS — official Reading/Listening/Writing samples",
+      "Cambridge IELTS books 17-19 — actual retired-question banks for authentic difficulty match",
+      "IELTS Liz (ieltsliz.com) — Writing Task 2 structure & Speaking Part 2/3 question banks",
+      "IDP IELTS Prepare app — free tier full-length timed mocks in computer-delivered interface",
+      "Week 1 (45 min/day): Diagnostic mock Mon (Cambridge 19) + targeted drilling Tue-Fri",
+      "Week 2 (30 min/day): Light drilling — alternate Reading/Writing & Listening/Speaking",
+      "Week 3 (25 min/day): Maintenance — 1 essay + 1 speaking recording/week",
+      "Week 4 (20-25 min/day): Full timed mock in IDP App + pre-booking review",
     ],
   },
   // ── ACADEMIC ──

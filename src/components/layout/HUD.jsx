@@ -1,17 +1,16 @@
 import { useState } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { getLevelInfo } from '../../data/defaults'
-import { Star, LogOut, Edit2, Check, Menu, X } from 'lucide-react'
+import { Star, LogOut, Edit2, Check, Menu, X, PanelRightClose, PanelRightOpen } from 'lucide-react'
 import IOBalanceBar from '../widgets/IOBalanceBar'
 import StatsModal from '../modals/StatsModal'
 
-const HUD = ({ activeView, setActiveView }) => {
+const HUD = ({ activeView, setActiveView, rightPanelOpen, setRightPanelOpen }) => {
   const { profile, updateProfile, signOut } = useAuth()
   const [editingAnchor, setEditingAnchor] = useState(false)
   const [editingChapter, setEditingChapter] = useState(false)
   const [anchorText, setAnchorText] = useState('')
   const [chapterText, setChapterText] = useState('')
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [isStatsOpen, setIsStatsOpen] = useState(false)
 
   const xp = profile?.xp || 0
@@ -29,14 +28,14 @@ const HUD = ({ activeView, setActiveView }) => {
 
   const navItems = [
     { id: 'graph', label: 'Constellation' },
+    { id: 'day_guide', label: 'Day Guide' },
     { id: 'focus', label: 'Focus' },
-    { id: 'progress', label: 'Progress' },
     { id: 'goals', label: 'Goals' },
     { id: 'timeline', label: 'Timeline' },
     { id: 'journal', label: 'Journal' },
     { id: 'calendar', label: 'Calendar' },
     { id: 'curriculum', label: 'Curriculum' },
-    { id: 'fitness', label: 'Fitness' },
+    { id: 'fitness', label: 'Orbit' },
   ]
 
   return (
@@ -91,12 +90,12 @@ const HUD = ({ activeView, setActiveView }) => {
           </div>
 
           {/* Desktop Nav */}
-          <nav className="hidden lg:flex items-center gap-0.5">
+          <nav className="hidden md:flex items-center gap-0.5 overflow-x-auto scrollbar-hide mr-auto max-w-none">
             {navItems.map(item => (
               <button
                 key={item.id}
                 onClick={() => setActiveView(item.id)}
-                className={`px-2.5 py-1 text-sm font-body rounded transition-all ${activeView === item.id
+                className={`whitespace-nowrap px-2 py-1 text-xs md:px-2.5 md:text-sm font-body rounded transition-all ${activeView === item.id
                   ? 'text-starlight bg-cosmic border border-pulsar/30'
                   : 'text-dim hover:text-starlight'
                   }`}
@@ -106,7 +105,7 @@ const HUD = ({ activeView, setActiveView }) => {
             ))}
           </nav>
 
-          <div className="w-px h-6 bg-blue-900/40 hidden lg:block" />
+          <div className="w-px h-6 bg-blue-900/40 hidden lg:block mx-1" />
 
           {/* Stacked bars: XP + IO */}
           <div onClick={() => setIsStatsOpen(true)} className="flex flex-col gap-0.5 flex-1 min-w-[140px] max-w-[350px] cursor-pointer group hover:bg-white/5 p-1 rounded transition-colors -ml-1">
@@ -115,7 +114,7 @@ const HUD = ({ activeView, setActiveView }) => {
               <span className="text-xs font-display text-gold tracking-wider whitespace-nowrap hidden sm:inline group-hover:text-nova transition-colors">{current.name}</span>
               <div className="flex-1 h-1.5 bg-stardust rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-gradient-to-r from-gold to-nova rounded-full xp-bar-fill transition-all duration-700"
+                  className="h-full bg-gold rounded-full xp-bar-fill transition-all duration-700"
                   style={{ width: `${progress}%` }}
                 />
               </div>
@@ -123,55 +122,17 @@ const HUD = ({ activeView, setActiveView }) => {
               <span className="text-xs font-display text-nova group-hover:text-gold transition-colors">Lv.{current.level}</span>
             </div>
             {/* IO row */}
-            <div className="pointer-events-none">
+            <div className="hidden md:block pointer-events-none">
               <IOBalanceBar />
             </div>
           </div>
 
           {/* Logout */}
-          <button onClick={signOut} className="text-dim hover:text-danger transition-colors ml-1 hidden sm:block">
+          <button onClick={signOut} className="text-dim hover:text-danger transition-colors ml-1" title="Sign Out">
             <LogOut className="w-4 h-4" />
-          </button>
-
-
-          {/* Mobile hamburger */}
-          <button onClick={() => setMobileMenuOpen(v => !v)} className="lg:hidden text-dim hover:text-starlight transition-colors ml-1">
-            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
         </div>
       </div>
-
-      {/* ── Mobile Nav Drawer ── */}
-      {mobileMenuOpen && (
-        <div className="fixed top-14 left-0 right-0 z-[55] glass border-b border-blue-900/20 lg:hidden">
-          <div className="grid grid-cols-3 gap-1 p-3">
-            {navItems.map(item => (
-              <button
-                key={item.id}
-                onClick={() => { setActiveView(item.id); setMobileMenuOpen(false) }}
-                className={`px-2 py-2.5 text-sm font-body rounded-lg transition-all text-center ${activeView === item.id
-                  ? 'text-starlight bg-cosmic border border-pulsar/30'
-                  : 'text-dim hover:text-starlight hover:bg-white/5'
-                  }`}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-          {/* Mobile-only: clarity anchor + chapter + logout */}
-          <div className="px-4 pb-3 pt-1 border-t border-blue-900/10 space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="min-w-0 flex-1">
-                <p className="text-xs text-dim font-body italic truncate">{profile?.clarity_anchor}</p>
-                <span className="text-xs font-display tracking-wider text-aurora/70">{profile?.current_chapter}</span>
-              </div>
-              <button onClick={signOut} className="text-dim hover:text-danger transition-colors ml-3 flex-shrink-0">
-                <LogOut className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {isStatsOpen && <StatsModal onClose={() => setIsStatsOpen(false)} />}
     </>

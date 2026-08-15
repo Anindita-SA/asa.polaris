@@ -28,12 +28,12 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
     const titles = (topicRes.data || []).map(t => t.title)
     if (titles.length && user?.id) {
       const { data: pomo } = await supabase
-        .from('pomodoro_logs').select('label, duration').eq('user_id', user.id)
+        .from('pomodoro_logs').select('label, duration_minutes').eq('user_id', user.id)
       if (pomo) {
         const map = {}
         pomo.forEach(p => {
           const match = titles.find(t => p.label?.toLowerCase().includes(t.toLowerCase().slice(0, 20)))
-          if (match) map[match] = (map[match] || 0) + (p.duration || 0)
+          if (match) map[match] = (map[match] || 0) + (p.duration_minutes || 0)
         })
         setPomodoroMap(map)
       }

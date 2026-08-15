@@ -4,9 +4,8 @@ import { useAuth } from '../../hooks/useAuth'
 import { Camera, Plus, Check, X, Flame, ChevronLeft, ChevronRight, Calendar } from 'lucide-react'
 import { format, subDays, eachDayOfInterval, startOfDay, isToday, addDays } from 'date-fns'
 import YearInPixels from './YearInPixels'
-import DailyRitual from './DailyRitual'
 import MonthlyHabitGrid from './MonthlyHabitGrid'
-import DailyTasks from './DailyTasks'
+import WinsBook from './WinsBook'
 
 const MOODS = [
   { id: 'amazing', label: 'Amazing', color: 'bg-blue-500' },
@@ -19,9 +18,11 @@ const MOODS = [
 ]
 
 import { XP } from '../../data/xpRewards'
+import { useCelebration } from '../../hooks/useCelebration'
 
 const Journal = () => {
   const { user, addXP, trackXP } = useAuth()
+  const { celebrate } = useCelebration()
   const [selectedDate, setSelectedDate] = useState(new Date())
   const dateStr = format(selectedDate, 'yyyy-MM-dd')
   
@@ -143,6 +144,7 @@ const Journal = () => {
       const { data } = await supabase.from('habit_logs').insert({ user_id: user.id, habit_id: habit.id, date: dateStr }).select().single()
       setHabitLogs(prev => [...prev, data])
     }
+    if (!wasLogged) celebrate()
     trackXP(wasLogged, !wasLogged, habit.xp_reward || XP.HABIT_CHECK)
   }
 
@@ -153,7 +155,10 @@ const Journal = () => {
   }
 
   const deleteHabit = async (id) => {
-    await supabase.from('habits').delete().eq('id', id); fetchHabits()
+    await supabase.from('habit_logs').delete().eq('habit_id', id)
+    const { error } = await supabase.from('habits').delete().eq('id', id)
+    if (error) console.error("Error deleting habit:", error)
+    fetchHabits()
   }
 
   return (
@@ -176,11 +181,9 @@ const Journal = () => {
           </button>
         </div>
 
-        {/* Daily Ritual Stack */}
-        <DailyRitual dateStr={dateStr} />
+        {/* Wins Book */}
+        <WinsBook dateStr={dateStr} />
 
-        {/* ADHD Daily Target Tasks */}
-        <DailyTasks dateStr={dateStr} />
 
         {/* Daily Highlight & Mood */}
         <div className="glass border border-blue-900/20 rounded-xl p-5">

@@ -34,6 +34,13 @@
   h3 {
     font-family: 'DM Serif Display', serif;
   }
+
+  @media (max-width: 767px) {
+    button {
+      min-height: 44px;
+      min-width: 44px;
+    }
+  }
 }
 
 /* Star field */
@@ -305,4 +312,37 @@
   outline: none;
   border-color: rgba(59, 130, 246, 0.3);
   background: rgba(10, 15, 30, 0.5);
+}
+
+/* Wins Book Shimmer */
+.shimmer-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.shimmer-card::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -200%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    110deg,
+    transparent 25%,
+    rgba(251, 191, 36, 0.1) 25%,
+    rgba(251, 191, 36, 0.1) 40%,
+    transparent 40%,
+    transparent 45%,
+    rgba(251, 191, 36, 0.1) 45%,
+    rgba(251, 191, 36, 0.1) 50%,
+    transparent 50%
+  );
+  animation: shimmer-swipe 3s infinite linear;
+  pointer-events: none;
+}
+
+@keyframes shimmer-swipe {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(150%); }
 }

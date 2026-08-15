@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
-import { Check, Flag, Clock, AlertCircle, ChevronDown, ChevronUp, Zap, Plus, X, Compass } from 'lucide-react'
+import { Check, Flag, Clock, AlertCircle, ChevronDown, ChevronUp, Zap, Plus, X, Compass, Edit2, Trash2 } from 'lucide-react'
 import { XP } from '../../data/xpRewards'
 
 const statusConfig = {
@@ -17,6 +17,7 @@ const Timeline = ({ filterNodeId, onJumpToNode }) => {
   const [nodes, setNodes] = useState([])
   const [expanded, setExpanded] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
+  const [editingMilestone, setEditingMilestone] = useState(null)
   const [addForm, setAddForm] = useState({ title: '', deadline: '', linkedNode: '' })
 
   const [subtasks, setSubtasks] = useState({})
@@ -55,20 +56,55 @@ const Timeline = ({ filterNodeId, onJumpToNode }) => {
     setSubtasks(grouped)
   }
 
-  const addMilestone = async () => {
+  const openAddModal = () => {
+    setEditingMilestone(null)
+    setAddForm({ title: '', deadline: '', linkedNode: '' })
+    setShowAddModal(true)
+  }
+
+  const openEditModal = (ms) => {
+    setEditingMilestone(ms)
+    const linkedNodeMatch = ms.note?.match(/\[Node: (.*?)\]/)
+    setAddForm({
+      title: ms.title,
+      deadline: ms.deadline,
+      linkedNode: linkedNodeMatch ? linkedNodeMatch[1] : ''
+    })
+    setShowAddModal(true)
+  }
+
+  const saveMilestone = async () => {
     if (!addForm.title || !addForm.deadline) return
     const note = addForm.linkedNode ? `[Node: ${addForm.linkedNode}]` : ''
-    await supabase.from('milestones').insert({
-      user_id: user.id,
-      title: addForm.title,
-      deadline: addForm.deadline,
-      status: 'upcoming',
-      xp_reward: 100,
-      note,
-    })
+    
+    if (editingMilestone) {
+      await supabase.from('milestones').update({
+        title: addForm.title,
+        deadline: addForm.deadline,
+        note: note || editingMilestone.note?.replace(/\[Node: .*?\]/, '') || ''
+      }).eq('id', editingMilestone.id)
+    } else {
+      await supabase.from('milestones').insert({
+        user_id: user.id,
+        title: addForm.title,
+        deadline: addForm.deadline,
+        status: 'upcoming',
+        xp_reward: 100,
+        note,
+      })
+    }
+    
     setAddForm({ title: '', deadline: '', linkedNode: '' })
     setShowAddModal(false)
+    setEditingMilestone(null)
     fetchMilestones()
+  }
+
+  const deleteMilestone = async (id) => {
+    if (window.confirm("Are you sure you want to delete this milestone?")) {
+      await supabase.from('milestones').delete().eq('id', id)
+      fetchMilestones()
+    }
   }
 
   const updateStatus = async (ms, status) => {
@@ -192,7 +228,7 @@ Rules:
       <div className="max-w-2xl mx-auto space-y-6">
 
         <div className="flex justify-end mb-4">
-          <button onClick={() => setShowAddModal(true)} className="glass border border-pulsar/30 text-pulsar hover:bg-pulsar/20 transition-all rounded-lg px-4 py-2 text-sm font-display tracking-wider flex items-center gap-2">
+          <button onClick={openAddModal} className="glass border border-pulsar/30 text-pulsar hover:bg-pulsar/20 transition-all rounded-lg px-4 py-2 text-sm font-display tracking-wider flex items-center gap-2 shadow-[0_0_15px_rgba(59,130,246,0.3)]">
             <Plus className="w-4 h-4" /> ADD MILESTONE
           </button>
         </div>
@@ -217,14 +253,14 @@ Rules:
             {expanded ? <ChevronUp className="w-4 h-4 text-dim" /> : <ChevronDown className="w-4 h-4 text-dim" />}
           </div>
           <div className="h-1.5 bg-stardust rounded-full overflow-hidden">
-            <div className="h-full bg-gradient-to-r from-emerald to-pulsar transition-all duration-500" style={{ width: `${percentDone}%` }} />
+            <div className="h-full bg-emerald transition-all duration-500" style={{ width: `${percentDone}%` }} />
           </div>
         </button>
 
         {/* Timeline */}
         {expanded && <div className="relative">
           {/* Vertical line */}
-          <div className="absolute left-4 top-0 bottom-0 w-px bg-gradient-to-b from-pulsar/30 via-blue-900/20 to-transparent" />
+          <div className="absolute left-4 top-0 bottom-0 w-px bg-pulsar/30" />
 
           <div className="space-y-3 pl-10">
             {milestones.map((ms, i) => {
@@ -233,7 +269,7 @@ Rules:
               const daysUntil = getDaysUntil(ms.deadline)
 
               return (
-                <div key={ms.id} className={`relative glass rounded-xl p-4 border ${config.color} group`}>
+                <div key={ms.id} className={`relative glass glass-hover hover:-translate-y-1 transition-all rounded-xl p-4 border ${config.color} group`}>
                   {/* Timeline dot */}
                   <div className={`absolute -left-[2.1rem] top-4 w-3 h-3 rounded-full border-2 flex-shrink-0 ${ms.status === 'done' ? 'border-emerald bg-emerald/30' :
                     ms.status === 'overdue' ? 'border-danger bg-danger/30' :
@@ -300,8 +336,8 @@ Rules:
                       />
                     </div>
 
-                    {/* Status toggle */}
-                    <div className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {/* Status toggle and Actions */}
+                    <div className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-end gap-2">
                       <select
                         value={ms.status === 'overdue' ? 'upcoming' : ms.status}
                         onChange={e => updateStatus(ms, e.target.value)}
@@ -311,6 +347,14 @@ Rules:
                         <option value="in-progress">In Progress</option>
                         <option value="done">Done ✦</option>
                       </select>
+                      <div className="flex gap-1 mt-1">
+                        <button onClick={() => openEditModal(ms)} className="p-1 text-dim hover:text-sky bg-stardust rounded border border-transparent hover:border-sky/30 transition-colors">
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button onClick={() => deleteMilestone(ms.id)} className="p-1 text-dim hover:text-red-400 bg-stardust rounded border border-transparent hover:border-red-500/30 transition-colors">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -328,8 +372,8 @@ Rules:
       </div>
 
       {breakdownTarget && (
-        <div className="modal-overlay fixed inset-0 bg-void/80 z-50 flex items-center justify-center p-4" onClick={e => e.target === e.currentTarget && setBreakdownTarget(null)}>
-          <div className="modal-content glass border border-blue-900/30 rounded-2xl p-6 w-full max-w-lg space-y-4">
+        <div className="modal-overlay fixed inset-0 bg-void/80 z-50 flex items-end md:items-center justify-center p-0 md:p-4" onClick={e => e.target === e.currentTarget && setBreakdownTarget(null)}>
+          <div className="modal-content glass border border-blue-900/30 rounded-t-2xl rounded-b-none md:rounded-2xl p-6 w-full w-full max-w-full md:max-w-lg space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="font-display text-starlight">Tasks for: {breakdownTarget.title}</h3>
               <button onClick={() => setBreakdownTarget(null)}><X className="w-4 h-4 text-dim hover:text-starlight" /></button>
@@ -370,10 +414,10 @@ Rules:
       )}
 
       {showAddModal && (
-        <div className="modal-overlay fixed inset-0 bg-void/80 z-50 flex items-center justify-center p-4" onClick={e => e.target === e.currentTarget && setShowAddModal(false)}>
-          <div className="modal-content glass border border-blue-900/30 rounded-2xl p-6 w-full max-w-sm space-y-4">
+        <div className="modal-overlay fixed inset-0 bg-void/80 z-50 flex items-end md:items-center justify-center p-0 md:p-4" onClick={e => e.target === e.currentTarget && setShowAddModal(false)}>
+          <div className="modal-content glass border border-blue-900/30 rounded-t-2xl rounded-b-none md:rounded-2xl p-6 w-full w-full max-w-full md:max-w-sm space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="font-display text-starlight tracking-wider">New Milestone</h3>
+              <h3 className="font-display text-starlight tracking-wider">{editingMilestone ? 'Edit Milestone' : 'New Milestone'}</h3>
               <button onClick={() => setShowAddModal(false)}><X className="w-4 h-4 text-dim hover:text-starlight" /></button>
             </div>
             <input placeholder="Milestone Title" value={addForm.title} onChange={e => setAddForm(f => ({ ...f, title: e.target.value }))}
@@ -385,8 +429,8 @@ Rules:
               <option value="">Link to Node (Optional)</option>
               {nodes.map(n => <option key={n.id} value={n.id}>{n.title}</option>)}
             </select>
-            <button onClick={addMilestone} className="w-full py-2 bg-pulsar/20 border border-pulsar/30 text-pulsar text-sm font-display tracking-wider rounded-lg hover:bg-pulsar/30 transition-colors">
-              CREATE
+            <button onClick={saveMilestone} className="w-full py-2 bg-pulsar/20 border border-pulsar/30 text-pulsar text-sm font-display tracking-wider rounded-lg hover:bg-pulsar/30 transition-colors">
+              {editingMilestone ? 'SAVE CHANGES' : 'CREATE'}
             </button>
           </div>
         </div>
