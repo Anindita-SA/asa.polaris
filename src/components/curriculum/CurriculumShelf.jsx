@@ -96,8 +96,51 @@ const CurriculumShelf = () => {
     const cat = (cats || []).find(c => c.title === activeTab)
     if (!cat) { setCurricula([]); return }
 
-    const { data: currs } = await supabase.from('curricula')
+    let { data: currs } = await supabase.from('curricula')
       .select('*').eq('category_id', cat.id).order('position')
+
+    // Auto-seed IELTS 2026 Preparation Sprint if missing under Career
+    if (activeTab === 'Career' && cat.id && (!currs || !currs.some(c => c.title?.includes('IELTS')))) {
+      try {
+        const ieltsSeed = SEED_CURRICULA.find(c => c.title.includes('IELTS'))
+        if (ieltsSeed) {
+          const { data: newCurr } = await supabase.from('curricula').insert({
+            user_id: user.id,
+            category_id: cat.id,
+            title: ieltsSeed.title,
+            description: ieltsSeed.description,
+            estimated_hours: ieltsSeed.estimated_hours,
+            position: (currs?.length || 0)
+          }).select('*').single()
+
+          if (newCurr?.id) {
+            if (ieltsSeed.topics?.length) {
+              await supabase.from('curriculum_topics').insert(
+                ieltsSeed.topics.map((t, idx) => ({
+                  user_id: user.id, curriculum_id: newCurr.id, title: t.title,
+                  estimated_hours: t.estimated_hours || null,
+                  is_recommended_next: t.is_recommended_next || false, position: idx,
+                }))
+              )
+            }
+            if (ieltsSeed.resources?.length) {
+              await supabase.from('curriculum_resources').insert(
+                ieltsSeed.resources.map(r => ({
+                  user_id: user.id, curriculum_id: newCurr.id, title: r.title,
+                  author: r.author || null, resource_type: r.resource_type || 'book', url: r.url || null,
+                }))
+              )
+            }
+            // Refetch after insertion
+            const { data: refetched } = await supabase.from('curricula')
+              .select('*').eq('category_id', cat.id).order('position')
+            currs = refetched
+          }
+        }
+      } catch (e) {
+        console.warn('Auto-seed IELTS error:', e)
+      }
+    }
 
     if (currs?.length) {
       const currIds = currs.map(c => c.id)
