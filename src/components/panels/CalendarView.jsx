@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { useGoogleCalendarSync } from '../../hooks/useGoogleCalendarSync'
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, isSameDay } from 'date-fns'
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, RefreshCcw, Database, Archive, Check, X, BellRing, ShieldCheck } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, RefreshCcw, Database, Archive, Check, X, BellRing, ShieldCheck, LogIn } from 'lucide-react'
 
 const GOOGLE_COLORS = {
   '1': '#a4bdfc', // Lavender
@@ -28,7 +28,6 @@ const CalendarView = () => {
 
   // Hybrid Sync & Backup Hook
   const {
-    syncedEvents,
     proposedEvents,
     backups,
     isSyncing,
@@ -41,6 +40,7 @@ const CalendarView = () => {
     rejectProposedEvent
   } = useGoogleCalendarSync()
 
+  // Fetch events directly from Google Calendar API
   const fetchEvents = async (date) => {
     if (!providerToken) return
     
@@ -67,6 +67,7 @@ const CalendarView = () => {
       const data = await res.json()
       setEvents(data.items || [])
     } catch (err) {
+      console.error('Fetch events error:', err)
       setError(err.message)
     } finally {
       setLoading(false)
@@ -85,9 +86,9 @@ const CalendarView = () => {
   })
 
   return (
-    <div className="h-full flex flex-col overflow-hidden">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between p-6 border-b border-blue-900/20 bg-void/50 backdrop-blur-sm z-10 shrink-0 gap-4">
+    <div className="h-full flex flex-col overflow-hidden bg-void">
+      {/* Header Toolbar */}
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between p-4 md:p-6 border-b border-blue-900/20 bg-void/50 backdrop-blur-sm z-10 shrink-0 gap-4">
         <div>
           <div className="flex items-center gap-3">
             <CalendarIcon className="w-5 h-5 text-sky" />
@@ -101,7 +102,7 @@ const CalendarView = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          {/* Tab switches */}
+          {/* View Tab Switches */}
           <div className="flex glass border border-blue-900/30 rounded-lg p-1">
             <button 
               onClick={() => setActiveTab('gcal')} 
@@ -118,7 +119,7 @@ const CalendarView = () => {
           {/* Sync & Backup Toolbar */}
           <button
             onClick={syncNow}
-            disabled={isSyncing}
+            disabled={isSyncing || !providerToken}
             className="glass border border-sky/30 text-sky hover:bg-sky/20 px-3 py-1.5 rounded-lg text-xs font-display flex items-center gap-1.5 transition-all disabled:opacity-50"
             title="Sync Google Calendar to Supabase Database">
             <RefreshCcw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
@@ -132,10 +133,11 @@ const CalendarView = () => {
             <Archive className="w-3.5 h-3.5" /> Snapshot Backup
           </button>
 
-          {activeTab === 'gcal' && (
+          {activeTab === 'gcal' && providerToken && (
             <div className="flex items-center gap-2">
               <button onClick={() => fetchEvents(currentWeek)} disabled={loading}
-                className="p-2 rounded-lg hover:bg-stardust/30 text-dim hover:text-starlight transition-colors">
+                className="p-2 rounded-lg hover:bg-stardust/30 text-dim hover:text-starlight transition-colors"
+                title="Refresh Calendar">
                 <RefreshCcw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
               </button>
               <div className="h-4 w-px bg-blue-900/30 mx-1" />
@@ -162,7 +164,7 @@ const CalendarView = () => {
           <div className="flex items-center gap-2 text-xs text-amber-300">
             <BellRing className="w-4 h-4 text-amber-400 shrink-0" />
             <span>
-              <b className="font-display">Staged Proposed Schedule:</b> You have {proposedEvents.length} proposed session(s) awaiting your review and approval.
+              <b className="font-display">Staged Proposed Schedule:</b> You have {proposedEvents.length} proposed session(s) awaiting your review.
             </span>
           </div>
           <div className="flex items-center gap-2 shrink-0">
@@ -189,7 +191,7 @@ const CalendarView = () => {
 
       {/* Main Content Area */}
       {activeTab === 'backups' ? (
-        /* Backups & Controls View */
+        /* Backups Vault */
         <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-hide">
           <div className="glass border border-blue-900/30 p-5 rounded-xl space-y-3">
             <div className="flex items-center justify-between">
@@ -247,23 +249,23 @@ const CalendarView = () => {
           </div>
         </div>
       ) : (
-        /* Google Calendar Tab */
-        <div className="flex-1 overflow-y-auto p-8 pb-16 scrollbar-hide">
+        /* Google Calendar Grid Tab */
+        <div className="flex-1 overflow-y-auto p-4 md:p-8 pb-16 scrollbar-hide">
           {!providerToken || error?.includes('reconnect') ? (
             <div className="h-full flex flex-col items-center justify-center p-6 text-center">
-              <CalendarIcon className="w-16 h-16 text-dim mb-4" />
+              <CalendarIcon className="w-16 h-16 text-sky/60 mb-4 animate-bounce" />
               <h2 className="font-display text-2xl text-starlight tracking-wider mb-2">Connect Google Calendar</h2>
-              <p className="font-body text-dim mb-6 max-w-sm">
-                To view your schedule and reminders inside Polaris, we need read access to your Google Calendar.
+              <p className="font-body text-dim mb-6 max-w-sm text-xs leading-relaxed">
+                Connect your Google account once to display your live Google Calendar events directly inside Polaris.
               </p>
               <button 
                 onClick={signInWithGoogle}
-                className="px-6 py-3 glass border border-blue-900/30 rounded-xl text-starlight font-body hover:bg-stardust/40 transition-colors flex items-center gap-2">
-                Sign in with Google
+                className="px-6 py-3 glass border border-sky/40 bg-sky/10 text-sky hover:bg-sky/20 rounded-xl font-display text-sm transition-all flex items-center gap-2">
+                <LogIn className="w-4 h-4" /> Sign in with Google
               </button>
             </div>
           ) : (
-            <div className="flex gap-6 min-w-[900px] min-h-[550px]">
+            <div className="grid grid-cols-1 md:grid-cols-7 gap-4 min-w-[700px] min-h-[500px]">
               {days.map(day => {
                 const isToday = isSameDay(day, new Date())
                 const dayEvents = events.filter(e => {
@@ -272,44 +274,47 @@ const CalendarView = () => {
                 })
 
                 return (
-                  <div key={day.toISOString()} className="flex-1 flex flex-col min-w-[150px]">
-                    <div className={`pb-4 border-b-2 mb-4 sticky top-0 bg-void/90 pt-2 z-10 ${isToday ? 'border-starlight' : 'border-blue-900/20'}`}>
-                      <p className={`text-xs font-display tracking-widest uppercase mb-1 ${isToday ? 'text-starlight font-bold' : 'text-slate-400/60'}`}>
+                  <div key={day.toISOString()} className="flex-1 flex flex-col min-w-[120px] glass border border-blue-900/20 rounded-xl p-3">
+                    <div className={`pb-2 border-b mb-3 ${isToday ? 'border-sky text-sky' : 'border-blue-900/20 text-dim'}`}>
+                      <p className="text-[11px] font-mono tracking-widest uppercase">
                         {format(day, 'EEE')}
                       </p>
-                      <p className={`text-3xl font-display ${isToday ? 'text-starlight' : 'text-slate-300/80'}`}>
+                      <p className={`text-2xl font-display ${isToday ? 'text-starlight font-bold' : 'text-starlight/80'}`}>
                         {format(day, 'd')}
                       </p>
                     </div>
 
-                    <div className="flex-1 space-y-3">
+                    <div className="flex-1 space-y-2 overflow-y-auto max-h-[450px] scrollbar-hide">
                       {loading ? (
-                        <div className="animate-pulse space-y-3">
-                          <div className="h-16 bg-stardust/20 rounded-xl" />
-                          <div className="h-16 bg-stardust/20 rounded-xl" />
+                        <div className="animate-pulse space-y-2">
+                          <div className="h-12 bg-stardust/20 rounded-lg" />
+                          <div className="h-12 bg-stardust/20 rounded-lg" />
                         </div>
                       ) : dayEvents.length === 0 ? (
-                        <div className="text-center pt-8 text-dim/30 font-body text-sm">
+                        <div className="text-center pt-6 text-dim/30 font-body text-xs italic">
                           No events
                         </div>
                       ) : (
                         dayEvents.map(event => {
                           const isAllDay = !event.start.dateTime
                           const startTime = isAllDay ? 'All day' : format(new Date(event.start.dateTime), 'h:mm a')
-                          const color = GOOGLE_COLORS[event.colorId] || '#3b82f6'
+                          const color = GOOGLE_COLORS[event.colorId] || '#38bdf8'
 
                           return (
                             <div key={event.id} 
-                              className="glass rounded-xl p-3 border border-blue-900/15 hover:border-blue-500/30 transition-all duration-300 hover:scale-[1.02] shadow-[0_4px_12px_rgba(0,0,0,0.1)] hover:shadow-[0_4px_20px_rgba(0,0,0,0.2)]"
+                              className="glass rounded-lg p-2.5 border border-blue-900/20 hover:border-sky/30 transition-all text-left space-y-1"
                               style={{ 
                                 borderLeftColor: color, 
-                                borderLeftWidth: 4,
+                                borderLeftWidth: 3,
                                 backgroundColor: `${color}0d`
                               }}>
-                              <p className="text-xs font-mono mb-1 text-slate-400/70">{startTime}</p>
-                              <p className="text-sm font-body text-starlight leading-tight line-clamp-2">
+                              <p className="text-[10px] font-mono text-dim">{startTime}</p>
+                              <p className="text-xs font-display text-starlight leading-snug line-clamp-2">
                                 {event.summary || '(No title)'}
                               </p>
+                              {event.location && (
+                                <p className="text-[10px] text-dim truncate">{event.location}</p>
+                              )}
                             </div>
                           )
                         })
