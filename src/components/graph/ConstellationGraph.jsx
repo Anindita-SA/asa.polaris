@@ -82,8 +82,8 @@ const ConstellationGraph = forwardRef(({ onNodeSelect }, ref) => {
 
     const nodeData = nodes.map(n => ({
       ...n,
-      x: w / 2 + (Math.random() - 0.5) * 120,
-      y: h / 2 + (Math.random() - 0.5) * 120,
+      x: (isFinite(w) && w > 0 ? w / 2 : 400) + (Math.random() - 0.5) * 120,
+      y: (isFinite(h) && h > 0 ? h / 2 : 300) + (Math.random() - 0.5) * 120,
     }))
 
     const byId = {}
@@ -139,6 +139,9 @@ const ConstellationGraph = forwardRef(({ onNodeSelect }, ref) => {
         d3.select(this).select('text').attr('fill', '#94a3b8')
       })
 
+    const safeW = isFinite(w) && w > 0 ? w : 800;
+    const safeH = isFinite(h) && h > 0 ? h : 600;
+
     const sim = d3.forceSimulation(nodeData)
       .alphaDecay(0.005)
       .alphaMin(0.001)
@@ -148,14 +151,14 @@ const ConstellationGraph = forwardRef(({ onNodeSelect }, ref) => {
           .strength(1)
       )
       .force('charge', d3.forceManyBody().strength(-80))
-      .force('center',  d3.forceCenter(w / 2, h / 2))
+      .force('center',  d3.forceCenter(safeW / 2, safeH / 2))
       .force('collide', d3.forceCollide(d => rad(d.type) + 8))
       .on('tick', () => {
         // Apply continuous slight drifting force for perpetual floating
         nodeData.forEach(d => {
           if (!d.fx && !d.fy && d.type !== 'root') {
-            d.vx += (Math.random() - 0.5) * 0.05
-            d.vy += (Math.random() - 0.5) * 0.05
+            d.vx = (d.vx || 0) + (Math.random() - 0.5) * 0.05
+            d.vy = (d.vy || 0) + (Math.random() - 0.5) * 0.05
           }
         })
         // Keep alpha bumped slightly to never fully stop
@@ -165,7 +168,7 @@ const ConstellationGraph = forwardRef(({ onNodeSelect }, ref) => {
           .attr('x1', d => d.source.x).attr('y1', d => d.source.y)
           .attr('x2', d => d.target.x).attr('y2', d => d.target.y)
         nodeSel.attr('transform', d =>
-          `translate(${isFinite(d.x) ? d.x : w/2},${isFinite(d.y) ? d.y : h/2})`
+          `translate(${isFinite(d.x) ? d.x : safeW/2},${isFinite(d.y) ? d.y : safeH/2})`
         )
       })
 
@@ -194,7 +197,9 @@ const ConstellationGraph = forwardRef(({ onNodeSelect }, ref) => {
       const w = rect.width - padLeft - padRight
       const h = rect.height
       svg.attr('width', w).attr('height', h)
-      sim.force('center', d3.forceCenter(w / 2, h / 2))
+      const safeRW = isFinite(w) && w > 0 ? w : 800;
+      const safeRH = isFinite(h) && h > 0 ? h : 600;
+      sim.force('center', d3.forceCenter(safeRW / 2, safeRH / 2))
       sim.alpha(0.1).restart()
     }
     window.addEventListener('resize', handleResize)
