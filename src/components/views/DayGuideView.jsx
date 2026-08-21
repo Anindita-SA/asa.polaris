@@ -396,7 +396,7 @@ export default function DayGuideView() {
               exit={{ opacity: 0, scale: 0.99 }} transition={{ duration: 0.15 }}
               className="w-full h-full"
             >
-              <MatrixCanvasView key={`matrix-${refreshKey}`} onTasksChanged={triggerRefresh} />
+              <MatrixCanvasView refreshTrigger={refreshKey} onTasksChanged={triggerRefresh} />
             </motion.div>
           )}
           {activeSubTab === 'picks' && (

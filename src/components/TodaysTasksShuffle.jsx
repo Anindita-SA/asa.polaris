@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useWSJFScore } from '../hooks/useWSJFScore';
 import { supabase } from '../lib/supabase';
 import DayChunker from './DayChunker';
@@ -168,7 +168,7 @@ export default function TodaysTasksShuffle() {
   };
 
   return (
-    <div className="w-full min-h-screen bg-void/70 text-starlight font-body p-4 sm:p-6 md:p-8 selection:bg-gold selection:text-black">
+    <div className="w-full min-h-screen bg-transparent text-starlight font-body p-4 sm:p-6 md:p-8 selection:bg-gold selection:text-black">
       
       {/* Header Bar */}
       <div className="max-w-5xl mx-auto mb-6 border-b border-blue-900/20 pb-5 flex flex-wrap items-center justify-between gap-4">

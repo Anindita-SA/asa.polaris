@@ -84,6 +84,10 @@ export const SEED_CURRICULA = [
       { title: 'Week 2 Mon-Fri: Light Drilling — Alternate Reading/Writing & Listening/Speaking (30 min/day)', estimated_hours: 2.5 },
       { title: 'Week 3 Mon-Fri: Maintenance Only — 1 Essay + 1 Speaking Recording + Light Review (25 min/day)', estimated_hours: 2 },
       { title: 'Week 4 Mon-Fri: Full Timed Mock in IDP App + Light Review (20-25 min/day)', estimated_hours: 2 },
+      { title: 'Mock Test 2026 January (ieltsonlinetests.com)', estimated_hours: 3 },
+      { title: 'Mock Test 2025 December (ieltsonlinetests.com)', estimated_hours: 3 },
+      { title: 'Mock Test 2025 November (ieltsonlinetests.com)', estimated_hours: 3 },
+      { title: 'Mock Test 2025 October (ieltsonlinetests.com)', estimated_hours: 3 },
     ],
     resources: [
       { title: 'ielts.org Official Free Practice Tests (IELTS Progress Check Sample)', resource_type: 'article', url: 'https://www.ielts.org/for-test-takers/sample-test-questions' },
@@ -91,6 +95,10 @@ export const SEED_CURRICULA = [
       { title: 'Cambridge IELTS Books 17-19 (Official Retired Question Banks)', resource_type: 'book' },
       { title: 'IELTS Liz (Writing Task 2 & Speaking Part 2/3 Banks)', resource_type: 'article', url: 'https://ieltsliz.com' },
       { title: 'IDP IELTS Prepare App (On-screen typing & reading navigation mock)', resource_type: 'course', url: 'https://ielts.idp.com/prepare/article-idp-ielts-prepare-app' },
+      { title: 'IELTS Mock Test 2026 January', resource_type: 'course', url: 'https://ieltsonlinetests.com/collection/ielts-mock-test-2026-january' },
+      { title: 'IELTS Mock Test 2025 December', resource_type: 'course', url: 'https://ieltsonlinetests.com/collection/ielts-mock-test-2025-december' },
+      { title: 'IELTS Mock Test 2025 November', resource_type: 'course', url: 'https://ieltsonlinetests.com/collection/ielts-mock-test-2025-november' },
+      { title: 'IELTS Mock Test 2025 October', resource_type: 'course', url: 'https://ieltsonlinetests.com/collection/ielts-mock-test-2025-october' },
     ],
   },
   {

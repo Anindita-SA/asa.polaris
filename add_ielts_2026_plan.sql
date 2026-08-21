@@ -54,13 +54,21 @@ BEGIN
     (v_user_id, curr_id, 'Week 1 Tue-Fri: Targeted Drilling on Weakest Section (45 min/day)', 3, false, 1),
     (v_user_id, curr_id, 'Week 2 Mon-Fri: Light Drilling — Alternate Reading/Writing & Listening/Speaking (30 min/day)', 2.5, false, 2),
     (v_user_id, curr_id, 'Week 3 Mon-Fri: Maintenance Only — 1 Essay + 1 Speaking Recording + Light Review (25 min/day)', 2, false, 3),
-    (v_user_id, curr_id, 'Week 4 Mon-Fri: Full Timed Mock in IDP App + Light Review (20-25 min/day)', 2, false, 4);
+    (v_user_id, curr_id, 'Week 4 Mon-Fri: Full Timed Mock in IDP App + Light Review (20-25 min/day)', 2, false, 4),
+    (v_user_id, curr_id, 'Mock Test 2026 January (ieltsonlinetests.com)', 3, false, 5),
+    (v_user_id, curr_id, 'Mock Test 2025 December (ieltsonlinetests.com)', 3, false, 6),
+    (v_user_id, curr_id, 'Mock Test 2025 November (ieltsonlinetests.com)', 3, false, 7),
+    (v_user_id, curr_id, 'Mock Test 2025 October (ieltsonlinetests.com)', 3, false, 8);
 
     INSERT INTO curriculum_resources (user_id, curriculum_id, title, resource_type, url) VALUES
     (v_user_id, curr_id, 'ielts.org Official Free Practice Tests (IELTS Progress Check Sample)', 'article', 'https://www.ielts.org/for-test-takers/sample-test-questions'),
     (v_user_id, curr_id, 'British Council Road to IELTS (Reading/Listening/Writing Samples)', 'course', 'https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-practice-tests/road-to-ielts'),
     (v_user_id, curr_id, 'Cambridge IELTS Books 17-19 (Official Retired Question Banks)', 'book', null),
     (v_user_id, curr_id, 'IELTS Liz (Writing Task 2 & Speaking Part 2/3 Banks)', 'article', 'https://ieltsliz.com'),
-    (v_user_id, curr_id, 'IDP IELTS Prepare App (On-screen typing & reading navigation mock)', 'course', 'https://ielts.idp.com/prepare/article-idp-ielts-prepare-app');
+    (v_user_id, curr_id, 'IDP IELTS Prepare App (On-screen typing & reading navigation mock)', 'course', 'https://ielts.idp.com/prepare/article-idp-ielts-prepare-app'),
+    (v_user_id, curr_id, 'IELTS Mock Test 2026 January', 'course', 'https://ieltsonlinetests.com/collection/ielts-mock-test-2026-january'),
+    (v_user_id, curr_id, 'IELTS Mock Test 2025 December', 'course', 'https://ieltsonlinetests.com/collection/ielts-mock-test-2025-december'),
+    (v_user_id, curr_id, 'IELTS Mock Test 2025 November', 'course', 'https://ieltsonlinetests.com/collection/ielts-mock-test-2025-november'),
+    (v_user_id, curr_id, 'IELTS Mock Test 2025 October', 'course', 'https://ieltsonlinetests.com/collection/ielts-mock-test-2025-october');
 
 END $$;

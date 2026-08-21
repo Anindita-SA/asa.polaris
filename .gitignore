@@ -4,3 +4,10 @@ dist/
 polaris-backup-*.json
 
 scratch/
+
+# AI agent config
+GEMINI.md
+AGENTS.md
+.gemini/
+.agents/
+*.timestamp-*.mjs
