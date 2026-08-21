@@ -95,7 +95,7 @@ const Dashboard = () => {
             {activeView === 'graph' && selectedNode ? (
               <NodePanel node={selectedNode} onClose={() => setSelectedNode(null)} onRefreshGraph={refreshGraph} />
             ) : (
-              <RemindersPanel />
+              <RemindersPanel onOpenDayGuide={() => setActiveView('day_guide')} />
             )}
           </div>
 
