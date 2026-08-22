@@ -11,3 +11,10 @@ AGENTS.md
 .gemini/
 .agents/
 *.timestamp-*.mjs
+
+# Local Task Tracking
+local_tasks_sync.json
+local_tasks_archive.json
+
+# Agent Secrets
+.env.agent

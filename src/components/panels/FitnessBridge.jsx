@@ -5,6 +5,7 @@ import { Activity, Scale, Utensils, Zap } from 'lucide-react'
 import { format, subDays } from 'date-fns'
 import RelationshipsView from './RelationshipsView'
 import PlayView from '../orbit/PlayView'
+import HardwareScoutPanel from './HardwareScoutPanel'
 
 const FitnessBridge = () => {
   const { user, addXP } = useAuth()
@@ -126,7 +127,7 @@ const FitnessBridge = () => {
       <div className="max-w-2xl mx-auto space-y-6">
         
         {/* Navigation Pills */}
-        <div className="flex bg-void/50 p-1 rounded-lg border border-blue-900/20 max-w-sm mx-auto">
+        <div className="flex bg-void/50 p-1 rounded-lg border border-blue-900/20 max-w-md mx-auto">
           <button 
             onClick={() => setActiveSubTab('fitness')}
             className={`flex-1 py-1.5 text-xs font-mono uppercase tracking-widest rounded transition-colors ${activeSubTab === 'fitness' ? 'bg-stardust/80 text-starlight' : 'text-dim hover:text-starlight/70'}`}
@@ -145,12 +146,20 @@ const FitnessBridge = () => {
           >
             Play
           </button>
+          <button 
+            onClick={() => setActiveSubTab('scout')}
+            className={`flex-1 py-1.5 text-xs font-mono uppercase tracking-widest rounded transition-colors ${activeSubTab === 'scout' ? 'bg-stardust/80 text-starlight' : 'text-dim hover:text-starlight/70'}`}
+          >
+            Scout
+          </button>
         </div>
 
         {activeSubTab === 'relationships' ? (
           <RelationshipsView />
         ) : activeSubTab === 'play' ? (
           <PlayView />
+        ) : activeSubTab === 'scout' ? (
+          <HardwareScoutPanel />
         ) : (
           <>
             <p className="text-xs font-mono text-dim uppercase tracking-widest mt-2">Aloka-Fit Bridge - last 14 days</p>
