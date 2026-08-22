@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import TodaysTasksShuffle from '../TodaysTasksShuffle';
 import MatrixCanvasView from './MatrixCanvasView';
+import DayBriefView from './DayBriefView';
 import { supabase } from '../../lib/supabase';
 import { computeWSJFScore } from '../../hooks/useWSJFScore';
 import {
@@ -342,6 +343,14 @@ export default function DayGuideView() {
       iconColor: 'text-emerald-400',
       activeStyle: 'bg-cosmic border border-emerald-400/40 shadow-[0_0_15px_rgba(52,211,153,0.25)]',
     },
+    {
+      id: 'brief',
+      label: 'BRIEF',
+      fullLabel: 'DAY BRIEF',
+      icon: Target,
+      iconColor: 'text-amber-500',
+      activeStyle: 'bg-cosmic border border-amber-500/40 shadow-[0_0_15px_rgba(245,158,11,0.3)]',
+    },
   ];
 
   return (
@@ -415,6 +424,15 @@ export default function DayGuideView() {
               className="w-full h-full"
             >
               <AuditorPanel key={`auditor-${refreshKey}`} onAuditDone={triggerRefresh} />
+            </motion.div>
+          )}
+          {activeSubTab === 'brief' && (
+            <motion.div key="brief"
+              initial={{ opacity: 0, scale: 0.99 }} animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.99 }} transition={{ duration: 0.15 }}
+              className="w-full h-full"
+            >
+              <DayBriefView />
             </motion.div>
           )}
         </AnimatePresence>

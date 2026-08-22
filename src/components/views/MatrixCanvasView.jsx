@@ -29,7 +29,9 @@ import {
   EyeOff,
   Link,
   Unlink,
-  RefreshCw
+  RefreshCw,
+  List,
+  FileText
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -107,8 +109,9 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
   const [isAuditing, setIsAuditing] = useState(false);
   const [auditMessage, setAuditMessage] = useState(null);
 
-  // Brain Dump Tab State ('backlog' | 'completed')
+  // Brain Dump Tab State ('backlog' | 'completed' | 'details')
   const [activeBrainDumpTab, setActiveBrainDumpTab] = useState('backlog');
+  const [selectedTaskId, setSelectedTaskId] = useState(null);
 
   // Brain Dump Search & Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -443,90 +446,17 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
     return tasks.filter((t) => t.status === 'done');
   }, [tasks]);
 
+  const selectedTask = useMemo(() => {
+    return tasks.find(t => t.id === selectedTaskId);
+  }, [tasks, selectedTaskId]);
+
   return (
-    <div className="w-full h-full bg-transparent text-starlight font-body flex flex-col md:flex-row overflow-hidden relative selection:bg-gold selection:text-black">
+    <div className="w-full h-full bg-transparent text-starlight font-body flex flex-col md:flex-row-reverse overflow-hidden relative selection:bg-gold selection:text-black">
       
       {/* ==================================================================== */}
       {/* LEFT / CENTER: SPATIAL CONSTELLATION 2D CANVAS MATRIX                */}
       {/* ==================================================================== */}
       <div className="flex-1 relative flex flex-col overflow-hidden bg-transparent">
-        
-        {/* Floating Controls Bar */}
-        <div className="absolute top-4 left-4 z-20 flex items-center gap-2 glass border border-blue-900/30 p-2 rounded-xl backdrop-blur-md shadow-2xl">
-          <div className="flex items-center gap-2 px-2">
-            <span className="h-2 w-2 rounded-full bg-gold animate-pulse" />
-            <span className="text-xs font-display tracking-widest text-starlight">CONSTELLATION PLANE</span>
-          </div>
-
-          <div className="w-px h-5 bg-blue-900/40" />
-
-          {/* Zoom Buttons */}
-          <button
-            onClick={() => handleZoomChange(0.15)}
-            className="p-1.5 rounded-lg text-dim hover:text-starlight hover:bg-white/5 transition-colors"
-            title="Zoom In"
-          >
-            <ZoomIn className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => handleZoomChange(-0.15)}
-            className="p-1.5 rounded-lg text-dim hover:text-starlight hover:bg-white/5 transition-colors"
-            title="Zoom Out"
-          >
-            <ZoomOut className="w-4 h-4" />
-          </button>
-          <button
-            onClick={handleResetView}
-            className="p-1.5 rounded-lg text-dim hover:text-starlight hover:bg-white/5 transition-colors"
-            title="Reset View"
-          >
-            <Maximize2 className="w-4 h-4" />
-          </button>
-
-          <div className="w-px h-5 bg-blue-900/40" />
-
-          {/* Hide/Show Completed Toggle Button */}
-          <button
-            onClick={() => setShowCompleted(!showCompleted)}
-            className={`p-1.5 rounded-lg text-xs font-mono font-semibold transition-all border flex items-center gap-1.5 ${
-              showCompleted
-                ? 'bg-emerald/20 border-emerald text-emerald'
-                : 'text-dim hover:text-starlight border-blue-900/30'
-            }`}
-            title="Toggle Completed Tasks Visibility"
-          >
-            {showCompleted ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-            <span>{showCompleted ? 'Completed Shown' : 'Completed Hidden'}</span>
-          </button>
-
-          <div className="w-px h-5 bg-blue-900/40" />
-
-          {/* AI Auditor Trigger */}
-          <button
-            onClick={runAIAuditor}
-            disabled={isAuditing}
-            className="bg-gold/20 hover:bg-gold/30 border border-gold/40 text-gold font-display text-xs px-3.5 py-1.5 rounded-xl flex items-center gap-1.5 transition-all shadow-[0_0_15px_rgba(245,158,11,0.2)] active:scale-95 cursor-pointer disabled:opacity-50"
-          >
-            <Bot className={`w-4 h-4 ${isAuditing ? 'animate-spin' : ''}`} />
-            <span>{isAuditing ? 'AUDITING...' : 'RUN AI AUDIT'}</span>
-          </button>
-        </div>
-
-        {/* Audit Status Toast */}
-        <AnimatePresence>
-          {auditMessage && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="absolute top-16 left-4 z-30 glass border border-gold/50 text-starlight text-xs px-4 py-2.5 rounded-xl shadow-2xl flex items-center gap-2"
-            >
-              <Sparkles className="w-4 h-4 text-gold animate-spin" />
-              <span className="font-body">{auditMessage}</span>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
         {/* 2D Canvas Surface */}
         <div
           ref={canvasRef}
@@ -645,6 +575,11 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                                 layout: { type: 'spring', stiffness: 350, damping: 25 },
                                 default: { duration: 0.2 }
                               }}
+                              onClick={() => {
+                                setSelectedTaskId(task.id);
+                                setActiveBrainDumpTab('details');
+                                setBrainDumpCollapsed(false);
+                              }}
                               className="group inline-flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-[#0a0f1e]/90 border transition-all cursor-grab active:cursor-grabbing w-fit max-w-[280px] select-none"
                               style={{ 
                                 borderColor: `${q.color}66`, 
@@ -744,6 +679,11 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                     y: { duration: 1.8 + Math.random() * 0.5, repeat: Infinity, ease: 'easeInOut' },
                     default: { duration: 0.2 }
                   }}
+                  onClick={() => {
+                    setSelectedTaskId(task.id);
+                    setActiveBrainDumpTab('details');
+                    setBrainDumpCollapsed(false);
+                  }}
                   style={{
                     position: 'absolute',
                     left: `${task.canvasX}px`,
@@ -800,47 +740,62 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
       </div>
 
       {/* ==================================================================== */}
-      {/* RIGHT SIDEBAR: RESTORED BRAIN DUMP PANEL (UNSORTED + COMPLETED)     */}
+      {/* LEFT SIDEBAR: RESTORED BRAIN DUMP PANEL (UNSORTED + COMPLETED)      */}
       {/* ==================================================================== */}
-      <aside className={`glass border-t md:border-t-0 md:border-l border-blue-900/20 flex flex-col h-auto md:h-screen z-20 shadow-2xl transition-all duration-300 ${
+      <aside className={`glass border-t md:border-t-0 md:border-r border-blue-900/20 flex flex-col h-auto md:h-screen z-20 shadow-2xl transition-all duration-300 ${
         brainDumpCollapsed ? 'w-full md:w-12' : 'w-full md:w-80'
       }`}>
         {/* Brain Dump Header with BACKLOG & COMPLETED Sub-Tabs */}
-        <div className="p-3.5 border-b border-blue-900/20 bg-white/5 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <Inbox className="w-4 h-4 text-gold shrink-0" />
-            {!brainDumpCollapsed && (
-              <div className="glass border border-blue-900/30 p-0.5 rounded-full flex items-center gap-1">
+        <div className={`border-b border-blue-900/20 bg-white/5 flex items-center ${brainDumpCollapsed ? 'justify-center py-3' : 'px-4 py-3 justify-between gap-2'}`}>
+          {!brainDumpCollapsed && (
+            <div className="flex items-center gap-1.5 min-w-0 w-full pr-2">
+              <Inbox className="w-4 h-4 text-gold shrink-0 hidden sm:block" />
+              <div className="glass border border-blue-900/30 p-1 rounded-xl flex items-center gap-1 overflow-x-auto scrollbar-hide min-w-0 w-full">
                 <button
                   onClick={() => setActiveBrainDumpTab('backlog')}
-                  className={`px-2.5 py-1 rounded-full text-[10px] font-mono tracking-wider font-bold transition-all ${
+                  className={`flex-1 justify-center px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 shrink-0 ${
                     activeBrainDumpTab === 'backlog'
                       ? 'bg-cosmic text-gold border border-gold/40 shadow-[0_0_8px_rgba(245,158,11,0.2)]'
-                      : 'text-dim hover:text-starlight'
+                      : 'border border-transparent text-dim hover:text-starlight hover:bg-white/5'
                   }`}
+                  title={`Backlog (${brainDumpTasks.length})`}
                 >
-                  BACKLOG ({brainDumpTasks.length})
+                  <List className="w-4 h-4" />
+                  <span className="text-xs font-mono font-bold tracking-widest">{brainDumpTasks.length}</span>
                 </button>
                 <button
                   onClick={() => setActiveBrainDumpTab('completed')}
-                  className={`px-2.5 py-1 rounded-full text-[10px] font-mono tracking-wider font-bold transition-all ${
+                  className={`flex-1 justify-center px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 shrink-0 ${
                     activeBrainDumpTab === 'completed'
                       ? 'bg-cosmic text-emerald border border-emerald/40 shadow-[0_0_8px_rgba(16,185,129,0.2)]'
-                      : 'text-dim hover:text-starlight'
+                      : 'border border-transparent text-dim hover:text-starlight hover:bg-white/5'
                   }`}
+                  title={`Completed (${completedTasks.length})`}
                 >
-                  COMPLETED ({completedTasks.length})
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span className="text-xs font-mono font-bold tracking-widest">{completedTasks.length}</span>
+                </button>
+                <button
+                  onClick={() => setActiveBrainDumpTab('details')}
+                  className={`flex-1 justify-center px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 shrink-0 ${
+                    activeBrainDumpTab === 'details'
+                      ? 'bg-cosmic text-pulsar border border-pulsar/40 shadow-[0_0_8px_rgba(59,130,246,0.2)]'
+                      : 'border border-transparent text-dim hover:text-starlight hover:bg-white/5'
+                  }`}
+                  title="Task Details"
+                >
+                  <FileText className="w-4 h-4" />
                 </button>
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           <button
             onClick={() => setBrainDumpCollapsed(!brainDumpCollapsed)}
             className="text-dim hover:text-starlight p-1 rounded-lg transition-colors hidden md:block shrink-0"
             title={brainDumpCollapsed ? "Expand Brain Dump" : "Collapse Brain Dump"}
           >
-            {brainDumpCollapsed ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+            {brainDumpCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
           </button>
         </div>
 
@@ -849,19 +804,19 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
             {activeBrainDumpTab === 'backlog' ? (
               <>
                 {/* Quick Capture Input (Zero Friction Brain Dump) */}
-                <div className="p-3 border-b border-blue-900/20 space-y-2">
+                <div className="px-4 py-3 border-b border-blue-900/20 space-y-2">
                   <form onSubmit={handleDumpTask} className="flex items-center gap-2">
                     <input
                       type="text"
                       value={newTitle}
                       onChange={(e) => setNewTitle(e.target.value)}
                       placeholder="Dump thoughts here (Press Enter)..."
-                      className="w-full bg-stardust/50 border border-blue-900/30 focus:border-gold text-starlight text-xs rounded-xl px-3 py-2 outline-none font-body"
+                      className="w-full bg-stardust/50 border border-blue-900/30 focus:border-gold text-starlight text-xs rounded-lg px-3 py-2 outline-none font-body"
                     />
                     <button
                       type="submit"
                       disabled={!newTitle.trim()}
-                      className="bg-gold hover:bg-gold/90 disabled:opacity-50 text-void font-display text-xs px-3 py-2 rounded-xl shrink-0 cursor-pointer shadow-md"
+                      className="bg-gold hover:bg-gold/90 disabled:opacity-50 text-void font-display text-xs px-4 py-2 rounded-lg shrink-0 cursor-pointer shadow-md"
                     >
                       DUMP
                     </button>
@@ -875,13 +830,13 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       placeholder="Search backlog..."
-                      className="w-full bg-void/60 border border-blue-900/30 text-starlight text-[11px] rounded-lg pl-8 pr-3 py-1.5 outline-none font-body"
+                      className="w-full bg-void/60 border border-blue-900/30 text-starlight text-xs rounded-lg pl-8 pr-3 py-2 outline-none font-body"
                     />
                   </div>
                 </div>
 
                 {/* Unsorted Brain Dump Backlog Tasks */}
-                <div className="flex-1 overflow-y-auto p-3 space-y-2 scrollbar-hide">
+                <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2 scrollbar-hide">
                   {brainDumpTasks.length === 0 ? (
                     <div className="p-6 text-center text-xs text-dim italic border border-dashed border-blue-900/20 rounded-xl font-body">
                       Brain Dump is clear! Type above to capture thoughts.
@@ -890,14 +845,18 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                     brainDumpTasks.map((task) => (
                       <div
                         key={task.id}
-                        className="group p-2.5 rounded-xl glass border border-blue-900/20 hover:border-gold/50 transition-all flex flex-col gap-1.5 shadow-sm"
+                        onClick={() => {
+                          setSelectedTaskId(task.id);
+                          setActiveBrainDumpTab('details');
+                        }}
+                        className="group p-3 rounded-lg glass border border-blue-900/20 hover:border-gold/50 transition-all flex flex-col gap-1.5 shadow-sm cursor-pointer"
                       >
                         <div className="flex items-start justify-between gap-2">
                           <span className="text-xs font-body text-starlight leading-snug">
                             {task.title}
                           </span>
                           <button
-                            onClick={() => deleteTask(task.id)}
+                            onClick={(e) => { e.stopPropagation(); deleteTask(task.id); }}
                             className="text-dim hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity p-0.5"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -908,28 +867,28 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                           <span className="text-dim">Deploy to Matrix:</span>
                           <div className="flex items-center gap-1">
                             <button
-                              onClick={() => deployFromBrainDump(task, 'urgent_important')}
+                              onClick={(e) => { e.stopPropagation(); deployFromBrainDump(task, 'urgent_important'); }}
                               className="px-1.5 py-0.5 rounded bg-gold/15 text-gold hover:bg-gold hover:text-void transition-all font-bold"
                               title="Deploy to Urgent & Important"
                             >
                               U+I
                             </button>
                             <button
-                              onClick={() => deployFromBrainDump(task, 'important_not_urgent')}
+                              onClick={(e) => { e.stopPropagation(); deployFromBrainDump(task, 'important_not_urgent'); }}
                               className="px-1.5 py-0.5 rounded bg-pulsar/15 text-pulsar hover:bg-pulsar hover:text-void transition-all font-bold"
                               title="Deploy to Important (Schedule)"
                             >
                               Imp
                             </button>
                             <button
-                              onClick={() => deployFromBrainDump(task, 'urgent_not_important')}
+                              onClick={(e) => { e.stopPropagation(); deployFromBrainDump(task, 'urgent_not_important'); }}
                               className="px-1.5 py-0.5 rounded bg-aurora/15 text-aurora hover:bg-aurora hover:text-void transition-all font-bold"
                               title="Deploy to Urgent (Quick Wins)"
                             >
                               Urg
                             </button>
                             <button
-                              onClick={() => deployFromBrainDump(task, 'neither')}
+                              onClick={(e) => { e.stopPropagation(); deployFromBrainDump(task, 'neither'); }}
                               className="px-1.5 py-0.5 rounded bg-dim/15 text-dim hover:bg-dim hover:text-void transition-all font-bold"
                               title="Deploy to Neither (Backburner)"
                             >
@@ -942,22 +901,29 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                   )}
                 </div>
               </>
-            ) : (
+            ) : activeBrainDumpTab === 'completed' ? (
               /* Completed Tasks List Tab */
-              <div className="flex-1 overflow-y-auto p-3 space-y-2 scrollbar-hide">
+              <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2 scrollbar-hide">
                 {completedTasks.length === 0 ? (
-                  <div className="p-6 text-center text-xs text-dim italic border border-dashed border-blue-900/20 rounded-xl font-body">
+                  <div className="p-6 text-center text-xs text-dim italic border border-dashed border-blue-900/20 rounded-lg font-body">
                     No completed tasks yet.
                   </div>
                 ) : (
                   completedTasks.map((t) => (
-                    <div key={t.id} className="flex items-center justify-between text-xs text-dim p-2 rounded-xl glass border border-blue-900/20">
+                    <div 
+                      key={t.id} 
+                      onClick={() => {
+                        setSelectedTaskId(t.id);
+                        setActiveBrainDumpTab('details');
+                      }}
+                      className="flex items-center justify-between text-xs text-dim p-3 rounded-lg glass border border-blue-900/20 cursor-pointer hover:border-emerald/50 transition-all"
+                    >
                       <span className="truncate line-through text-starlight/70">{t.title}</span>
                       <div className="flex items-center gap-1.5 shrink-0">
-                        <button onClick={() => toggleDone(t)} className="text-emerald hover:text-starlight p-1" title="Restore to Inbox">
+                        <button onClick={(e) => { e.stopPropagation(); toggleDone(t); }} className="text-emerald hover:text-starlight p-1" title="Restore to Inbox">
                           <Check className="w-3.5 h-3.5" />
                         </button>
-                        <button onClick={() => deleteTask(t.id)} className="text-dim hover:text-red-400 p-1" title="Delete Task">
+                        <button onClick={(e) => { e.stopPropagation(); deleteTask(t.id); }} className="text-dim hover:text-red-400 p-1" title="Delete Task">
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
@@ -965,7 +931,52 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                   ))
                 )}
               </div>
-            )}
+            ) : activeBrainDumpTab === 'details' ? (
+              /* DETAILS TAB */
+              <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-hide text-sm">
+                {selectedTask ? (
+                  <div className="flex flex-col gap-4 text-starlight">
+                    <div>
+                      <h4 className="text-xs font-bold text-dim mb-1 font-mono uppercase">Title</h4>
+                      <div className="bg-void/40 border border-blue-900/30 rounded-lg p-3 text-sm font-body leading-relaxed break-words">
+                        {selectedTask.title}
+                      </div>
+                    </div>
+                    {selectedTask.notes && (
+                      <div>
+                        <h4 className="text-xs font-bold text-dim mb-1 font-mono uppercase">Notes</h4>
+                        <div className="bg-void/40 border border-blue-900/30 rounded-lg p-3 text-xs font-body leading-relaxed whitespace-pre-wrap break-words">
+                          {selectedTask.notes}
+                        </div>
+                      </div>
+                    )}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <h4 className="text-xs font-bold text-dim mb-1 font-mono uppercase">Estimate</h4>
+                        <div className="bg-void/40 border border-blue-900/30 rounded-xl p-2.5 text-xs flex items-center gap-2">
+                          <Clock className="w-3.5 h-3.5 text-gold" />
+                          {selectedTask.estimated_minutes ? `${selectedTask.estimated_minutes}m` : 'None'}
+                        </div>
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-dim mb-1 font-mono uppercase">Status</h4>
+                        <div className="bg-void/40 border border-blue-900/30 rounded-xl p-2.5 text-xs flex items-center gap-2">
+                          {selectedTask.status === 'done' ? (
+                            <><CheckCircle2 className="w-3.5 h-3.5 text-emerald" /> Done</>
+                          ) : (
+                            <><Flame className="w-3.5 h-3.5 text-pulsar" /> Active</>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-6 text-center text-xs text-dim italic border border-dashed border-blue-900/20 rounded-xl font-body mt-4">
+                    Select a task from the matrix or backlog to view its details.
+                  </div>
+                )}
+              </div>
+            ) : null}
           </div>
         )}
       </aside>

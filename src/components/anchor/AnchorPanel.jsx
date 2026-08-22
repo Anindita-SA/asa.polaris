@@ -43,21 +43,19 @@ const AnchorPanel = ({ collapsed, onToggle, mobile = false }) => {
     fetchEulogies()
   }
 
-  if (collapsed && !mobile) {
-    return (
-      <button onClick={onToggle} className="hidden md:flex absolute left-2 top-3 z-30 glass border border-blue-900/30 rounded-full w-9 h-9 items-center justify-center text-dim hover:text-starlight">
-        <ChevronRight className="w-4 h-4" />
-      </button>
-    )
-  }
-
   return (
-    <div className={mobile ? "flex-1 overflow-y-auto" : "hidden md:block absolute left-0 top-0 bottom-0 z-30 w-96 glass border-r border-blue-900/20 overflow-y-auto"}>
-      <div className="p-4 space-y-5">
-        <div className="flex items-center justify-between">
-          <h3 className="font-display text-starlight">Anchor</h3>
-          {!mobile && <button onClick={onToggle} className="text-dim hover:text-starlight"><ChevronLeft className="w-4 h-4" /></button>}
-        </div>
+    <>
+      {collapsed && !mobile && (
+        <button onClick={onToggle} className="hidden md:flex absolute left-2 top-3 z-30 glass border border-blue-900/30 rounded-full w-9 h-9 items-center justify-center text-dim hover:text-starlight shadow-xl transition-transform hover:scale-105 cursor-pointer">
+          <ChevronRight className="w-4 h-4" />
+        </button>
+      )}
+      <div className={mobile ? "flex-1 overflow-y-auto" : `hidden md:flex flex-col z-30 glass border-blue-900/20 overflow-hidden transition-all duration-300 ${collapsed ? 'w-0 opacity-0 border-r-0' : 'w-96 border-r'}`}>
+        <div className="p-4 space-y-5 min-w-[384px] h-full overflow-y-auto">
+          <div className="flex items-center justify-between">
+            <h3 className="font-display text-starlight">Anchor</h3>
+            {!mobile && <button onClick={onToggle} className="text-dim hover:text-starlight"><ChevronLeft className="w-4 h-4" /></button>}
+          </div>
 
         <div className="space-y-2">
           <p className="text-xs font-mono uppercase tracking-widest text-dim">Eulogy</p>
@@ -105,8 +103,8 @@ const AnchorPanel = ({ collapsed, onToggle, mobile = false }) => {
               </div>
             ))}
           </div>
+          </div>
         </div>
-      </div>
 
       {editingEulogy && (
         <div className="modal-overlay fixed inset-0 bg-void/80 z-50 flex items-end md:items-center justify-center p-0 md:p-4" onClick={e => e.target === e.currentTarget && setEditingEulogy(false)}>
@@ -123,6 +121,7 @@ const AnchorPanel = ({ collapsed, onToggle, mobile = false }) => {
         </div>
       )}
     </div>
+    </>
   )
 }
 
