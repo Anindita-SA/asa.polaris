@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import ws from 'ws';
 
 // Configuration
 export const config = {
@@ -21,7 +22,17 @@ export function validateEnvironment(cfg = config) {
  */
 export function getSupabaseClient(cfg = config) {
   validateEnvironment(cfg);
-  return createClient(cfg.supabaseUrl, cfg.supabaseKey);
+  return createClient(cfg.supabaseUrl, cfg.supabaseKey, {
+    auth: {
+      persistSession: false
+    },
+    realtime: {
+      transport: ws
+    },
+    global: {
+      WebSocket: ws
+    }
+  });
 }
 
 /**
