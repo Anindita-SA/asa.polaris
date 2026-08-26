@@ -19,9 +19,9 @@ export default defineConfig({
         start_url: '/asa.polaris/',
         scope: '/asa.polaris/',
         icons: [
-          { src: '/asa.polaris/pwa-192x192.png', sizes: '192x192', type: 'image/png' },
-          { src: '/asa.polaris/pwa-512x512.png', sizes: '512x512', type: 'image/png' },
-          { src: '/asa.polaris/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }
+          { src: '/asa.polaris/pwa-192x192.png?v=2', sizes: '192x192', type: 'image/png' },
+          { src: '/asa.polaris/pwa-512x512.png?v=2', sizes: '512x512', type: 'image/png' },
+          { src: '/asa.polaris/apple-touch-icon.png?v=2', sizes: '180x180', type: 'image/png' }
         ]
       },
       injectManifest: {
