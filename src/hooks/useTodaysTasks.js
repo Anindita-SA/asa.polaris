@@ -21,9 +21,18 @@ export function useTodaysTasks() {
     const todayStr = new Date().toLocaleDateString('en-CA') // YYYY-MM-DD local time
 
     try {
-      // 1. Fetch daily_tasks for today
+      // 1. Roll over unfinished recurring tasks, then fetch for today
       let finalDailyTasks = []
       try {
+        // Carry forward unfinished tasks
+        await supabase
+          .from('daily_tasks')
+          .update({ date: todayStr })
+          .eq('user_id', user.id)
+          .eq('recurring', true)
+          .eq('completed', false)
+          .lt('date', todayStr)
+
         const { data: dailyData } = await supabase
           .from('daily_tasks')
           .select('*')
@@ -31,30 +40,6 @@ export function useTodaysTasks() {
           .eq('date', todayStr)
 
         finalDailyTasks = dailyData || []
-        if (finalDailyTasks.length === 0) {
-          const { data: pastRecurring } = await supabase
-            .from('daily_tasks')
-            .select('*')
-            .eq('user_id', user.id)
-            .eq('recurring', true)
-            .lt('date', todayStr)
-
-          if (pastRecurring && pastRecurring.length > 0) {
-            const uniqueTitles = [...new Set(pastRecurring.map(t => t.title))]
-            const clonedTasks = uniqueTitles.map(title => ({
-              user_id: user.id,
-              title,
-              date: todayStr,
-              recurring: true,
-              completed: false
-            }))
-            const { data: inserted } = await supabase
-              .from('daily_tasks')
-              .insert(clonedTasks)
-              .select()
-            if (inserted) finalDailyTasks = inserted
-          }
-        }
       } catch (e1) {
         console.warn('Error fetching daily_tasks:', e1)
       }

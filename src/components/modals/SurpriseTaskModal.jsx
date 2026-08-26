@@ -55,6 +55,7 @@ const SurpriseTaskModal = ({ isOpen, onClose, tasks = [], toggleComplete }) => {
     <AnimatePresence>
       {isOpen && (
         <motion.div 
+          key="modal-overlay"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}

@@ -1,3 +1,4 @@
+import { getGroqKey } from '../../lib/llm';
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import * as d3 from 'd3';
 import { supabase } from '../../lib/supabase';
@@ -321,7 +322,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
     setAuditMessage("Auditing Brain Dump & spatial matrix nodes...");
 
     try {
-      const key = import.meta.env.VITE_GROQ_API_KEY;
+      const key = getGroqKey();
       if (!key) {
         alert("Groq API Key (VITE_GROQ_API_KEY) is missing in .env");
         setIsAuditing(false);
@@ -471,19 +472,19 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
             ref={innerRef}
             className="absolute origin-top-left"
             style={{
-              width: '1200px',
-              height: '800px',
+              width: '1400px', // Wider canvas for more task space
+              minHeight: '900px', // Let height grow with tasks
               transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
             }}
           >
             {/* SVG Crosshair Dividers */}
             <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
-              <line x1="600" y1="0" x2="600" y2="800" stroke="rgba(59, 130, 246, 0.15)" strokeWidth="1" strokeDasharray="4 6" />
-              <line x1="0" y1="400" x2="1200" y2="400" stroke="rgba(59, 130, 246, 0.15)" strokeWidth="1" strokeDasharray="4 6" />
+              <line x1="50%" y1="0" x2="50%" y2="100%" stroke="rgba(59, 130, 246, 0.15)" strokeWidth="1" strokeDasharray="4 6" />
+              <line x1="0" y1="50%" x2="100%" y2="50%" stroke="rgba(59, 130, 246, 0.15)" strokeWidth="1" strokeDasharray="4 6" />
             </svg>
 
             {/* 4 Quadrant Regions with Vertically Stacked Task Pills */}
-            <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 gap-4 p-4">
+            <div className="w-full h-full min-h-[900px] grid grid-cols-2 grid-rows-2 gap-6 p-6">
               {Object.values(QUADRANTS).map((q) => {
                 const QIcon = q.icon;
                 const qTasks = matrixTasks.filter(t => t.quadrant === q.id && t.canvasX == null && t.canvasY == null);
@@ -492,25 +493,25 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                   <div
                     key={q.id}
                     data-role="quadrant-bg"
-                    className="relative rounded-xl border transition-all p-4 flex flex-col justify-between overflow-hidden glass shadow-xl"
+                    className="relative rounded-2xl border transition-all p-5 flex flex-col glass shadow-xl"
                     style={{
                       backgroundColor: q.bg,
                       borderColor: q.border,
                     }}
                   >
                     {/* Quadrant Header */}
-                    <div className="flex items-center justify-between border-b border-blue-900/20 pb-2">
-                      <div className="flex items-center gap-2">
-                        <QIcon className="w-4 h-4" style={{ color: q.color }} />
+                    <div className="flex items-center justify-between border-b border-blue-900/20 pb-3 mb-2 shrink-0">
+                      <div className="flex items-center gap-3">
+                        <QIcon className="w-5 h-5" style={{ color: q.color }} />
                         <div>
-                          <h3 className="font-display text-xs tracking-wider text-starlight">
+                          <h3 className="font-display text-sm tracking-wider text-starlight">
                             {q.title}
                           </h3>
-                          <p className="text-[10px] font-body text-dim italic">{q.subtitle}</p>
+                          <p className="text-[11px] font-body text-dim italic">{q.subtitle}</p>
                         </div>
                       </div>
                       <span
-                        className="text-[9px] font-mono uppercase tracking-widest px-2 py-0.5 rounded border"
+                        className="text-[10px] font-mono uppercase tracking-widest px-2.5 py-1 rounded-md border"
                         style={{ color: q.color, borderColor: q.border, backgroundColor: 'rgba(3,7,18,0.7)' }}
                       >
                         {qTasks.length} tasks
@@ -518,7 +519,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                     </div>
 
                     {/* Vertically Stacked Compact Task Pills with Drag-Between-Quadrants & Hover into Space */}
-                    <div className="flex-1 overflow-y-auto flex flex-col items-start gap-2 py-2.5 scrollbar-hide">
+                    <div className="flex-1 flex flex-col items-start gap-3 py-2 overflow-visible">
                       <AnimatePresence>
                         {qTasks.map((task) => {
                           const isOutput = task.estimate_source === 'ai' || task.title.toLowerCase().includes('write') || task.title.toLowerCase().includes('code') || task.title.toLowerCase().includes('ppt') || task.title.toLowerCase().includes('fix');
@@ -580,22 +581,22 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                                 setActiveBrainDumpTab('details');
                                 setBrainDumpCollapsed(false);
                               }}
-                              className="group inline-flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-[#0a0f1e]/90 border transition-all cursor-grab active:cursor-grabbing w-fit max-w-[280px] select-none"
+                              className="group inline-flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-[#0a0f1e]/90 border transition-all cursor-grab active:cursor-grabbing w-fit max-w-[450px] select-none"
                               style={{ 
                                 borderColor: `${q.color}66`, 
                                 boxShadow: `0 0 10px ${q.color}33` 
                               }}
                             >
                               {/* Left Bullet */}
-                              <span className="w-2 h-2 rounded-full shrink-0 pointer-events-none" style={{ backgroundColor: q.color }} />
+                              <span className="w-2.5 h-2.5 rounded-full shrink-0 pointer-events-none" style={{ backgroundColor: q.color }} />
                               
                               {/* Title */}
-                              <h4 className="text-[11px] font-body font-medium text-[#e2e8f0] truncate leading-none pointer-events-none">
+                              <h4 className="text-xs font-body font-medium text-[#e2e8f0] truncate leading-none pointer-events-none">
                                 {task.title}
                               </h4>
 
                               {/* Right Tags (IN / OUT & Duration) + Action Controls */}
-                              <div className="flex items-center gap-1.5 shrink-0 font-mono text-[9px]">
+                              <div className="flex items-center gap-1.5 shrink-0 font-mono text-[10px]">
                                 <span className={`px-1.5 py-0.5 rounded font-bold uppercase pointer-events-none ${
                                   ioTag === 'IN' ? 'bg-[#1a263d] text-[#60a5fa]' : 'bg-stardust text-dim border border-blue-900/30'
                                 }`}>
@@ -692,7 +693,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                     borderColor: qColor,
                     boxShadow: `0 0 15px ${qColor}66`
                   }}
-                  className="group inline-flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-[#0a0f1e]/95 border-2 cursor-grab active:cursor-grabbing w-fit max-w-[300px] select-none"
+                  className="group inline-flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-[#0a0f1e]/95 border-2 cursor-grab active:cursor-grabbing w-fit max-w-[450px] select-none"
                 >
                   <span className="w-2.5 h-2.5 rounded-full shrink-0 animate-pulse pointer-events-none" style={{ backgroundColor: qColor }} />
                   <h4 className="text-xs font-body font-semibold text-starlight truncate leading-none pointer-events-none">

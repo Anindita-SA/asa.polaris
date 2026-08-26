@@ -1,3 +1,4 @@
+import { getGroqKey } from '../../lib/llm';
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
@@ -56,7 +57,7 @@ const FitnessBridge = () => {
   }
 
   const generateVerdict = async () => {
-    const key = import.meta.env.VITE_GROQ_API_KEY
+    const key = getGroqKey()
     if (!key || !workouts.length) return
     setAiLoading(true)
 

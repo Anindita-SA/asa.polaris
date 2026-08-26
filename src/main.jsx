@@ -11,7 +11,3 @@ ReactDOM.createRoot(document.getElementById('root')).render(
 if ('Notification' in window) {
   Notification.requestPermission()
 }
-
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/asa.polaris/sw-notifications.js')
-}

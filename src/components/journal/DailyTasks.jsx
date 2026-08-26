@@ -17,6 +17,16 @@ const DailyTasks = ({ dateStr }) => {
   }, [user, dateStr])
 
   const fetchTasks = async () => {
+    // 1. Roll over unfinished recurring tasks to today
+    await supabase
+      .from('daily_tasks')
+      .update({ date: dateStr })
+      .eq('user_id', user.id)
+      .eq('recurring', true)
+      .eq('completed', false)
+      .lt('date', dateStr)
+
+    // 2. Fetch tasks for this date
     const { data } = await supabase
       .from('daily_tasks')
       .select('*')
@@ -24,35 +34,7 @@ const DailyTasks = ({ dateStr }) => {
       .eq('date', dateStr)
       .order('created_at', { ascending: true })
       
-    if (data && data.length > 0) {
-      setTasks(data)
-    } else {
-      // Auto-clone past recurring tasks
-      const { data: pastRecurring } = await supabase
-        .from('daily_tasks')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('recurring', true)
-        .lt('date', dateStr)
-
-      if (pastRecurring && pastRecurring.length > 0) {
-        const uniqueTitles = [...new Set(pastRecurring.map(t => t.title))]
-        const clonedTasks = uniqueTitles.map(title => ({
-          user_id: user.id,
-          title,
-          date: dateStr,
-          recurring: true,
-          completed: false
-        }))
-        const { data: inserted } = await supabase
-          .from('daily_tasks')
-          .insert(clonedTasks)
-          .select()
-        setTasks(inserted || [])
-      } else {
-        setTasks([])
-      }
-    }
+    setTasks(data || [])
   }
 
   const addTask = async () => {

@@ -6,6 +6,9 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.js',
       registerType: 'autoUpdate',
       manifest: {
         name: 'Polaris ASA',
@@ -21,7 +24,7 @@ export default defineConfig({
           { src: '/asa.polaris/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }
         ]
       },
-      workbox: {
+      injectManifest: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}']
       }
     })

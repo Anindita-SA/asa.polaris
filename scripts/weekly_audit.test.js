@@ -1,26 +1,25 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
+import { test as it, expect } from 'vitest';
 import { parseAITasks, validateEnvironment } from './weekly_audit.js';
 
-test('validateEnvironment checks for required keys', () => {
+it('validateEnvironment checks for required keys', () => {
   // Should throw if missing keys
-  assert.throws(() => validateEnvironment({ supabaseUrl: '', supabaseKey: '', groqApiKey: '' }), /Missing required/);
+  expect(() => validateEnvironment({ supabaseUrl: '', supabaseKey: '', groqApiKey: '' })).toThrow(/Missing required/);
   
   // Should not throw if present
-  assert.doesNotThrow(() => validateEnvironment({ 
+  expect(() => validateEnvironment({ 
     supabaseUrl: 'https://test.supabase.co', 
     supabaseKey: 'test-key', 
     groqApiKey: 'test-key' 
-  }));
+  })).not.toThrow();
 });
 
-test('parseAITasks strips markdown and parses JSON correctly', () => {
+it('parseAITasks strips markdown and parses JSON correctly', () => {
   const validJson = '[{"title": "Task 1", "estimated_minutes": 15}]';
   
   // Test raw JSON
   const parsed1 = parseAITasks(validJson);
-  assert.equal(parsed1.length, 1);
-  assert.equal(parsed1[0].title, 'Task 1');
+  expect(parsed1.length).toBe(1);
+  expect(parsed1[0].title).toBe('Task 1');
 
   // Test markdown block wrapped JSON
   const markdownJson = `
@@ -29,8 +28,8 @@ test('parseAITasks strips markdown and parses JSON correctly', () => {
 \`\`\`
   `;
   const parsed2 = parseAITasks(markdownJson);
-  assert.equal(parsed2[0].title, 'Task 2');
+  expect(parsed2[0].title).toBe('Task 2');
 
   // Test invalid JSON throws
-  assert.throws(() => parseAITasks("Hello world"), /Failed to parse/);
+  expect(() => parseAITasks("Hello world")).toThrow(/Failed to parse/);
 });

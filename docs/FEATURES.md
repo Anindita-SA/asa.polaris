@@ -53,3 +53,11 @@ A zero-pressure leisure hub.
 ## 10. Timeline Graph
 A visual history of your milestones.
 *   **Milestones**: Log major life events, colored by category, plotted on a chronological timeline.
+
+## 11. Recurring Tasks
+Automated daily generation of recurring matrix tasks.
+*   **Template-Driven**: Define recurring task templates with priority quadrant, estimated duration, and notes.
+*   **Auto-Generation**: Templates auto-generate matrix tasks daily on Dashboard load.
+*   **Duplicate Prevention**: Checks existing daily entries to ensure each template generates only once per day.
+*   **State Tracking**: Updates template last generated timestamps automatically upon instantiation.
+
