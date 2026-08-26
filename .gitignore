@@ -18,3 +18,9 @@ local_tasks_archive.json
 
 # Agent Secrets
 .env.agent
+
+# Ignored personal and temporary files
+*.sql
+*.ics
+supabase/.temp/
+application_milestones_sync.md
