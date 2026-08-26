@@ -1,3 +1,4 @@
+import { getGroqKey } from '../../lib/llm';
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
@@ -202,7 +203,7 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
     try {
       const prompt = `You are an elite, empathetic AI life coach using a Star-Map Hybrid Algorithm. Review these active goals for the user. Give exactly 2-3 sentences of warm validation, then 2-3 short bullet points of sharp, scannable critique regarding target realisticness, deadlines, or linkages.\n\nGoals: ${JSON.stringify(goals.map(g => ({title: g.title, target: g.target, unit: g.unit, deadline: g.deadline})))}`
       
-      const key = import.meta.env.VITE_GROQ_API_KEY
+      const key = getGroqKey()
       if (!key) throw new Error("No Groq API Key")
       
       const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {

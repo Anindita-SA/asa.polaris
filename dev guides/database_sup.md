@@ -640,6 +640,7 @@
 | `estimated_minutes` | `int4` | Nullable |
 | `estimate_source` | `text` | Nullable (user \| ai) |
 | `status` | `text` | Not Null, Default `'inbox'` (inbox \| active \| scheduled \| done) |
+| `source_template_id` | `uuid` | Nullable, References `recurring_task_templates` |
 | `created_at` | `timestamptz` | Nullable, Default `now()` |
 
 ## Table `wins`
@@ -780,3 +781,21 @@
 | Bucket Name | Description |
 |-------------|-------------|
 | `journal-photos` | Stores photos uploaded alongside daily journal wins |
+
+## Table `recurring_task_templates`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `id` | `uuid` | Primary, Default `gen_random_uuid()` |
+| `user_id` | `uuid` | Not Null, References `auth.users` |
+| `title` | `text` | Not Null |
+| `notes` | `text` | Nullable |
+| `quadrant` | `text` | Nullable, Default `'important_not_urgent'` |
+| `estimated_minutes` | `int4` | Nullable, Default `30` |
+| `frequency` | `text` | Nullable, Default `'daily'` |
+| `last_generated_date` | `date` | Nullable |
+| `is_active` | `bool` | Nullable, Default `true` |
+| `created_at` | `timestamptz` | Not Null, Default `now()` |
+

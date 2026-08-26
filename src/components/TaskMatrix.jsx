@@ -1,5 +1,6 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { getGroqKey } from '../lib/llm';
 import { 
   Plus, 
   Sparkles, 
@@ -242,9 +243,8 @@ export default function TaskMatrix() {
   const estimateTimeWithAI = async (task) => {
     setEstimatingId(task.id);
     try {
-      const key = import.meta.env.VITE_GROQ_API_KEY;
+      const key = getGroqKey();
       if (!key) {
-        alert('Groq API Key (VITE_GROQ_API_KEY) is missing in .env');
         setEstimatingId(null);
         return;
       }

@@ -29,7 +29,7 @@ const loadSavedState = () => {
       if (parsed.isRunning && parsed.lastTick) {
         const elapsedSecs = Math.floor((Date.now() - parsed.lastTick) / 1000)
         parsed.timeLeft = Math.max(0, parsed.timeLeft - elapsedSecs)
-        if (parsed.timeLeft === 0) parsed.isRunning = false
+        // Let the component handle completion so stats are saved
       }
       return parsed
     }
@@ -82,13 +82,23 @@ const PomodoroTimer = ({ mobilePill = false }) => {
   const [collapsed, setCollapsed] = useState(() => {
     return localStorage.getItem('polaris_pomo_collapsed') === 'true'
   })
-  const [sessionStart, setSessionStart] = useState(null)
+  const [sessionStart, setSessionStart] = useState(() => {
+    const s = getInitialState()
+    if (s.isRunning) {
+      const restoredTimeLeft = s.timeLeft || 0
+      const totalSecs = ((s.durations && s.durations[s.mode || 'focus']) || 25) * 60
+      return Date.now() - ((totalSecs - restoredTimeLeft) * 1000)
+    }
+    return null
+  })
   
   // Ambient Audio state
   const [audioEnabled, setAudioEnabled] = useState(false)
   const [trackIndex, setTrackIndex] = useState(0)
 
   const widgetRef = useRef(null)
+
+  const [matrixTasks, setMatrixTasks] = useState([])
 
   useEffect(() => {
     if (!user) return
@@ -98,6 +108,27 @@ const PomodoroTimer = ({ mobilePill = false }) => {
     supabase.from('goals').select('id, title, current, target, unit, completed').eq('user_id', user.id).eq('completed', false).then(({ data }) => {
       if (data) setGoals(data)
     })
+
+    const fetchMatrixTasks = async () => {
+      const { data } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('user_id', user.id)
+        .neq('status', 'done')
+        .not('quadrant', 'is', null)
+      if (data) {
+        setMatrixTasks(data.map(t => ({ ...t, completed: t.status === 'done' })))
+      }
+    }
+    fetchMatrixTasks()
+    
+    const channelName = `pomodoro-tasks-${Math.random().toString(36).slice(2, 9)}`
+    const channel = supabase.channel(channelName)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => {
+        fetchMatrixTasks()
+      }).subscribe()
+      
+    return () => supabase.removeChannel(channel)
   }, [user])
 
   // Persistence effect
@@ -114,13 +145,32 @@ const PomodoroTimer = ({ mobilePill = false }) => {
     localStorage.setItem(POMODORO_STORAGE_KEY, JSON.stringify(stateToSave))
   }, [mode, isRunning, autoRestart, isExpanded, durations, timeLeft])
 
+  const taskGroups = useMemo(() => {
+    const curated = todaysTasks || []
+    const curatedIds = new Set(curated.map(t => t.id))
+    const remainingMatrix = matrixTasks.filter(t => !curatedIds.has(t.id))
+    
+    const q1 = remainingMatrix.filter(t => t.quadrant === 'urgent_important')
+    const q2 = remainingMatrix.filter(t => t.quadrant === 'important_not_urgent')
+    const q3 = remainingMatrix.filter(t => t.quadrant === 'urgent_not_important')
+    const q4 = remainingMatrix.filter(t => t.quadrant === 'neither')
+    
+    return [
+      { label: "🎯 Today's Curated", tasks: curated },
+      { label: "🔥 Urgent & Important (Q1)", tasks: q1 },
+      { label: "🎯 Important, Not Urgent (Q2)", tasks: q2 },
+      { label: "⚡ Urgent, Not Important (Q3)", tasks: q3 },
+      { label: "📦 Backburner (Q4)", tasks: q4 }
+    ].filter(g => g.tasks.length > 0)
+  }, [todaysTasks, matrixTasks])
+
   const currentTask = useMemo(() => {
-    return todaysTasks.find(t => t.id === selectedTaskId)
-  }, [todaysTasks, selectedTaskId])
+    return todaysTasks.find(t => t.id === selectedTaskId) || matrixTasks.find(t => t.id === selectedTaskId)
+  }, [todaysTasks, matrixTasks, selectedTaskId])
 
   const handleSelectTodayTask = (taskId) => {
     setSelectedTaskId(taskId)
-    const task = todaysTasks.find(t => t.id === taskId)
+    const task = todaysTasks.find(t => t.id === taskId) || matrixTasks.find(t => t.id === taskId)
     if (task) {
       setComment(task.title)
       const inferred = inferIO(task)
@@ -132,14 +182,36 @@ const PomodoroTimer = ({ mobilePill = false }) => {
   const totalSeconds = (durations[mode] || 25) * 60
   const color = MODE_CONFIG[mode]?.color || '#3b82f6'
 
-  // Timer Tick Effect
+  // Timer Tick Effect (Absolute Time)
   useEffect(() => {
-    if (!isRunning) return
+    if (!isRunning || !sessionStart) return
     const timer = setInterval(() => {
-      setTimeLeft(t => Math.max(0, t - 1))
+      const elapsedSecs = Math.floor((Date.now() - sessionStart) / 1000)
+      const targetDuration = durations[mode] * 60
+      const newTimeLeft = Math.max(0, targetDuration - elapsedSecs)
+      setTimeLeft(newTimeLeft)
     }, 1000)
     return () => clearInterval(timer)
-  }, [isRunning])
+  }, [isRunning, sessionStart, mode, durations])
+
+  // Service Worker Alarm Integration
+  useEffect(() => {
+    if (isRunning && timeLeft > 0) {
+      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({
+          type: 'POMODORO_START',
+          taskName: currentTask ? currentTask.title : 'Focus Session',
+          durationMs: timeLeft * 1000
+        })
+      }
+    } else {
+      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({
+          type: 'POMODORO_STOP'
+        })
+      }
+    }
+  }, [isRunning, currentTask])
 
   // Timer Completion Effect
   useEffect(() => {
@@ -153,15 +225,26 @@ const PomodoroTimer = ({ mobilePill = false }) => {
         const xpEarned = Math.round(mins * 0.8)
         if (addXP) addXP(xpEarned)
 
+        const finalTitle = comment || linkedItem || (currentTask ? currentTask.title : 'Focus Session')
+
         supabase.from('focus_sessions').insert({
           user_id: user.id,
           duration_minutes: mins,
           mode: 'focus',
           io_type: ioType,
-          comment: comment || linkedItem || (currentTask ? currentTask.title : 'Focus Session'),
+          comment: finalTitle,
           node_title: linkedItem || null,
           goal_id: linkedGoal || null,
           created_at: new Date().toISOString()
+        }).then()
+
+        // Sync with IO Tracker automatically
+        supabase.from('io_logs').insert({
+          user_id: user.id,
+          type: ioType,
+          category: ioType === 'input' ? 'reading' : 'creating',
+          minutes: mins,
+          date: new Date().toISOString().slice(0, 10)
         }).then()
       }
 
@@ -185,8 +268,11 @@ const PomodoroTimer = ({ mobilePill = false }) => {
   }, [mode, durations])
 
   const handleClockClick = () => {
-    if (!isRunning) setSessionStart(Date.now())
-    else if (timeLeft === totalSeconds) setSessionStart(null)
+    if (!isRunning) {
+      // Adjust sessionStart to account for time already elapsed before pause
+      const elapsedAlready = totalSeconds - timeLeft
+      setSessionStart(Date.now() - (elapsedAlready * 1000))
+    }
     setIsRunning(r => !r)
   }
 
@@ -234,18 +320,22 @@ const PomodoroTimer = ({ mobilePill = false }) => {
         </div>
 
         {/* Today's Task Selector */}
-        {todaysTasks.length > 0 && (
+        {taskGroups.length > 0 && (
           <div className="mb-4 w-full">
             <select
               value={selectedTaskId}
               onChange={e => handleSelectTodayTask(e.target.value)}
               className="w-full bg-stardust/80 text-xs text-starlight border border-amber-400/40 rounded-xl px-3 py-2 outline-none font-body text-center appearance-none shadow-lg"
             >
-              <option value="">🎯 Select Today's Task to Focus On...</option>
-              {todaysTasks.map(t => (
-                <option key={t.id} value={t.id}>
-                  {t.completed ? '✓ ' : ''}{t.title}
-                </option>
+              <option value="">🎯 Select Task to Focus On...</option>
+              {taskGroups.map(group => (
+                <optgroup key={group.label} label={group.label} className="bg-void text-starlight">
+                  {group.tasks.map(t => (
+                    <option key={t.id} value={t.id}>
+                      {t.completed || t.status === 'done' ? '✓ ' : ''}{t.title}
+                    </option>
+                  ))}
+                </optgroup>
               ))}
             </select>
           </div>
@@ -404,19 +494,23 @@ const PomodoroTimer = ({ mobilePill = false }) => {
               </button>
             </div>
 
-            {/* Today's Tasks Selector */}
-            {todaysTasks.length > 0 && (
+            {/* Tasks Selector */}
+            {taskGroups.length > 0 && (
               <div className="mt-3 w-full">
                 <select
                   value={selectedTaskId}
                   onChange={e => handleSelectTodayTask(e.target.value)}
                   className="w-full bg-stardust/60 text-xs text-starlight border border-blue-900/30 focus:border-amber-400/60 rounded-lg px-2 py-1.5 outline-none font-body truncate"
                 >
-                  <option value="">🎯 Focus on Today's Task...</option>
-                  {todaysTasks.map(t => (
-                    <option key={t.id} value={t.id}>
-                      {t.completed ? '✓ ' : ''}{t.title}
-                    </option>
+                  <option value="">🎯 Select Task to Focus On...</option>
+                  {taskGroups.map(group => (
+                    <optgroup key={group.label} label={group.label} className="bg-void text-starlight">
+                      {group.tasks.map(t => (
+                        <option key={t.id} value={t.id}>
+                          {t.completed || t.status === 'done' ? '✓ ' : ''}{t.title}
+                        </option>
+                      ))}
+                    </optgroup>
                   ))}
                 </select>
               </div>

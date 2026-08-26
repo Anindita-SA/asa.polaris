@@ -6,8 +6,6 @@ import { Flame, Archive, Plus, X, ArrowUp, Check, Zap, Dices } from 'lucide-reac
 import PomodoroTimer from '../widgets/PomodoroTimer'
 import { useTodaysTasks } from '../../hooks/useTodaysTasks'
 import SurpriseTaskModal from '../modals/SurpriseTaskModal'
-import { motion } from 'framer-motion'
-
 const CATEGORIES = ['academic', 'portfolio', 'application', 'health', 'creative', 'research']
 
 const FocusBoard = () => {
@@ -168,18 +166,6 @@ const FocusBoard = () => {
   }
 
   const slots = [0, 1, 2]
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: { staggerChildren: 0.05 }
-    }
-  }
-
-  const itemVariants = {
-    hidden: { opacity: 0, x: -20 },
-    show: { opacity: 1, x: 0, transition: { type: 'spring', stiffness: 300, damping: 24 } }
-  }
 
   return (
     <div className="h-full overflow-y-auto p-6">

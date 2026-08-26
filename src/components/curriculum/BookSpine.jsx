@@ -28,15 +28,14 @@ const BookSpine = ({ curriculum, accentColor, onClick, isFlipping }) => {
           style={{
             background: curriculum.cover_url
               ? `url(${curriculum.cover_url}) center/cover`
-              : `linear-gradient(145deg, ${accentColor}18, ${accentColor}06, rgba(10,15,30,0.95), ${accentColor}08)`,
-            border: `1px solid ${accentColor}25`,
-            boxShadow: `inset -4px 0 12px rgba(0,0,0,0.5), 3px 6px 20px rgba(0,0,0,0.4)`,
+              : `rgba(10, 15, 30, 0.7)`,
+            border: `1px solid ${accentColor}40`,
+            boxShadow: `4px 8px 24px rgba(0,0,0,0.6)`,
           }}
         >
-          {/* Spine accent strip */}
           <div
             className="absolute left-0 top-0 bottom-0 w-[8px] rounded-l-xl"
-            style={{ background: `linear-gradient(180deg, ${accentColor}, ${accentColor}60)` }}
+            style={{ background: accentColor }}
           />
 
           {/* Vertical title on spine */}
@@ -47,7 +46,6 @@ const BookSpine = ({ curriculum, accentColor, onClick, isFlipping }) => {
                 writingMode: 'vertical-rl',
                 textOrientation: 'mixed',
                 transform: 'rotate(180deg)',
-                textShadow: '0 2px 6px rgba(0,0,0,0.7)',
                 maxHeight: '240px',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
@@ -58,9 +56,9 @@ const BookSpine = ({ curriculum, accentColor, onClick, isFlipping }) => {
           </div>
 
           {/* Hover overlay with title + description */}
-          <div className="absolute inset-0 flex items-center justify-center p-5 bg-void/75 opacity-0 group-hover:opacity-100 transition-opacity duration-300 backdrop-blur-sm rounded-xl">
+          <div className="absolute inset-0 flex items-center justify-center p-5 bg-void/95 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl">
             <div className="text-center">
-              <span className="font-display text-base text-starlight leading-snug block" style={{ textShadow: '0 2px 6px rgba(0,0,0,0.8)' }}>
+              <span className="font-display text-base text-starlight leading-snug block">
                 {curriculum.title}
               </span>
               {curriculum.description && (
@@ -89,9 +87,9 @@ const BookSpine = ({ curriculum, accentColor, onClick, isFlipping }) => {
             </div>
           )}
 
-          {/* Hover glow */}
+          {/* Hover ring */}
           <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
-            style={{ boxShadow: `0 0 30px ${accentColor}50, 0 12px 40px ${accentColor}25` }} />
+            style={{ boxShadow: `inset 0 0 0 1px ${accentColor}` }} />
         </div>
       </div>
     </div>

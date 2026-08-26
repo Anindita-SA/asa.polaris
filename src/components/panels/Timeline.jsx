@@ -1,3 +1,4 @@
+import { getGroqKey } from '../../lib/llm';
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
@@ -125,7 +126,7 @@ const Timeline = ({ filterNodeId, onJumpToNode }) => {
   const [aiLoading, setAiLoading] = useState(false)
 
   const breakDownTask = async () => {
-    const key = import.meta.env.VITE_GROQ_API_KEY
+    const key = getGroqKey()
     if (!key || !taskDescription.trim()) return
     setAiLoading(true)
 

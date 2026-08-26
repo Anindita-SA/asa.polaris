@@ -1,3 +1,4 @@
+import { getGroqKey } from '../../lib/llm';
 import React, { useState, useCallback, useEffect } from 'react';
 import TodaysTasksShuffle from '../TodaysTasksShuffle';
 import MatrixCanvasView from './MatrixCanvasView';
@@ -71,7 +72,7 @@ function AuditorPanel() {
     setPickedIds([]);
 
     try {
-      const key = import.meta.env.VITE_GROQ_API_KEY;
+      const key = getGroqKey();
       if (!key) {
         pushLog('Missing VITE_GROQ_API_KEY in .env — AI estimation skipped.', 'warn');
       } else {

@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react'
 import { ChevronLeft, ChevronRight, Anchor, Bell } from 'lucide-react'
+import { useRecurringTasks } from '../hooks/useRecurringTasks'
 import HUD from '../components/layout/HUD'
 import Starfield from '../components/layout/Starfield'
 import ConstellationGraph from '../components/graph/ConstellationGraph'
@@ -21,6 +22,7 @@ import BottomNav from '../components/layout/BottomNav'
 import BottomSheet from '../components/layout/BottomSheet'
 
 const Dashboard = () => {
+  useRecurringTasks()
   const [activeView, setActiveView] = useState('graph')
   const [rightPanelOpen, setRightPanelOpen] = useState(true)
   const [selectedNode, setSelectedNode] = useState(null)
