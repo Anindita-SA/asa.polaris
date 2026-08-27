@@ -72,7 +72,7 @@ const WinsBook = ({ dateStr }) => {
     <div className="glass border border-amber-500/20 rounded-xl p-5 mb-6">
       <div className="flex items-center gap-2 mb-4">
         <Trophy className="w-5 h-5 text-amber-400" />
-        <h3 className="font-display tracking-wider text-starlight text-xs uppercase">Wins Book</h3>
+        <h3 className="font-display text-starlight text-xs ">Wins Book</h3>
       </div>
 
       {/* Quick Add Bar */}
@@ -112,7 +112,7 @@ const WinsBook = ({ dateStr }) => {
             className="h-8 px-3 bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 rounded-lg flex items-center gap-1 transition-colors disabled:opacity-50"
           >
             <Plus className="w-4 h-4" />
-            <span className="text-xs font-display tracking-widest hidden md:inline">ADD</span>
+            <span className="text-xs font-display hidden md:inline">Add</span>
           </button>
         </div>
       </form>
@@ -140,7 +140,7 @@ const WinsBook = ({ dateStr }) => {
               </div>
             </div>
             <div className="shrink-0 flex items-center mt-2 md:mt-0">
-               <span className={`text-[10px] px-2 py-0.5 rounded uppercase tracking-wider font-display ${win.size === 'big' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' : 'bg-sky-500/10 text-sky-400 border border-sky-500/20'}`}>
+               <span className={`text-[10px] px-2 py-0.5 rounded font-display ${win.size === 'big' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' : 'bg-sky-500/10 text-sky-400 border border-sky-500/20'}`}>
                  {win.size}
                </span>
             </div>

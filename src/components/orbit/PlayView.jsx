@@ -104,7 +104,7 @@ export default function PlayView() {
           className="flex-1 glass border border-amber-500/30 hover:bg-amber-500/10 rounded-xl p-4 flex items-center justify-center gap-2 group transition-all"
         >
           <Sparkles className="w-5 h-5 text-amber-400 group-hover:scale-110 transition-transform" />
-          <span className="font-display tracking-widest text-amber-400">SURPRISE ME</span>
+          <span className="font-display text-amber-400">Surprise Me</span>
         </button>
         
         <button 
@@ -149,39 +149,39 @@ export default function PlayView() {
             <button onClick={() => setShowAddModal(false)} className="absolute top-4 right-4 text-dim hover:text-starlight">
               <X className="w-4 h-4" />
             </button>
-            <h3 className="font-display text-starlight tracking-widest mb-4 flex items-center gap-2">
-              <Gamepad2 className="w-4 h-4 text-amber-400" /> ADD GAME
+            <h3 className="font-display text-starlight mb-4 flex items-center gap-2">
+              <Gamepad2 className="w-4 h-4 text-amber-400" /> Add Game
             </h3>
             
             <form onSubmit={handleAddSubmit} className="space-y-4">
               <div className="flex gap-3">
                 <div className="w-16">
-                  <label className="text-[10px] text-dim font-mono uppercase">Icon</label>
+                  <label className="text-[10px] text-dim font-mono ">Icon</label>
                   <input required value={form.icon} onChange={e => setForm({...form, icon: e.target.value})} className="w-full bg-black/20 border border-blue-900/30 rounded px-2 py-1.5 text-starlight outline-none text-center" />
                 </div>
                 <div className="flex-1">
-                  <label className="text-[10px] text-dim font-mono uppercase">Title</label>
+                  <label className="text-[10px] text-dim font-mono ">Title</label>
                   <input required value={form.title} onChange={e => setForm({...form, title: e.target.value})} className="w-full bg-black/20 border border-blue-900/30 rounded px-3 py-1.5 text-starlight outline-none font-body text-sm" placeholder="Wordle" />
                 </div>
               </div>
               
               <div>
-                <label className="text-[10px] text-dim font-mono uppercase">URL</label>
+                <label className="text-[10px] text-dim font-mono ">URL</label>
                 <input required type="url" value={form.url} onChange={e => setForm({...form, url: e.target.value})} className="w-full bg-black/20 border border-blue-900/30 rounded px-3 py-1.5 text-starlight outline-none font-mono text-xs" placeholder="https://..." />
               </div>
 
               <div>
-                <label className="text-[10px] text-dim font-mono uppercase">Category (Optional)</label>
+                <label className="text-[10px] text-dim font-mono ">Category (Optional)</label>
                 <input value={form.category} onChange={e => setForm({...form, category: e.target.value})} className="w-full bg-black/20 border border-blue-900/30 rounded px-3 py-1.5 text-starlight outline-none font-body text-sm" placeholder="Puzzle, Word, etc." />
               </div>
 
               <div>
                 <label className="text-[10px] text-dim font-mono block mb-1">Launch Type</label>
                 <div className="flex gap-2">
-                  <button type="button" onClick={() => setForm({...form, type: 'link'})} className={`flex-1 py-1.5 text-xs font-mono uppercase rounded transition-colors border ${form.type === 'link' ? 'bg-amber-500/20 border-amber-500/40 text-amber-400' : 'bg-black/20 border-blue-900/30 text-dim hover:text-starlight'}`}>
+                  <button type="button" onClick={() => setForm({...form, type: 'link'})} className={`flex-1 py-1.5 text-xs font-mono rounded transition-colors border ${form.type === 'link' ? 'bg-amber-500/20 border-amber-500/40 text-amber-400' : 'bg-black/20 border-blue-900/30 text-dim hover:text-starlight'}`}>
                     New Tab
                   </button>
-                  <button type="button" onClick={() => setForm({...form, type: 'embed'})} className={`flex-1 py-1.5 text-xs font-mono uppercase rounded transition-colors border ${form.type === 'embed' ? 'bg-amber-500/20 border-amber-500/40 text-amber-400' : 'bg-black/20 border-blue-900/30 text-dim hover:text-starlight'}`}>
+                  <button type="button" onClick={() => setForm({...form, type: 'embed'})} className={`flex-1 py-1.5 text-xs font-mono rounded transition-colors border ${form.type === 'embed' ? 'bg-amber-500/20 border-amber-500/40 text-amber-400' : 'bg-black/20 border-blue-900/30 text-dim hover:text-starlight'}`}>
                     In-App
                   </button>
                 </div>
@@ -190,8 +190,8 @@ export default function PlayView() {
                 </p>
               </div>
 
-              <button type="submit" className="w-full py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/30 rounded font-display tracking-widest text-sm transition-colors mt-2">
-                ADD TO ARCADE
+              <button type="submit" className="w-full py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/30 rounded font-display text-sm transition-colors mt-2">
+                Add To Arcade
               </button>
             </form>
           </div>
@@ -204,7 +204,7 @@ export default function PlayView() {
           <div className="flex items-center justify-between p-3 border-b border-blue-900/30 bg-black/40">
             <div className="flex items-center gap-2">
               <Gamepad2 className="w-4 h-4 text-amber-400" />
-              <span className="font-display tracking-widest text-sm text-starlight">NOW PLAYING</span>
+              <span className="font-display text-sm text-starlight">Now Playing</span>
             </div>
             <button onClick={() => setEmbedUrl(null)} className="p-1 text-dim hover:text-starlight hover:bg-white/10 rounded">
               <X className="w-5 h-5" />

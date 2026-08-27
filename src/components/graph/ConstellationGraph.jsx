@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from 'react'
+﻿import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from 'react'
 import * as d3 from 'd3'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
@@ -24,7 +24,7 @@ const ConstellationGraph = forwardRef(({ onNodeSelect }, ref) => {
 
   const [nodes,     setNodes]     = useState([])
   const [loading,   setLoading]   = useState(true)
-  // tick counter — incrementing forces the draw useEffect to re-run on resize
+  // tick counter - incrementing forces the draw useEffect to re-run on resize
   const [tick, setTick] = useState(0)
 
   const [showModal, setShowModal] = useState(false)
@@ -60,7 +60,7 @@ const ConstellationGraph = forwardRef(({ onNodeSelect }, ref) => {
   }, [])
 
   // ── draw ───────────────────────────────────────────────────────────────────
-  // Reads container size SYNCHRONOUSLY at effect time — no race with state.
+  // Reads container size SYNCHRONOUSLY at effect time - no race with state.
   useEffect(() => {
     if (!nodes.length || !svgRef.current || !containerRef.current) return
 
@@ -226,7 +226,7 @@ const ConstellationGraph = forwardRef(({ onNodeSelect }, ref) => {
 
   if (loading) return (
     <div className="flex items-center justify-center h-full">
-      <p className="font-display text-dim tracking-widest text-sm animate-pulse">MAPPING STARS...</p>
+      <p className="font-display text-dim text-sm animate-pulse">Mapping Stars...</p>
     </div>
   )
 
@@ -244,7 +244,7 @@ const ConstellationGraph = forwardRef(({ onNodeSelect }, ref) => {
           onClick={e => e.target === e.currentTarget && setShowModal(false)}>
           <div className="modal-content glass border border-blue-900/30 rounded-t-2xl rounded-b-none md:rounded-2xl p-6 w-full w-full max-w-full md:max-w-sm space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="font-display text-starlight tracking-wider">New Star</h3>
+              <h3 className="font-display text-starlight ">New Star</h3>
               <button onClick={() => setShowModal(false)}><X className="w-4 h-4 text-dim" /></button>
             </div>
             <input placeholder="Title" value={form.title}
@@ -262,8 +262,8 @@ const ConstellationGraph = forwardRef(({ onNodeSelect }, ref) => {
               onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
               className="w-full bg-stardust/50 text-sm text-starlight border border-blue-900/20 rounded-lg px-3 py-2 outline-none focus:border-pulsar/40 font-body" />
             <button onClick={addNode}
-              className="w-full py-2 bg-pulsar/20 border border-pulsar/30 text-pulsar text-sm font-display tracking-wider rounded-lg hover:bg-pulsar/30 transition-colors">
-              ADD STAR
+              className="w-full py-2 bg-pulsar/20 border border-pulsar/30 text-pulsar text-sm font-display rounded-lg hover:bg-pulsar/30 transition-colors">
+              Add Star
             </button>
           </div>
         </div>

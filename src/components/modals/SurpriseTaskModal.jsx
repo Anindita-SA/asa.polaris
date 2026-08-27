@@ -79,7 +79,7 @@ const SurpriseTaskModal = ({ isOpen, onClose, tasks = [], toggleComplete }) => {
 
             {selectedTask ? (
               <div className="space-y-2 min-h-[100px] flex flex-col justify-center">
-                <p className="text-xs font-mono uppercase tracking-widest text-amber-400 font-bold">
+                <p className="text-xs font-mono text-amber-400 font-bold">
                   AI & WSJF Picked Task
                 </p>
                 <h3 className="text-xl font-display text-starlight leading-snug">
@@ -103,9 +103,9 @@ const SurpriseTaskModal = ({ isOpen, onClose, tasks = [], toggleComplete }) => {
                 <button 
                   onClick={handleComplete}
                   disabled={isRolling}
-                  className="w-full py-3 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-xl hover:bg-amber-500/30 transition-colors font-display tracking-wider disabled:opacity-50 font-bold"
+                  className="w-full py-3 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-xl hover:bg-amber-500/30 transition-colors font-display disabled:opacity-50 font-bold"
                 >
-                  LET'S GO (MARK DONE)
+                  Let'S Go (Mark Done)
                 </button>
               )}
               <button 

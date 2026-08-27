@@ -1,9 +1,20 @@
+import { useState, useEffect } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import Starfield from '../components/layout/Starfield'
-import { Star } from 'lucide-react'
+import { Star, AlertCircle } from 'lucide-react'
 
 const Login = () => {
   const { signInWithGoogle, signInAsGuest } = useAuth()
+  const [errorMsg, setErrorMsg] = useState('')
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const errorDesc = params.get('error_description')
+    if (errorDesc) {
+      setErrorMsg(decodeURIComponent(errorDesc.replace(/\+/g, ' ')))
+      window.history.replaceState({}, document.title, window.location.pathname)
+    }
+  }, [])
 
   return (
     <div className="relative h-screen w-screen flex items-center justify-center overflow-hidden">
@@ -17,8 +28,8 @@ const Login = () => {
             <Star className="w-8 h-8 text-gold animate-pulse-slow" fill="currentColor" />
             <div className="w-px h-12 bg-gold/40" />
           </div>
-          <h1 className="font-display text-5xl tracking-[0.3em] text-starlight">POLARIS</h1>
-          <p className="font-body text-dim text-sm tracking-wider italic">your north star</p>
+          <h1 className="font-display text-5xl tracking-[0.3em] text-starlight">Polaris</h1>
+          <p className="font-body text-dim text-sm italic">your north star</p>
         </div>
 
         {/* Tagline */}
@@ -29,6 +40,16 @@ const Login = () => {
           </p>
           <p className="font-mono text-xs text-dim mt-2">Engineer. Designer. Inventor.</p>
         </div>
+
+        {errorMsg && (
+          <div className="glass border border-red-900/50 bg-red-900/10 rounded-xl px-4 py-3 max-w-sm mx-auto flex items-start gap-3 text-left">
+            <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <p className="text-sm text-red-200 font-body">Sign in failed</p>
+              <p className="text-xs text-red-300/70">{errorMsg}. Please try again.</p>
+            </div>
+          </div>
+        )}
 
         {/* Sign in */}
         <div className="flex flex-col gap-3 max-w-xs mx-auto">
@@ -48,7 +69,7 @@ const Login = () => {
 
           <button
             onClick={signInAsGuest}
-            className="group flex items-center justify-center gap-3 w-full px-8 py-2.5 glass border border-gold/20 rounded-xl text-gold text-xs font-display tracking-wider hover:border-gold/50 hover:bg-gold/5 transition-all"
+            className="group flex items-center justify-center gap-3 w-full px-8 py-2.5 glass border border-gold/20 rounded-xl text-gold text-xs font-display hover:border-gold/50 hover:bg-gold/5 transition-all"
           >
             <span>✨</span> Try as Guest / Demo
             <span className="text-dim group-hover:text-gold transition-colors text-xs font-mono ml-1">→</span>

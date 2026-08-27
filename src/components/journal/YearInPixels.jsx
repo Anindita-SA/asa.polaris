@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react'
+﻿import { useEffect, useState, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { supabase } from '../../lib/supabase'
 import { format, startOfYear, eachDayOfInterval, endOfYear } from 'date-fns'
@@ -103,7 +103,7 @@ const YearInPixels = ({ userId, onDateSelect, selectedDate }) => {
 
   return (
     <div className="glass border-2 border-pulsar/30 bg-void/40 shadow-[0_0_20px_rgba(59,130,246,0.08)] rounded-xl p-5">
-      <h3 className="font-display tracking-wider text-starlight text-sm mb-4 uppercase">
+      <h3 className="font-display text-starlight text-sm mb-4 ">
         Year in Pixels {year}
       </h3>
 
@@ -111,7 +111,7 @@ const YearInPixels = ({ userId, onDateSelect, selectedDate }) => {
       <div className="flex gap-2 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none' }}>
         {months.map((monthDays, mi) => (
           <div key={mi} className="flex flex-col gap-1.5 flex-shrink-0">
-            <span className="text-[9px] font-mono text-dim uppercase text-center leading-none mb-0.5">
+            <span className="text-[9px] font-mono text-dim text-center leading-none mb-0.5">
               {format(monthDays[0], 'MMM')[0]}
             </span>
             {monthDays.map(day => {
@@ -125,7 +125,7 @@ const YearInPixels = ({ userId, onDateSelect, selectedDate }) => {
                 <button
                   key={dateStr}
                   onClick={e => handlePixelClick(e, day)}
-                  title={`${dateStr}${mood ? ': ' + mood.label : ' — click to log'}`}
+                  title={`${dateStr}${mood ? ': ' + mood.label : ' - click to log'}`}
                   className={[
                     'w-3.5 h-3.5 rounded-sm transition-all duration-150',
                     mood ? mood.cls : 'bg-white/5 hover:bg-white/20',
@@ -144,12 +144,12 @@ const YearInPixels = ({ userId, onDateSelect, selectedDate }) => {
         {MOODS.map(m => (
           <div key={m.id} className="flex items-center gap-1.5">
             <div className={`w-2.5 h-2.5 rounded-sm ${m.cls}`} />
-            <span className="text-[9px] font-mono text-dim uppercase">{m.label}</span>
+            <span className="text-[9px] font-mono text-dim ">{m.label}</span>
           </div>
         ))}
       </div>
 
-      {/* Mood picker — rendered on document.body so nothing clips it */}
+      {/* Mood picker - rendered on document.body so nothing clips it */}
       {popover && createPortal(
         <>
           {/* Click-away backdrop */}
@@ -169,7 +169,7 @@ const YearInPixels = ({ userId, onDateSelect, selectedDate }) => {
               minWidth: 210,
             }}
           >
-            <p className="text-[10px] font-mono text-dim mb-2.5 tracking-widest uppercase">
+            <p className="text-[10px] font-mono text-dim mb-2.5 ">
               {popover.dateStr}
             </p>
             <div className="flex flex-wrap gap-2">

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+﻿import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../../lib/supabase'
 import { startOfMonth, endOfMonth, eachDayOfInterval, format, isToday, isBefore } from 'date-fns'
 import { Edit2, Check, X, Trash2 } from 'lucide-react'
@@ -75,7 +75,7 @@ const MonthlyHabitGrid = ({ habits, userId, selectedDate, addXP, trackXP, onDele
       <table className="w-full border-collapse min-w-[500px]">
         <thead>
           <tr>
-            <th className="text-left text-xs font-display text-dim uppercase tracking-wider pb-4 pr-4 min-w-[240px]">
+            <th className="text-left text-xs font-display text-dim pb-4 pr-4 min-w-[240px]">
               Target Habits
             </th>
             {days.map(day => {
@@ -89,7 +89,7 @@ const MonthlyHabitGrid = ({ habits, userId, selectedDate, addXP, trackXP, onDele
                 </th>
               )
             })}
-            <th className="text-center text-[10px] font-display text-dim uppercase tracking-wider pb-4 pl-3 min-w-[40px]">Win %</th>
+            <th className="text-center text-[10px] font-display text-dim pb-4 pl-3 min-w-[40px]">Win %</th>
           </tr>
         </thead>
         <tbody className="space-y-1">
@@ -144,7 +144,7 @@ const MonthlyHabitGrid = ({ habits, userId, selectedDate, addXP, trackXP, onDele
                             ? 'bg-transparent border border-blue-900/10 opacity-30 cursor-not-allowed'
                             : 'bg-stardust/10 border border-blue-900/20 hover:bg-stardust/30'
                         }`}
-                        title={`${habit.title} — ${format(day, 'MMM d')}`}
+                        title={`${habit.title} - ${format(day, 'MMM d')}`}
                       />
                     </td>
                   )

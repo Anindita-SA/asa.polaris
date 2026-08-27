@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react'
+﻿import { useEffect, useState, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { Camera, Plus, Check, X, Flame, ChevronLeft, ChevronRight, Calendar } from 'lucide-react'
@@ -172,7 +172,7 @@ const Journal = () => {
           </button>
           <div className="flex items-center gap-3">
             <Calendar className="w-4 h-4 text-pulsar" />
-            <span className="font-display tracking-widest text-starlight text-sm uppercase">
+            <span className="font-display text-starlight text-sm ">
               {isToday(selectedDate) ? 'Today' : format(selectedDate, 'EEE, d MMM yyyy')}
             </span>
           </div>
@@ -188,7 +188,7 @@ const Journal = () => {
         {/* Daily Highlight & Mood */}
         <div className="glass border border-blue-900/20 rounded-xl p-5">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="font-display tracking-wider text-starlight text-xs uppercase opacity-60">Daily Snapshot</h3>
+            <h3 className="font-display text-starlight text-xs opacity-60">Daily Snapshot</h3>
             <div className="flex gap-1.5">
               {MOODS.map(m => (
                 <button
@@ -237,7 +237,7 @@ const Journal = () => {
 
           <div className="flex justify-end mt-6 pt-4 border-t border-blue-900/10">
             <button onClick={saveHighlight} disabled={saving}
-              className="text-[10px] px-6 py-2 bg-pulsar/10 border border-pulsar/30 text-pulsar font-display tracking-widest rounded-lg hover:bg-pulsar/20 transition-all disabled:opacity-40 uppercase">
+              className="text-[10px] px-6 py-2 bg-pulsar/10 border border-pulsar/30 text-pulsar font-display rounded-lg hover:bg-pulsar/20 transition-all disabled:opacity-40 ">
               {saving ? 'Transmitting...' : 'Sync Entry'}
             </button>
           </div>
@@ -248,7 +248,7 @@ const Journal = () => {
           <div className="flex bg-void/50 p-1 rounded-xl border border-blue-900/20">
             <button
               onClick={() => setBottomView('habit')}
-              className={`px-4 py-1.5 rounded-lg text-xs font-display tracking-wider transition-all uppercase ${
+              className={`px-4 py-1.5 rounded-lg text-xs font-display transition-all ${
                 bottomView === 'habit'
                   ? 'bg-pulsar/20 text-pulsar border border-pulsar/30'
                   : 'text-dim hover:text-starlight'
@@ -258,7 +258,7 @@ const Journal = () => {
             </button>
             <button
               onClick={() => setBottomView('pixels')}
-              className={`px-4 py-1.5 rounded-lg text-xs font-display tracking-wider transition-all uppercase ${
+              className={`px-4 py-1.5 rounded-lg text-xs font-display transition-all ${
                 bottomView === 'pixels'
                   ? 'bg-nova/20 text-nova border border-nova/30'
                   : 'text-dim hover:text-starlight'
@@ -278,9 +278,9 @@ const Journal = () => {
           ) : (
             <div className="glass border border-blue-900/40 rounded-xl p-5 shadow-lg bg-void/30">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-display tracking-wider text-starlight text-xs uppercase opacity-80 flex items-center gap-2">
+                <h3 className="font-display text-starlight text-xs opacity-80 flex items-center gap-2">
                   <Flame className="w-3 h-3 text-gold" />
-                  Monthly Habit Stack — {format(selectedDate, 'MMMM yyyy')}
+                  Monthly Habit Stack - {format(selectedDate, 'MMMM yyyy')}
                 </h3>
                 <button onClick={() => setAddingHabit(!addingHabit)} className="text-dim hover:text-nova transition-colors">
                   <Plus className="w-4 h-4" />
@@ -293,7 +293,7 @@ const Journal = () => {
                     className="flex-1 bg-stardust/10 text-sm text-starlight border border-blue-900/30 rounded-lg px-4 py-2 outline-none focus:border-pulsar/40 font-body"
                     value={newHabitTitle} onChange={e => setNewHabitTitle(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && addHabit()} />
-                  <button onClick={addHabit} className="px-4 bg-emerald/20 text-emerald border border-emerald/30 rounded-lg text-xs font-display">ADD</button>
+                  <button onClick={addHabit} className="px-4 bg-emerald/20 text-emerald border border-emerald/30 rounded-lg text-xs font-display">Add</button>
                 </div>
               )}
 

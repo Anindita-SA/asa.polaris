@@ -131,25 +131,25 @@ const FitnessBridge = () => {
         <div className="flex bg-void/50 p-1 rounded-lg border border-blue-900/20 max-w-md mx-auto">
           <button 
             onClick={() => setActiveSubTab('fitness')}
-            className={`flex-1 py-1.5 text-xs font-mono uppercase tracking-widest rounded transition-colors ${activeSubTab === 'fitness' ? 'bg-stardust/80 text-starlight' : 'text-dim hover:text-starlight/70'}`}
+            className={`flex-1 py-1.5 text-xs font-mono rounded transition-colors ${activeSubTab === 'fitness' ? 'bg-stardust/80 text-starlight' : 'text-dim hover:text-starlight/70'}`}
           >
             Fitness
           </button>
           <button 
             onClick={() => setActiveSubTab('relationships')}
-            className={`flex-1 py-1.5 text-xs font-mono uppercase tracking-widest rounded transition-colors ${activeSubTab === 'relationships' ? 'bg-stardust/80 text-starlight' : 'text-dim hover:text-starlight/70'}`}
+            className={`flex-1 py-1.5 text-xs font-mono rounded transition-colors ${activeSubTab === 'relationships' ? 'bg-stardust/80 text-starlight' : 'text-dim hover:text-starlight/70'}`}
           >
             Social
           </button>
           <button 
             onClick={() => setActiveSubTab('play')}
-            className={`flex-1 py-1.5 text-xs font-mono uppercase tracking-widest rounded transition-colors ${activeSubTab === 'play' ? 'bg-stardust/80 text-starlight' : 'text-dim hover:text-starlight/70'}`}
+            className={`flex-1 py-1.5 text-xs font-mono rounded transition-colors ${activeSubTab === 'play' ? 'bg-stardust/80 text-starlight' : 'text-dim hover:text-starlight/70'}`}
           >
             Play
           </button>
           <button 
             onClick={() => setActiveSubTab('scout')}
-            className={`flex-1 py-1.5 text-xs font-mono uppercase tracking-widest rounded transition-colors ${activeSubTab === 'scout' ? 'bg-stardust/80 text-starlight' : 'text-dim hover:text-starlight/70'}`}
+            className={`flex-1 py-1.5 text-xs font-mono rounded transition-colors ${activeSubTab === 'scout' ? 'bg-stardust/80 text-starlight' : 'text-dim hover:text-starlight/70'}`}
           >
             Scout
           </button>
@@ -163,15 +163,15 @@ const FitnessBridge = () => {
           <HardwareScoutPanel />
         ) : (
           <>
-            <p className="text-xs font-mono text-dim uppercase tracking-widest mt-2">Aloka-Fit Bridge - last 14 days</p>
+            <p className="text-xs font-mono text-dim mt-2">Aloka-Fit Bridge - last 14 days</p>
 
         {/* AI Verdict */}
         <div className="glass border border-blue-900/20 rounded-xl p-5 mb-2">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-display tracking-wider text-starlight text-sm flex items-center gap-2">
+            <h3 className="font-display text-starlight text-sm flex items-center gap-2">
               <Zap className="w-3.5 h-3.5 text-gold" /> AI Coach Verdict
             </h3>
-            <button onClick={generateVerdict} disabled={aiLoading} className="text-xs px-3 py-1 bg-gold/10 hover:bg-gold/20 text-gold border border-gold/30 rounded-lg transition-colors disabled:opacity-50 font-display tracking-wider">
+            <button onClick={generateVerdict} disabled={aiLoading} className="text-xs px-3 py-1 bg-gold/10 hover:bg-gold/20 text-gold border border-gold/30 rounded-lg transition-colors disabled:opacity-50 font-display ">
               {aiLoading ? 'ANALYZING...' : 'GENERATE'}
             </button>
           </div>
@@ -216,7 +216,7 @@ const FitnessBridge = () => {
 
         {/* Recent workouts */}
         <div className="glass border border-blue-900/20 rounded-xl p-5">
-          <h3 className="font-display tracking-wider text-starlight text-sm flex items-center gap-2 mb-4">
+          <h3 className="font-display text-starlight text-sm flex items-center gap-2 mb-4">
             <Activity className="w-3.5 h-3.5 text-pulsar" /> Recent Workouts
           </h3>
           <div className="space-y-2">
@@ -237,7 +237,7 @@ const FitnessBridge = () => {
 
         {/* Recent meals */}
         <div className="glass border border-blue-900/20 rounded-xl p-5">
-          <h3 className="font-display tracking-wider text-starlight text-sm flex items-center gap-2 mb-4">
+          <h3 className="font-display text-starlight text-sm flex items-center gap-2 mb-4">
             <Utensils className="w-3.5 h-3.5 text-emerald" /> Recent Meals
           </h3>
           <div className="space-y-2">
@@ -261,7 +261,7 @@ const FitnessBridge = () => {
 
         {/* Weight log */}
         <div className="glass border border-blue-900/20 rounded-xl p-5">
-          <h3 className="font-display tracking-wider text-starlight text-sm flex items-center gap-2 mb-4">
+          <h3 className="font-display text-starlight text-sm flex items-center gap-2 mb-4">
             <Scale className="w-3.5 h-3.5 text-aurora" /> Weight Log
           </h3>
           <div className="space-y-1">

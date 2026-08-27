@@ -39,7 +39,7 @@ export default function BottomNav({ activeView, setActiveView }) {
               }`}
             >
               <Icon size={18} />
-              <span className="text-[10px] font-display tracking-wider leading-none mt-1">{tab.label}</span>
+              <span className="text-[10px] font-display leading-none mt-1">{tab.label}</span>
             </button>
           )
         })}

@@ -181,7 +181,7 @@ const FocusBoard = () => {
         {/* Active Focus */}
         <div>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="font-display tracking-widest text-starlight flex items-center gap-2">
+            <h2 className="font-display text-starlight flex items-center gap-2">
               <Flame className="w-4 h-4 text-gold" /> Active Focus
             </h2>
             <span className="text-xs font-mono text-dim">{focusItems.length}/3</span>
@@ -248,7 +248,7 @@ const FocusBoard = () => {
         {/* Backburner */}
         <div>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="font-display tracking-widest text-starlight flex items-center gap-2">
+            <h2 className="font-display text-starlight flex items-center gap-2">
               <Archive className="w-4 h-4 text-dim" /> Backburner
             </h2>
             <button onClick={() => setShowModal('backburner')} className="text-dim hover:text-nova transition-colors">
@@ -281,7 +281,7 @@ const FocusBoard = () => {
         <div className="modal-overlay fixed inset-0 bg-void/80 z-50 flex items-end md:items-center justify-center p-0 md:p-4" onClick={e => e.target === e.currentTarget && setShowModal(null)}>
           <div className="modal-content glass border border-blue-900/30 rounded-t-2xl rounded-b-none md:rounded-2xl p-6 w-full w-full max-w-full md:max-w-md space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="font-display tracking-wider text-starlight">{showModal === 'focus' ? 'New Focus Item' : 'Add to Backburner'}</h3>
+              <h3 className="font-display text-starlight">{showModal === 'focus' ? 'New Focus Item' : 'Add to Backburner'}</h3>
               <button onClick={() => setShowModal(null)}><X className="w-4 h-4 text-dim hover:text-starlight" /></button>
             </div>
 
@@ -303,7 +303,7 @@ const FocusBoard = () => {
                   <input placeholder="Why now? (optional)" className="w-full bg-stardust/50 text-sm text-starlight border border-blue-900/20 rounded-lg px-3 py-2 outline-none focus:border-pulsar/40 font-body"
                     value={form.why_now} onChange={e => setForm(f => ({ ...f, why_now: e.target.value }))} />
                 )}
-                <button onClick={addFocus} disabled={focusItems.length >= 3} className="w-full py-2 bg-pulsar/20 border border-pulsar/30 text-pulsar text-sm font-display tracking-wider rounded-lg hover:bg-pulsar/30 transition-colors disabled:opacity-40">
+                <button onClick={addFocus} disabled={focusItems.length >= 3} className="w-full py-2 bg-pulsar/20 border border-pulsar/30 text-pulsar text-sm font-display rounded-lg hover:bg-pulsar/30 transition-colors disabled:opacity-40">
                   {focusItems.length >= 3 ? 'FOCUS FULL (max 3)' : 'ADD TO FOCUS'}
                 </button>
               </>
@@ -315,8 +315,8 @@ const FocusBoard = () => {
                   value={form.context_snapshot} onChange={e => setForm(f => ({ ...f, context_snapshot: e.target.value }))} />
                 <input type="date" className="w-full bg-stardust/50 text-sm text-dim border border-blue-900/20 rounded-lg px-3 py-2 outline-none"
                   value={form.revisit_after} onChange={e => setForm(f => ({ ...f, revisit_after: e.target.value }))} />
-                <button onClick={addBackburner} className="w-full py-2 bg-gold-dim/20 border border-gold/20 text-gold text-sm font-display tracking-wider rounded-lg hover:bg-gold-dim/30 transition-colors">
-                  DEFER TO BACKBURNER
+                <button onClick={addBackburner} className="w-full py-2 bg-gold-dim/20 border border-gold/20 text-gold text-sm font-display rounded-lg hover:bg-gold-dim/30 transition-colors">
+                  Defer To Backburner
                 </button>
               </>
             )}
@@ -329,9 +329,9 @@ const FocusBoard = () => {
             <h3 className="font-display text-starlight">Break down: {breakdownTarget.title}</h3>
             <textarea rows={4} value={taskDescription} onChange={e => setTaskDescription(e.target.value)}
               className="w-full bg-stardust/50 text-sm text-starlight border border-blue-900/20 rounded-lg px-3 py-2 outline-none resize-none" />
-            <button onClick={breakDownTask} className="w-full py-2 bg-gold/20 border border-gold/30 text-gold rounded-lg text-sm">BREAK IT DOWN</button>
+            <button onClick={breakDownTask} className="w-full py-2 bg-gold/20 border border-gold/30 text-gold rounded-lg text-sm">Break It Down</button>
             {generatedSteps.map((step, idx) => <p key={idx} className="text-xs text-starlight">{idx + 1}. {step}</p>)}
-            {!!generatedSteps.length && <button onClick={saveSubtasks} className="w-full py-2 bg-pulsar/20 border border-pulsar/30 text-pulsar rounded-lg text-sm">SAVE TO POLARIS</button>}
+            {!!generatedSteps.length && <button onClick={saveSubtasks} className="w-full py-2 bg-pulsar/20 border border-pulsar/30 text-pulsar rounded-lg text-sm">Save To Polaris</button>}
           </div>
         </div>
       )}

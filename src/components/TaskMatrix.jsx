@@ -395,8 +395,8 @@ Return ONLY a single valid JSON object in this exact format: {"minutes": 45}. Do
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Inbox className="w-4 h-4 text-[#f5a623]" />
-              <h2 className="text-xs font-bold uppercase tracking-wider text-[#f5a623]">
-                TASK VOMIT
+              <h2 className="text-xs font-bold text-[#f5a623]">
+                Task Vomit
               </h2>
               <span className="text-xs font-mono bg-[#1c2230] border border-[#2a3142] text-[#8a91a3] px-2 py-0.5 rounded-full">
                 {unsortedTasks.length} unsorted

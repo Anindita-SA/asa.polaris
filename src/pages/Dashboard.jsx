@@ -1,6 +1,8 @@
 import { useState, useRef } from 'react'
 import { ChevronLeft, ChevronRight, Anchor, Bell } from 'lucide-react'
 import { useRecurringTasks } from '../hooks/useRecurringTasks'
+import { useMorningBrief } from '../hooks/useMorningBrief'
+import { useMorningSequence } from '../hooks/useMorningSequence'
 import HUD from '../components/layout/HUD'
 import Starfield from '../components/layout/Starfield'
 import ConstellationGraph from '../components/graph/ConstellationGraph'
@@ -20,9 +22,12 @@ import HardwareScoutPanel from '../components/panels/HardwareScoutPanel'
 import DayGuideView from '../components/views/DayGuideView'
 import BottomNav from '../components/layout/BottomNav'
 import BottomSheet from '../components/layout/BottomSheet'
+import SparkPopup from '../components/widgets/SparkPopup'
 
 const Dashboard = () => {
   useRecurringTasks()
+  useMorningBrief()
+  const { stage, briefItems, markSparkSeen } = useMorningSequence()
   const [activeView, setActiveView] = useState('graph')
   const [rightPanelOpen, setRightPanelOpen] = useState(true)
   const [selectedNode, setSelectedNode] = useState(null)
@@ -128,6 +133,17 @@ const Dashboard = () => {
 
       </div>
       
+      {(stage === 'spark') && (
+        <SparkPopup 
+          items={briefItems}
+          onDismiss={() => {
+            markSparkSeen()
+            setActiveView('day_guide')
+            setTimeout(() => window.dispatchEvent(new CustomEvent('nav-day-brief')), 50)
+          }}
+        />
+      )}
+
       <BottomNav activeView={activeView} setActiveView={setActiveView} />
     </div>
   )

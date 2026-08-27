@@ -84,7 +84,7 @@ const DailyTasks = ({ dateStr }) => {
     <div className="glass border border-blue-900/20 rounded-xl p-5 mb-6">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="font-display tracking-widest text-starlight text-xs uppercase flex items-center gap-2">
+          <h3 className="font-display text-starlight text-xs flex items-center gap-2">
             <Sparkles className="w-3.5 h-3.5 text-nova" /> Daily Target Tasks
           </h3>
           <p className="text-[10px] text-dim font-mono mt-1">{progress}% achieved today</p>
@@ -140,7 +140,7 @@ const DailyTasks = ({ dateStr }) => {
               onBlur={() => { if (!newTaskTitle) setIsAdding(false) }}
             />
             <button onClick={addTask} className="px-3 py-2 bg-nova/20 text-nova border border-nova/30 rounded-lg text-xs font-display">
-              ADD
+              Add
             </button>
           </div>
         )}

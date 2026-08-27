@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+﻿import React, { useState, useEffect, useMemo } from 'react';
 import { useWSJFScore } from '../hooks/useWSJFScore';
 import { supabase } from '../lib/supabase';
 import DayChunker from './DayChunker';
@@ -48,6 +48,10 @@ const TINY_FIRST_STEPS = [
 export default function TodaysTasksShuffle() {
   const { tasks, loading, error, refetch } = useWSJFScore();
   
+  useEffect(() => {
+    console.log('[TodaysTasksShuffle] Component mounted / refetching (Data loading via useWSJFScore)');
+  }, [loading]);
+
   const [selectedDay, setSelectedDay] = useState(getCurrentWeekdayId());
   const [weekdayCapacities, setWeekdayCapacities] = useState({
     monday: 240,
@@ -168,15 +172,15 @@ export default function TodaysTasksShuffle() {
   };
 
   return (
-    <div className="w-full min-h-screen bg-transparent text-starlight font-body p-4 sm:p-6 md:p-8 selection:bg-gold selection:text-black">
+    <div className="w-full min-h-full bg-transparent text-starlight font-body p-4 sm:p-6 md:p-8 pb-32 selection:bg-gold selection:text-black">
       
       {/* Header Bar */}
       <div className="max-w-5xl mx-auto mb-6 border-b border-blue-900/20 pb-5 flex flex-wrap items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
             <CalendarDays className="w-5 h-5 text-gold" />
-            <h1 className="font-display text-xl sm:text-2xl tracking-widest text-starlight">
-              DAY PLANNER <span className="text-gold font-mono text-base">/</span> WEEKDAY MEMORY
+            <h1 className="font-display text-xl sm:text-2xl text-starlight">
+              Day Planner <span className="text-gold font-mono text-base">/</span> Weekday Memory
             </h1>
           </div>
           <p className="text-xs sm:text-sm font-body text-dim italic mt-1">
@@ -210,12 +214,12 @@ export default function TodaysTasksShuffle() {
       <div className="max-w-5xl mx-auto space-y-6">
         
         {/* ==================================================================== */}
-        {/* WEEKDAY MEMORY SELECTOR CAPSULE STRIP                                */}
+        {/* Weekday Memory Selector Capsule Strip                                */}
         {/* ==================================================================== */}
         <section className="glass border border-blue-900/20 rounded-2xl p-3 sm:p-5 shadow-2xl">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-display tracking-widest text-starlight flex items-center gap-1.5">
-              <Star className="w-4 h-4 text-gold fill-current" /> WEEKDAY MEMORY SLOTS
+            <span className="text-xs font-display text-starlight flex items-center gap-1.5">
+              <Star className="w-4 h-4 text-gold fill-current" /> Weekday Memory Slots
             </span>
 
             <span className="inline-flex items-center gap-1 text-[10px] font-mono text-pulsar bg-pulsar/10 border border-pulsar/30 px-3 py-1 rounded-full">
@@ -242,10 +246,10 @@ export default function TodaysTasksShuffle() {
                       : 'glass border-blue-900/20 text-dim hover:text-starlight hover:border-blue-900/40'
                   }`}
                 >
-                  <span className="font-display text-xs tracking-wider">{day.short}</span>
+                  <span className="font-display text-xs ">{day.short}</span>
                   {isToday && (
                     <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded-full mt-1 ${isSelected ? 'bg-gold text-void font-bold' : 'bg-pulsar/20 text-pulsar'}`}>
-                      TODAY
+                      Today
                     </span>
                   )}
                   <span className={`text-[9px] font-mono mt-1 ${isSelected ? 'text-gold' : 'text-dim'}`}>
@@ -280,8 +284,8 @@ export default function TodaysTasksShuffle() {
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="h-2.5 w-2.5 rounded-full bg-gold animate-ping" />
-                    <span className="text-xs font-display tracking-widest text-gold font-bold">
-                      LAUNCH PAD ACTIVE â€” {WEEKDAYS.find(w => w.id === selectedDay)?.label.toUpperCase()}
+                    <span className="text-xs font-display text-gold font-bold">
+                      Launch Pad Active - {WEEKDAYS.find(w => w.id === selectedDay)?.label}
                     </span>
                   </div>
                   <h2 className="text-lg sm:text-xl font-body font-bold text-starlight mt-1">
@@ -318,7 +322,7 @@ export default function TodaysTasksShuffle() {
                       className="bg-emerald hover:bg-emerald/90 text-void font-display text-xs px-4 py-2.5 rounded-xl flex items-center gap-1.5 transition-all shadow-md active:scale-95 cursor-pointer"
                     >
                       <CheckCircle2 className="w-4 h-4" />
-                      <span>MARK DONE</span>
+                      <span>Mark Done</span>
                     </button>
                   </div>
                 </div>
@@ -331,7 +335,7 @@ export default function TodaysTasksShuffle() {
         <div className="glass border border-blue-900/20 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
           <div className="flex items-center gap-3">
             <span className="text-dim">
-              Capacity for <strong className="text-starlight uppercase font-display">{WEEKDAYS.find(w => w.id === selectedDay)?.label}</strong>:
+              Capacity for <strong className="text-starlight font-display">{WEEKDAYS.find(w => w.id === selectedDay)?.label}</strong>:
             </span>
             <span className="font-bold text-gold">
               {dayAllocatedMinutes}m / {weekdayCapacities[selectedDay] || 240}m
@@ -467,7 +471,7 @@ function WeekdayTaskCard({ task, rank, showScore, selectedDay, isActive, onStart
           className="bg-gold/15 hover:bg-gold text-gold hover:text-void border border-gold/40 hover:border-gold font-display text-xs px-3.5 py-1.5 rounded-xl flex items-center gap-1 transition-all shadow-sm active:scale-95 cursor-pointer"
         >
           <Play className="w-3 h-3 fill-current" />
-          <span>START</span>
+          <span>Start</span>
         </button>
 
         <button

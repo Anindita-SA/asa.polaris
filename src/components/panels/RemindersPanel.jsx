@@ -197,7 +197,7 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <h4 className="text-xs font-mono uppercase tracking-widest text-[#f5a623] font-bold">
+              <h4 className="text-xs font-mono text-[#f5a623] font-bold">
                 Focus Task
               </h4>
               
@@ -226,7 +226,7 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
           {activeTask ? (
             <div className="glass border-2 border-[#f5a623] bg-[#f5a623]/10 rounded-xl p-3 space-y-2 shadow-lg">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-mono text-[#f5a623] font-bold uppercase">Ongoing Now</span>
+                <span className="text-[10px] font-mono text-[#f5a623] font-bold ">Ongoing Now</span>
                 <span className="text-xs font-mono font-bold text-[#f5a623]">
                   {Math.floor(timerSeconds / 60).toString().padStart(2, '0')}:{(timerSeconds % 60).toString().padStart(2, '0')}
                 </span>
@@ -326,7 +326,7 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
         {/* Section 2: Nudges */}
         <div className="space-y-3">
           <div className="flex justify-between items-center">
-            <h4 className="text-xs font-mono uppercase tracking-widest text-dim">Nudges</h4>
+            <h4 className="text-xs font-mono text-dim">Nudges</h4>
             <button onClick={() => setShowNudgeSettings(!showNudgeSettings)} className="text-dim hover:text-nova">
               <Settings className="w-3 h-3" />
             </button>
@@ -389,7 +389,7 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
 
         {/* Section 3: Reach Out */}
         <div className="space-y-3">
-          <h4 className="text-xs font-mono uppercase tracking-widest text-dim">Reach Out</h4>
+          <h4 className="text-xs font-mono text-dim">Reach Out</h4>
           <div className="space-y-2">
             {contacts.map(contact => (
               <div key={contact.id} className="glass glass-hover hover:-translate-y-1 transition-transform border border-blue-900/20 p-3 rounded-xl">
@@ -397,7 +397,7 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
                   <div>
                     <div className="flex items-center gap-2">
                       <p className="text-sm text-starlight">{contact.name}</p>
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wider border ${TIER_COLORS[contact.tier] || TIER_COLORS.yard}`}>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded border ${TIER_COLORS[contact.tier] || TIER_COLORS.yard}`}>
                         {contact.tier}
                       </span>
                     </div>

@@ -58,7 +58,7 @@ const AnchorPanel = ({ collapsed, onToggle, mobile = false }) => {
           </div>
 
         <div className="space-y-2">
-          <p className="text-xs font-mono uppercase tracking-widest text-dim">Eulogy</p>
+          <p className="text-xs font-mono text-dim">Eulogy</p>
           <div className="glass border border-blue-900/20 rounded-xl p-3">
             <p className="text-xs text-starlight/90 whitespace-pre-wrap font-body">{latest?.content || DEFAULT_EULOGY}</p>
             <button onClick={() => { setEulogyText(latest?.content || DEFAULT_EULOGY); setEditingEulogy(true) }} className="mt-2 text-xs text-nova flex items-center gap-1">
@@ -68,7 +68,7 @@ const AnchorPanel = ({ collapsed, onToggle, mobile = false }) => {
         </div>
 
         <div className="space-y-2">
-          <p className="text-xs font-mono uppercase tracking-widest text-dim">Mission statement</p>
+          <p className="text-xs font-mono text-dim">Mission statement</p>
           {editingMission ? (
             <textarea rows={3} className="w-full bg-stardust/50 text-sm text-starlight border border-blue-900/20 rounded-lg px-3 py-2 outline-none resize-none"
               defaultValue={profile?.clarity_anchor || 'You hold the steering wheel. Polaris is your GPS.'}
@@ -81,7 +81,7 @@ const AnchorPanel = ({ collapsed, onToggle, mobile = false }) => {
         </div>
 
         <div className="space-y-2">
-          <p className="text-xs font-mono uppercase tracking-widest text-dim">North star</p>
+          <p className="text-xs font-mono text-dim">North star</p>
           {editingChapter ? (
             <input className="w-full bg-stardust/50 text-sm text-aurora border border-blue-900/20 rounded-lg px-3 py-2 outline-none"
               defaultValue={profile?.current_chapter || 'Chapter I: The Foundation'}
@@ -94,7 +94,7 @@ const AnchorPanel = ({ collapsed, onToggle, mobile = false }) => {
         </div>
 
         <div className="space-y-2">
-          <p className="text-xs font-mono uppercase tracking-widest text-dim flex items-center gap-1"><History className="w-3 h-3" /> Eulogy history</p>
+          <p className="text-xs font-mono text-dim flex items-center gap-1"><History className="w-3 h-3" /> Eulogy history</p>
           <div className="space-y-2">
             {history.map(item => (
               <div key={item.id} className="glass border border-blue-900/20 rounded-lg p-2">
@@ -115,7 +115,7 @@ const AnchorPanel = ({ collapsed, onToggle, mobile = false }) => {
             <textarea rows={10} className="w-full bg-stardust/50 text-sm text-starlight border border-blue-900/20 rounded-lg px-3 py-2 outline-none resize-none"
               value={eulogyText} onChange={e => setEulogyText(e.target.value)} />
             <button onClick={saveEulogy} className="w-full py-2 bg-pulsar/20 border border-pulsar/30 text-pulsar text-sm font-display rounded-lg">
-              SAVE NEW VERSION
+              Save New Version
             </button>
           </div>
         </div>

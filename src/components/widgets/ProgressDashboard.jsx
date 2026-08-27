@@ -106,7 +106,7 @@ const ProgressDashboard = () => {
 
     if (loading) return (
         <div className="flex items-center justify-center h-full">
-            <p className="font-display text-dim tracking-widest text-sm animate-pulse">COMPUTING STARS...</p>
+            <p className="font-display text-dim text-sm animate-pulse">Computing Stars...</p>
         </div>
     )
 
@@ -130,7 +130,7 @@ const ProgressDashboard = () => {
                         </div>
                     </div>
                     <div className="flex-1 min-w-0">
-                        <p className="font-display text-gold tracking-wider text-lg">{current.name}</p>
+                        <p className="font-display text-gold text-lg">{current.name}</p>
                         <p className="text-xs font-mono text-dim mt-1">{xp} XP {next ? `/ ${next.minXp} to ${next.name}` : '- MAX'}</p>
                         <div className="mt-2 h-2 bg-stardust rounded-full overflow-hidden">
                             <div className="h-full bg-gold rounded-full xp-bar-fill transition-all duration-700"
@@ -141,7 +141,7 @@ const ProgressDashboard = () => {
 
                 {/* Milestones - LeetCode style */}
                 <div className="glass border border-blue-900/20 rounded-xl p-5">
-                    <h3 className="font-display tracking-wider text-starlight text-sm flex items-center gap-2 mb-4">
+                    <h3 className="font-display text-starlight text-sm flex items-center gap-2 mb-4">
                         <Trophy className="w-3.5 h-3.5 text-gold" /> Milestones
                     </h3>
                     <div className="flex items-center gap-6">
@@ -181,7 +181,7 @@ const ProgressDashboard = () => {
 
                 {/* Goals completion */}
                 <div className="glass border border-blue-900/20 rounded-xl p-5">
-                    <h3 className="font-display tracking-wider text-starlight text-sm flex items-center gap-2 mb-4">
+                    <h3 className="font-display text-starlight text-sm flex items-center gap-2 mb-4">
                         <Target className="w-3.5 h-3.5 text-aurora" /> Goals
                     </h3>
                     <div className="space-y-3">
@@ -202,7 +202,7 @@ const ProgressDashboard = () => {
 
                 {/* Focus time - 7 day bar chart */}
                 <div className="glass border border-blue-900/20 rounded-xl p-5">
-                    <h3 className="font-display tracking-wider text-starlight text-sm flex items-center gap-2 mb-1">
+                    <h3 className="font-display text-starlight text-sm flex items-center gap-2 mb-1">
                         <Clock className="w-3.5 h-3.5 text-pulsar" /> Focus Time
                     </h3>
                     <p className="text-xs text-dim font-mono mb-4">
@@ -230,7 +230,7 @@ const ProgressDashboard = () => {
 
                 {/* Habit heatmap - full year */}
                 <div className="glass border border-blue-900/20 rounded-xl p-5">
-                    <h3 className="font-display tracking-wider text-starlight text-sm flex items-center gap-2 mb-2">
+                    <h3 className="font-display text-starlight text-sm flex items-center gap-2 mb-2">
                         <Flame className="w-3.5 h-3.5 text-gold" /> Habit Activity
                     </h3>
                     <div className="flex gap-4 mb-3 text-xs font-mono">

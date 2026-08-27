@@ -1,4 +1,4 @@
-import { getGroqKey } from '../../lib/llm';
+﻿import { getGroqKey } from '../../lib/llm';
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
@@ -132,7 +132,7 @@ const Timeline = ({ filterNodeId, onJumpToNode }) => {
 
     const systemPrompt = `You are an ADHD-friendly task coach for a university student named Anindita who is studying EEE at NIT Trichy, India. She is working toward MSc applications in Europe, research papers, hardware projects, and creative work.
 
-Your job is to break down a task or project into TINY, CONCRETE, DOPAMINE-FRIENDLY steps that feel achievable — not overwhelming.
+Your job is to break down a task or project into TINY, CONCRETE, DOPAMINE-FRIENDLY steps that feel achievable - not overwhelming.
 
 Rules:
 - Return ONLY a valid JSON object with a single key "steps" containing an array of strings. Example: { "steps": ["step 1", "step 2"] }
@@ -174,7 +174,7 @@ Rules:
       }
     } catch (err) {
       console.error('AI breakdown failed:', err)
-      setGeneratedSteps(['⚠ AI breakdown failed due to network or API error — try again.'])
+      setGeneratedSteps(['⚠ AI breakdown failed due to network or API error - try again.'])
     } finally {
       setAiLoading(false)
     }
@@ -229,15 +229,15 @@ Rules:
       <div className="max-w-2xl mx-auto space-y-6">
 
         <div className="flex justify-end mb-4">
-          <button onClick={openAddModal} className="glass border border-pulsar/30 text-pulsar hover:bg-pulsar/20 transition-all rounded-lg px-4 py-2 text-sm font-display tracking-wider flex items-center gap-2 shadow-[0_0_15px_rgba(59,130,246,0.3)]">
-            <Plus className="w-4 h-4" /> ADD MILESTONE
+          <button onClick={openAddModal} className="glass border border-pulsar/30 text-pulsar hover:bg-pulsar/20 transition-all rounded-lg px-4 py-2 text-sm font-display flex items-center gap-2 shadow-[0_0_15px_rgba(59,130,246,0.3)]">
+            <Plus className="w-4 h-4" /> Add Milestone
           </button>
         </div>
 
         {/* Next up banner */}
         {nextMilestone && (
           <div className="glass border border-pulsar/20 rounded-xl p-4 bg-pulsar/5">
-            <p className="text-xs font-mono text-pulsar/60 uppercase tracking-widest mb-1">Next milestone</p>
+            <p className="text-xs font-mono text-pulsar/60 mb-1">Next milestone</p>
             <p className="text-sm text-starlight font-body">{nextMilestone.title}</p>
             <div className="flex items-center gap-3 mt-2">
               <span className="text-xs font-mono text-dim">{new Date(nextMilestone.deadline).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
@@ -367,7 +367,7 @@ Rules:
         {/* Done section */}
         {done.length > 0 && (
           <div className="border-t border-blue-900/20 pt-4">
-            <p className="text-xs font-mono text-emerald/60 uppercase tracking-widest mb-3">Completed ({done.length})</p>
+            <p className="text-xs font-mono text-emerald/60 mb-3">Completed ({done.length})</p>
           </div>
         )}
       </div>
@@ -389,7 +389,7 @@ Rules:
 
             <div className="relative my-4">
               <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-blue-900/20"></div></div>
-              <div className="relative flex justify-center text-xs"><span className="bg-[#0b101e] px-2 text-dim font-mono uppercase tracking-widest">or AI breakdown</span></div>
+              <div className="relative flex justify-center text-xs"><span className="bg-[#0b101e] px-2 text-dim font-mono ">or AI breakdown</span></div>
             </div>
 
             <textarea rows={2} value={taskDescription} onChange={e => setTaskDescription(e.target.value)}
@@ -409,7 +409,7 @@ Rules:
               </div>
             )}
 
-            {!!generatedSteps.length && <button onClick={saveSubtasks} className="w-full py-2 bg-pulsar/20 border border-pulsar/30 text-pulsar rounded-lg text-sm tracking-wider font-display hover:bg-pulsar/30 transition-colors mt-2">SAVE AI TASKS</button>}
+            {!!generatedSteps.length && <button onClick={saveSubtasks} className="w-full py-2 bg-pulsar/20 border border-pulsar/30 text-pulsar rounded-lg text-sm font-display hover:bg-pulsar/30 transition-colors mt-2">Save Ai Tasks</button>}
           </div>
         </div>
       )}
@@ -418,7 +418,7 @@ Rules:
         <div className="modal-overlay fixed inset-0 bg-void/80 z-50 flex items-end md:items-center justify-center p-0 md:p-4" onClick={e => e.target === e.currentTarget && setShowAddModal(false)}>
           <div className="modal-content glass border border-blue-900/30 rounded-t-2xl rounded-b-none md:rounded-2xl p-6 w-full w-full max-w-full md:max-w-sm space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="font-display text-starlight tracking-wider">{editingMilestone ? 'Edit Milestone' : 'New Milestone'}</h3>
+              <h3 className="font-display text-starlight ">{editingMilestone ? 'Edit Milestone' : 'New Milestone'}</h3>
               <button onClick={() => setShowAddModal(false)}><X className="w-4 h-4 text-dim hover:text-starlight" /></button>
             </div>
             <input placeholder="Milestone Title" value={addForm.title} onChange={e => setAddForm(f => ({ ...f, title: e.target.value }))}
@@ -430,7 +430,7 @@ Rules:
               <option value="">Link to Node (Optional)</option>
               {nodes.map(n => <option key={n.id} value={n.id}>{n.title}</option>)}
             </select>
-            <button onClick={saveMilestone} className="w-full py-2 bg-pulsar/20 border border-pulsar/30 text-pulsar text-sm font-display tracking-wider rounded-lg hover:bg-pulsar/30 transition-colors">
+            <button onClick={saveMilestone} className="w-full py-2 bg-pulsar/20 border border-pulsar/30 text-pulsar text-sm font-display rounded-lg hover:bg-pulsar/30 transition-colors">
               {editingMilestone ? 'SAVE CHANGES' : 'CREATE'}
             </button>
           </div>

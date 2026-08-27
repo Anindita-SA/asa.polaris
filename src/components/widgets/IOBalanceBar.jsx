@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { Plus, X } from 'lucide-react'
@@ -81,7 +81,7 @@ const IOBalanceBar = () => {
 
       {/* Balance bar row - matches XP bar width */}
       <div className="flex items-center gap-2 cursor-pointer" onClick={() => setShowQuickLog(s => !s)}>
-        <span className="text-xs font-display tracking-wider whitespace-nowrap" style={{
+        <span className="text-xs font-display whitespace-nowrap" style={{
           color: balanceState === 'balanced' ? '#10b981' : balanceState === 'warning' ? '#f59e0b' : '#ef4444'
         }}>I/O</span>
 
@@ -91,7 +91,7 @@ const IOBalanceBar = () => {
           {/* Center equilibrium marker */}
           <div className="absolute left-1/2 top-0 bottom-0 w-px bg-starlight/20 z-30" />
           
-          {/* Input bar — amber, grows from center leftward */}
+          {/* Input bar - amber, grows from center leftward */}
           <div className="absolute right-1/2 top-0 bottom-0 rounded-l-full transition-all duration-1000 z-10"
             style={{ 
               width: `${inputMins > 0 ? Math.max(Math.min((inputMins / Math.max(inputMins + outputMins, 1)) * 100, 50), 3) : 0}%`,
@@ -103,7 +103,7 @@ const IOBalanceBar = () => {
             }} 
           />
           
-          {/* Output bar — emerald/aurora, grows from center rightward */}
+          {/* Output bar - emerald/aurora, grows from center rightward */}
           <div className="absolute left-1/2 top-0 bottom-0 rounded-r-full transition-all duration-1000 z-10"
             style={{ 
               width: `${outputMins > 0 ? Math.max(Math.min((outputMins / Math.max(inputMins + outputMins, 1)) * 100, 50), 3) : 0}%`,
@@ -115,7 +115,7 @@ const IOBalanceBar = () => {
             }} 
           />
 
-          {/* Aurora glow layer — only when balanced and active */}
+          {/* Aurora glow layer - only when balanced and active */}
           {balanceState === 'balanced' && outputMins > 0 && (
             <div className="absolute inset-0 rounded-full z-20 pointer-events-none"
               style={{ 
@@ -148,7 +148,7 @@ const IOBalanceBar = () => {
       {showQuickLog && (
         <div className="fixed top-14 right-4 z-[60] glass border border-blue-900/20 rounded-2xl p-4 w-72 shadow-2xl space-y-3">
           <div className="flex items-center justify-between">
-            <h4 className="font-display text-sm text-starlight tracking-wider">LOG I/O</h4>
+            <h4 className="font-display text-sm text-starlight ">Log I/O</h4>
             <button onClick={() => setShowQuickLog(false)} className="text-dim hover:text-starlight">
               <X className="w-4 h-4" />
             </button>
@@ -189,18 +189,18 @@ const IOBalanceBar = () => {
           </div>
 
           <button onClick={addLog}
-            className="w-full py-2 rounded-lg text-xs font-display tracking-wider transition-all border"
+            className="w-full py-2 rounded-lg text-xs font-display transition-all border"
             style={{
               background: logType === 'output' ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)',
               borderColor: logType === 'output' ? 'rgba(16,185,129,0.3)' : 'rgba(245,158,11,0.3)',
               color: logType === 'output' ? '#10b981' : '#f59e0b',
             }}>
-            LOG {logMins} MIN {logType.toUpperCase()}
+            Log {logMins} min {logType}
           </button>
 
           {/* Today's breakdown */}
           <div className="pt-2 border-t border-blue-900/10 space-y-1">
-            <p className="text-[10px] font-mono text-dim uppercase tracking-wider">Today</p>
+            <p className="text-[10px] font-mono text-dim ">Today</p>
             <div className="flex justify-between text-xs font-body">
               <span className="text-amber-400">📥 {inputMins} min input</span>
               <span className="text-emerald-400">📤 {outputMins} min output</span>
@@ -210,10 +210,10 @@ const IOBalanceBar = () => {
               balanceState === 'warning' ? 'text-amber-400' : 'text-red-400'
             }`}>
               {balanceState === 'balanced' 
-                ? '✨ Output ≥ Input — keep creating!' 
+                ? '✨ Output ≥ Input - keep creating!' 
                 : balanceState === 'warning'
-                ? '⚠️ Input ahead by ' + Math.abs(diff) + 'min — time to create'
-                : '🚨 Brain rot alert — ' + Math.abs(diff) + 'min deficit!'}
+                ? '⚠️ Input ahead by ' + Math.abs(diff) + 'min - time to create'
+                : '🚨 Brain rot alert - ' + Math.abs(diff) + 'min deficit!'}
             </p>
           </div>
         </div>
