@@ -32,7 +32,8 @@ import {
   Unlink,
   RefreshCw,
   List,
-  FileText
+  FileText,
+  ChevronDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -122,6 +123,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [showCompleted, setShowCompleted] = useState(false);
+  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
 
   const canvasRef = useRef(null);
   const innerRef = useRef(null);
@@ -129,6 +131,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
 
   // Fetch tasks
   const fetchTasks = useCallback(async () => {
+    console.log('[MatrixCanvasView] fetchTasks called (Data loading triggered)');
     try {
       setLoading(true);
       const { data, error } = await supabase
@@ -324,7 +327,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
     try {
       const key = getGroqKey();
       if (!key) {
-        alert("Groq API Key (VITE_GROQ_API_KEY) is missing in .env");
+        alert("Groq API Key is not configured. Please enter your key to enable AI features.");
         setIsAuditing(false);
         return;
       }
@@ -377,7 +380,10 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
       }
 
       for (const id of todayPickIds) {
-        await supabase.from('tasks').update({ status: 'active' }).eq('id', id);
+        const task = scored.find(t => t.id === id);
+        if (task && task.status !== 'in_progress' && task.status !== 'active') {
+          await supabase.from('tasks').update({ status: 'active' }).eq('id', id);
+        }
       }
 
       await fetchTasks();
@@ -447,6 +453,22 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
     return tasks.filter((t) => t.status === 'done');
   }, [tasks]);
 
+  const updateTaskField = async (taskId, field, value) => {
+    setTasks((prev) =>
+      prev.map((t) => (t.id === taskId ? { ...t, [field]: value } : t))
+    );
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .update({ [field]: value })
+        .eq('id', taskId);
+      if (error) throw error;
+      if (onTasksChanged) onTasksChanged();
+    } catch (err) {
+      console.error('Error updating task field:', err);
+    }
+  };
+
   const selectedTask = useMemo(() => {
     return tasks.find(t => t.id === selectedTaskId);
   }, [tasks, selectedTaskId]);
@@ -455,7 +477,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
     <div className="w-full h-full bg-transparent text-starlight font-body flex flex-col md:flex-row-reverse overflow-hidden relative selection:bg-gold selection:text-black">
       
       {/* ==================================================================== */}
-      {/* LEFT / CENTER: SPATIAL CONSTELLATION 2D CANVAS MATRIX                */}
+      {/* Left / Center: Spatial Constellation 2d Canvas Matrix                */}
       {/* ==================================================================== */}
       <div className="flex-1 relative flex flex-col overflow-hidden bg-transparent">
         {/* 2D Canvas Surface */}
@@ -504,14 +526,14 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                       <div className="flex items-center gap-3">
                         <QIcon className="w-5 h-5" style={{ color: q.color }} />
                         <div>
-                          <h3 className="font-display text-sm tracking-wider text-starlight">
+                          <h3 className="font-display text-sm text-starlight">
                             {q.title}
                           </h3>
                           <p className="text-[11px] font-body text-dim italic">{q.subtitle}</p>
                         </div>
                       </div>
                       <span
-                        className="text-[10px] font-mono uppercase tracking-widest px-2.5 py-1 rounded-md border"
+                        className="text-[10px] font-mono px-2.5 py-1 rounded-md border"
                         style={{ color: q.color, borderColor: q.border, backgroundColor: 'rgba(3,7,18,0.7)' }}
                       >
                         {qTasks.length} tasks
@@ -588,7 +610,11 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                               }}
                             >
                               {/* Left Bullet */}
-                              <span className="w-2.5 h-2.5 rounded-full shrink-0 pointer-events-none" style={{ backgroundColor: q.color }} />
+                              {task.status === 'in_progress' ? (
+                                <Zap className="w-3 h-3 shrink-0 pointer-events-none" style={{ color: q.color }} fill="currentColor" />
+                              ) : (
+                                <span className="w-2.5 h-2.5 rounded-full shrink-0 pointer-events-none" style={{ backgroundColor: q.color }} />
+                              )}
                               
                               {/* Title */}
                               <h4 className="text-xs font-body font-medium text-[#e2e8f0] truncate leading-none pointer-events-none">
@@ -597,7 +623,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
 
                               {/* Right Tags (IN / OUT & Duration) + Action Controls */}
                               <div className="flex items-center gap-1.5 shrink-0 font-mono text-[10px]">
-                                <span className={`px-1.5 py-0.5 rounded font-bold uppercase pointer-events-none ${
+                                <span className={`px-1.5 py-0.5 rounded font-bold pointer-events-none ${
                                   ioTag === 'IN' ? 'bg-[#1a263d] text-[#60a5fa]' : 'bg-stardust text-dim border border-blue-900/30'
                                 }`}>
                                   {ioTag}
@@ -701,7 +727,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                   </h4>
 
                   <div className="flex items-center gap-1.5 shrink-0 font-mono text-[9px]">
-                    <span className={`px-1.5 py-0.5 rounded font-bold uppercase pointer-events-none ${
+                    <span className={`px-1.5 py-0.5 rounded font-bold pointer-events-none ${
                       ioTag === 'IN' ? 'bg-[#1a263d] text-[#60a5fa]' : 'bg-stardust text-dim border border-blue-900/30'
                     }`}>
                       {ioTag}
@@ -741,9 +767,9 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
       </div>
 
       {/* ==================================================================== */}
-      {/* LEFT SIDEBAR: RESTORED BRAIN DUMP PANEL (UNSORTED + COMPLETED)      */}
+      {/* Left Sidebar: Restored Brain Dump Panel (Unsorted + Completed)      */}
       {/* ==================================================================== */}
-      <aside className={`glass border-t md:border-t-0 md:border-r border-blue-900/20 flex flex-col h-auto md:h-screen z-20 shadow-2xl transition-all duration-300 ${
+      <aside className={`glass border-t md:border-t-0 md:border-r border-blue-900/20 flex flex-col h-auto md:h-full z-20 shadow-2xl transition-all duration-300 ${
         brainDumpCollapsed ? 'w-full md:w-12' : 'w-full md:w-80'
       }`}>
         {/* Brain Dump Header with BACKLOG & COMPLETED Sub-Tabs */}
@@ -762,7 +788,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                   title={`Backlog (${brainDumpTasks.length})`}
                 >
                   <List className="w-4 h-4" />
-                  <span className="text-xs font-mono font-bold tracking-widest">{brainDumpTasks.length}</span>
+                  <span className="text-xs font-mono font-bold ">{brainDumpTasks.length}</span>
                 </button>
                 <button
                   onClick={() => setActiveBrainDumpTab('completed')}
@@ -774,7 +800,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                   title={`Completed (${completedTasks.length})`}
                 >
                   <CheckCircle2 className="w-4 h-4" />
-                  <span className="text-xs font-mono font-bold tracking-widest">{completedTasks.length}</span>
+                  <span className="text-xs font-mono font-bold ">{completedTasks.length}</span>
                 </button>
                 <button
                   onClick={() => setActiveBrainDumpTab('details')}
@@ -819,7 +845,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                       disabled={!newTitle.trim()}
                       className="bg-gold hover:bg-gold/90 disabled:opacity-50 text-void font-display text-xs px-4 py-2 rounded-lg shrink-0 cursor-pointer shadow-md"
                     >
-                      DUMP
+                      Dump
                     </button>
                   </form>
 
@@ -936,38 +962,105 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
               /* DETAILS TAB */
               <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-hide text-sm">
                 {selectedTask ? (
-                  <div className="flex flex-col gap-4 text-starlight">
+                  <div key={selectedTask.id} className="flex flex-col gap-4 text-starlight">
                     <div>
-                      <h4 className="text-xs font-bold text-dim mb-1 font-mono uppercase">Title</h4>
-                      <div className="bg-void/40 border border-blue-900/30 rounded-lg p-3 text-sm font-body leading-relaxed break-words">
-                        {selectedTask.title}
-                      </div>
+                      <h4 className="text-xs font-bold text-dim mb-1 font-mono ">Title</h4>
+                      <input 
+                        type="text" 
+                        defaultValue={selectedTask.title} 
+                        onBlur={(e) => updateTaskField(selectedTask.id, 'title', e.target.value)}
+                        className="w-full bg-void/40 border border-blue-900/30 rounded-lg p-3 text-sm font-body leading-relaxed outline-none focus:border-pulsar/50 transition-colors"
+                      />
                     </div>
-                    {selectedTask.notes && (
-                      <div>
-                        <h4 className="text-xs font-bold text-dim mb-1 font-mono uppercase">Notes</h4>
-                        <div className="bg-void/40 border border-blue-900/30 rounded-lg p-3 text-xs font-body leading-relaxed whitespace-pre-wrap break-words">
-                          {selectedTask.notes}
-                        </div>
-                      </div>
-                    )}
+                    <div>
+                      <h4 className="text-xs font-bold text-dim mb-1 font-mono ">Notes</h4>
+                      <textarea
+                        defaultValue={selectedTask.notes || ''}
+                        onBlur={(e) => updateTaskField(selectedTask.id, 'notes', e.target.value)}
+                        rows={4}
+                        className="w-full bg-void/40 border border-blue-900/30 rounded-lg p-3 text-xs font-body leading-relaxed whitespace-pre-wrap outline-none focus:border-pulsar/50 transition-colors resize-none"
+                        placeholder="Add notes..."
+                      />
+                    </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <h4 className="text-xs font-bold text-dim mb-1 font-mono uppercase">Estimate</h4>
-                        <div className="bg-void/40 border border-blue-900/30 rounded-xl p-2.5 text-xs flex items-center gap-2">
-                          <Clock className="w-3.5 h-3.5 text-gold" />
-                          {selectedTask.estimated_minutes ? `${selectedTask.estimated_minutes}m` : 'None'}
+                        <h4 className="text-xs font-bold text-dim mb-1 font-mono ">Estimate (m)</h4>
+                        <div className="bg-void/40 border border-blue-900/30 rounded-xl p-2.5 text-xs flex items-center gap-2 focus-within:border-pulsar/50 transition-colors">
+                          <Clock className="w-3.5 h-3.5 text-gold shrink-0" />
+                          <input
+                            type="number"
+                            min="0"
+                            defaultValue={selectedTask.estimated_minutes || ''}
+                            onBlur={(e) => updateTaskField(selectedTask.id, 'estimated_minutes', e.target.value ? parseInt(e.target.value) : null)}
+                            className="bg-transparent w-full outline-none font-mono"
+                            placeholder="None"
+                          />
                         </div>
                       </div>
-                      <div>
+                      <div className="relative">
                         <h4 className="text-xs font-bold text-dim mb-1 font-mono uppercase">Status</h4>
-                        <div className="bg-void/40 border border-blue-900/30 rounded-xl p-2.5 text-xs flex items-center gap-2">
-                          {selectedTask.status === 'done' ? (
-                            <><CheckCircle2 className="w-3.5 h-3.5 text-emerald" /> Done</>
-                          ) : (
-                            <><Flame className="w-3.5 h-3.5 text-pulsar" /> Active</>
+                        <button
+                          onClick={() => setStatusDropdownOpen(!statusDropdownOpen)}
+                          className={`w-full bg-void/40 border ${statusDropdownOpen ? 'border-pulsar/50' : 'border-blue-900/30'} rounded-xl p-2.5 text-xs flex items-center justify-between transition-colors outline-none cursor-pointer`}
+                        >
+                          <div className="flex items-center gap-2">
+                            {selectedTask.status === 'done' ? (
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald shrink-0" />
+                            ) : selectedTask.status === 'in_progress' ? (
+                              <Zap className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                            ) : selectedTask.status === 'scheduled' ? (
+                              <Calendar className="w-3.5 h-3.5 text-pulsar shrink-0" />
+                            ) : selectedTask.status === 'inbox' ? (
+                              <Inbox className="w-3.5 h-3.5 text-dim shrink-0" />
+                            ) : (
+                              <Flame className="w-3.5 h-3.5 text-pulsar shrink-0" />
+                            )}
+                            <span className="text-starlight">
+                              {selectedTask.status === 'in_progress' ? 'In Progress' :
+                               selectedTask.status === 'done' ? 'Done' :
+                               selectedTask.status === 'scheduled' ? 'Scheduled' :
+                               selectedTask.status === 'inbox' ? 'Inbox' : 'Active'}
+                            </span>
+                          </div>
+                          <ChevronDown className={`w-3.5 h-3.5 text-dim shrink-0 transition-transform ${statusDropdownOpen ? 'rotate-180' : ''}`} />
+                        </button>
+
+                        <AnimatePresence>
+                          {statusDropdownOpen && (
+                            <>
+                              <div className="fixed inset-0 z-40 cursor-default" onClick={(e) => { e.stopPropagation(); setStatusDropdownOpen(false); }} />
+                              <motion.div
+                                initial={{ opacity: 0, y: -5 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -5 }}
+                                transition={{ duration: 0.15 }}
+                                className="absolute top-full mt-2 left-0 right-0 bg-[#0a0f1e]/95 backdrop-blur-xl border border-blue-900/50 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.5)] z-50 overflow-hidden py-1"
+                              >
+                                {[
+                                  { value: 'inbox', label: 'Inbox', icon: Inbox, color: 'text-dim' },
+                                  { value: 'active', label: 'Active', icon: Flame, color: 'text-pulsar' },
+                                  { value: 'in_progress', label: 'In Progress', icon: Zap, color: 'text-amber-400' },
+                                  { value: 'scheduled', label: 'Scheduled', icon: Calendar, color: 'text-pulsar' },
+                                  { value: 'done', label: 'Done', icon: CheckCircle2, color: 'text-emerald' }
+                                ].map(option => (
+                                  <button
+                                    key={option.value}
+                                    onClick={() => {
+                                      updateTaskField(selectedTask.id, 'status', option.value);
+                                      setStatusDropdownOpen(false);
+                                    }}
+                                    className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs transition-colors ${
+                                      selectedTask.status === option.value ? 'bg-pulsar/20 text-starlight' : 'text-dim hover:bg-blue-900/30 hover:text-starlight'
+                                    }`}
+                                  >
+                                    <option.icon className={`w-3.5 h-3.5 shrink-0 ${option.color}`} />
+                                    <span>{option.label}</span>
+                                  </button>
+                                ))}
+                              </motion.div>
+                            </>
                           )}
-                        </div>
+                        </AnimatePresence>
                       </div>
                     </div>
                   </div>

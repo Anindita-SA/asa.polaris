@@ -10,7 +10,7 @@ const AppContent = () => {
     <div className="h-screen w-screen bg-void flex items-center justify-center">
       <div className="text-center space-y-3">
         <div className="w-2 h-2 rounded-full bg-gold mx-auto animate-ping" />
-        <p className="font-display text-dim tracking-[0.3em] text-xs">POLARIS</p>
+        <p className="font-display text-dim tracking-[0.3em] text-xs">Polaris</p>
       </div>
     </div>
   )

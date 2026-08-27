@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useRef } from 'react'
+﻿import { createContext, useContext, useEffect, useState, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { 
   DEFAULT_MILESTONES, DEFAULT_NODES, DEFAULT_SUBNODES,
@@ -239,13 +239,13 @@ export const AuthProvider = ({ children }) => {
     const amt = parseInt(amount, 10)
     if (isNaN(amt) || amt === 0) return
 
-    // 1. Optimistic local update — UI snaps immediately
+    // 1. Optimistic local update - UI snaps immediately
     setProfile(prev => {
       if (!prev) return prev
       return { ...prev, xp: Math.max(0, (prev.xp || 0) + amt) }
     })
 
-    // 2. Persist to DB via RPC (no re-fetch after — the optimistic update IS the truth)
+    // 2. Persist to DB via RPC (no re-fetch after - the optimistic update IS the truth)
     const { error } = await supabase.rpc('increment_xp', { user_id: user.id, amount: amt })
     if (error) {
       console.error('XP RPC error:', error)
@@ -258,7 +258,7 @@ export const AuthProvider = ({ children }) => {
   }
 
   /**
-   * trackXP — centralized toggle-safe XP helper.
+   * trackXP - centralized toggle-safe XP helper.
    * Components call this instead of manually computing +/- addXP.
    *
    * @param {boolean} wasActive - was the item completed/checked BEFORE this action?

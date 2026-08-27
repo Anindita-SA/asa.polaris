@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+﻿import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { BookOpen, Plus, Sparkles } from 'lucide-react'
@@ -185,7 +185,7 @@ const CurriculumShelf = () => {
 
   const tabColor = TABS.find(t => t.id === activeTab)?.color || '#3B82F6'
 
-  // Interior view — matches other pages' layout
+  // Interior view - matches other pages' layout
   if (selectedCurriculum) {
     return (
       <div className="h-full overflow-y-auto p-6 relative">
@@ -200,12 +200,12 @@ const CurriculumShelf = () => {
 
   return (
     <div className="h-full flex flex-col overflow-hidden relative">
-      {/* Header — matches other pages */}
+      {/* Header - matches other pages */}
       <div className="p-6 pb-0">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <BookOpen className="w-5 h-5" style={{ color: tabColor }} />
-            <h2 className="font-display text-2xl text-starlight tracking-wider">Personal Curriculum</h2>
+            <h2 className="font-display text-2xl text-starlight ">Personal Curriculum</h2>
           </div>
           {activeTab !== 'Media & Lit' && (
             <button onClick={() => setAddingCurriculum(true)}
@@ -221,7 +221,7 @@ const CurriculumShelf = () => {
         <div className="max-w-4xl mx-auto flex border-b border-blue-900/20">
           {TABS.map(tab => (
             <button key={tab.id} onClick={() => { setActiveTab(tab.id); setSelectedCurriculum(null) }}
-              className={`flex-1 py-3 text-sm font-display tracking-wider transition-all border-b-2 ${
+              className={`flex-1 py-3 text-sm font-display transition-all border-b-2 ${
                 activeTab === tab.id ? 'text-starlight' : 'text-dim hover:text-starlight border-transparent'
               }`}
               style={activeTab === tab.id ? { borderBottomColor: tab.color, color: tab.color } : {}}>
@@ -256,14 +256,14 @@ const CurriculumShelf = () => {
                     <input type="number" placeholder="Est. hours" value={newForm.estimated_hours}
                       onChange={e => setNewForm(p => ({ ...p, estimated_hours: e.target.value }))}
                       className="w-24 bg-transparent border-b border-blue-900/20 text-xs text-dim outline-none font-mono pb-1" />
-                    <button onClick={addCurriculum} className="px-4 py-1.5 text-xs font-display rounded-lg" style={{ background: `${tabColor}20`, color: tabColor, border: `1px solid ${tabColor}40` }}>ADD</button>
+                    <button onClick={addCurriculum} className="px-4 py-1.5 text-xs font-display rounded-lg" style={{ background: `${tabColor}20`, color: tabColor, border: `1px solid ${tabColor}40` }}>Add</button>
                     <button onClick={() => setAddingCurriculum(false)} className="text-dim text-xs hover:text-starlight transition-colors">Cancel</button>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Bookshelf — single horizontal scrollable row */}
+            {/* Bookshelf - single horizontal scrollable row */}
             {curricula.length > 0 ? (
               <div className="flex flex-col items-center">
                 <div
@@ -284,7 +284,7 @@ const CurriculumShelf = () => {
                   </div>
                 </div>
 
-                {/* Shelf edge — decorative line */}
+                {/* Shelf edge - decorative line */}
                 <div className="w-full max-w-4xl mx-auto px-16">
                   <div className="h-[2px] rounded-full" style={{ background: `linear-gradient(90deg, transparent, ${tabColor}25, transparent)` }} />
                 </div>
@@ -295,7 +295,7 @@ const CurriculumShelf = () => {
                 <p className="text-sm">No curricula yet for {activeTab}.</p>
                 {categories.length === 0 ? (
                   <button onClick={seedLibrary} disabled={seeding}
-                    className="mt-4 flex items-center gap-2 mx-auto px-5 py-2.5 rounded-xl font-display text-sm tracking-wider transition-all bg-pulsar/20 text-pulsar border border-pulsar/30 hover:bg-pulsar/30 disabled:opacity-50">
+                    className="mt-4 flex items-center gap-2 mx-auto px-5 py-2.5 rounded-xl font-display text-sm transition-all bg-pulsar/20 text-pulsar border border-pulsar/30 hover:bg-pulsar/30 disabled:opacity-50">
                     <Sparkles className="w-4 h-4" /> {seeding ? 'Seeding...' : 'Seed Library'}
                   </button>
                 ) : (

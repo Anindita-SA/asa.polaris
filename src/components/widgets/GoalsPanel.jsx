@@ -257,12 +257,12 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
         {/* Top Category Toggle */}
         <div className="flex gap-6 border-b border-blue-900/20 pb-2">
           <button onClick={() => setGoalCategory('campaign')} 
-            className={`text-sm font-display tracking-widest pb-2 transition-colors ${goalCategory === 'campaign' ? 'text-starlight border-b-2 border-nova' : 'text-dim hover:text-starlight'}`}>
-            MAIN CAMPAIGN
+            className={`text-sm font-display pb-2 transition-colors ${goalCategory === 'campaign' ? 'text-starlight border-b-2 border-nova' : 'text-dim hover:text-starlight'}`}>
+            Main Campaign
           </button>
           <button onClick={() => setGoalCategory('side_quest')} 
-            className={`text-sm font-display tracking-widest pb-2 flex items-center gap-2 transition-colors ${goalCategory === 'side_quest' ? 'text-starlight border-b-2 border-gold' : 'text-dim hover:text-starlight'}`}>
-            SIDE QUESTS <Compass className="w-4 h-4 text-gold" />
+            className={`text-sm font-display pb-2 flex items-center gap-2 transition-colors ${goalCategory === 'side_quest' ? 'text-starlight border-b-2 border-gold' : 'text-dim hover:text-starlight'}`}>
+            Side Quests <Compass className="w-4 h-4 text-gold" />
           </button>
         </div>
 
@@ -271,10 +271,10 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
           <div className="flex gap-1 p-1 bg-stardust/40 rounded-xl border border-blue-900/20 flex-wrap">
             {SCOPES.map(scope => (
               <button key={scope} onClick={() => setActiveScope(scope)}
-                className={`flex-1 py-1.5 text-xs font-display tracking-wider rounded-lg transition-all min-w-[70px] ${
+                className={`flex-1 py-1.5 text-xs font-display rounded-lg transition-all min-w-[70px] ${
                   activeScope === scope ? `${SCOPE_COLORS[scope]} border` : 'text-dim hover:text-starlight'
                 }`}>
-                {scope === '5yr' ? '5 YR' : scope.toUpperCase()}
+                {scope === '5yr' ? '5 YR' : scope}
               </button>
             ))}
           </div>
@@ -303,7 +303,7 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
             <button onClick={auditGoals} disabled={isAuditing}
               className="flex items-center gap-2 px-3 py-1.5 glass border border-nova/30 rounded-lg text-nova text-xs font-display hover:bg-nova/10 transition-colors">
               {isAuditing ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Zap className="w-3 h-3" />}
-              AUDIT GOALS
+              Audit Goals
             </button>
           </div>
         </div>
@@ -414,7 +414,7 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
                       {goal.target > 1 && (
                         <button onClick={(e) => updateProgress(goal, goal.target - goal.current, e)}
                           className="px-2 h-8 rounded hover:bg-white/5 flex items-center justify-center text-xs font-mono transition-colors">
-                          MAX
+                          Max
                         </button>
                       )}
                     </div>
@@ -454,7 +454,7 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
           onClick={e => e.target === e.currentTarget && setShowModal(false)}>
           <div className="modal-content glass border border-blue-900/30 rounded-t-2xl rounded-b-none md:rounded-2xl p-6 w-full w-full max-w-full md:max-w-md space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between">
-              <h3 className="font-display tracking-wider text-starlight">{isEditing ? 'Edit' : 'New'} {goalCategory === 'side_quest' ? 'Side Quest' : form.scope} Goal</h3>
+              <h3 className="font-display text-starlight">{isEditing ? 'Edit' : 'New'} {goalCategory === 'side_quest' ? 'Side Quest' : form.scope} Goal</h3>
               <button onClick={() => setShowModal(false)}><X className="w-4 h-4 text-dim" /></button>
             </div>
             
@@ -506,8 +506,8 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
             </select>
             
             <button onClick={saveGoal}
-              className={`w-full py-2 border text-sm font-display tracking-wider rounded-lg transition-colors ${SCOPE_COLORS[displayScope]} hover:opacity-80`}>
-              SAVE GOAL
+              className={`w-full py-2 border text-sm font-display rounded-lg transition-colors ${SCOPE_COLORS[displayScope]} hover:opacity-80`}>
+              Save Goal
             </button>
           </div>
         </div>

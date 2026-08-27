@@ -92,7 +92,7 @@ const CalendarView = () => {
         <div>
           <div className="flex items-center gap-3">
             <CalendarIcon className="w-5 h-5 text-sky" />
-            <h2 className="font-display text-2xl text-starlight tracking-wider">
+            <h2 className="font-display text-2xl text-starlight ">
               {format(start, 'MMMM yyyy')}
             </h2>
           </div>
@@ -146,7 +146,7 @@ const CalendarView = () => {
                 <ChevronLeft className="w-5 h-5" />
               </button>
               <button onClick={() => setCurrentWeek(new Date())}
-                className="px-2.5 py-1 rounded-lg hover:bg-stardust/30 text-xs font-display tracking-widest text-dim hover:text-starlight transition-colors uppercase border border-blue-900/20">
+                className="px-2.5 py-1 rounded-lg hover:bg-stardust/30 text-xs font-display text-dim hover:text-starlight transition-colors border border-blue-900/20">
                 Today
               </button>
               <button onClick={() => setCurrentWeek(d => addWeeks(d, 1))}
@@ -206,7 +206,7 @@ const CalendarView = () => {
               </button>
             </div>
             <p className="text-xs text-dim leading-relaxed">
-              All your schedules are versioned and backed up. When you click <b>"Create Snapshot Now"</b>, Polaris generates an un-deletable version entry in Supabase and triggers a clean <code className="text-sky bg-void/50 px-1 py-0.5 rounded">.ICS</code> file download for your local archives.
+              All your schedules are versioned and backed up. When you click <b>"Create Snapshot Now"</b>, Polaris generates an un-deletable version entry in Supabase and triggers a clean <code className="text-sky bg-void/50 px-1 py-0.5 rounded">.Ics</code> file download for your local archives.
             </p>
 
             <div className="pt-2 flex items-center gap-4 text-xs text-starlight">
@@ -224,7 +224,7 @@ const CalendarView = () => {
           </div>
 
           <div className="space-y-3">
-            <h4 className="text-xs font-mono uppercase tracking-widest text-dim">Saved Schedule Snapshots ({backups.length})</h4>
+            <h4 className="text-xs font-mono text-dim">Saved Schedule Snapshots ({backups.length})</h4>
             {backups.length === 0 ? (
               <div className="text-center py-8 glass border border-blue-900/20 rounded-xl text-dim text-xs">
                 No saved snapshots yet. Click "Create Snapshot Now" above to generate your first backup.
@@ -254,7 +254,7 @@ const CalendarView = () => {
           {!providerToken || error?.includes('reconnect') ? (
             <div className="h-full flex flex-col items-center justify-center p-6 text-center">
               <CalendarIcon className="w-16 h-16 text-sky/60 mb-4 animate-bounce" />
-              <h2 className="font-display text-2xl text-starlight tracking-wider mb-2">Connect Google Calendar</h2>
+              <h2 className="font-display text-2xl text-starlight mb-2">Connect Google Calendar</h2>
               <p className="font-body text-dim mb-6 max-w-sm text-xs leading-relaxed">
                 Connect your Google account once to display your live Google Calendar events directly inside Polaris.
               </p>
@@ -276,7 +276,7 @@ const CalendarView = () => {
                 return (
                   <div key={day.toISOString()} className="flex-1 flex flex-col min-w-[120px] glass border border-blue-900/20 rounded-xl p-3">
                     <div className={`pb-2 border-b mb-3 ${isToday ? 'border-sky text-sky' : 'border-blue-900/20 text-dim'}`}>
-                      <p className="text-[11px] font-mono tracking-widest uppercase">
+                      <p className="text-[11px] font-mono ">
                         {format(day, 'EEE')}
                       </p>
                       <p className={`text-2xl font-display ${isToday ? 'text-starlight font-bold' : 'text-starlight/80'}`}>

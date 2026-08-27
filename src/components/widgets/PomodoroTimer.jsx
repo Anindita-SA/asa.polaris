@@ -291,7 +291,7 @@ const PomodoroTimer = ({ mobilePill = false }) => {
   if (mobilePill) {
     return (
       <button onClick={handleClockClick} className={`glass flex items-center justify-center gap-3 px-5 py-2.5 rounded-full border shadow-2xl backdrop-blur-md ${isRunning ? 'border-pulsar/50 text-pulsar' : 'border-blue-900/40 text-starlight'}`}>
-        <span className="font-mono text-lg font-bold tracking-widest">{mins}:{secs}</span>
+        <span className="font-mono text-lg font-bold ">{mins}:{secs}</span>
         {isRunning ? <div className="w-2.5 h-2.5 rounded-sm bg-pulsar" /> : <div className="w-0 h-0 border-l-[10px] border-y-[6px] border-y-transparent border-l-starlight" />}
       </button>
     )
@@ -351,7 +351,7 @@ const PomodoroTimer = ({ mobilePill = false }) => {
               strokeLinecap="round" style={{ transition: 'stroke-dashoffset 1s linear' }} />
           </svg>
           <div className="relative text-center select-none">
-            <p className="text-sm font-body text-dim mb-2 uppercase tracking-widest">{MODE_CONFIG[mode].label}</p>
+            <p className="text-sm font-body text-dim mb-2 ">{MODE_CONFIG[mode].label}</p>
             <p className="text-7xl font-display text-starlight tracking-tight leading-none mb-2">
               {mins}:{secs}
             </p>
@@ -520,7 +520,7 @@ const PomodoroTimer = ({ mobilePill = false }) => {
             {currentTask && (
               <div className="mt-2 w-full glass border border-amber-400/30 bg-amber-400/10 rounded-lg p-2 flex items-center justify-between text-xs">
                 <div className="flex items-center gap-1.5 min-w-0">
-                  <span className="text-[10px] font-mono px-1 py-0.5 rounded bg-amber-400/20 text-amber-400 font-bold uppercase shrink-0">
+                  <span className="text-[10px] font-mono px-1 py-0.5 rounded bg-amber-400/20 text-amber-400 font-bold shrink-0">
                     {ioType === 'input' ? '📥 Input' : '📤 Output'}
                   </span>
                   <span className="text-starlight font-body truncate leading-snug">{currentTask.title}</span>

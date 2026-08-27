@@ -74,7 +74,7 @@ const TopicCard = ({ topic, accentColor, pomodoroMins = 0, onUpdate }) => {
                 className="text-[9px] font-mono px-2 py-0.5 rounded-full flex items-center gap-1"
                 style={{ background: `${accentColor}20`, color: accentColor, border: `1px solid ${accentColor}30` }}
               >
-                <ChevronRight className="w-2.5 h-2.5" /> START HERE
+                <ChevronRight className="w-2.5 h-2.5" /> Start Here
               </span>
             )}
           </div>

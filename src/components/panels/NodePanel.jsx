@@ -177,10 +177,10 @@ const NodePanel = ({ node, onClose, onRefreshGraph }) => {
       {/* Header */}
       <div className="p-4 pr-12 border-b border-blue-900/20 flex items-start justify-between flex-shrink-0">
         <div className="flex-1 min-w-0 pr-2">
-          <p className={`text-xs font-mono uppercase tracking-widest mb-1 ${colorClass.split(' ')[0]}`}>
+          <p className={`text-xs font-mono mb-1 ${colorClass.split(' ')[0]}`}>
             {meta(node.type).label}
           </p>
-          <InlineEdit value={node.title} className="font-display text-starlight tracking-wider block truncate"
+          <InlineEdit value={node.title} className="font-display text-starlight block truncate"
             onSave={v => updateNodeField('title', v)} />
           <InlineEdit value={node.description || 'No description'} className="text-xs text-dim font-body mt-1 block"
             onSave={v => updateNodeField('description', v)} />
@@ -197,7 +197,7 @@ const NodePanel = ({ node, onClose, onRefreshGraph }) => {
         {node.type !== 'topic' && (
           <div>
             <div className="flex items-center justify-between mb-3">
-              <p className="text-xs font-display tracking-widest text-dim uppercase">
+              <p className="text-xs font-display text-dim ">
                 {node.type === 'subnode' ? 'Topics' : 'Subnodes'}
               </p>
               <button
@@ -290,7 +290,7 @@ const NodePanel = ({ node, onClose, onRefreshGraph }) => {
         {/* ── Goals ──────────────────────────────────────────────────── */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-display tracking-widest text-dim uppercase flex items-center gap-2">
+            <p className="text-xs font-display text-dim flex items-center gap-2">
               <Target className="w-3 h-3" /> Goals
             </p>
             <button onClick={() => setAddingGoal(!addingGoal)} className="text-dim hover:text-nova transition-colors">
@@ -353,7 +353,7 @@ const NodePanel = ({ node, onClose, onRefreshGraph }) => {
         {/* ── Subtasks ────────────────────────────────────────────────── */}
         {!!subtasks.length && (
           <div>
-            <p className="text-xs font-display tracking-widest text-dim uppercase mb-2">Subtasks</p>
+            <p className="text-xs font-display text-dim mb-2">Subtasks</p>
             <div className="space-y-1">
               {subtasks.map(task => (
                 <button key={task.id} onClick={() => toggleSubtask(task)} className="w-full text-left text-xs py-1 text-starlight/90">
@@ -367,7 +367,7 @@ const NodePanel = ({ node, onClose, onRefreshGraph }) => {
         {/* ── Milestones ──────────────────────────────────────────────── */}
         {nodeTypeMilestones.length > 0 && (
           <div>
-            <p className="text-xs font-display tracking-widest text-dim uppercase flex items-center gap-2 mb-3">
+            <p className="text-xs font-display text-dim flex items-center gap-2 mb-3">
               <Flag className="w-3 h-3" /> Milestones
             </p>
             <div className="space-y-2">
@@ -406,9 +406,9 @@ const NodePanel = ({ node, onClose, onRefreshGraph }) => {
             <textarea rows={4} value={taskDescription} onChange={e => setTaskDescription(e.target.value)}
               className="w-full bg-stardust/50 text-sm text-starlight border border-blue-900/20 rounded-lg px-3 py-2 outline-none resize-none"
               placeholder="Describe what you need to break down..." />
-            <button onClick={breakDownTask} className="w-full py-2 bg-gold/20 border border-gold/30 text-gold rounded-lg text-sm">BREAK IT DOWN</button>
+            <button onClick={breakDownTask} className="w-full py-2 bg-gold/20 border border-gold/30 text-gold rounded-lg text-sm">Break It Down</button>
             {generatedSteps.map((step, idx) => <p key={idx} className="text-xs text-starlight">{idx + 1}. {step}</p>)}
-            {!!generatedSteps.length && <button onClick={saveSubtasks} className="w-full py-2 bg-pulsar/20 border border-pulsar/30 text-pulsar rounded-lg text-sm">SAVE TO POLARIS</button>}
+            {!!generatedSteps.length && <button onClick={saveSubtasks} className="w-full py-2 bg-pulsar/20 border border-pulsar/30 text-pulsar rounded-lg text-sm">Save To Polaris</button>}
           </div>
         </div>
       )}

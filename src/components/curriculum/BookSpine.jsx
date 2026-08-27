@@ -1,4 +1,4 @@
-const BookSpine = ({ curriculum, accentColor, onClick, isFlipping }) => {
+﻿const BookSpine = ({ curriculum, accentColor, onClick, isFlipping }) => {
   const totalTopics = curriculum._topicCount || 0
   const doneTopics = curriculum._doneCount || 0
   const pct = totalTopics > 0 ? Math.round((doneTopics / totalTopics) * 100) : 0
@@ -13,7 +13,7 @@ const BookSpine = ({ curriculum, accentColor, onClick, isFlipping }) => {
       }}
       onClick={() => onClick(curriculum)}
     >
-      {/* 3D book wrapper — this is what flips */}
+      {/* 3D book wrapper - this is what flips */}
       <div
         className="w-full h-full relative"
         style={{
@@ -41,7 +41,7 @@ const BookSpine = ({ curriculum, accentColor, onClick, isFlipping }) => {
           {/* Vertical title on spine */}
           <div className="absolute left-[14px] top-4 bottom-16 flex items-center">
             <span
-              className="font-display text-[14px] tracking-wider text-starlight/90 whitespace-nowrap"
+              className="font-display text-[14px] text-starlight/90 whitespace-nowrap"
               style={{
                 writingMode: 'vertical-rl',
                 textOrientation: 'mixed',

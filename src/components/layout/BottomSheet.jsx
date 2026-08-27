@@ -31,7 +31,7 @@ export default function BottomSheet({ isOpen, onClose, title, children }) {
       >
         <div className="flex-shrink-0 pt-3 pb-2 flex flex-col items-center cursor-pointer" onClick={onClose}>
           <div className="w-10 h-1 rounded-full bg-white/20 mb-2" />
-          {title && <h3 className="text-starlight font-display text-sm tracking-wider">{title}</h3>}
+          {title && <h3 className="text-starlight font-display text-sm ">{title}</h3>}
         </div>
         <div className="flex-1 overflow-y-auto px-4 pb-8 scrollbar-hide">
           {children}

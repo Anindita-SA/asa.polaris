@@ -20,7 +20,7 @@ const IELTS_RESOURCES = [
   {
     name: 'Cambridge IELTS Books 17-19',
     badge: 'Retired Question Bank',
-    desc: 'Actual retired-question banks examiners pull style from — single most accurate difficulty match.',
+    desc: 'Actual retired-question banks examiners pull style from - single most accurate difficulty match.',
     url: null,
     note: 'PDFs widely available in study folder'
   },
@@ -41,9 +41,9 @@ const IELTS_RESOURCES = [
 const IELTS_SCHEDULE = [
   // Week 1
   { date: '2026-08-17', week: 1, day: 'Mon', duration: '45m', title: 'Diagnostic Mock (Cambridge 19)', focus: 'Full baseline diagnostic under exam conditions', url: 'https://www.ielts.org/for-test-takers/sample-test-questions' },
-  { date: '2026-08-18', week: 1, day: 'Tue', duration: '45m', title: 'Targeted Drilling — Weakest Section (Drill 1)', focus: 'Focus 45 mins on weakest diagnostic section', url: 'https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-practice-tests/road-to-ielts' },
-  { date: '2026-08-19', week: 1, day: 'Wed', duration: '45m', title: 'Targeted Drilling — Weakest Section (Drill 2)', focus: 'Deep writing structure or reading question types', url: 'https://ieltsliz.com' },
-  { date: '2026-08-20', week: 1, day: 'Thu', duration: '45m', title: 'Targeted Drilling — Weakest Section (Drill 3)', focus: 'Timed section drill (passage or Task 2 essay outline)', url: 'https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-practice-tests/road-to-ielts' },
+  { date: '2026-08-18', week: 1, day: 'Tue', duration: '45m', title: 'Targeted Drilling - Weakest Section (Drill 1)', focus: 'Focus 45 mins on weakest diagnostic section', url: 'https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-practice-tests/road-to-ielts' },
+  { date: '2026-08-19', week: 1, day: 'Wed', duration: '45m', title: 'Targeted Drilling - Weakest Section (Drill 2)', focus: 'Deep writing structure or reading question types', url: 'https://ieltsliz.com' },
+  { date: '2026-08-20', week: 1, day: 'Thu', duration: '45m', title: 'Targeted Drilling - Weakest Section (Drill 3)', focus: 'Timed section drill (passage or Task 2 essay outline)', url: 'https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-practice-tests/road-to-ielts' },
   { date: '2026-08-21', week: 1, day: 'Fri', duration: '45m', title: 'Week 1 Review & Error Analysis', focus: 'Review error log before Vignesh research load ramps up', url: 'https://ieltsliz.com' },
   
   // Week 2
@@ -54,18 +54,49 @@ const IELTS_SCHEDULE = [
   { date: '2026-08-28', week: 2, day: 'Fri', duration: '30m', title: 'Reading & Writing Timing Check', focus: 'Timed Reading passage (Cambridge 18) + error review', url: 'https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-practice-tests/road-to-ielts' },
   
   // Week 3
-  { date: '2026-08-31', week: 3, day: 'Mon', duration: '25m', title: 'Maintenance — Writing Task 2 Essay Draft', focus: '1 timed Task 2 essay draft / week (25m)', url: 'https://ieltsliz.com' },
-  { date: '2026-09-01', week: 3, day: 'Tue', duration: '25m', title: 'Maintenance — Light Reading Review', focus: 'Review 1 reading passage (light maintenance)', url: 'https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-practice-tests/road-to-ielts' },
-  { date: '2026-09-02', week: 3, day: 'Wed', duration: '25m', title: 'Maintenance — Speaking Part 2 Recording', focus: '1 cue card recording + self-evaluation / week', url: 'https://ieltsliz.com' },
-  { date: '2026-09-03', week: 3, day: 'Thu', duration: '25m', title: 'Maintenance — Light Listening Review', focus: 'Listen to 1 section with transcript check (25m)', url: 'https://www.ielts.org/for-test-takers/sample-test-questions' },
-  { date: '2026-09-04', week: 3, day: 'Fri', duration: '25m', title: 'Maintenance — Vocab & Error Log Polish', focus: 'Academic vocabulary & collocations check (25m)', url: 'https://ieltsliz.com' },
+  { date: '2026-08-31', week: 3, day: 'Mon', duration: '25m', title: 'Maintenance - Writing Task 2 Essay Draft', focus: '1 timed Task 2 essay draft / week (25m)', url: 'https://ieltsliz.com' },
+  { date: '2026-09-01', week: 3, day: 'Tue', duration: '25m', title: 'Maintenance - Light Reading Review', focus: 'Review 1 reading passage (light maintenance)', url: 'https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-practice-tests/road-to-ielts' },
+  { date: '2026-09-02', week: 3, day: 'Wed', duration: '25m', title: 'Maintenance - Speaking Part 2 Recording', focus: '1 cue card recording + self-evaluation / week', url: 'https://ieltsliz.com' },
+  { date: '2026-09-03', week: 3, day: 'Thu', duration: '25m', title: 'Maintenance - Light Listening Review', focus: 'Listen to 1 section with transcript check (25m)', url: 'https://www.ielts.org/for-test-takers/sample-test-questions' },
+  { date: '2026-09-04', week: 3, day: 'Fri', duration: '25m', title: 'Maintenance - Vocab & Error Log Polish', focus: 'Academic vocabulary & collocations check (25m)', url: 'https://ieltsliz.com' },
   
   // Week 4
   { date: '2026-09-07', week: 4, day: 'Mon', duration: '45m', title: 'Full Timed Mock (IDP App Computer Interface)', focus: 'Full timed mock on computer interface for typing & navigation', url: 'https://ielts.idp.com/prepare/article-idp-ielts-prepare-app' },
-  { date: '2026-09-08', week: 4, day: 'Tue', duration: '25m', title: 'Pre-booking — Mock Error Analysis', focus: 'Analyze IDP mock mistake areas & navigation quirks', url: 'https://ielts.idp.com/prepare/article-idp-ielts-prepare-app' },
-  { date: '2026-09-09', week: 4, day: 'Wed', duration: '25m', title: 'Pre-booking — Writing Structure Polish', focus: 'Light review of essay structures & transitions', url: 'https://ieltsliz.com' },
-  { date: '2026-09-10', week: 4, day: 'Thu', duration: '25m', title: 'Pre-booking — Speaking Speed Drills', focus: 'Quick warm-up 1 cue card + 2 Part 3 questions aloud', url: 'https://ieltsliz.com' },
+  { date: '2026-09-08', week: 4, day: 'Tue', duration: '25m', title: 'Pre-booking - Mock Error Analysis', focus: 'Analyze IDP mock mistake areas & navigation quirks', url: 'https://ielts.idp.com/prepare/article-idp-ielts-prepare-app' },
+  { date: '2026-09-09', week: 4, day: 'Wed', duration: '25m', title: 'Pre-booking - Writing Structure Polish', focus: 'Light review of essay structures & transitions', url: 'https://ieltsliz.com' },
+  { date: '2026-09-10', week: 4, day: 'Thu', duration: '25m', title: 'Pre-booking - Speaking Speed Drills', focus: 'Quick warm-up 1 cue card + 2 Part 3 questions aloud', url: 'https://ieltsliz.com' },
   { date: '2026-09-11', week: 4, day: 'Fri', duration: '20m', title: 'Final Test Strategy & Interface Checklist', focus: 'Final light check of computer interface shortcuts & booking', url: 'https://www.ielts.org/for-test-takers/sample-test-questions' },
+]
+
+const GRADED_MOCK_TESTS = [
+  {
+    id: 'mock_2026_january',
+    title: 'IELTS Mock Test Collection - January 2026',
+    badge: 'Auto-Graded Mock',
+    desc: 'Auto-graded full-length Listening, Reading, Writing, Speaking tests with instant band score evaluation.',
+    url: 'https://ieltsonlinetests.com/collection/ielts-mock-test-2026-january',
+  },
+  {
+    id: 'mock_2025_december',
+    title: 'IELTS Mock Test Collection - December 2025',
+    badge: 'Auto-Graded Mock',
+    desc: 'Auto-graded timed test collection with complete answer explanations, audio scripts, and score breakdowns.',
+    url: 'https://ieltsonlinetests.com/collection/ielts-mock-test-2025-december',
+  },
+  {
+    id: 'mock_2025_november',
+    title: 'IELTS Mock Test Collection - November 2025',
+    badge: 'Auto-Graded Mock',
+    desc: 'Auto-graded full practice tests to drill test-taking speed, accuracy, and section timing.',
+    url: 'https://ieltsonlinetests.com/collection/ielts-mock-test-2025-november',
+  },
+  {
+    id: 'mock_2025_october',
+    title: 'IELTS Mock Test Collection - October 2025',
+    badge: 'Auto-Graded Mock',
+    desc: 'Auto-graded mock exams for evaluating performance across all four test sections before test day.',
+    url: 'https://ieltsonlinetests.com/collection/ielts-mock-test-2025-october',
+  },
 ]
 
 const makeGCalUrl = (item) => {
@@ -87,6 +118,21 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
   const [newResource, setNewResource] = useState({ title: '', author: '', resource_type: 'book', url: '' })
   const [pomodoroMap, setPomodoroMap] = useState({})
   const [resourcesOpen, setResourcesOpen] = useState(false)
+  const [completedMocks, setCompletedMocks] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('polaris_ielts_completed_mocks') || '{}')
+    } catch {
+      return {}
+    }
+  })
+
+  const toggleMockComplete = (mockId) => {
+    setCompletedMocks(prev => {
+      const next = { ...prev, [mockId]: !prev[mockId] }
+      localStorage.setItem('polaris_ielts_completed_mocks', JSON.stringify(next))
+      return next
+    })
+  }
 
   const isIeltsCurriculum = curriculum.title?.toLowerCase().includes('ielts')
 
@@ -216,7 +262,7 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
           <div className="glass border border-sky/30 bg-sky/5 p-4 rounded-xl flex items-start gap-3">
             <ShieldCheck className="w-5 h-5 text-sky shrink-0 mt-0.5" />
             <div className="flex-1 text-xs text-starlight space-y-1">
-              <p className="font-display text-sky text-sm">IELTS 2026 Preparation Sprint — Sub-Calendar & GCal Links</p>
+              <p className="font-display text-sky text-sm">IELTS 2026 Preparation Sprint - Sub-Calendar & GCal Links</p>
               <p className="text-dim leading-relaxed">
                 Import <code className="text-sky bg-void/50 px-1 py-0.5 rounded">ielts_2026_study_schedule.ics</code> into your dedicated <b>IELTS sub-calendar</b> in Google Calendar to keep your main calendar clean. You can also click the 1-click <b>+ Add to GCal</b> links on individual sessions below.
               </p>
@@ -225,7 +271,7 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
 
           {/* 1. Verified 2026 Free Resources */}
           <div className="space-y-3">
-            <h3 className="text-xs font-mono uppercase tracking-widest text-dim flex items-center gap-2">
+            <h3 className="text-xs font-mono text-dim flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-amber-400" /> Current Verified 2026 Resources (No Random YouTube Mocks)
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -233,7 +279,7 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
                 <div key={i} className="glass border border-blue-900/30 p-3.5 rounded-xl flex flex-col justify-between space-y-2">
                   <div className="space-y-1">
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-sky/10 border border-sky/30 text-sky uppercase">
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-sky/10 border border-sky/30 text-sky ">
                         {res.badge}
                       </span>
                       <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
@@ -259,19 +305,91 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
             </div>
           </div>
 
+          {/* 2. Graded Online Mock Test Collections (IELTS Online Tests) with Tick Options */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-mono text-starlight flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-emerald-400" /> Graded Mock Test Collections (IELTS Online Tests)
+              </h3>
+              <span className="text-[11px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+                {Object.values(completedMocks).filter(Boolean).length} / {GRADED_MOCK_TESTS.length} Completed
+              </span>
+            </div>
+            <p className="text-[11px] text-dim leading-relaxed">
+              Official sample tests are un-graded. These collections are <b>auto-graded</b> with instant band score feedback for Listening, Reading, Writing, and Speaking. Tick them off as you complete each mock set:
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {GRADED_MOCK_TESTS.map(mock => {
+                const isDone = !!completedMocks[mock.id]
+
+                return (
+                  <div 
+                    key={mock.id} 
+                    className={`glass border p-3.5 rounded-xl flex flex-col justify-between space-y-3 transition-all ${
+                      isDone 
+                        ? 'border-emerald-500/40 bg-emerald-500/5' 
+                        : 'border-blue-900/30 hover:border-sky/30'
+                    }`}>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-semibold">
+                          {mock.badge}
+                        </span>
+
+                        {/* Interactive Tick Checkbox */}
+                        <button
+                          onClick={() => toggleMockComplete(mock.id)}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-display flex items-center gap-1.5 transition-all ${
+                            isDone 
+                              ? 'bg-emerald-500 text-void font-bold shadow-sm' 
+                              : 'bg-stardust/40 text-dim border border-blue-900/30 hover:text-starlight hover:border-sky/40'
+                          }`}>
+                          <CheckCircle className={`w-3.5 h-3.5 ${isDone ? 'text-void fill-current' : 'text-dim'}`} />
+                          <span>{isDone ? 'Completed ✓' : 'Mark Completed'}</span>
+                        </button>
+                      </div>
+
+                      <h4 className={`text-xs font-display transition-colors ${isDone ? 'text-emerald-300 line-through' : 'text-starlight'}`}>
+                        {mock.title}
+                      </h4>
+                      <p className="text-[11px] text-dim leading-relaxed">{mock.desc}</p>
+                    </div>
+
+                    <div className="pt-2 flex items-center justify-between border-t border-blue-900/15">
+                      <a 
+                        href={mock.url} 
+                        target="_blank" 
+                        rel="noreferrer" 
+                        className="inline-flex items-center gap-1.5 text-[11px] text-sky hover:text-starlight bg-sky/10 border border-sky/20 px-3 py-1.5 rounded-lg transition-colors font-mono">
+                        Take Graded Mock <ExternalLink className="w-3 h-3" />
+                      </a>
+
+                      {isDone && (
+                        <span className="text-[10px] font-mono text-emerald-400 flex items-center gap-1">
+                          Graded & Saved
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
           {/* 2. 4-Week Weekday Schedule */}
           <div className="space-y-4">
-            <h3 className="text-xs font-mono uppercase tracking-widest text-dim flex items-center gap-2">
+            <h3 className="text-xs font-mono text-dim flex items-center gap-2">
               <BookOpen className="w-4 h-4 text-sky" /> Weekday-Only 4-Week Front-Loaded Schedule
             </h3>
 
             {[1, 2, 3, 4].map(weekNum => {
               const weekSessions = IELTS_SCHEDULE.filter(s => s.week === weekNum)
               const weekLabel = 
-                weekNum === 1 ? 'Week 1 — Diagnostic & Targeted Drilling (45 min/day)' :
-                weekNum === 2 ? 'Week 2 — Light Drilling (30 min/day, Vignesh research ramps up)' :
-                weekNum === 3 ? 'Week 3 — Maintenance Only (25 min/day, 1 Essay + 1 Speaking/week)' :
-                'Week 4 — Pre-Booking & Computer Interface Mock (20-25 min/day)'
+                weekNum === 1 ? 'Week 1 - Diagnostic & Targeted Drilling (45 min/day)' :
+                weekNum === 2 ? 'Week 2 - Light Drilling (30 min/day, Vignesh research ramps up)' :
+                weekNum === 3 ? 'Week 3 - Maintenance Only (25 min/day, 1 Essay + 1 Speaking/week)' :
+                'Week 4 - Pre-Booking & Computer Interface Mock (20-25 min/day)'
 
               return (
                 <div key={weekNum} className="glass border border-blue-900/25 rounded-xl p-4 space-y-3">
@@ -327,7 +445,7 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
       {/* Syllabus */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="font-display text-base text-starlight tracking-wider">Syllabus</h2>
+          <h2 className="font-display text-base text-starlight ">Syllabus</h2>
           <button onClick={() => setAddingTopic(true)}
             className="text-dim hover:text-starlight text-xs font-body flex items-center gap-1 transition-colors">
             <Plus className="w-3 h-3" /> Add topic
@@ -344,7 +462,7 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
               <input type="number" placeholder="Hours" value={newTopic.estimated_hours}
                 onChange={e => setNewTopic(p => ({ ...p, estimated_hours: e.target.value }))}
                 className="w-20 bg-transparent border-b border-blue-900/30 text-xs text-dim outline-none font-mono pb-1" />
-              <button onClick={addTopicHandler} className="px-3 py-1 text-xs font-display rounded" style={{ background: `${accentColor}20`, color: accentColor, border: `1px solid ${accentColor}30` }}>ADD</button>
+              <button onClick={addTopicHandler} className="px-3 py-1 text-xs font-display rounded" style={{ background: `${accentColor}20`, color: accentColor, border: `1px solid ${accentColor}30` }}>Add</button>
               <button onClick={() => setAddingTopic(false)} className="text-dim text-xs">Cancel</button>
             </div>
           </div>
@@ -371,7 +489,7 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
         )}
       </div>
 
-      {/* Resources — collapsible dropdown */}
+      {/* Resources - collapsible dropdown */}
       <div className="glass border border-blue-900/15 rounded-xl overflow-hidden">
         <button
           onClick={() => setResourcesOpen(!resourcesOpen)}
@@ -379,7 +497,7 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
         >
           <div className="flex items-center gap-2">
             <BookOpen className="w-4 h-4" style={{ color: accentColor }} />
-            <span className="font-display text-sm text-starlight tracking-wider">Resources</span>
+            <span className="font-display text-sm text-starlight ">Resources</span>
             <span className="text-[10px] font-mono text-dim ml-1">({resources.length})</span>
           </div>
           <ChevronDown className={`w-4 h-4 text-dim transition-transform duration-200 ${resourcesOpen ? 'rotate-180' : ''}`} />
@@ -412,7 +530,7 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
                     <option value="course">Course</option>
                     <option value="podcast">Podcast</option>
                   </select>
-                  <button onClick={addResourceHandler} className="px-3 py-1 text-xs font-display rounded" style={{ background: `${accentColor}20`, color: accentColor }}>ADD</button>
+                  <button onClick={addResourceHandler} className="px-3 py-1 text-xs font-display rounded" style={{ background: `${accentColor}20`, color: accentColor }}>Add</button>
                   <button onClick={() => setAddingResource(false)} className="text-dim text-xs">✕</button>
                 </div>
               </div>

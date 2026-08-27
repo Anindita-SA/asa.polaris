@@ -81,8 +81,8 @@ export const SEED_CURRICULA = [
     topics: [
       { title: 'Week 1 Mon: Diagnostic Mock (Cambridge 19, 45 min)', estimated_hours: 1, is_recommended_next: true },
       { title: 'Week 1 Tue-Fri: Targeted Drilling on Weakest Section (45 min/day)', estimated_hours: 3 },
-      { title: 'Week 2 Mon-Fri: Light Drilling — Alternate Reading/Writing & Listening/Speaking (30 min/day)', estimated_hours: 2.5 },
-      { title: 'Week 3 Mon-Fri: Maintenance Only — 1 Essay + 1 Speaking Recording + Light Review (25 min/day)', estimated_hours: 2 },
+      { title: 'Week 2 Mon-Fri: Light Drilling - Alternate Reading/Writing & Listening/Speaking (30 min/day)', estimated_hours: 2.5 },
+      { title: 'Week 3 Mon-Fri: Maintenance Only - 1 Essay + 1 Speaking Recording + Light Review (25 min/day)', estimated_hours: 2 },
       { title: 'Week 4 Mon-Fri: Full Timed Mock in IDP App + Light Review (20-25 min/day)', estimated_hours: 2 },
       { title: 'Mock Test 2026 January (ieltsonlinetests.com)', estimated_hours: 3 },
       { title: 'Mock Test 2025 December (ieltsonlinetests.com)', estimated_hours: 3 },

@@ -182,7 +182,7 @@ const HardwareScoutPanel = () => {
                         <Edit2 className="w-3.5 h-3.5" />
                       </button>
                     )}
-                    <span className="px-2 py-1 rounded bg-blue-900/20 text-dim text-xs uppercase tracking-wider">
+                    <span className="px-2 py-1 rounded bg-blue-900/20 text-dim text-xs ">
                       {opp.status}
                     </span>
                   </div>

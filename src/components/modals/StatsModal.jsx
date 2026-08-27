@@ -82,18 +82,18 @@ const StatsModal = ({ onClose }) => {
         <div className="flex items-center justify-between mb-6 border-b border-blue-900/20 pb-4">
           <div className="flex flex-wrap gap-4 sm:gap-6">
             <button onClick={() => setActiveTab('evolution')} 
-              className={`flex items-center gap-2 text-xs sm:text-sm font-display tracking-widest transition-colors ${activeTab === 'evolution' ? 'text-gold border-b-2 border-gold pb-1 font-bold' : 'text-dim hover:text-starlight'}`}>
-              <Shield className="w-4 h-4 text-gold" /> EVOLUTION
+              className={`flex items-center gap-2 text-xs sm:text-sm font-display transition-colors ${activeTab === 'evolution' ? 'text-gold border-b-2 border-gold pb-1 font-bold' : 'text-dim hover:text-starlight'}`}>
+              <Shield className="w-4 h-4 text-gold" /> Evolution
             </button>
 
             <button onClick={() => setActiveTab('io')} 
-              className={`flex items-center gap-2 text-xs sm:text-sm font-display tracking-widest transition-colors ${activeTab === 'io' ? 'text-emerald border-b-2 border-emerald pb-1 font-bold' : 'text-dim hover:text-starlight'}`}>
-              <Activity className="w-4 h-4 text-emerald" /> I/O CHRONOLOGY
+              className={`flex items-center gap-2 text-xs sm:text-sm font-display transition-colors ${activeTab === 'io' ? 'text-emerald border-b-2 border-emerald pb-1 font-bold' : 'text-dim hover:text-starlight'}`}>
+              <Activity className="w-4 h-4 text-emerald" /> I/O Chronology
             </button>
 
             <button onClick={() => setActiveTab('progress')} 
-              className={`flex items-center gap-2 text-xs sm:text-sm font-display tracking-widest transition-colors ${activeTab === 'progress' ? 'text-pulsar border-b-2 border-pulsar pb-1 font-bold' : 'text-dim hover:text-starlight'}`}>
-              <TrendingUp className="w-4 h-4 text-pulsar" /> PROGRESS
+              className={`flex items-center gap-2 text-xs sm:text-sm font-display transition-colors ${activeTab === 'progress' ? 'text-pulsar border-b-2 border-pulsar pb-1 font-bold' : 'text-dim hover:text-starlight'}`}>
+              <TrendingUp className="w-4 h-4 text-pulsar" /> Progress
             </button>
           </div>
           <button onClick={onClose} className="text-dim hover:text-starlight p-1 rounded-lg hover:bg-white/5"><X className="w-5 h-5" /></button>
@@ -108,7 +108,7 @@ const StatsModal = ({ onClose }) => {
                   <Shield className="w-12 h-12 text-gold" />
                 </div>
                 <div>
-                  <h2 className="text-3xl font-display tracking-widest text-starlight">{current.name}</h2>
+                  <h2 className="text-3xl font-display text-starlight">{current.name}</h2>
                   <p className="text-nova font-mono text-sm mt-2">Level {current.level} ✦ {xp} Lifetime XP</p>
                 </div>
               </div>
@@ -135,8 +135,8 @@ const StatsModal = ({ onClose }) => {
                 {TIERS.slice(currentTierIndex, currentTierIndex + 3).map((tier, idx) => (
                   <div key={tier} className={`p-3 rounded-xl border flex flex-col items-center justify-center text-center ${idx === 0 ? 'bg-gold/10 border-gold/40' : 'bg-white/5 border-blue-900/20 opacity-50'}`}>
                     <Award className={`w-5 h-5 mb-2 ${idx === 0 ? 'text-gold' : 'text-dim'}`} />
-                    <span className={`text-[10px] font-display uppercase tracking-wider ${idx === 0 ? 'text-starlight' : 'text-dim'}`}>{tier}</span>
-                    {idx === 0 && <span className="text-[9px] text-gold mt-1">CURRENT RANK</span>}
+                    <span className={`text-[10px] font-display ${idx === 0 ? 'text-starlight' : 'text-dim'}`}>{tier}</span>
+                    {idx === 0 && <span className="text-[9px] text-gold mt-1">Current Rank</span>}
                   </div>
                 ))}
               </div>
@@ -147,11 +147,11 @@ const StatsModal = ({ onClose }) => {
             <div className="flex flex-col space-y-8 pt-4 pb-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="glass p-4 rounded-xl border border-amber-500/20 bg-amber-500/5 flex flex-col items-center">
-                  <span className="text-xs font-display tracking-widest text-amber-500/80 mb-1">TOTAL 7-DAY INPUT</span>
+                  <span className="text-xs font-display text-amber-500/80 mb-1">Total 7-Day Input</span>
                   <span className="text-2xl font-mono text-amber-400">{ioHistory.reduce((s, l) => s + l.input, 0)}m</span>
                 </div>
                 <div className="glass p-4 rounded-xl border border-emerald-500/20 bg-emerald-500/5 flex flex-col items-center">
-                  <span className="text-xs font-display tracking-widest text-emerald-500/80 mb-1">TOTAL 7-DAY OUTPUT</span>
+                  <span className="text-xs font-display text-emerald-500/80 mb-1">Total 7-Day Output</span>
                   <span className="text-2xl font-mono text-emerald-400">{ioHistory.reduce((s, l) => s + l.output, 0)}m</span>
                 </div>
               </div>
@@ -178,7 +178,7 @@ const StatsModal = ({ onClose }) => {
                           <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[9px] font-mono text-emerald-400 opacity-0 group-hover:opacity-100">{day.output}</span>
                         </div>
                       </div>
-                      <span className="text-[10px] font-display text-dim uppercase mt-2">{day.dayName}</span>
+                      <span className="text-[10px] font-display text-dim mt-2">{day.dayName}</span>
                     </div>
                   )
                 })}
@@ -186,7 +186,7 @@ const StatsModal = ({ onClose }) => {
 
               {/* Manual Entry Form */}
               <div className="glass p-4 rounded-xl border border-blue-900/30 flex flex-col gap-3">
-                <h3 className="text-xs font-display tracking-widest text-starlight mb-1">MANUAL I/O ENTRY</h3>
+                <h3 className="text-xs font-display text-starlight mb-1">Manual I/O Entry</h3>
                 <div className="flex flex-wrap sm:flex-nowrap gap-2 items-center">
                   <select value={ioForm.type} onChange={e => setIoForm(f => ({ ...f, type: e.target.value }))}
                     className={`bg-stardust text-xs px-3 py-2 rounded-lg outline-none font-body border ${ioForm.type === 'input' ? 'border-amber-500/30 text-amber-400' : 'border-emerald-500/30 text-emerald-400'}`}>
@@ -212,7 +212,7 @@ const StatsModal = ({ onClose }) => {
 
               {/* Raw History List */}
               <div className="space-y-2 pb-4">
-                <h3 className="text-xs font-display tracking-widest text-dim mb-2 mt-4">RECENT I/O LOGS</h3>
+                <h3 className="text-xs font-display text-dim mb-2 mt-4">Recent I/O Logs</h3>
                 {rawLogs.length === 0 ? (
                   <p className="text-xs text-dim italic font-body">No logs found.</p>
                 ) : (
@@ -220,7 +220,7 @@ const StatsModal = ({ onClose }) => {
                     <div key={log.id} className="group flex items-center justify-between p-3 rounded-lg border border-blue-900/10 hover:border-blue-900/30 hover:bg-white/5 transition-colors">
                       <div className="flex items-center gap-3">
                         <span className={`text-[10px] px-2 py-0.5 rounded font-mono ${log.type === 'input' ? 'bg-amber-500/10 text-amber-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
-                          {log.type.toUpperCase()}
+                          {log.type}
                         </span>
                         <div className="flex flex-col">
                           <span className="text-xs font-body text-starlight">{log.category}</span>
