@@ -983,6 +983,19 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
+                      <div className="col-span-2">
+                        <h4 className="text-xs uppercase tracking-wider font-bold text-nova/60 mb-1 font-mono">Deadline</h4>
+                        <div className="bg-void/40 border border-pulsar/40 rounded-xl p-2.5 text-xs flex items-center gap-2 focus-within:border-pulsar/50 transition-colors">
+                          <Calendar className="w-3.5 h-3.5 text-pulsar shrink-0" />
+                          <input
+                            type="date"
+                            defaultValue={selectedTask.deadline || ''}
+                            onBlur={(e) => updateTaskField(selectedTask.id, 'deadline', e.target.value || null)}
+                            className="bg-transparent w-full outline-none font-mono text-starlight"
+                            style={{ colorScheme: 'dark' }}
+                          />
+                        </div>
+                      </div>
                       <div>
                         <h4 className="text-xs uppercase tracking-wider font-bold text-nova/60 mb-1 font-mono ">Estimate (m)</h4>
                         <div className="bg-void/40 border border-pulsar/40 rounded-xl p-2.5 text-xs flex items-center gap-2 focus-within:border-pulsar/50 transition-colors">
