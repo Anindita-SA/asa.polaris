@@ -162,10 +162,21 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
     ]
 
     IELTS_SCHEDULE.forEach((s, idx) => {
-      const dtStart = `${s.date.replace(/-/g, '')}T180000`
-      const durationMin = s.duration.includes('180') ? '210000' : s.duration.includes('150') ? '203000' : s.duration.includes('60') ? '190000' : s.duration.includes('45') ? '184500' : s.duration.includes('40') ? '184000' : s.duration.includes('30') ? '183000' : s.duration.includes('25') ? '182500' : '182000'
-      const dtEnd = `${s.date.replace(/-/g, '')}T${durationMin}`
-      const uid = `ielts-2026-sprint-session-${idx + 1}@polaris.app`
+      let startHour = 10;
+      let startMin = 30;
+      if (s.slot?.includes('Deep Work')) { startHour = 8; startMin = 0; }
+      else if (s.slot?.includes('Weekend')) { startHour = 10; startMin = 0; }
+      else if (s.slot?.includes('OFFICIAL EXAM')) { startHour = 9; startMin = 0; }
+      else if (s.slot?.includes('Downtime')) { startHour = 17; startMin = 0; }
+
+      const durationMins = parseInt(s.duration.replace('m', '')) || 30;
+      let endHour = startHour + Math.floor((startMin + durationMins) / 60);
+      let endMin = (startMin + durationMins) % 60;
+
+      const d = s.date.replace(/-/g, '');
+      const dtStart = `${d}T${startHour.toString().padStart(2, '0')}${startMin.toString().padStart(2, '0')}00`;
+      const dtEnd = `${d}T${endHour.toString().padStart(2, '0')}${endMin.toString().padStart(2, '0')}00`;
+      const uid = `ielts-2026-sprint-session-${idx + 1}@polaris.app`;
 
       icsLines.push('BEGIN:VEVENT')
       icsLines.push(`UID:${uid}`)
