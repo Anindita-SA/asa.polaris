@@ -29,11 +29,20 @@
     width: 100vw;
   }
 
-  h1,
-  h2,
-  h3 {
-    font-family: 'DM Serif Display', serif;
+  h1, h2, h3, .font-display {
+    font-family: 'Bree Serif', serif;
   }
+
+  /* Dynamic Inverse Optical Scaling for Display Fonts */
+  .font-display.text-xs { letter-spacing: 0.08em; }
+  .font-display.text-sm { letter-spacing: 0.07em; }
+  .font-display.text-base { letter-spacing: 0.06em; }
+  .font-display.text-lg { letter-spacing: 0.05em; }
+  .font-display.text-xl { letter-spacing: 0.045em; }
+  .font-display.text-2xl { letter-spacing: 0.03em; }
+  .font-display.text-3xl { letter-spacing: 0.01em; }
+  .font-display.text-4xl { letter-spacing: 0em; }
+  .font-display.text-5xl, .font-display.text-6xl { letter-spacing: -0.01em; }
 
   @media (max-width: 767px) {
     button {
@@ -230,12 +239,7 @@
   }
 }
 
-/* Instrument Serif rendering fix */
-.font-display {
-  font-optical-sizing: auto;
-  letter-spacing: 0.03em;
-  font-style: normal;
-}
+
 
 @keyframes nodeTwinkle {
   0% { opacity: 0.6; transform: scale(0.95); }

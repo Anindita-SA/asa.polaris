@@ -40,13 +40,13 @@ const HUD = ({ activeView, setActiveView, rightPanelOpen, setRightPanelOpen }) =
 
   return (
     <>
-      <div className="fixed top-0 left-0 right-0 z-50 glass border-b border-blue-900/20">
+      <div className="fixed top-0 left-0 right-0 z-50 glass border-b border-pulsar/30">
         {/* ── Row 1: Logo + Clarity Anchor + Nav (desktop) + Bars + Logout ── */}
         <div className="flex items-center h-14 px-4 gap-3">
           {/* Logo */}
           <div className="flex items-center gap-2 min-w-fit">
             <Star className="text-gold w-4 h-4" fill="currentColor" />
-            <span className="font-display text-sm tracking-[0.2em] text-starlight">Polaris</span>
+            <span className="font-display text-sm tracking-[0.2em] text-starlight">POLARIS</span>
           </div>
 
           <div className="w-px h-6 bg-blue-900/40 hidden sm:block" />
@@ -66,14 +66,14 @@ const HUD = ({ activeView, setActiveView, rightPanelOpen, setRightPanelOpen }) =
               </div>
             ) : (
               <div className="flex items-center gap-2 group cursor-pointer" onClick={() => { setAnchorText(profile?.clarity_anchor || ''); setEditingAnchor(true) }}>
-                <p className="text-xs text-dim font-body italic truncate">{profile?.clarity_anchor}</p>
-                <Edit2 className="w-3 h-3 text-dim opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                <p className="text-xs text-nova/60 font-body italic truncate">{profile?.clarity_anchor}</p>
+                <Edit2 className="w-3 h-3 text-nova/60 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
               </div>
             )}
             {editingChapter ? (
               <div className="flex items-center gap-2">
                 <input
-                  className="bg-transparent border-b border-aurora text-xs text-aurora outline-none font-display "
+                  className="bg-transparent border-b border-aurora text-xs text-aurora outline-none font-display"
                   value={chapterText}
                   onChange={e => setChapterText(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && saveChapter()}
@@ -83,8 +83,8 @@ const HUD = ({ activeView, setActiveView, rightPanelOpen, setRightPanelOpen }) =
               </div>
             ) : (
               <div className="flex items-center gap-1 group cursor-pointer" onClick={() => { setChapterText(profile?.current_chapter || ''); setEditingChapter(true) }}>
-                <span className="text-xs font-display text-aurora/70">{profile?.current_chapter}</span>
-                <Edit2 className="w-3 h-3 text-aurora/40 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <span className="text-xs font-mono uppercase tracking-widest text-aurora/70">{profile?.current_chapter}</span>
+                <Edit2 className="w-3 h-3 text-aurora/90 opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
             )}
           </div>
@@ -97,7 +97,7 @@ const HUD = ({ activeView, setActiveView, rightPanelOpen, setRightPanelOpen }) =
                 onClick={() => setActiveView(item.id)}
                 className={`whitespace-nowrap px-2 py-1 text-xs md:px-2.5 md:text-sm font-body rounded transition-all ${activeView === item.id
                   ? 'text-starlight bg-cosmic border border-pulsar/30'
-                  : 'text-dim hover:text-starlight'
+                  : 'text-nova/60 hover:text-starlight'
                   }`}
               >
                 {item.label}
@@ -108,18 +108,18 @@ const HUD = ({ activeView, setActiveView, rightPanelOpen, setRightPanelOpen }) =
           <div className="w-px h-6 bg-blue-900/40 hidden lg:block mx-1" />
 
           {/* Stacked bars: XP + IO */}
-          <div onClick={() => setIsStatsOpen(true)} className="flex flex-col gap-0.5 flex-1 min-w-[140px] max-w-[350px] cursor-pointer group hover:bg-white/5 p-1 rounded transition-colors -ml-1">
+          <div onClick={() => setIsStatsOpen(true)} className="flex flex-col gap-0.5 flex-1 min-w-[140px] max-w-[350px] cursor-pointer group hover:bg-pulsar/10 p-1 rounded transition-colors -ml-1">
             {/* XP row */}
             <div className="flex items-center gap-2">
-              <span className="text-xs font-display text-gold whitespace-nowrap hidden sm:inline group-hover:text-nova transition-colors">{current.name}</span>
-              <div className="flex-1 h-1.5 bg-stardust rounded-full overflow-hidden">
+              <span className="text-xs font-mono uppercase tracking-widest text-gold whitespace-nowrap hidden sm:inline group-hover:text-nova transition-colors">{current.name}</span>
+              <div className="flex-1 h-1.5 bg-stardust rounded-xl overflow-hidden">
                 <div
-                  className="h-full bg-gold rounded-full xp-bar-fill transition-all duration-700"
+                  className="h-full bg-gold rounded-xl xp-bar-fill transition-all duration-700"
                   style={{ width: `${progress}%` }}
                 />
               </div>
-              <span className="text-xs font-mono text-dim whitespace-nowrap">{xp}{next ? `/${next.minXp}` : ''}</span>
-              <span className="text-xs font-display text-nova group-hover:text-gold transition-colors">Lv.{current.level}</span>
+              <span className="text-xs font-mono text-nova/60 whitespace-nowrap">{xp}{next ? `/${next.minXp}` : ''}</span>
+              <span className="text-xs font-mono uppercase tracking-wider text-nova group-hover:text-gold transition-colors">Lv.{current.level}</span>
             </div>
             {/* IO row */}
             <div className="hidden md:block pointer-events-none">
@@ -128,7 +128,7 @@ const HUD = ({ activeView, setActiveView, rightPanelOpen, setRightPanelOpen }) =
           </div>
 
           {/* Logout */}
-          <button onClick={signOut} className="text-dim hover:text-danger transition-colors ml-1" title="Sign Out">
+          <button onClick={signOut} className="text-nova/60 hover:text-danger transition-colors ml-1" title="Sign Out">
             <LogOut className="w-4 h-4" />
           </button>
         </div>

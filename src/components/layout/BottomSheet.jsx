@@ -27,11 +27,11 @@ export default function BottomSheet({ isOpen, onClose, title, children }) {
       
       {/* Sheet */}
       <div 
-        className={`fixed bottom-0 left-0 right-0 z-[60] max-h-[80vh] flex flex-col bg-[#0a0f1e] border-t border-white/10 rounded-t-2xl md:hidden transition-transform duration-300 ${isOpen ? 'translate-y-0' : 'translate-y-full'}`}
+        className={`fixed bottom-0 left-0 right-0 z-[60] max-h-[80vh] flex flex-col bg-[#0a0f1e] border-t border-nova/20 rounded-t-2xl md:hidden transition-transform duration-300 ${isOpen ? 'translate-y-0' : 'translate-y-full'}`}
       >
         <div className="flex-shrink-0 pt-3 pb-2 flex flex-col items-center cursor-pointer" onClick={onClose}>
-          <div className="w-10 h-1 rounded-full bg-white/20 mb-2" />
-          {title && <h3 className="text-starlight font-display text-sm ">{title}</h3>}
+          <div className="-full bg-white/20 mb-2" />
+          {title && <h3 className="text-starlight font-display text-lg">{title}</h3>}
         </div>
         <div className="flex-1 overflow-y-auto px-4 pb-8 scrollbar-hide">
           {children}

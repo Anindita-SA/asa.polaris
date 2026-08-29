@@ -226,7 +226,7 @@ const ConstellationGraph = forwardRef(({ onNodeSelect }, ref) => {
 
   if (loading) return (
     <div className="flex items-center justify-center h-full">
-      <p className="font-display text-dim text-sm animate-pulse">Mapping Stars...</p>
+      <p className="font-display text-nova/60 text-sm animate-pulse">Mapping Stars...</p>
     </div>
   )
 
@@ -242,27 +242,27 @@ const ConstellationGraph = forwardRef(({ onNodeSelect }, ref) => {
       {showModal && (
         <div className="modal-overlay fixed inset-0 bg-void/80 z-50 flex items-end md:items-center justify-center p-0 md:p-4"
           onClick={e => e.target === e.currentTarget && setShowModal(false)}>
-          <div className="modal-content glass border border-blue-900/30 rounded-t-2xl rounded-b-none md:rounded-2xl p-6 w-full w-full max-w-full md:max-w-sm space-y-4">
+          <div className="modal-content glass border border-pulsar/40 rounded-t-2xl rounded-b-none md:rounded-xl p-6 w-full w-full max-w-full md:max-w-sm space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="font-display text-starlight ">New Star</h3>
-              <button onClick={() => setShowModal(false)}><X className="w-4 h-4 text-dim" /></button>
+              <h3 className="text-lg font-display text-starlight">New Star</h3>
+              <button onClick={() => setShowModal(false)}><X className="w-4 h-4 text-nova/60" /></button>
             </div>
             <input placeholder="Title" value={form.title}
               onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
               onKeyDown={e => e.key === 'Enter' && addNode()}
               autoFocus
-              className="w-full bg-stardust/50 text-sm text-starlight border border-blue-900/20 rounded-lg px-3 py-2 outline-none focus:border-pulsar/40 font-body" />
+              className="w-full bg-stardust/50 text-sm text-starlight border border-pulsar/30 rounded-lg px-3 py-2 outline-none focus:border-pulsar/40 font-body" />
             <select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))}
-              className="w-full bg-stardust/50 text-sm text-dim border border-blue-900/20 rounded-lg px-3 py-2 outline-none">
+              className="w-full bg-stardust/50 text-sm text-nova/60 border border-pulsar/30 rounded-lg px-3 py-2 outline-none">
               <option value="career">Career</option>
               <option value="academic">Academic</option>
               <option value="self">Self</option>
             </select>
             <input placeholder="Description (optional)" value={form.description}
               onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-              className="w-full bg-stardust/50 text-sm text-starlight border border-blue-900/20 rounded-lg px-3 py-2 outline-none focus:border-pulsar/40 font-body" />
+              className="w-full bg-stardust/50 text-sm text-starlight border border-pulsar/30 rounded-lg px-3 py-2 outline-none focus:border-pulsar/40 font-body" />
             <button onClick={addNode}
-              className="w-full py-2 bg-pulsar/20 border border-pulsar/30 text-pulsar text-sm font-display rounded-lg hover:bg-pulsar/30 transition-colors">
+              className="w-full py-2 bg-pulsar/20 border border-pulsar/30 text-pulsar text-lg font-display rounded-lg hover:bg-pulsar/30 transition-colors">
               Add Star
             </button>
           </div>

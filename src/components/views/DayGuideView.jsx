@@ -1,4 +1,4 @@
-﻿import { getGroqKey } from '../../lib/llm';
+import { getGroqKey } from '../../lib/llm';
 import React, { useState, useCallback, useEffect } from 'react';
 import TodaysTasksShuffle from '../TodaysTasksShuffle';
 import MatrixCanvasView from './MatrixCanvasView';
@@ -176,22 +176,22 @@ function AuditorPanel() {
   const pickedTasks = tasks.filter(t => pickedIds.includes(t.id));
 
   return (
-    <div className="w-full h-full overflow-y-auto scrollbar-hide px-4 sm:px-8 py-6 space-y-6 pb-32">
+    <div className="w-full px-4 sm:px-8 py-6 space-y-6 pb-32">
 
       {/* Header row */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="font-display text-xl text-starlight flex items-center gap-2">
+          <h2 className="font-display text-base text-starlight flex items-center gap-2">
             <Bot className="w-5 h-5 text-gold" /> Ai Auditor
           </h2>
-          <p className="text-xs text-dim mt-1 font-body italic">
+          <p className="text-xs text-nova/60 mt-1 font-body italic">
             Estimates task durations via AI, scores with WSJF, and curates today's priority queue (4h capacity).
           </p>
         </div>
         <button
           onClick={runAudit}
           disabled={isAuditing || loading}
-          className="flex items-center gap-2 bg-gold hover:bg-gold/90 disabled:opacity-50 text-void font-display text-xs px-5 py-2.5 rounded-xl shadow-[0_0_20px_rgba(245,158,11,0.3)] transition-all active:scale-95 cursor-pointer"
+          className="flex items-center gap-2 bg-gold hover:bg-gold/90 disabled:opacity-50 text-void font-display text-xs px-5 py-2.5 rounded-xl transition-all active:scale-95 cursor-pointer"
         >
           <Bot className={`w-4 h-4 ${isAuditing ? 'animate-spin' : ''}`} />
           {isAuditing ? 'AUDITING…' : 'RUN AI AUDIT'}
@@ -206,17 +206,17 @@ function AuditorPanel() {
           { label: 'Today Queue', value: active, color: 'text-gold', icon: Flame },
           { label: 'Unsorted', value: unquadrant, color: unquadrant > 0 ? 'text-amber-400' : 'text-emerald-400', icon: AlertTriangle },
         ].map(({ label, value, color, icon: Icon }) => (
-          <div key={label} className="glass border border-blue-900/20 rounded-2xl p-4 text-center">
+          <div key={label} className="glass border border-pulsar/30 rounded-xl p-4 text-center">
             <Icon className={`w-4 h-4 mx-auto mb-1 ${color}`} />
             <div className={`font-mono text-xl font-bold ${color}`}>{value}</div>
-            <div className="text-[10px] font-mono text-dim mt-0.5">{label}</div>
+            <div className="text-xs font-mono text-nova/60 mt-0.5">{label}</div>
           </div>
         ))}
       </div>
 
       {/* Quadrant breakdown */}
-      <div className="glass border border-blue-900/20 rounded-2xl p-5">
-        <h3 className="font-display text-xs text-starlight mb-4 flex items-center gap-2">
+      <div className="glass border border-pulsar/30 rounded-xl p-5">
+        <h3 className="font-display text-lg text-starlight mb-4 flex items-center gap-2">
           <Target className="w-4 h-4 text-pulsar" /> Quadrant Distribution
         </h3>
         <div className="grid grid-cols-2 gap-3">
@@ -225,14 +225,14 @@ function AuditorPanel() {
             const Icon = Q_ICON[quad];
             const color = Q_COLOR[quad];
             return (
-              <div key={quad} className="flex items-center gap-3 glass border border-white/5 rounded-xl p-3">
-                <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+              <div key={quad} className="flex items-center gap-3 glass border border-pulsar/30 rounded-xl p-3">
+                <div className="-full flex items-center justify-center shrink-0"
                   style={{ backgroundColor: `${color}18`, border: `1px solid ${color}40` }}>
                   <Icon className="w-4 h-4" style={{ color }} />
                 </div>
                 <div>
                   <div className="font-mono text-sm font-bold text-starlight">{count}</div>
-                  <div className="text-[10px] font-mono text-dim">{label}</div>
+                  <div className="text-xs font-mono text-nova/60">{label}</div>
                 </div>
               </div>
             );
@@ -242,8 +242,8 @@ function AuditorPanel() {
 
       {/* Audit log */}
       {auditLog.length > 0 && (
-        <div className="glass border border-blue-900/20 rounded-2xl p-5 space-y-2">
-          <h3 className="font-display text-xs text-starlight mb-3 flex items-center gap-2">
+        <div className="glass border border-pulsar/30 rounded-xl p-5 space-y-2">
+          <h3 className="font-display text-lg text-starlight mb-3 flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-gold" /> Audit Log
           </h3>
           <div className="space-y-1.5 font-mono text-[11px]">
@@ -252,7 +252,7 @@ function AuditorPanel() {
                 entry.type === 'success' ? 'text-emerald-400'
                 : entry.type === 'error' ? 'text-red-400'
                 : entry.type === 'warn' ? 'text-amber-400'
-                : 'text-dim'
+                : 'text-nova/60'
               }`}>
                 <ChevronRight className="w-3 h-3 mt-0.5 shrink-0" />
                 <span>{entry.msg}</span>
@@ -264,8 +264,8 @@ function AuditorPanel() {
 
       {/* Curated picks result */}
       {auditDone && pickedTasks.length > 0 && (
-        <div className="glass border border-gold/20 rounded-2xl p-5 space-y-3">
-          <h3 className="font-display text-xs text-gold flex items-center gap-2">
+        <div className="glass border border-gold/50 rounded-xl p-5 space-y-3">
+          <h3 className="font-display text-lg text-gold flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4" /> Today's Curated Queue ({pickedTasks.length} tasks)
           </h3>
           <div className="space-y-2">
@@ -273,13 +273,13 @@ function AuditorPanel() {
               const color = Q_COLOR[t.quadrant] || '#f59e0b';
               const label = Q_LABEL[t.quadrant] || 'Focus';
               return (
-                <div key={t.id} className="flex items-center gap-3 glass border border-white/5 rounded-xl px-3 py-2">
-                  <span className="font-mono text-[10px] text-dim w-4 shrink-0">{i + 1}</span>
-                  <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                <div key={t.id} className="flex items-center gap-3 glass border border-pulsar/30 rounded-xl px-3 py-2">
+                  <span className="font-mono text-xs text-nova/60 w-4 shrink-0">{i + 1}</span>
+                  <div className="-full shrink-0" style={{ backgroundColor: color }} />
                   <span className="text-xs font-body text-starlight flex-1 truncate">{t.title}</span>
                   <span className="font-mono text-[9px] shrink-0" style={{ color }}>{label}</span>
                   {t.estimated_minutes && (
-                    <span className="font-mono text-[9px] text-dim shrink-0">{t.estimated_minutes}m</span>
+                    <span className="font-mono text-[9px] text-nova/60 shrink-0">{t.estimated_minutes}m</span>
                   )}
                 </div>
               );
@@ -290,12 +290,12 @@ function AuditorPanel() {
 
       {/* Empty state */}
       {!isAuditing && auditLog.length === 0 && (
-        <div className="glass border border-dashed border-blue-900/30 rounded-2xl p-12 text-center space-y-3">
-          <Bot className="w-10 h-10 text-dim mx-auto" />
-          <p className="text-sm text-dim font-body italic">
+        <div className="glass border border-dashed border-pulsar/40 rounded-xl p-12 text-center space-y-3">
+          <Bot className="w-10 h-10 text-nova/60 mx-auto" />
+          <p className="text-sm text-nova/60 font-body italic">
             Run the AI Auditor to auto-estimate task durations, score with WSJF, and curate today's priority queue.
           </p>
-          <p className="text-[10px] font-mono text-dim/50">Requires Groq API key for AI estimation.</p>
+          <p className="text-xs font-mono text-nova/60/50">Requires Groq API key for AI estimation.</p>
         </div>
       )}
 
@@ -337,7 +337,7 @@ export default function DayGuideView() {
       fullLabel: 'CONSTELLATION MATRIX',
       icon: Network,
       iconColor: 'text-pulsar',
-      activeStyle: 'bg-cosmic border border-pulsar/40 shadow-[0_0_15px_rgba(59,130,246,0.3)]',
+      activeStyle: 'bg-cosmic border border-pulsar/40 ',
     },
     {
       id: 'picks',
@@ -345,7 +345,7 @@ export default function DayGuideView() {
       fullLabel: "TODAY'S PICKS",
       icon: Sparkles,
       iconColor: 'text-gold',
-      activeStyle: 'bg-cosmic border border-gold/40 shadow-[0_0_15px_rgba(245,158,11,0.3)]',
+      activeStyle: 'bg-cosmic border border-gold/40 ',
     },
     {
       id: 'auditor',
@@ -353,7 +353,7 @@ export default function DayGuideView() {
       fullLabel: 'AI AUDITOR',
       icon: Bot,
       iconColor: 'text-emerald-400',
-      activeStyle: 'bg-cosmic border border-emerald-400/40 shadow-[0_0_15px_rgba(52,211,153,0.25)]',
+      activeStyle: 'bg-cosmic border border-emerald-400/40 ',
     },
     {
       id: 'brief',
@@ -361,31 +361,31 @@ export default function DayGuideView() {
       fullLabel: 'DAY BRIEF',
       icon: Target,
       iconColor: 'text-amber-500',
-      activeStyle: 'bg-cosmic border border-amber-500/40 shadow-[0_0_15px_rgba(245,158,11,0.3)]',
+      activeStyle: 'bg-cosmic border border-amber-500/40 ',
     },
   ];
 
   return (
     <div className="w-full h-full text-starlight font-body flex flex-col overflow-hidden relative">
       {/* Compact Sub-Header */}
-      <div className="glass border-b border-blue-900/20 pl-4 sm:pl-12 pr-4 sm:pr-14 py-2.5 backdrop-blur-md sticky top-0 z-20 flex items-center justify-between gap-3 shadow-xl shrink-0">
+      <div className="glass border-b border-pulsar/30 pl-4 sm:pl-12 pr-4 sm:pr-14 py-2.5 backdrop-blur-md sticky top-0 z-20 flex items-center justify-between gap-3 shadow-xl shrink-0">
         {/* Title - collapses gracefully */}
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-7 h-7 rounded-full bg-gold/15 border border-gold/40 flex items-center justify-center text-gold shadow-[0_0_12px_rgba(245,158,11,0.25)] shrink-0">
+          <div className="-full bg-gold/15 border border-gold/40 flex items-center justify-center text-gold  shrink-0">
             <Star className="w-3.5 h-3.5 fill-current" />
           </div>
           <div className="min-w-0">
-            <h1 className="font-display text-sm tracking-[0.12em] text-starlight truncate">
+            <h1 className="font-display text-xl font-bold text-starlight truncate">
               Day Guide
             </h1>
-            <p className="text-[10px] text-dim font-body italic truncate hidden sm:block">
+            <p className="text-xs text-nova/60 font-body italic truncate hidden sm:block">
               Constellation matrix · WSJF picks · AI auditor
             </p>
           </div>
         </div>
 
         {/* Pill Sub-Navigation - compact, never wraps */}
-        <div className="glass border border-blue-900/30 p-0.5 rounded-full flex items-center gap-0.5 shadow-inner shrink-0">
+        <div className="glass border border-pulsar/40 p-0.5 rounded-xl flex items-center gap-0.5  shrink-0">
           {tabs.map(tab => {
             const Icon = tab.icon;
             const isActive = activeSubTab === tab.id;
@@ -394,13 +394,13 @@ export default function DayGuideView() {
                 key={tab.id}
                 onClick={() => setActiveSubTab(tab.id)}
                 title={tab.fullLabel}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-display transition-all cursor-pointer whitespace-nowrap ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-mono uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${
                   isActive
                     ? `text-starlight ${tab.activeStyle} font-bold`
-                    : 'text-dim hover:text-starlight hover:bg-white/5'
+                    : 'text-nova/60 hover:text-starlight hover:bg-pulsar/10'
                 }`}
               >
-                <Icon className={`w-3 h-3 ${isActive ? tab.iconColor : 'text-dim'}`} />
+                <Icon className={`w-3 h-3 ${isActive ? tab.iconColor : 'text-nova/60'}`} />
                 <span>{tab.label}</span>
               </button>
             );

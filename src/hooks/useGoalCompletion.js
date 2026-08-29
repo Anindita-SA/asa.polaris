@@ -3,7 +3,7 @@ import { useAuth } from './useAuth';
 import { useCelebration } from './useCelebration';
 
 export const useGoalCompletion = () => {
-  const { trackXP, providerToken } = useAuth();
+  const { user, trackXP, providerToken } = useAuth();
   const { celebrate } = useCelebration();
 
   const patchGoogleTask = async (taskId, status) => {
@@ -31,7 +31,7 @@ export const useGoalCompletion = () => {
       onUpdate({ ...goal, current: newCurrent, completed });
     }
 
-    await supabase.from('goals').update({ current: newCurrent, completed }).eq('id', goal.id);
+    await supabase.from('goals').update({ current: newCurrent, completed }).eq('id', goal.id).eq('user_id', user?.id);
 
     if (completed && !wasCompleted) celebrate(e ? { x: e.clientX, y: e.clientY } : undefined);
     trackXP(wasCompleted, completed, goal.xp_reward || 50);
@@ -52,7 +52,7 @@ export const useGoalCompletion = () => {
       onUpdate({ ...goal, current: newCurrent, completed });
     }
 
-    await supabase.from('goals').update({ current: newCurrent, completed }).eq('id', goal.id);
+    await supabase.from('goals').update({ current: newCurrent, completed }).eq('id', goal.id).eq('user_id', user?.id);
 
     if (completed && !wasCompleted) celebrate(e ? { x: e.clientX, y: e.clientY } : undefined);
     trackXP(wasCompleted, completed, goal.xp_reward || 50);

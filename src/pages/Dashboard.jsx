@@ -3,6 +3,8 @@ import { ChevronLeft, ChevronRight, Anchor, Bell } from 'lucide-react'
 import { useRecurringTasks } from '../hooks/useRecurringTasks'
 import { useMorningBrief } from '../hooks/useMorningBrief'
 import { useMorningSequence } from '../hooks/useMorningSequence'
+import { useAuth } from '../hooks/useAuth'
+import { supabase } from '../lib/supabase'
 import HUD from '../components/layout/HUD'
 import Starfield from '../components/layout/Starfield'
 import ConstellationGraph from '../components/graph/ConstellationGraph'
@@ -25,6 +27,7 @@ import BottomSheet from '../components/layout/BottomSheet'
 import SparkPopup from '../components/widgets/SparkPopup'
 
 const Dashboard = () => {
+  const { user } = useAuth();
   useRecurringTasks()
   useMorningBrief()
   const { stage, briefItems, markSparkSeen } = useMorningSequence()
@@ -37,8 +40,7 @@ const Dashboard = () => {
   const refreshGraph = () => graphRef.current?.refresh()
 
   const jumpToNode = async (nodeId) => {
-    const { supabase } = await import('../lib/supabase')
-    const { data } = await supabase.from('nodes').select('*').eq('id', nodeId).single()
+    const { data } = await supabase.from('nodes').select('*').eq('id', nodeId).eq('user_id', user?.id).single()
     if (data) {
       setSelectedNode(data)
       setActiveView('graph')
@@ -71,7 +73,7 @@ const Dashboard = () => {
         <AnchorPanel collapsed={anchorCollapsed} onToggle={() => setAnchorCollapsed(v => !v)} onOpenDayGuide={() => setActiveView('day_guide')} />
 
         {/* Right Panel Floating Toggle Button (Desktop only) */}
-        <button onClick={() => setRightPanelOpen(v => !v)} className="hidden md:flex absolute right-2 top-3 z-50 glass border border-blue-900/30 rounded-full w-9 h-9 items-center justify-center text-dim hover:text-starlight shadow-xl transition-transform hover:scale-105 cursor-pointer">
+        <button onClick={() => setRightPanelOpen(v => !v)} className="hidden md:flex absolute right-2 top-3 z-50 glass border border-pulsar/40 rounded-full w-9 h-9 items-center justify-center text-nova/60 hover:text-starlight shadow-xl transition-transform hover:scale-105 cursor-pointer">
           {rightPanelOpen ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
         </button>
 
@@ -98,7 +100,7 @@ const Dashboard = () => {
         </div>
 
         {/* Right column slot (Fixed 320px = w-80 on Desktop, hidden on Mobile) */}
-        <div className={`hidden md:flex flex-shrink-0 glass z-20 flex-col relative overflow-hidden transition-all duration-300 ${rightPanelOpen ? 'w-80 border-l border-blue-900/20' : 'w-0 opacity-0 border-l-0'}`}>
+        <div className={`hidden md:flex flex-shrink-0 glass z-20 flex-col relative overflow-hidden transition-all duration-300 ${rightPanelOpen ? 'w-80 border-l border-pulsar/30' : 'w-0 opacity-0 border-l-0'}`}>
           <div className="flex-1 relative overflow-y-auto scrollbar-hide">
             {activeView === 'graph' && selectedNode ? (
               <NodePanel node={selectedNode} onClose={() => setSelectedNode(null)} onRefreshGraph={refreshGraph} />
@@ -108,16 +110,16 @@ const Dashboard = () => {
           </div>
 
           {/* Pomodoro Timer pinned to bottom on desktop */}
-          <div className="flex-shrink-0 border-t border-blue-900/20">
+          <div className="flex-shrink-0 border-t border-pulsar/30">
             <PomodoroTimer />
           </div>
         </div>
 
         {/* Mobile Floating Triggers (Top Right) */}
-        <button onClick={() => setMobileSheet('anchor')} className="fixed top-20 right-4 z-50 md:hidden glass border border-blue-900/30 rounded-full flex items-center justify-center text-dim hover:text-starlight shadow-lg">
+        <button onClick={() => setMobileSheet('anchor')} className="fixed top-20 right-4 z-50 md:hidden glass border border-pulsar/40 rounded-full flex items-center justify-center text-nova/60 hover:text-starlight shadow-lg">
           <Anchor className="w-5 h-5" />
         </button>
-        <button onClick={() => setMobileSheet('reminders')} className="fixed top-32 right-4 z-50 md:hidden glass border border-blue-900/30 rounded-full flex items-center justify-center text-dim hover:text-starlight shadow-lg">
+        <button onClick={() => setMobileSheet('reminders')} className="fixed top-32 right-4 z-50 md:hidden glass border border-pulsar/40 rounded-full flex items-center justify-center text-nova/60 hover:text-starlight shadow-lg">
           <Bell className="w-5 h-5" />
         </button>
 

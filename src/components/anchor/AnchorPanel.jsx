@@ -46,20 +46,20 @@ const AnchorPanel = ({ collapsed, onToggle, mobile = false }) => {
   return (
     <>
       {collapsed && !mobile && (
-        <button onClick={onToggle} className="hidden md:flex absolute left-2 top-3 z-30 glass border border-blue-900/30 rounded-full w-9 h-9 items-center justify-center text-dim hover:text-starlight shadow-xl transition-transform hover:scale-105 cursor-pointer">
+        <button onClick={onToggle} className="hidden md:flex absolute left-2 top-3 z-30 glass border border-pulsar/40 rounded-full w-9 h-9 items-center justify-center text-nova/60 hover:text-starlight shadow-xl transition-transform hover:scale-105 cursor-pointer">
           <ChevronRight className="w-4 h-4" />
         </button>
       )}
-      <div className={mobile ? "flex-1 overflow-y-auto" : `hidden md:flex flex-col z-30 glass border-blue-900/20 overflow-hidden transition-all duration-300 ${collapsed ? 'w-0 opacity-0 border-r-0' : 'w-96 border-r'}`}>
+      <div className={mobile ? "flex-1 overflow-y-auto" : `hidden md:flex flex-col z-30 glass border-pulsar/30 overflow-hidden transition-all duration-300 ${collapsed ? 'w-0 opacity-0 border-r-0' : 'w-96 border-r'}`}>
         <div className="p-4 space-y-5 min-w-[384px] h-full overflow-y-auto">
           <div className="flex items-center justify-between">
-            <h3 className="font-display text-starlight">Anchor</h3>
-            {!mobile && <button onClick={onToggle} className="text-dim hover:text-starlight"><ChevronLeft className="w-4 h-4" /></button>}
+            <h3 className="text-lg font-display text-starlight">Anchor</h3>
+            {!mobile && <button onClick={onToggle} className="text-nova/60 hover:text-starlight"><ChevronLeft className="w-4 h-4" /></button>}
           </div>
 
         <div className="space-y-2">
-          <p className="text-xs font-mono text-dim">Eulogy</p>
-          <div className="glass border border-blue-900/20 rounded-xl p-3">
+          <p className="text-xs font-mono text-nova/60">Eulogy</p>
+          <div className="glass border border-pulsar/30 rounded-xl p-3">
             <p className="text-xs text-starlight/90 whitespace-pre-wrap font-body">{latest?.content || DEFAULT_EULOGY}</p>
             <button onClick={() => { setEulogyText(latest?.content || DEFAULT_EULOGY); setEditingEulogy(true) }} className="mt-2 text-xs text-nova flex items-center gap-1">
               <Edit2 className="w-3 h-3" /> New version
@@ -68,38 +68,38 @@ const AnchorPanel = ({ collapsed, onToggle, mobile = false }) => {
         </div>
 
         <div className="space-y-2">
-          <p className="text-xs font-mono text-dim">Mission statement</p>
+          <p className="text-xs font-mono text-nova/60">Mission statement</p>
           {editingMission ? (
-            <textarea rows={3} className="w-full bg-stardust/50 text-sm text-starlight border border-blue-900/20 rounded-lg px-3 py-2 outline-none resize-none"
+            <textarea rows={3} className="w-full bg-stardust/50 text-sm text-starlight border border-pulsar/30 rounded-lg px-3 py-2 outline-none resize-none"
               defaultValue={profile?.clarity_anchor || 'You hold the steering wheel. Polaris is your GPS.'}
               onBlur={async e => { await updateProfile({ clarity_anchor: e.target.value }); setEditingMission(false) }} />
           ) : (
-            <button onClick={() => setEditingMission(true)} className="w-full text-left glass border border-blue-900/20 rounded-xl p-3 text-sm text-starlight/90">
+            <button onClick={() => setEditingMission(true)} className="w-full text-left glass border border-pulsar/30 rounded-xl p-3 text-sm text-starlight/90">
               {profile?.clarity_anchor || 'You hold the steering wheel. Polaris is your GPS.'}
             </button>
           )}
         </div>
 
         <div className="space-y-2">
-          <p className="text-xs font-mono text-dim">North star</p>
+          <p className="text-xs font-mono text-nova/60">North star</p>
           {editingChapter ? (
-            <input className="w-full bg-stardust/50 text-sm text-aurora border border-blue-900/20 rounded-lg px-3 py-2 outline-none"
+            <input className="w-full bg-stardust/50 text-sm text-aurora border border-pulsar/30 rounded-lg px-3 py-2 outline-none"
               defaultValue={profile?.current_chapter || 'Chapter I: The Foundation'}
               onBlur={async e => { await updateProfile({ current_chapter: e.target.value }); setEditingChapter(false) }} />
           ) : (
-            <button onClick={() => setEditingChapter(true)} className="w-full text-left glass border border-blue-900/20 rounded-xl p-3 text-sm text-aurora/90">
+            <button onClick={() => setEditingChapter(true)} className="w-full text-left glass border border-pulsar/30 rounded-xl p-3 text-sm text-aurora/90">
               {profile?.current_chapter || 'Chapter I: The Foundation'}
             </button>
           )}
         </div>
 
         <div className="space-y-2">
-          <p className="text-xs font-mono text-dim flex items-center gap-1"><History className="w-3 h-3" /> Eulogy history</p>
+          <p className="text-xs font-mono text-nova/60 flex items-center gap-1"><History className="w-3 h-3" /> Eulogy history</p>
           <div className="space-y-2">
             {history.map(item => (
-              <div key={item.id} className="glass border border-blue-900/20 rounded-lg p-2">
+              <div key={item.id} className="glass border border-pulsar/30 rounded-lg p-2">
                 <p className="text-xs text-nova">{item.version_label || 'Version'}</p>
-                <p className="text-xs text-dim">{item.written_date}</p>
+                <p className="text-xs text-nova/60">{item.written_date}</p>
               </div>
             ))}
           </div>
@@ -108,13 +108,13 @@ const AnchorPanel = ({ collapsed, onToggle, mobile = false }) => {
 
       {editingEulogy && (
         <div className="modal-overlay fixed inset-0 bg-void/80 z-50 flex items-end md:items-center justify-center p-0 md:p-4" onClick={e => e.target === e.currentTarget && setEditingEulogy(false)}>
-          <div className="modal-content glass border border-blue-900/30 rounded-t-2xl rounded-b-none md:rounded-2xl p-5 w-full max-w-full md:max-w-2xl space-y-3">
-            <h3 className="font-display text-starlight">Save new eulogy version</h3>
-            <input className="w-full bg-stardust/50 text-sm text-starlight border border-blue-900/20 rounded-lg px-3 py-2 outline-none" placeholder="Version label"
+          <div className="modal-content glass border border-pulsar/40 rounded-t-2xl rounded-b-none md:rounded-xl p-5 w-full max-w-full md:max-w-2xl space-y-3">
+            <h3 className="text-lg font-display text-starlight">Save new eulogy version</h3>
+            <input className="w-full bg-stardust/50 text-sm text-starlight border border-pulsar/30 rounded-lg px-3 py-2 outline-none" placeholder="Version label"
               value={versionLabel} onChange={e => setVersionLabel(e.target.value)} />
-            <textarea rows={10} className="w-full bg-stardust/50 text-sm text-starlight border border-blue-900/20 rounded-lg px-3 py-2 outline-none resize-none"
+            <textarea rows={10} className="w-full bg-stardust/50 text-sm text-starlight border border-pulsar/30 rounded-lg px-3 py-2 outline-none resize-none"
               value={eulogyText} onChange={e => setEulogyText(e.target.value)} />
-            <button onClick={saveEulogy} className="w-full py-2 bg-pulsar/20 border border-pulsar/30 text-pulsar text-sm font-display rounded-lg">
+            <button onClick={saveEulogy} className="w-full py-2 bg-pulsar/20 border border-pulsar/30 text-pulsar text-lg font-display rounded-lg">
               Save New Version
             </button>
           </div>

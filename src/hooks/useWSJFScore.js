@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useAuth } from './useAuth';
 import { supabase } from '../lib/supabase';
 
 /**
@@ -83,6 +84,7 @@ export function computeWSJFScore(task) {
  * score each with WSJF algorithm, and return sorted descending by score.
  */
 export function useWSJFScore() {
+  const { user } = useAuth();
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -95,7 +97,7 @@ export function useWSJFScore() {
       const { data, error: fetchError } = await supabase
         .from('tasks')
         .select('*')
-        .in('status', ['inbox', 'active']);
+        .in('status', ['inbox', 'active']).eq('user_id', user?.id);
 
       if (fetchError) throw fetchError;
 

@@ -70,24 +70,24 @@ const MusicPlayer = () => {
   const src = `${PLAYLIST_URL}&autoplay=${autoplay ? 1 : 0}`
 
   return (
-    <div className="fixed z-[59] glass border border-blue-900/30 rounded-2xl w-[350px] overflow-hidden group select-none shadow-xl"
+    <div className="fixed z-[59] glass border border-pulsar/40 rounded-xl w-[350px] overflow-hidden group select-none shadow-xl"
       style={{ left: pos.x, top: pos.y }}
       onMouseDown={onMouseDown}>
-      <div className="w-full px-3 py-2 flex items-center justify-between text-sm cursor-grab active:cursor-grabbing hover:bg-white/5 transition-colors">
+      <div className="w-full px-3 py-2 flex items-center justify-between text-sm cursor-grab active:cursor-grabbing hover:bg-pulsar/10 transition-colors">
         <span className="flex items-center gap-2 text-starlight"><Music className="w-4 h-4 text-nova" /> Focus playlist</span>
         <button onClick={() => setCollapsed(v => !v)} className="p-1 hover:bg-blue-900/30 rounded transition-colors">
-          {collapsed ? <ChevronUp className="w-4 h-4 text-dim" /> : <ChevronDown className="w-4 h-4 text-dim" />}
+          {collapsed ? <ChevronUp className="w-4 h-4 text-nova/60" /> : <ChevronDown className="w-4 h-4 text-nova/60" />}
         </button>
       </div>
       {!collapsed && (
         <div className="space-y-2 px-3 pb-3">
-          <label className="text-xs text-dim flex items-center gap-2">
+          <label className="text-xs text-nova/60 flex items-center gap-2">
             <input type="checkbox" checked={autoplay} onChange={e => setAutoplay(e.target.checked)} />
             autoplay
           </label>
           <iframe
             title="Polaris playlist"
-            className="w-full h-52 rounded-lg border border-blue-900/20"
+            className="w-full h-52 rounded-lg border border-pulsar/30"
             src={src}
             allow="autoplay; encrypted-media"
           />

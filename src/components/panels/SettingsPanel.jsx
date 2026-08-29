@@ -46,12 +46,12 @@ const SettingsPanel = ({ open, onClose }) => {
 
   return (
     <div className="modal-overlay fixed inset-0 z-[70] bg-void/75 flex items-end md:items-center justify-center p-0 md:p-4" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal-content glass border border-blue-900/30 rounded-t-2xl rounded-b-none md:rounded-2xl p-5 w-full w-full max-w-full md:max-w-lg space-y-3">
+      <div className="modal-content glass border border-pulsar/40 rounded-t-2xl rounded-b-none md:rounded-xl p-5 w-full w-full max-w-full md:max-w-lg space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="font-display text-starlight">Settings</h3>
-          <button onClick={onClose} className="text-dim hover:text-starlight"><X className="w-4 h-4" /></button>
+          <h3 className="text-lg font-display text-starlight">Settings</h3>
+          <button onClick={onClose} className="text-nova/60 hover:text-starlight"><X className="w-4 h-4" /></button>
         </div>
-        <p className="text-sm text-dim">Export all Polaris data for your account as JSON.</p>
+        <p className="text-sm text-nova/60">Export all Polaris data for your account as JSON.</p>
         <button onClick={downloadBackup} className="w-full py-2 rounded-lg bg-pulsar/20 border border-pulsar/30 text-pulsar flex items-center justify-center gap-2">
           <Download className="w-4 h-4" /> Download backup
         </button>

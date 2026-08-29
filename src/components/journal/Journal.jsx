@@ -166,17 +166,17 @@ const Journal = () => {
       <div className="max-w-2xl mx-auto space-y-6">
         
         {/* Date Navigator */}
-        <div className="flex items-center justify-between glass border border-blue-900/20 rounded-xl px-4 py-2">
-          <button onClick={() => setSelectedDate(subDays(selectedDate, 1))} className="p-2 hover:bg-white/5 rounded-lg text-dim hover:text-nova transition-all">
+        <div className="flex items-center justify-between glass border border-pulsar/30 rounded-xl px-4 py-2">
+          <button onClick={() => setSelectedDate(subDays(selectedDate, 1))} className="p-2 hover:bg-pulsar/10 rounded-lg text-nova/60 hover:text-nova transition-all">
             <ChevronLeft className="w-5 h-5" />
           </button>
           <div className="flex items-center gap-3">
             <Calendar className="w-4 h-4 text-pulsar" />
-            <span className="font-display text-starlight text-sm ">
+            <span className="font-display text-starlight text-sm">
               {isToday(selectedDate) ? 'Today' : format(selectedDate, 'EEE, d MMM yyyy')}
             </span>
           </div>
-          <button onClick={() => setSelectedDate(addDays(selectedDate, 1))} className="p-2 hover:bg-white/5 rounded-lg text-dim hover:text-nova transition-all">
+          <button onClick={() => setSelectedDate(addDays(selectedDate, 1))} className="p-2 hover:bg-pulsar/10 rounded-lg text-nova/60 hover:text-nova transition-all">
             <ChevronRight className="w-5 h-5" />
           </button>
         </div>
@@ -186,9 +186,9 @@ const Journal = () => {
 
 
         {/* Daily Highlight & Mood */}
-        <div className="glass border border-blue-900/20 rounded-xl p-5">
+        <div className="glass border border-pulsar/30 rounded-xl p-5">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="font-display text-starlight text-xs opacity-60">Daily Snapshot</h3>
+            <h3 className="font-display text-starlight text-lg opacity-60">Daily Snapshot</h3>
             <div className="flex gap-1.5">
               {MOODS.map(m => (
                 <button
@@ -207,7 +207,7 @@ const Journal = () => {
             placeholder="One liner for today..."
             value={oneLiner}
             onChange={e => setOneLiner(e.target.value)}
-            className="w-full bg-transparent text-xl text-gold font-display outline-none mb-3 placeholder:text-gold/20"
+            className="w-full bg-transparent text-base text-gold font-display outline-none mb-3 placeholder:text-gold/90"
           />
 
           <textarea
@@ -215,20 +215,20 @@ const Journal = () => {
             rows={3}
             value={highlightText}
             onChange={e => setHighlightText(e.target.value)}
-            className="w-full bg-transparent text-sm text-starlight/90 font-body outline-none resize-none placeholder:text-dim/40 leading-relaxed mb-4"
+            className="w-full bg-transparent text-sm text-starlight/90 font-body outline-none resize-none placeholder:text-nova/60/40 leading-relaxed mb-4"
           />
 
           {/* Photo */}
           {highlight?.photo_url ? (
-            <div className="relative group rounded-xl overflow-hidden border border-blue-900/20">
+            <div className="relative group rounded-xl overflow-hidden border border-pulsar/30">
               <img src={highlight.photo_url} alt="highlight" className="w-full h-64 object-cover" />
-              <div className="absolute inset-0 bg-void/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+              <div className="absolute inset-0 bg-void/70 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                 <button onClick={() => fileRef.current?.click()} className="text-xs text-starlight font-body bg-void/80 px-4 py-2 rounded-full border border-blue-900/40">Change photo</button>
               </div>
             </div>
           ) : (
             <button onClick={() => fileRef.current?.click()}
-              className="w-full border border-dashed border-blue-900/30 rounded-xl py-8 flex flex-col items-center justify-center gap-3 text-dim hover:text-nova hover:border-nova/30 transition-all text-xs font-body group">
+              className="w-full border border-dashed border-pulsar/40 rounded-xl py-8 flex flex-col items-center justify-center gap-3 text-nova/60 hover:text-nova hover:border-nova/30 transition-all text-xs font-body group">
               <Camera className="w-6 h-6 opacity-40 group-hover:opacity-100" />
               {uploading ? 'Capturing...' : 'Capture a memory'}
             </button>
@@ -237,31 +237,31 @@ const Journal = () => {
 
           <div className="flex justify-end mt-6 pt-4 border-t border-blue-900/10">
             <button onClick={saveHighlight} disabled={saving}
-              className="text-[10px] px-6 py-2 bg-pulsar/10 border border-pulsar/30 text-pulsar font-display rounded-lg hover:bg-pulsar/20 transition-all disabled:opacity-40 ">
+              className="text-xs px-6 py-2 bg-pulsar/10 border border-pulsar/30 text-pulsar font-display rounded-lg hover:bg-pulsar/20 transition-all disabled:opacity-40">
               {saving ? 'Transmitting...' : 'Sync Entry'}
             </button>
           </div>
         </div>
 
         {/* Sleek Toggle on top of Bottom Section */}
-        <div className="flex justify-center border-b border-blue-900/20 pb-4">
-          <div className="flex bg-void/50 p-1 rounded-xl border border-blue-900/20">
+        <div className="flex justify-center border-b border-pulsar/30 pb-4">
+          <div className="flex bg-void/70 p-1 rounded-xl border border-pulsar/30">
             <button
               onClick={() => setBottomView('habit')}
-              className={`px-4 py-1.5 rounded-lg text-xs font-display transition-all ${
+              className={`px-4 py-1.5 rounded-lg text-xs font-mono uppercase tracking-wider transition-all ${
                 bottomView === 'habit'
                   ? 'bg-pulsar/20 text-pulsar border border-pulsar/30'
-                  : 'text-dim hover:text-starlight'
+                  : 'text-nova/60 hover:text-starlight'
               }`}
             >
               Habit Tracker
             </button>
             <button
               onClick={() => setBottomView('pixels')}
-              className={`px-4 py-1.5 rounded-lg text-xs font-display transition-all ${
+              className={`px-4 py-1.5 rounded-lg text-xs font-mono uppercase tracking-wider transition-all ${
                 bottomView === 'pixels'
                   ? 'bg-nova/20 text-nova border border-nova/30'
-                  : 'text-dim hover:text-starlight'
+                  : 'text-nova/60 hover:text-starlight'
               }`}
             >
               Year in Pixels
@@ -272,17 +272,17 @@ const Journal = () => {
         {/* Dynamic Display based on Toggle */}
         <div className="w-full">
           {bottomView === 'pixels' ? (
-            <div className="glass border border-blue-900/40 rounded-xl p-5 shadow-lg bg-void/30">
+            <div className="glass border border-blue-900/40 rounded-xl p-5 shadow-lg bg-void/60">
               <YearInPixels userId={user.id} onDateSelect={setSelectedDate} selectedDate={selectedDate} />
             </div>
           ) : (
-            <div className="glass border border-blue-900/40 rounded-xl p-5 shadow-lg bg-void/30">
+            <div className="glass border border-blue-900/40 rounded-xl p-5 shadow-lg bg-void/60">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-display text-starlight text-xs opacity-80 flex items-center gap-2">
+                <h3 className="font-display text-starlight text-lg opacity-80 flex items-center gap-2">
                   <Flame className="w-3 h-3 text-gold" />
                   Monthly Habit Stack - {format(selectedDate, 'MMMM yyyy')}
                 </h3>
-                <button onClick={() => setAddingHabit(!addingHabit)} className="text-dim hover:text-nova transition-colors">
+                <button onClick={() => setAddingHabit(!addingHabit)} className="text-nova/60 hover:text-nova transition-colors">
                   <Plus className="w-4 h-4" />
                 </button>
               </div>
@@ -290,10 +290,10 @@ const Journal = () => {
               {addingHabit && (
                 <div className="flex gap-2 mb-4">
                   <input placeholder="New habit..." autoFocus
-                    className="flex-1 bg-stardust/10 text-sm text-starlight border border-blue-900/30 rounded-lg px-4 py-2 outline-none focus:border-pulsar/40 font-body"
+                    className="flex-1 bg-stardust/10 text-sm text-starlight border border-pulsar/40 rounded-lg px-4 py-2 outline-none focus:border-pulsar/40 font-body"
                     value={newHabitTitle} onChange={e => setNewHabitTitle(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && addHabit()} />
-                  <button onClick={addHabit} className="px-4 bg-emerald/20 text-emerald border border-emerald/30 rounded-lg text-xs font-display">Add</button>
+                  <button onClick={addHabit} className="px-4 bg-emerald/20 text-emerald border border-emerald/30 rounded-lg text-xs font-mono uppercase tracking-wider">Add</button>
                 </div>
               )}
 
@@ -307,7 +307,7 @@ const Journal = () => {
                 onDelete={deleteHabit}
                 onRefetch={fetchHabits}
               />
-              {!habits.length && <p className="text-xs text-dim italic font-body text-center py-4">No habits defined yet.</p>}
+              {!habits.length && <p className="text-xs text-nova/60 italic font-body text-center py-4">No habits defined yet.</p>}
             </div>
           )}
         </div>

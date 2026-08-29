@@ -14,7 +14,7 @@ const SCOPE_COLORS = {
   weekly: 'text-emerald border-emerald/30 bg-emerald/10',
   monthly: 'text-pulsar border-pulsar/30 bg-pulsar/10',
   quarterly: 'text-aurora border-aurora/30 bg-aurora/10',
-  yearly: 'text-gold border-gold/30 bg-gold/10',
+  yearly: 'text-gold border-gold/50 bg-gold/10',
   '5yr': 'text-nova border-nova/30 bg-nova/10',
   side_quest: 'text-orange-400 border-orange-400/30 bg-orange-400/10'
 }
@@ -119,10 +119,11 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
   }
 
   const saveGoal = async () => {
-    if (!form.title || !form.target) return
+    if (!form.title) return
+    const targetVal = form.target ? parseFloat(form.target) : 1
     const payload = {
       title: form.title,
-      target: parseFloat(form.target),
+      target: targetVal,
       unit: form.unit,
       scope: goalCategory === 'side_quest' ? 'side_quest' : form.scope,
       xp_reward: parseInt(form.xp_reward),
@@ -255,24 +256,24 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
       <div className="max-w-2xl mx-auto space-y-6">
 
         {/* Top Category Toggle */}
-        <div className="flex gap-6 border-b border-blue-900/20 pb-2">
+        <div className="flex gap-6 border-b border-pulsar/30 pb-2">
           <button onClick={() => setGoalCategory('campaign')} 
-            className={`text-sm font-display pb-2 transition-colors ${goalCategory === 'campaign' ? 'text-starlight border-b-2 border-nova' : 'text-dim hover:text-starlight'}`}>
+            className={`text-lg font-display pb-2 transition-colors ${goalCategory === 'campaign' ? 'text-starlight border-b-2 border-nova' : 'text-nova/60 hover:text-starlight'}`}>
             Main Campaign
           </button>
           <button onClick={() => setGoalCategory('side_quest')} 
-            className={`text-sm font-display pb-2 flex items-center gap-2 transition-colors ${goalCategory === 'side_quest' ? 'text-starlight border-b-2 border-gold' : 'text-dim hover:text-starlight'}`}>
+            className={`text-lg font-display pb-2 flex items-center gap-2 transition-colors ${goalCategory === 'side_quest' ? 'text-starlight border-b-2 border-gold' : 'text-nova/60 hover:text-starlight'}`}>
             Side Quests <Compass className="w-4 h-4 text-gold" />
           </button>
         </div>
 
         {/* Scope tabs (Campaign only) */}
         {goalCategory === 'campaign' && (
-          <div className="flex gap-1 p-1 bg-stardust/40 rounded-xl border border-blue-900/20 flex-wrap">
+          <div className="flex gap-1 p-1 bg-stardust/40 rounded-xl border border-pulsar/30 flex-wrap">
             {SCOPES.map(scope => (
               <button key={scope} onClick={() => setActiveScope(scope)}
-                className={`flex-1 py-1.5 text-xs font-display rounded-lg transition-all min-w-[70px] ${
-                  activeScope === scope ? `${SCOPE_COLORS[scope]} border` : 'text-dim hover:text-starlight'
+                className={`flex-1 py-1.5 text-xs font-mono uppercase tracking-wider rounded-lg transition-all min-w-[70px] ${
+                  activeScope === scope ? `${SCOPE_COLORS[scope]} border` : 'text-nova/60 hover:text-starlight'
                 }`}>
                 {scope === '5yr' ? '5 YR' : scope}
               </button>
@@ -284,7 +285,7 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
         <div className="flex justify-between items-center flex-wrap gap-2">
           {filteredGoals.length > 0 ? (
             <div className="flex items-center gap-4 px-1 flex-1">
-              <div className="flex items-center gap-1.5 text-xs font-mono text-dim">
+              <div className="flex items-center gap-1.5 text-xs font-mono text-nova/60">
                 <Trophy className="w-3 h-3 text-gold" />
                 {completedCount}/{filteredGoals.length} complete
               </div>
@@ -296,12 +297,12 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
           <div className="flex items-center gap-2">
             {displayScope === 'daily' && (
               <button onClick={() => setHidePastCompleted(!hidePastCompleted)}
-                className={`text-xs font-body px-2 py-1.5 rounded-lg border transition-colors ${hidePastCompleted ? 'border-sky/30 text-sky bg-sky/10' : 'border-blue-900/30 text-dim hover:text-starlight'}`}>
+                className={`text-xs font-body px-2 py-1.5 rounded-lg border transition-colors ${hidePastCompleted ? 'border-sky/30 text-sky bg-sky/10' : 'border-pulsar/40 text-nova/60 hover:text-starlight'}`}>
                 {hidePastCompleted ? 'Hiding Past' : 'Show All'}
               </button>
             )}
             <button onClick={auditGoals} disabled={isAuditing}
-              className="flex items-center gap-2 px-3 py-1.5 glass border border-nova/30 rounded-lg text-nova text-xs font-display hover:bg-nova/10 transition-colors">
+              className="flex items-center gap-2 px-3 py-1.5 glass border border-nova/30 rounded-lg text-nova text-xs font-mono uppercase tracking-wider hover:bg-nova/10 transition-colors">
               {isAuditing ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Zap className="w-3 h-3" />}
               Audit Goals
             </button>
@@ -311,7 +312,7 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
         {/* Auditor Feedback Drawer */}
         {auditFeedback && (
           <div className="glass border border-nova/20 rounded-xl p-4 bg-nova/5 animate-fade-in relative">
-            <button onClick={() => setAuditFeedback(null)} className="absolute top-3 right-3 text-dim hover:text-starlight">
+            <button onClick={() => setAuditFeedback(null)} className="absolute top-3 right-3 text-nova/60 hover:text-starlight">
               <X className="w-4 h-4" />
             </button>
             <div className="flex gap-3">
@@ -330,27 +331,27 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
             const isExpanded = expandedGoalId === goal.id
             const isPastUnfinished = displayScope === 'daily' && !goal.completed && goal.deadline && goal.deadline < todayStr
             return (
-              <div key={goal.id} className={`glass glass-hover hover:-translate-y-1 rounded-xl p-4 border ${goal.completed ? 'border-emerald/20 bg-emerald/5' : 'border-blue-900/20'} group transition-all`}>
+              <div key={goal.id} className={`glass glass-hover hover:-translate-y-1 rounded-xl p-4 border ${goal.completed ? 'border-emerald/20 bg-emerald/5' : 'border-pulsar/30'} group transition-all`}>
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1 pr-4">
                     <div className="flex items-center gap-2">
-                      <p className={`text-sm font-body ${goal.completed ? 'text-dim line-through' : 'text-starlight'}`}>{goal.title}</p>
-                      <button onClick={() => setExpandedGoalId(isExpanded ? null : goal.id)} className="text-dim hover:text-pulsar transition-colors">
+                      <p className={`text-sm font-body ${goal.completed ? 'text-nova/60 line-through' : 'text-starlight'}`}>{goal.title}</p>
+                      <button onClick={() => setExpandedGoalId(isExpanded ? null : goal.id)} className="text-nova/60 hover:text-pulsar transition-colors">
                         <Info className="w-3.5 h-3.5" />
                       </button>
                     </div>
                     {goal.parent_goal_id && (
-                      <p className="text-[10px] text-dim/60 font-body flex items-center gap-1 mt-0.5">
+                      <p className="text-xs text-nova/60/60 font-body flex items-center gap-1 mt-0.5">
                         ↳ Links to: {allGoals.find(g => g.id === goal.parent_goal_id)?.title || 'Unknown'}
                       </p>
                     )}
                     {goal.node_id && (
-                      <button onClick={(e) => { e.stopPropagation(); onJumpToNode && onJumpToNode(goal.node_id) }} className="text-[10px] text-nova/80 hover:text-nova transition-colors font-body flex items-center gap-1 mt-0.5">
+                      <button onClick={(e) => { e.stopPropagation(); onJumpToNode && onJumpToNode(goal.node_id) }} className="text-xs text-nova/80 hover:text-nova transition-colors font-body flex items-center gap-1 mt-0.5">
                         <Compass className="w-3 h-3" /> Node: {allNodes.find(n => n.id === goal.node_id)?.title || 'Unknown'}
                       </button>
                     )}
                     {goal.deadline && !(displayScope === 'daily' && goal.deadline === todayStr) && (
-                      <p className={`text-[10px] font-mono mt-1 flex items-center gap-1 ${isPastUnfinished ? 'text-danger/80' : 'text-orange-300/60'}`}>
+                      <p className={`text-xs font-mono mt-1 flex items-center gap-1 ${isPastUnfinished ? 'text-danger/80' : 'text-orange-300/60'}`}>
                         <Calendar className="w-3 h-3" /> Due: {goal.deadline} {isPastUnfinished && '(Overdue)'}
                       </p>
                     )}
@@ -359,19 +360,19 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
                   
                   <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all">
                     {isPastUnfinished && (
-                      <button onClick={() => migrateGoal(goal.id)} title="Migrate to Today" className="text-dim hover:text-sky p-1">
+                      <button onClick={() => migrateGoal(goal.id)} title="Migrate to Today" className="text-nova/60 hover:text-sky p-1">
                         <RefreshCw className="w-3.5 h-3.5" />
                       </button>
                     )}
                     {displayScope === 'daily' && (
-                      <button onClick={() => syncToGCal(goal)} title="Sync to GCal" className="text-dim hover:text-starlight p-1">
+                      <button onClick={() => syncToGCal(goal)} title="Sync to GCal" className="text-nova/60 hover:text-starlight p-1">
                         <Calendar className="w-3.5 h-3.5" />
                       </button>
                     )}
-                    <button onClick={() => openEditModal(goal)} title="Edit Goal" className="text-dim hover:text-pulsar p-1">
+                    <button onClick={() => openEditModal(goal)} title="Edit Goal" className="text-nova/60 hover:text-pulsar p-1">
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>
-                    <button onClick={() => deleteGoal(goal.id)} className="text-dim hover:text-danger p-1">
+                    <button onClick={() => deleteGoal(goal.id)} className="text-nova/60 hover:text-danger p-1">
                       <X className="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -379,7 +380,7 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
 
                 {/* Whispering Context Accordion */}
                 {isExpanded && goal.description && (
-                  <div className="mb-4 pl-3 border-l-2 border-pulsar/30 text-xs text-dim italic font-body animate-fade-in">
+                  <div className="mb-4 pl-3 border-l-2 border-pulsar/30 text-xs text-nova/60 italic font-body animate-fade-in">
                     {goal.description}
                   </div>
                 )}
@@ -391,7 +392,7 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-mono text-dim">
+                  <span className="text-xs font-mono text-nova/60">
                     {goal.current} / {goal.target} {goal.unit}
                     <span className="text-blue-900/60 mx-1">·</span>
                     <span className={SCOPE_COLORS[displayScope].split(' ')[0]}>{Math.round(pct)}%</span>
@@ -404,16 +405,16 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
                   ) : (
                     <div className="flex gap-2 bg-blue-950/30 rounded-lg p-1 border border-blue-900/40">
                       <button onClick={(e) => updateProgress(goal, -1, e)}
-                        className="w-8 h-8 rounded hover:bg-white/5 flex items-center justify-center transition-colors">
+                        className="w-8 h-8 rounded hover:bg-pulsar/10 flex items-center justify-center transition-colors">
                         <span className="text-xl font-light">-</span>
                       </button>
                       <button onClick={(e) => updateProgress(goal, 1, e)}
-                        className="w-8 h-8 rounded hover:bg-white/5 flex items-center justify-center transition-colors">
+                        className="w-8 h-8 rounded hover:bg-pulsar/10 flex items-center justify-center transition-colors">
                         <span className="text-xl font-light">+</span>
                       </button>
                       {goal.target > 1 && (
                         <button onClick={(e) => updateProgress(goal, goal.target - goal.current, e)}
-                          className="px-2 h-8 rounded hover:bg-white/5 flex items-center justify-center text-xs font-mono transition-colors">
+                          className="px-2 h-8 rounded hover:bg-pulsar/10 flex items-center justify-center text-xs font-mono transition-colors">
                           Max
                         </button>
                       )}
@@ -427,8 +428,8 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
           {/* Empty state */}
           {!filteredGoals.length && (
             <div className="text-center py-12">
-              <p className="text-dim font-body text-sm italic">No {displayScope} goals yet.</p>
-              <p className="text-dim/50 font-body text-xs mt-1">What do you want to accomplish here?</p>
+              <p className="text-nova/60 font-body text-sm italic">No {displayScope} goals yet.</p>
+              <p className="text-nova/60/50 font-body text-xs mt-1">What do you want to accomplish here?</p>
             </div>
           )}
         </div>
@@ -443,7 +444,7 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
             setIsEditing(false); 
             setShowModal(true);
           }}
-          className="w-full py-3 border border-dashed border-blue-900/30 rounded-xl text-dim hover:text-nova hover:border-nova/30 transition-all text-sm font-body flex items-center justify-center gap-2">
+          className="w-full py-3 border border-dashed border-pulsar/40 rounded-xl text-nova/60 hover:text-nova hover:border-nova/30 transition-all text-sm font-body flex items-center justify-center gap-2">
           <Plus className="w-4 h-4" /> Add {displayScope} goal
         </button>
       </div>
@@ -452,40 +453,40 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
       {showModal && (
         <div className="modal-overlay fixed inset-0 bg-void/80 z-50 flex items-end md:items-center justify-center p-0 md:p-4"
           onClick={e => e.target === e.currentTarget && setShowModal(false)}>
-          <div className="modal-content glass border border-blue-900/30 rounded-t-2xl rounded-b-none md:rounded-2xl p-6 w-full w-full max-w-full md:max-w-md space-y-4 max-h-[90vh] overflow-y-auto">
+          <div className="modal-content glass border border-pulsar/40 rounded-t-2xl rounded-b-none md:rounded-xl p-6 w-full w-full max-w-full md:max-w-md space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between">
-              <h3 className="font-display text-starlight">{isEditing ? 'Edit' : 'New'} {goalCategory === 'side_quest' ? 'Side Quest' : form.scope} Goal</h3>
-              <button onClick={() => setShowModal(false)}><X className="w-4 h-4 text-dim" /></button>
+              <h3 className="text-lg font-display text-starlight">{isEditing ? 'Edit' : 'New'} {goalCategory === 'side_quest' ? 'Side Quest' : form.scope} Goal</h3>
+              <button onClick={() => setShowModal(false)}><X className="w-4 h-4 text-nova/60" /></button>
             </div>
             
-            <input placeholder="Goal title" className="w-full bg-stardust/50 text-sm text-starlight border border-blue-900/20 rounded-lg px-3 py-2 outline-none focus:border-pulsar/40 font-body"
+            <input placeholder="Goal title" className="w-full bg-stardust/50 text-sm text-starlight border border-pulsar/30 rounded-lg px-3 py-2 outline-none focus:border-pulsar/40 font-body"
               value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
               
-            <textarea placeholder="Why-Now Context / Description (optional)" className="w-full bg-stardust/50 text-sm text-starlight border border-blue-900/20 rounded-lg px-3 py-2 outline-none focus:border-pulsar/40 font-body min-h-[60px]"
+            <textarea placeholder="Why-Now Context / Description (optional)" className="w-full bg-stardust/50 text-sm text-starlight border border-pulsar/30 rounded-lg px-3 py-2 outline-none focus:border-pulsar/40 font-body min-h-[60px]"
               value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
               
             <div className="flex gap-3">
-              <input type="number" placeholder="Target" className="flex-1 bg-stardust/50 text-sm text-starlight border border-blue-900/20 rounded-lg px-3 py-2 outline-none focus:border-pulsar/40"
+              <input type="number" placeholder="Target" className="flex-1 bg-stardust/50 text-sm text-starlight border border-pulsar/30 rounded-lg px-3 py-2 outline-none focus:border-pulsar/40"
                 value={form.target} onChange={e => setForm(f => ({ ...f, target: e.target.value }))} />
-              <input placeholder="unit (hrs, papers...)" className="flex-1 bg-stardust/50 text-sm text-dim border border-blue-900/20 rounded-lg px-3 py-2 outline-none focus:border-pulsar/40 font-body"
+              <input placeholder="unit (hrs, papers...)" className="flex-1 bg-stardust/50 text-sm text-nova/60 border border-pulsar/30 rounded-lg px-3 py-2 outline-none focus:border-pulsar/40 font-body"
                 value={form.unit} onChange={e => setForm(f => ({ ...f, unit: e.target.value }))} />
             </div>
             
             <div className="flex gap-3">
               <div className="flex-1 flex gap-3 items-center">
-                <label className="text-xs text-dim font-body">XP</label>
-                <input type="number" className="w-20 bg-stardust/50 text-sm text-gold border border-gold/20 rounded-lg px-3 py-2 outline-none font-mono"
+                <label className="text-xs text-nova/60 font-body">XP</label>
+                <input type="number" className="w-20 bg-stardust/50 text-sm text-gold border border-gold/50 rounded-lg px-3 py-2 outline-none font-mono"
                   value={form.xp_reward} onChange={e => setForm(f => ({ ...f, xp_reward: e.target.value }))} />
               </div>
               <div className="flex-1 flex gap-3 items-center">
-                <label className="text-xs text-dim font-body"><Calendar className="w-3 h-3 inline" /></label>
-                <input type="date" className="flex-1 bg-stardust/50 text-sm text-starlight border border-blue-900/20 rounded-lg px-3 py-2 outline-none font-mono"
+                <label className="text-xs text-nova/60 font-body"><Calendar className="w-3 h-3 inline" /></label>
+                <input type="date" className="flex-1 bg-stardust/50 text-sm text-starlight border border-pulsar/30 rounded-lg px-3 py-2 outline-none font-mono"
                   value={form.deadline} onChange={e => setForm(f => ({ ...f, deadline: e.target.value }))} />
               </div>
             </div>
 
             {goalCategory !== 'side_quest' && form.scope !== '5yr' && (
-              <select className="w-full bg-stardust/50 text-sm text-dim border border-blue-900/20 rounded-lg px-3 py-2 outline-none font-body"
+              <select className="w-full bg-stardust/50 text-sm text-nova/60 border border-pulsar/30 rounded-lg px-3 py-2 outline-none font-body"
                 value={form.parent_goal_id} onChange={e => setForm(f => ({ ...f, parent_goal_id: e.target.value }))}>
                 <option value="">No parent goal</option>
                 {allGoals.filter(g => {
@@ -497,7 +498,7 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
               </select>
             )}
 
-            <select className="w-full bg-stardust/50 text-sm text-dim border border-blue-900/20 rounded-lg px-3 py-2 outline-none font-body"
+            <select className="w-full bg-stardust/50 text-sm text-nova/60 border border-pulsar/30 rounded-lg px-3 py-2 outline-none font-body"
               value={form.node_id} onChange={e => setForm(f => ({ ...f, node_id: e.target.value }))}>
               <option value="">No parent node connection</option>
               {allNodes.map(n => (
@@ -506,7 +507,7 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
             </select>
             
             <button onClick={saveGoal}
-              className={`w-full py-2 border text-sm font-display rounded-lg transition-colors ${SCOPE_COLORS[displayScope]} hover:opacity-80`}>
+              className={`w-full py-2 border text-lg font-display rounded-lg transition-colors ${SCOPE_COLORS[displayScope]} hover:opacity-80`}>
               Save Goal
             </button>
           </div>

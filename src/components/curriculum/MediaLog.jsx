@@ -8,7 +8,7 @@ import AddMediaModal from './AddMediaModal'
 const TYPE_FILTERS = ['All', 'book', 'film', 'documentary', 'podcast', 'article', 'course', 'manga', 'anime']
 const STATUS_FILTERS = ['All', 'want_to', 'in_progress', 'done']
 const STATUS_LABELS = { want_to: 'Want to', in_progress: 'In Progress', done: 'Done' }
-const STATUS_COLORS = { want_to: 'text-dim border-dim/30', in_progress: 'text-pulsar border-pulsar/30', done: 'text-emerald border-emerald/30' }
+const STATUS_COLORS = { want_to: 'text-nova/60 border-dim/30', in_progress: 'text-pulsar border-pulsar/30', done: 'text-emerald border-emerald/30' }
 const SORT_OPTIONS = ['date_added', 'rating', 'date_finished', 'title']
 
 const MediaLog = () => {
@@ -79,10 +79,10 @@ const MediaLog = () => {
         <div className="flex flex-wrap gap-1">
           {TYPE_FILTERS.map(t => (
             <button key={t} onClick={() => setTypeFilter(t)}
-              className={`px-2.5 py-1 rounded-lg text-[10px] font-mono transition-all border ${
+              className={`px-2.5 py-1 rounded-lg text-xs font-mono transition-all border ${
                 typeFilter === t
                   ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
-                  : 'text-dim border-blue-900/20 hover:text-starlight hover:bg-white/5'
+                  : 'text-nova/60 border-pulsar/30 hover:text-starlight hover:bg-pulsar/10'
               }`}>
               {t === 'All' ? 'All' : t.charAt(0).toUpperCase() + t.slice(1)}
             </button>
@@ -95,10 +95,10 @@ const MediaLog = () => {
         <div className="flex gap-1">
           {STATUS_FILTERS.map(s => (
             <button key={s} onClick={() => setStatusFilter(s)}
-              className={`px-2.5 py-1 rounded-lg text-[10px] font-mono transition-all border ${
+              className={`px-2.5 py-1 rounded-lg text-xs font-mono transition-all border ${
                 statusFilter === s
                   ? 'bg-pulsar/20 text-pulsar border-pulsar/30'
-                  : 'text-dim border-blue-900/20 hover:text-starlight hover:bg-white/5'
+                  : 'text-nova/60 border-pulsar/30 hover:text-starlight hover:bg-pulsar/10'
               }`}>
               {s === 'All' ? 'All' : STATUS_LABELS[s]}
             </button>
@@ -109,7 +109,7 @@ const MediaLog = () => {
 
         {/* Sort */}
         <select value={sortBy} onChange={e => setSortBy(e.target.value)}
-          className="bg-stardust/40 text-[10px] text-dim border border-blue-900/20 rounded-lg px-2 py-1 outline-none font-mono">
+          className="bg-stardust/40 text-xs text-nova/60 border border-pulsar/30 rounded-lg px-2 py-1 outline-none font-mono">
           {SORT_OPTIONS.map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
         </select>
 
@@ -137,8 +137,8 @@ const MediaLog = () => {
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <h4 className="font-display text-sm text-starlight tracking-wide truncate">{m.title}</h4>
-                  {m.author_or_creator && <p className="text-[10px] font-body text-dim truncate">{m.author_or_creator}</p>}
+                  <h4 className="font-display text-base text-starlight truncate">{m.title}</h4>
+                  {m.author_or_creator && <p className="text-xs font-body text-nova/60 truncate">{m.author_or_creator}</p>}
 
                   <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                     {/* Type badge */}
@@ -152,12 +152,12 @@ const MediaLog = () => {
                       const next = order[(order.indexOf(m.status) + 1) % 3]
                       updateStatus(m.id, next)
                     }}
-                      className={`text-[9px] font-mono px-1.5 py-0.5 rounded-full border transition-all ${STATUS_COLORS[m.status] || 'text-dim border-dim/30'}`}>
+                      className={`text-[9px] font-mono px-1.5 py-0.5 rounded-full border transition-all ${STATUS_COLORS[m.status] || 'text-nova/60 border-dim/30'}`}>
                       {STATUS_LABELS[m.status] || m.status}
                     </button>
 
                     {m.recommended_by && (
-                      <span className="text-[9px] font-body text-dim italic">rec: {m.recommended_by}</span>
+                      <span className="text-[9px] font-body text-nova/60 italic">rec: {m.recommended_by}</span>
                     )}
                   </div>
 
@@ -165,7 +165,7 @@ const MediaLog = () => {
                   <div className="flex gap-0.5 mt-1.5">
                     {[1,2,3,4,5].map(n => (
                       <button key={n} onClick={() => updateRating(m.id, n)}
-                        className={`text-xs transition-colors ${(m.rating || 0) >= n ? 'text-amber-400' : 'text-dim/30 hover:text-amber-400/50'}`}>
+                        className={`text-xs transition-colors ${(m.rating || 0) >= n ? 'text-amber-400' : 'text-nova/60/30 hover:text-amber-400/50'}`}>
                         ★
                       </button>
                     ))}
@@ -173,7 +173,7 @@ const MediaLog = () => {
                 </div>
 
                 {/* Delete */}
-                <button onClick={() => deleteMedia(m.id)} className="text-dim hover:text-danger opacity-0 group-hover:opacity-100 transition-all self-start">
+                <button onClick={() => deleteMedia(m.id)} className="text-nova/60 hover:text-danger opacity-0 group-hover:opacity-100 transition-all self-start">
                   <X className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -189,12 +189,12 @@ const MediaLog = () => {
               {m.full_review && (
                 <>
                   <button onClick={() => setExpandedId(expanded ? null : m.id)}
-                    className="text-[10px] font-mono text-amber-500/60 mt-2 flex items-center gap-1 hover:text-amber-400 transition-colors">
+                    className="text-xs font-mono text-amber-500/60 mt-2 flex items-center gap-1 hover:text-amber-400 transition-colors">
                     <ChevronDown className={`w-3 h-3 transition-transform ${expanded ? 'rotate-180' : ''}`} />
                     {expanded ? 'hide review' : 'read review'}
                   </button>
                   {expanded && (
-                    <div className="mt-2 text-xs font-body text-starlight/50 whitespace-pre-wrap pl-3 border-l border-blue-900/20">
+                    <div className="mt-2 text-xs font-body text-aurora/70 whitespace-pre-wrap pl-3 border-l border-pulsar/30">
                       {m.full_review}
                     </div>
                   )}
@@ -205,7 +205,7 @@ const MediaLog = () => {
               {m.tags?.length > 0 && (
                 <div className="flex gap-1 mt-2 flex-wrap">
                   {m.tags.map((tag, i) => (
-                    <span key={i} className="text-[8px] font-mono px-1.5 py-0.5 rounded-full bg-stardust/50 text-dim border border-blue-900/15">
+                    <span key={i} className="text-[8px] font-mono px-1.5 py-0.5 rounded-full bg-stardust/50 text-nova/60 border border-blue-900/15">
                       {tag}
                     </span>
                   ))}
@@ -219,7 +219,7 @@ const MediaLog = () => {
       {filtered.length === 0 && (
         <div className="text-center py-12">
           <BookOpen className="w-10 h-10 mx-auto mb-3 text-amber-500/20" />
-          <p className="text-sm font-body text-dim italic">No media entries match your filters.</p>
+          <p className="text-sm font-body text-nova/60 italic">No media entries match your filters.</p>
         </div>
       )}
 

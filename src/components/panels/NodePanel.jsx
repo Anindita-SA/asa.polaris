@@ -6,12 +6,12 @@ import { XP } from '../../data/xpRewards'
 
 // ─── Colours ────────────────────────────────────────────────────────────────
 const TYPE_META = {
-  root:     { label: 'Root',     color: 'text-gold   border-gold/30',     dot: 'bg-gold'    },
+  root:     { label: 'Root',     color: 'text-gold   border-gold/50',     dot: 'bg-gold'    },
   career:   { label: 'Node',     color: 'text-pulsar border-pulsar/30',   dot: 'bg-pulsar'  },
   academic: { label: 'Node',     color: 'text-aurora border-aurora/30',   dot: 'bg-aurora'  },
   self:     { label: 'Node',     color: 'text-emerald border-emerald/30', dot: 'bg-emerald' },
   subnode:  { label: 'Subnode',  color: 'text-nova   border-nova/30',     dot: 'bg-nova'    },
-  topic:    { label: 'Topic',    color: 'text-dim    border-blue-900/30', dot: 'bg-stardust/60' },
+  topic:    { label: 'Topic',    color: 'text-nova/60    border-pulsar/40', dot: 'bg-stardust/60' },
 }
 
 const meta = (type) => TYPE_META[type] || TYPE_META.career
@@ -175,18 +175,18 @@ const NodePanel = ({ node, onClose, onRefreshGraph }) => {
   return (
     <div className="panel-enter relative w-full h-full flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="p-4 pr-12 border-b border-blue-900/20 flex items-start justify-between flex-shrink-0">
+      <div className="p-4 pr-12 border-b border-pulsar/30 flex items-start justify-between flex-shrink-0">
         <div className="flex-1 min-w-0 pr-2">
           <p className={`text-xs font-mono mb-1 ${colorClass.split(' ')[0]}`}>
             {meta(node.type).label}
           </p>
           <InlineEdit value={node.title} className="font-display text-starlight block truncate"
             onSave={v => updateNodeField('title', v)} />
-          <InlineEdit value={node.description || 'No description'} className="text-xs text-dim font-body mt-1 block"
+          <InlineEdit value={node.description || 'No description'} className="text-xs text-nova/60 font-body mt-1 block"
             onSave={v => updateNodeField('description', v)} />
-          <p className="text-[10px] text-dim/50 font-mono mt-1">Double-click to edit</p>
+          <p className="text-xs text-nova/60/50 font-mono mt-1">Double-click to edit</p>
         </div>
-        <button onClick={onClose} className="text-dim hover:text-starlight transition-colors mt-1 flex-shrink-0">
+        <button onClick={onClose} className="text-nova/60 hover:text-starlight transition-colors mt-1 flex-shrink-0">
           <X className="w-4 h-4" />
         </button>
       </div>
@@ -197,12 +197,12 @@ const NodePanel = ({ node, onClose, onRefreshGraph }) => {
         {node.type !== 'topic' && (
           <div>
             <div className="flex items-center justify-between mb-3">
-              <p className="text-xs font-display text-dim ">
+              <p className="text-xs font-mono uppercase tracking-wider text-nova/60 ">
                 {node.type === 'subnode' ? 'Topics' : 'Subnodes'}
               </p>
               <button
                 onClick={() => setAddingChild({ parentId: node.id, level: node.type === 'subnode' ? 'topic' : 'subnode' })}
-                className="text-dim hover:text-nova transition-colors">
+                className="text-nova/60 hover:text-nova transition-colors">
                 <Plus className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -212,7 +212,7 @@ const NodePanel = ({ node, onClose, onRefreshGraph }) => {
                 <input autoFocus placeholder={addingChild.level === 'subnode' ? 'New subnode...' : 'New topic...'}
                   value={newChildTitle} onChange={e => setNewChildTitle(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') addChild(); if (e.key === 'Escape') setAddingChild(null) }}
-                  className="flex-1 bg-stardust/10 text-xs text-starlight border border-blue-900/30 rounded-lg px-3 py-1.5 outline-none focus:border-pulsar/40 font-body" />
+                  className="flex-1 bg-stardust/10 text-xs text-starlight border border-pulsar/40 rounded-lg px-3 py-1.5 outline-none focus:border-pulsar/40 font-body" />
                 <button onClick={addChild} className="text-emerald hover:text-emerald/70 transition-colors">
                   <Check className="w-4 h-4" />
                 </button>
@@ -223,9 +223,9 @@ const NodePanel = ({ node, onClose, onRefreshGraph }) => {
               {node.type !== 'subnode' && children.map(sub => (
                 <div key={sub.id}>
                   {/* Subnode row */}
-                  <div className="flex items-center gap-2 group py-1 px-2 rounded-lg hover:bg-white/5">
+                  <div className="flex items-center gap-2 group py-1 px-2 rounded-lg hover:bg-pulsar/10">
                     <button onClick={() => setExpanded(e => ({ ...e, [sub.id]: !e[sub.id] }))}
-                      className="text-dim w-4 flex-shrink-0">
+                      className="text-nova/60 w-4 flex-shrink-0">
                       {expanded[sub.id] ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
                     </button>
                     <div className={`w-2 h-2 rounded-full flex-shrink-0 ${meta('subnode').dot}`} />
@@ -233,9 +233,9 @@ const NodePanel = ({ node, onClose, onRefreshGraph }) => {
                       onSave={async v => { await supabase.from('nodes').update({ title: v }).eq('id', sub.id); fetchAll(); onRefreshGraph && onRefreshGraph() }} />
                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
                       <button onClick={() => setAddingChild({ parentId: sub.id, level: 'topic' })}
-                        className="text-dim hover:text-nova p-0.5"><Plus className="w-3 h-3" /></button>
+                        className="text-nova/60 hover:text-nova p-0.5"><Plus className="w-3 h-3" /></button>
                       <button onClick={() => deleteNode(sub.id)}
-                        className="text-dim hover:text-danger p-0.5"><Trash2 className="w-3 h-3" /></button>
+                        className="text-nova/60 hover:text-danger p-0.5"><Trash2 className="w-3 h-3" /></button>
                     </div>
                   </div>
 
@@ -245,19 +245,19 @@ const NodePanel = ({ node, onClose, onRefreshGraph }) => {
                       <input autoFocus placeholder="New topic..."
                         value={newChildTitle} onChange={e => setNewChildTitle(e.target.value)}
                         onKeyDown={e => { if (e.key === 'Enter') addChild(); if (e.key === 'Escape') setAddingChild(null) }}
-                        className="flex-1 bg-stardust/10 text-xs text-starlight border border-blue-900/30 rounded-lg px-3 py-1 outline-none focus:border-pulsar/40 font-body" />
+                        className="flex-1 bg-stardust/10 text-xs text-starlight border border-pulsar/40 rounded-lg px-3 py-1 outline-none focus:border-pulsar/40 font-body" />
                       <button onClick={addChild} className="text-emerald"><Check className="w-3.5 h-3.5" /></button>
                     </div>
                   )}
 
                   {/* Topics */}
                   {expanded[sub.id] && sub.topics.map(topic => (
-                    <div key={topic.id} className="flex items-center gap-2 group ml-6 py-0.5 px-2 rounded-lg hover:bg-white/5">
+                    <div key={topic.id} className="flex items-center gap-2 group ml-6 py-0.5 px-2 rounded-lg hover:bg-pulsar/10">
                       <div className="w-1.5 h-1.5 rounded-full bg-stardust/50 flex-shrink-0 ml-0.5" />
-                      <InlineEdit value={topic.title} className="text-xs text-dim flex-1 min-w-0"
+                      <InlineEdit value={topic.title} className="text-xs text-nova/60 flex-1 min-w-0"
                         onSave={async v => { await supabase.from('nodes').update({ title: v }).eq('id', topic.id); fetchAll(); onRefreshGraph && onRefreshGraph() }} />
                       <button onClick={() => deleteNode(topic.id)}
-                        className="text-dim hover:text-danger p-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                        className="text-nova/60 hover:text-danger p-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
                         <Trash2 className="w-2.5 h-2.5" />
                       </button>
                     </div>
@@ -267,19 +267,19 @@ const NodePanel = ({ node, onClose, onRefreshGraph }) => {
 
               {/* If it's a subnode, show topics directly */}
               {node.type === 'subnode' && children.map(topic => (
-                <div key={topic.id} className="flex items-center gap-2 group py-0.5 px-2 rounded-lg hover:bg-white/5">
+                <div key={topic.id} className="flex items-center gap-2 group py-0.5 px-2 rounded-lg hover:bg-pulsar/10">
                   <div className="w-1.5 h-1.5 rounded-full bg-stardust/50 flex-shrink-0 ml-1" />
-                  <InlineEdit value={topic.title} className="text-xs text-dim flex-1 min-w-0"
+                  <InlineEdit value={topic.title} className="text-xs text-nova/60 flex-1 min-w-0"
                     onSave={async v => { await supabase.from('nodes').update({ title: v }).eq('id', topic.id); fetchAll(); onRefreshGraph && onRefreshGraph() }} />
                   <button onClick={() => deleteNode(topic.id)}
-                    className="text-dim hover:text-danger p-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                    className="text-nova/60 hover:text-danger p-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
                     <Trash2 className="w-2.5 h-2.5" />
                   </button>
                 </div>
               ))}
 
               {children.length === 0 && (
-                <p className="text-xs text-dim italic font-body pl-1">
+                <p className="text-xs text-nova/60 italic font-body pl-1">
                   No {node.type === 'subnode' ? 'topics' : 'subnodes'} yet.
                 </p>
               )}
@@ -290,10 +290,10 @@ const NodePanel = ({ node, onClose, onRefreshGraph }) => {
         {/* ── Goals ──────────────────────────────────────────────────── */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-display text-dim flex items-center gap-2">
+            <p className="text-xs font-mono uppercase tracking-wider text-nova/60 flex items-center gap-2">
               <Target className="w-3 h-3" /> Goals
             </p>
-            <button onClick={() => setAddingGoal(!addingGoal)} className="text-dim hover:text-nova transition-colors">
+            <button onClick={() => setAddingGoal(!addingGoal)} className="text-nova/60 hover:text-nova transition-colors">
               <Plus className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -302,17 +302,17 @@ const NodePanel = ({ node, onClose, onRefreshGraph }) => {
           </button>
 
           {addingGoal && (
-            <div className="mb-3 p-3 bg-cosmic/40 rounded-lg border border-blue-900/20 space-y-2">
-              <input placeholder="Goal title" className="w-full bg-transparent text-xs text-starlight border-b border-blue-900/30 outline-none pb-1 font-body"
+            <div className="mb-3 p-3 bg-cosmic/40 rounded-lg border border-pulsar/30 space-y-2">
+              <input placeholder="Goal title" className="w-full bg-transparent text-xs text-starlight border-b border-pulsar/40 outline-none pb-1 font-body"
                 value={newGoal.title} onChange={e => setNewGoal(g => ({ ...g, title: e.target.value }))} />
               <div className="flex gap-2">
-                <select className="bg-stardust text-xs text-dim rounded px-2 py-1 flex-1"
+                <select className="bg-stardust text-xs text-nova/60 rounded px-2 py-1 flex-1"
                   value={newGoal.scope} onChange={e => setNewGoal(g => ({ ...g, scope: e.target.value }))}>
                   {scopeOrder.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
-                <input placeholder="Target" type="number" className="bg-transparent text-xs text-starlight border-b border-blue-900/30 outline-none w-16 pb-1"
+                <input placeholder="Target" type="number" className="bg-transparent text-xs text-starlight border-b border-pulsar/40 outline-none w-16 pb-1"
                   value={newGoal.target} onChange={e => setNewGoal(g => ({ ...g, target: e.target.value }))} />
-                <input placeholder="unit" className="bg-transparent text-xs text-dim border-b border-blue-900/30 outline-none w-12 pb-1"
+                <input placeholder="unit" className="bg-transparent text-xs text-nova/60 border-b border-pulsar/40 outline-none w-12 pb-1"
                   value={newGoal.unit} onChange={e => setNewGoal(g => ({ ...g, unit: e.target.value }))} />
               </div>
               <button onClick={addGoal} className="text-xs text-emerald font-body hover:underline">+ Add goal</button>
@@ -327,9 +327,9 @@ const NodePanel = ({ node, onClose, onRefreshGraph }) => {
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-xs text-starlight font-body">{goal.title}</span>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-mono text-dim">{goal.current}/{goal.target} {goal.unit}</span>
+                      <span className="text-xs font-mono text-nova/60">{goal.current}/{goal.target} {goal.unit}</span>
                       {!goal.completed && (
-                        <button onClick={() => incrementGoal(goal)} className="text-dim hover:text-emerald transition-colors">
+                        <button onClick={() => incrementGoal(goal)} className="text-nova/60 hover:text-emerald transition-colors">
                           <Plus className="w-3 h-3" />
                         </button>
                       )}
@@ -346,14 +346,14 @@ const NodePanel = ({ node, onClose, onRefreshGraph }) => {
                 </div>
               )
             })}
-            {!goals.length && <p className="text-xs text-dim font-body italic">No goals yet.</p>}
+            {!goals.length && <p className="text-xs text-nova/60 font-body italic">No goals yet.</p>}
           </div>
         </div>
 
         {/* ── Subtasks ────────────────────────────────────────────────── */}
         {!!subtasks.length && (
           <div>
-            <p className="text-xs font-display text-dim mb-2">Subtasks</p>
+            <p className="text-xs font-mono uppercase tracking-wider text-nova/60 mb-2">Subtasks</p>
             <div className="space-y-1">
               {subtasks.map(task => (
                 <button key={task.id} onClick={() => toggleSubtask(task)} className="w-full text-left text-xs py-1 text-starlight/90">
@@ -367,18 +367,18 @@ const NodePanel = ({ node, onClose, onRefreshGraph }) => {
         {/* ── Milestones ──────────────────────────────────────────────── */}
         {nodeTypeMilestones.length > 0 && (
           <div>
-            <p className="text-xs font-display text-dim flex items-center gap-2 mb-3">
+            <p className="text-xs font-mono uppercase tracking-wider text-nova/60 flex items-center gap-2 mb-3">
               <Flag className="w-3 h-3" /> Milestones
             </p>
             <div className="space-y-2">
               {nodeTypeMilestones.map(ms => (
-                <div key={ms.id} className={`flex items-start justify-between p-2 rounded-lg border ${ms.status === 'done' ? 'border-emerald/20 bg-emerald/5' : 'border-blue-900/20 bg-stardust/30'}`}>
+                <div key={ms.id} className={`flex items-start justify-between p-2 rounded-lg border ${ms.status === 'done' ? 'border-emerald/20 bg-emerald/5' : 'border-pulsar/30 bg-stardust/30'}`}>
                   <div className="flex-1 min-w-0">
-                    <p className={`text-xs font-body ${ms.status === 'done' ? 'text-dim line-through' : 'text-starlight'}`}>{ms.title}</p>
-                    <p className="text-xs font-mono text-dim mt-0.5">{new Date(ms.deadline).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}</p>
+                    <p className={`text-xs font-body ${ms.status === 'done' ? 'text-nova/60 line-through' : 'text-starlight'}`}>{ms.title}</p>
+                    <p className="text-xs font-mono text-nova/60 mt-0.5">{new Date(ms.deadline).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}</p>
                   </div>
                   {ms.status !== 'done' && (
-                    <button onClick={() => completeMilestone(ms)} className="text-dim hover:text-emerald transition-colors ml-2 flex-shrink-0">
+                    <button onClick={() => completeMilestone(ms)} className="text-nova/60 hover:text-emerald transition-colors ml-2 flex-shrink-0">
                       <Check className="w-3.5 h-3.5" />
                     </button>
                   )}
@@ -401,12 +401,12 @@ const NodePanel = ({ node, onClose, onRefreshGraph }) => {
       {showBreakdown && (
         <div className="modal-overlay fixed inset-0 bg-void/80 z-50 flex items-end md:items-center justify-center p-0 md:p-4"
           onClick={e => e.target === e.currentTarget && setShowBreakdown(false)}>
-          <div className="modal-content glass border border-blue-900/30 rounded-t-2xl rounded-b-none md:rounded-2xl p-6 w-full w-full max-w-full md:max-w-lg space-y-3">
-            <h3 className="font-display text-starlight">Task breakdown</h3>
+          <div className="modal-content glass border border-pulsar/40 rounded-t-2xl rounded-b-none md:rounded-xl p-6 w-full w-full max-w-full md:max-w-lg space-y-3">
+            <h3 className="text-lg font-display text-starlight">Task breakdown</h3>
             <textarea rows={4} value={taskDescription} onChange={e => setTaskDescription(e.target.value)}
-              className="w-full bg-stardust/50 text-sm text-starlight border border-blue-900/20 rounded-lg px-3 py-2 outline-none resize-none"
+              className="w-full bg-stardust/50 text-sm text-starlight border border-pulsar/30 rounded-lg px-3 py-2 outline-none resize-none"
               placeholder="Describe what you need to break down..." />
-            <button onClick={breakDownTask} className="w-full py-2 bg-gold/20 border border-gold/30 text-gold rounded-lg text-sm">Break It Down</button>
+            <button onClick={breakDownTask} className="w-full py-2 bg-gold/20 border border-gold/50 text-gold rounded-lg text-sm">Break It Down</button>
             {generatedSteps.map((step, idx) => <p key={idx} className="text-xs text-starlight">{idx + 1}. {step}</p>)}
             {!!generatedSteps.length && <button onClick={saveSubtasks} className="w-full py-2 bg-pulsar/20 border border-pulsar/30 text-pulsar rounded-lg text-sm">Save To Polaris</button>}
           </div>

@@ -6,8 +6,8 @@ import { Check, Flag, Clock, AlertCircle, ChevronDown, ChevronUp, Zap, Plus, X, 
 import { XP } from '../../data/xpRewards'
 
 const statusConfig = {
-  upcoming: { color: 'text-dim border-blue-900/30 bg-stardust/30', icon: Clock, label: 'Upcoming' },
-  'in-progress': { color: 'text-pulsar border-pulsar/30 bg-pulsar/5', icon: Flag, label: 'In Progress' },
+  upcoming: { color: 'text-nova/60 border-pulsar/40 bg-stardust/30', icon: Clock, label: 'Upcoming' },
+  'in-progress': { color: 'text-pulsar border-pulsar/30 bg-pulsar/10', icon: Flag, label: 'In Progress' },
   done: { color: 'text-emerald border-emerald/30 bg-emerald/5', icon: Check, label: 'Done' },
   overdue: { color: 'text-danger border-danger/30 bg-danger/5', icon: AlertCircle, label: 'Overdue' },
 }
@@ -229,29 +229,29 @@ Rules:
       <div className="max-w-2xl mx-auto space-y-6">
 
         <div className="flex justify-end mb-4">
-          <button onClick={openAddModal} className="glass border border-pulsar/30 text-pulsar hover:bg-pulsar/20 transition-all rounded-lg px-4 py-2 text-sm font-display flex items-center gap-2 shadow-[0_0_15px_rgba(59,130,246,0.3)]">
+          <button onClick={openAddModal} className="glass border border-pulsar/30 text-pulsar hover:bg-pulsar/20 transition-all rounded-lg px-4 py-2 text-lg font-display flex items-center gap-2">
             <Plus className="w-4 h-4" /> Add Milestone
           </button>
         </div>
 
         {/* Next up banner */}
         {nextMilestone && (
-          <div className="glass border border-pulsar/20 rounded-xl p-4 bg-pulsar/5">
+          <div className="glass border border-pulsar/40 rounded-xl p-4 bg-pulsar/10">
             <p className="text-xs font-mono text-pulsar/60 mb-1">Next milestone</p>
             <p className="text-sm text-starlight font-body">{nextMilestone.title}</p>
             <div className="flex items-center gap-3 mt-2">
-              <span className="text-xs font-mono text-dim">{new Date(nextMilestone.deadline).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
-              <span className={`text-xs font-mono ${getDaysUntil(nextMilestone.deadline) < 30 ? 'text-gold' : 'text-dim'}`}>
+              <span className="text-xs font-mono text-nova/60">{new Date(nextMilestone.deadline).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+              <span className={`text-xs font-mono ${getDaysUntil(nextMilestone.deadline) < 30 ? 'text-gold' : 'text-nova/60'}`}>
                 {getDaysUntil(nextMilestone.deadline) > 0 ? `${getDaysUntil(nextMilestone.deadline)} days` : 'overdue'}
               </span>
             </div>
           </div>
         )}
 
-        <button onClick={() => setExpanded(v => !v)} className="glass border border-blue-900/20 rounded-xl p-4 w-full text-left">
+        <button onClick={() => setExpanded(v => !v)} className="glass border border-pulsar/30 rounded-xl p-4 w-full text-left">
           <div className="flex items-center justify-between mb-2">
             <p className="text-sm text-starlight font-body">{done.length} / {milestones.length} milestones complete</p>
-            {expanded ? <ChevronUp className="w-4 h-4 text-dim" /> : <ChevronDown className="w-4 h-4 text-dim" />}
+            {expanded ? <ChevronUp className="w-4 h-4 text-nova/60" /> : <ChevronDown className="w-4 h-4 text-nova/60" />}
           </div>
           <div className="h-1.5 bg-stardust rounded-full overflow-hidden">
             <div className="h-full bg-emerald transition-all duration-500" style={{ width: `${percentDone}%` }} />
@@ -282,9 +282,9 @@ Rules:
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <Icon className={`w-3 h-3 flex-shrink-0 ${config.color.split(' ')[0]}`} />
-                        <p className={`text-sm font-body ${ms.status === 'done' ? 'line-through text-dim' : 'text-starlight'}`}>{ms.title}</p>
+                        <p className={`text-sm font-body ${ms.status === 'done' ? 'line-through text-nova/60' : 'text-starlight'}`}>{ms.title}</p>
                       </div>
-                      <div className="flex items-center gap-3 text-xs font-mono text-dim">
+                      <div className="flex items-center gap-3 text-xs font-mono text-nova/60">
                         <span>{new Date(ms.deadline).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}</span>
                         {ms.status !== 'done' && (
                           <span className={daysUntil < 0 ? 'text-danger' : daysUntil < 60 ? 'text-gold' : ''}>
@@ -300,7 +300,7 @@ Rules:
                             const match = ms.note.match(/\[Node: (.*?)\]/); 
                             if(match && onJumpToNode) onJumpToNode(match[1]) 
                           }}
-                          className="text-[10px] text-nova/80 hover:text-nova transition-colors font-body flex items-center gap-1 mt-1">
+                          className="text-xs text-nova/80 hover:text-nova transition-colors font-body flex items-center gap-1 mt-1">
                           <Compass className="w-3 h-3" /> Node: {nodes.find(n => n.id === ms.note.match(/\[Node: (.*?)\]/)?.[1])?.title || 'Unknown'}
                         </button>
                       )}
@@ -316,7 +316,7 @@ Rules:
                                   {task.title}
                                 </span>
                               </button>
-                              <button onClick={() => deleteSubtask(task.id)} className="text-dim hover:text-danger opacity-0 group-hover/task:opacity-100 transition-opacity p-0.5">
+                              <button onClick={() => deleteSubtask(task.id)} className="text-nova/60 hover:text-danger opacity-0 group-hover/task:opacity-100 transition-opacity p-0.5">
                                 <X className="w-3 h-3" />
                               </button>
                             </div>
@@ -333,7 +333,7 @@ Rules:
                         placeholder="Add a note..."
                         defaultValue={ms.note || ''}
                         onBlur={e => updateNote(ms.id, e.target.value)}
-                        className="mt-3 w-full bg-transparent text-xs text-dim border-b border-transparent focus:border-blue-900/30 outline-none font-body italic placeholder:text-blue-900/40"
+                        className="mt-3 w-full bg-transparent text-xs text-nova/60 border-b border-transparent focus:border-pulsar/40 outline-none font-body italic placeholder:text-blue-900/40"
                       />
                     </div>
 
@@ -342,17 +342,17 @@ Rules:
                       <select
                         value={ms.status === 'overdue' ? 'upcoming' : ms.status}
                         onChange={e => updateStatus(ms, e.target.value)}
-                        className="bg-stardust text-xs text-dim rounded px-2 py-1 border border-blue-900/20 outline-none"
+                        className="bg-stardust text-xs text-nova/60 rounded px-2 py-1 border border-pulsar/30 outline-none"
                       >
                         <option value="upcoming">Upcoming</option>
                         <option value="in-progress">In Progress</option>
                         <option value="done">Done ✦</option>
                       </select>
                       <div className="flex gap-1 mt-1">
-                        <button onClick={() => openEditModal(ms)} className="p-1 text-dim hover:text-sky bg-stardust rounded border border-transparent hover:border-sky/30 transition-colors">
+                        <button onClick={() => openEditModal(ms)} className="p-1 text-nova/60 hover:text-sky bg-stardust rounded border border-transparent hover:border-sky/30 transition-colors">
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
-                        <button onClick={() => deleteMilestone(ms.id)} className="p-1 text-dim hover:text-red-400 bg-stardust rounded border border-transparent hover:border-red-500/30 transition-colors">
+                        <button onClick={() => deleteMilestone(ms.id)} className="p-1 text-nova/60 hover:text-red-400 bg-stardust rounded border border-transparent hover:border-red-500/30 transition-colors">
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
@@ -366,7 +366,7 @@ Rules:
 
         {/* Done section */}
         {done.length > 0 && (
-          <div className="border-t border-blue-900/20 pt-4">
+          <div className="border-t border-pulsar/30 pt-4">
             <p className="text-xs font-mono text-emerald/60 mb-3">Completed ({done.length})</p>
           </div>
         )}
@@ -374,27 +374,27 @@ Rules:
 
       {breakdownTarget && (
         <div className="modal-overlay fixed inset-0 bg-void/80 z-50 flex items-end md:items-center justify-center p-0 md:p-4" onClick={e => e.target === e.currentTarget && setBreakdownTarget(null)}>
-          <div className="modal-content glass border border-blue-900/30 rounded-t-2xl rounded-b-none md:rounded-2xl p-6 w-full w-full max-w-full md:max-w-lg space-y-4">
+          <div className="modal-content glass border border-pulsar/40 rounded-t-2xl rounded-b-none md:rounded-xl p-6 w-full w-full max-w-full md:max-w-lg space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="font-display text-starlight">Tasks for: {breakdownTarget.title}</h3>
-              <button onClick={() => setBreakdownTarget(null)}><X className="w-4 h-4 text-dim hover:text-starlight" /></button>
+              <h3 className="text-lg font-display text-starlight">Tasks for: {breakdownTarget.title}</h3>
+              <button onClick={() => setBreakdownTarget(null)}><X className="w-4 h-4 text-nova/60 hover:text-starlight" /></button>
             </div>
 
             <div className="flex gap-2">
               <input placeholder="Add a simple task..." value={newSubtask} onChange={e => setNewSubtask(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && addManualSubtask()}
-                className="flex-1 bg-stardust/50 text-sm text-starlight border border-blue-900/20 rounded-lg px-3 py-2 outline-none focus:border-pulsar/40 font-body" />
+                className="flex-1 bg-stardust/50 text-sm text-starlight border border-pulsar/30 rounded-lg px-3 py-2 outline-none focus:border-pulsar/40 font-body" />
               <button onClick={addManualSubtask} className="px-3 bg-pulsar/20 border border-pulsar/30 text-pulsar hover:bg-pulsar/30 transition-colors rounded-lg"><Plus className="w-4 h-4" /></button>
             </div>
 
             <div className="relative my-4">
-              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-blue-900/20"></div></div>
-              <div className="relative flex justify-center text-xs"><span className="bg-[#0b101e] px-2 text-dim font-mono ">or AI breakdown</span></div>
+              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-pulsar/30"></div></div>
+              <div className="relative flex justify-center text-xs"><span className="bg-[#0b101e] px-2 text-nova/60 font-mono ">or AI breakdown</span></div>
             </div>
 
             <textarea rows={2} value={taskDescription} onChange={e => setTaskDescription(e.target.value)}
-              className="w-full bg-stardust/50 text-sm text-starlight border border-blue-900/20 rounded-lg px-3 py-2 outline-none resize-none" placeholder="Describe the task for AI..." />
-            <button onClick={breakDownTask} disabled={aiLoading} className="w-full py-2 bg-gold/20 border border-gold/30 text-gold hover:bg-gold/30 transition-colors rounded-lg text-sm disabled:opacity-50 disabled:cursor-wait">
+              className="w-full bg-stardust/50 text-sm text-starlight border border-pulsar/30 rounded-lg px-3 py-2 outline-none resize-none" placeholder="Describe the task for AI..." />
+            <button onClick={breakDownTask} disabled={aiLoading} className="w-full py-2 bg-gold/20 border border-gold/50 text-gold hover:bg-gold/30 transition-colors rounded-lg text-sm disabled:opacity-50 disabled:cursor-wait">
               {aiLoading ? '⏳ BREAKING IT DOWN...' : 'GENERATE STEPS'}
             </button>
 
@@ -402,35 +402,35 @@ Rules:
               <div className="mt-4 space-y-2 max-h-48 overflow-y-auto pr-2">
                 {generatedSteps.map((step, idx) => (
                   <div key={idx} className="flex items-center gap-2">
-                    <input value={step} onChange={e => { const newSteps = [...generatedSteps]; newSteps[idx] = e.target.value; setGeneratedSteps(newSteps); }} className="flex-1 bg-transparent text-xs text-starlight outline-none border-b border-blue-900/30 focus:border-pulsar/50 pb-1" />
-                    <button onClick={() => setGeneratedSteps(generatedSteps.filter((_, i) => i !== idx))} className="text-dim hover:text-danger"><X className="w-3 h-3" /></button>
+                    <input value={step} onChange={e => { const newSteps = [...generatedSteps]; newSteps[idx] = e.target.value; setGeneratedSteps(newSteps); }} className="flex-1 bg-transparent text-xs text-starlight outline-none border-b border-pulsar/40 focus:border-pulsar/50 pb-1" />
+                    <button onClick={() => setGeneratedSteps(generatedSteps.filter((_, i) => i !== idx))} className="text-nova/60 hover:text-danger"><X className="w-3 h-3" /></button>
                   </div>
                 ))}
               </div>
             )}
 
-            {!!generatedSteps.length && <button onClick={saveSubtasks} className="w-full py-2 bg-pulsar/20 border border-pulsar/30 text-pulsar rounded-lg text-sm font-display hover:bg-pulsar/30 transition-colors mt-2">Save Ai Tasks</button>}
+            {!!generatedSteps.length && <button onClick={saveSubtasks} className="w-full py-2 bg-pulsar/20 border border-pulsar/30 text-pulsar rounded-lg text-lg font-display hover:bg-pulsar/30 transition-colors mt-2">SAVE AI TASKS</button>}
           </div>
         </div>
       )}
 
       {showAddModal && (
         <div className="modal-overlay fixed inset-0 bg-void/80 z-50 flex items-end md:items-center justify-center p-0 md:p-4" onClick={e => e.target === e.currentTarget && setShowAddModal(false)}>
-          <div className="modal-content glass border border-blue-900/30 rounded-t-2xl rounded-b-none md:rounded-2xl p-6 w-full w-full max-w-full md:max-w-sm space-y-4">
+          <div className="modal-content glass border border-pulsar/40 rounded-t-2xl rounded-b-none md:rounded-xl p-6 w-full w-full max-w-full md:max-w-sm space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="font-display text-starlight ">{editingMilestone ? 'Edit Milestone' : 'New Milestone'}</h3>
-              <button onClick={() => setShowAddModal(false)}><X className="w-4 h-4 text-dim hover:text-starlight" /></button>
+              <h3 className="text-lg font-display text-starlight">{editingMilestone ? 'Edit Milestone' : 'New Milestone'}</h3>
+              <button onClick={() => setShowAddModal(false)}><X className="w-4 h-4 text-nova/60 hover:text-starlight" /></button>
             </div>
             <input placeholder="Milestone Title" value={addForm.title} onChange={e => setAddForm(f => ({ ...f, title: e.target.value }))}
-              className="w-full bg-stardust/50 text-sm text-starlight border border-blue-900/20 rounded-lg px-3 py-2 outline-none focus:border-pulsar/40 font-body" />
+              className="w-full bg-stardust/50 text-sm text-starlight border border-pulsar/30 rounded-lg px-3 py-2 outline-none focus:border-pulsar/40 font-body" />
             <input type="date" value={addForm.deadline} onChange={e => setAddForm(f => ({ ...f, deadline: e.target.value }))}
-              className="w-full bg-stardust/50 text-sm text-starlight border border-blue-900/20 rounded-lg px-3 py-2 outline-none focus:border-pulsar/40 font-body" />
+              className="w-full bg-stardust/50 text-sm text-starlight border border-pulsar/30 rounded-lg px-3 py-2 outline-none focus:border-pulsar/40 font-body" />
             <select value={addForm.linkedNode} onChange={e => setAddForm(f => ({ ...f, linkedNode: e.target.value }))}
-              className="w-full bg-stardust/50 text-sm text-dim border border-blue-900/20 rounded-lg px-3 py-2 outline-none">
+              className="w-full bg-stardust/50 text-sm text-nova/60 border border-pulsar/30 rounded-lg px-3 py-2 outline-none">
               <option value="">Link to Node (Optional)</option>
               {nodes.map(n => <option key={n.id} value={n.id}>{n.title}</option>)}
             </select>
-            <button onClick={saveMilestone} className="w-full py-2 bg-pulsar/20 border border-pulsar/30 text-pulsar text-sm font-display rounded-lg hover:bg-pulsar/30 transition-colors">
+            <button onClick={saveMilestone} className="w-full py-2 bg-pulsar/20 border border-pulsar/30 text-pulsar text-lg font-display rounded-lg hover:bg-pulsar/30 transition-colors">
               {editingMilestone ? 'SAVE CHANGES' : 'CREATE'}
             </button>
           </div>
