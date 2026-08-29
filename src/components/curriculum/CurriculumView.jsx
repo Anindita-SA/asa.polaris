@@ -142,6 +142,52 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
     })
   }
 
+  const downloadIeltsICS = () => {
+    let icsLines = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//Polaris Ecosystem//IELTS 2026 Schedule//EN',
+      'CALSCALE:GREGORIAN',
+      'METHOD:PUBLISH',
+      'X-WR-CALNAME:IELTS 2026 Sprint (Oct 3 Exam)',
+      'X-WR-TIMEZONE:Asia/Kolkata'
+    ]
+
+    IELTS_SCHEDULE.forEach((s, idx) => {
+      const dtStart = `${s.date.replace(/-/g, '')}T180000`
+      const durationMin = s.duration.includes('180') ? '210000' : s.duration.includes('150') ? '203000' : s.duration.includes('60') ? '190000' : s.duration.includes('45') ? '184500' : s.duration.includes('40') ? '184000' : s.duration.includes('30') ? '183000' : s.duration.includes('25') ? '182500' : '182000'
+      const dtEnd = `${s.date.replace(/-/g, '')}T${durationMin}`
+      const uid = `ielts-2026-sprint-session-${idx + 1}@polaris.app`
+
+      icsLines.push('BEGIN:VEVENT')
+      icsLines.push(`UID:${uid}`)
+      icsLines.push(`DTSTAMP:20260829T130000Z`)
+      icsLines.push(`DTSTART;TZID=Asia/Kolkata:${dtStart}`)
+      icsLines.push(`DTEND;TZID=Asia/Kolkata:${dtEnd}`)
+      icsLines.push(`SUMMARY:IELTS 2026: ${s.title}`)
+      icsLines.push(`DESCRIPTION:${s.focus.replace(/\n/g, '\\n')}\\nResource: ${s.url || 'Cambridge Books'}`)
+      if (s.url) icsLines.push(`URL:${s.url}`)
+      icsLines.push('BEGIN:VALARM')
+      icsLines.push('TRIGGER:-PT15M')
+      icsLines.push('ACTION:DISPLAY')
+      icsLines.push(`DESCRIPTION:Reminder: IELTS 2026: ${s.title} in 15 minutes`)
+      icsLines.push('END:VALARM')
+      icsLines.push('END:VEVENT')
+    })
+
+    icsLines.push('END:VCALENDAR')
+    const rawIcs = icsLines.join('\r\n')
+    const blob = new Blob([rawIcs], { type: 'text/calendar;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'ielts_2026_study_schedule.ics'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
+
   const isIeltsCurriculum = curriculum.title?.toLowerCase().includes('ielts')
 
   useEffect(() => { fetchData() }, [curriculum.id])
@@ -241,12 +287,12 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
           <div className="flex items-center justify-between">
             <h1 className="font-display text-xl font-bold text-starlight leading-tight">{curriculum.title}</h1>
             {isIeltsCurriculum && (
-              <a 
-                href="/ielts_2026_study_schedule.ics" 
-                download="ielts_2026_study_schedule.ics"
-                className="glass border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 px-3 py-1.5 rounded-lg text-xs font-mono uppercase tracking-wider flex items-center gap-1.5 transition-all">
+              <button 
+                onClick={downloadIeltsICS}
+                className="glass border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 px-3 py-1.5 rounded-lg text-xs font-mono uppercase tracking-wider flex items-center gap-1.5 transition-all"
+                title="Download .ICS file to import into Google Calendar">
                 <Download className="w-3.5 h-3.5" /> Download .ICS Sub-Calendar
-              </a>
+              </button>
             )}
           </div>
           {curriculum.description && (
