@@ -39,41 +39,49 @@ const IELTS_RESOURCES = [
 ]
 
 const IELTS_SCHEDULE = [
-  // Week 1: Diagnose & Habit Lock-in (Aug 31 - Sep 4)
-  { date: '2026-08-31', week: 1, day: 'Mon', duration: '60m', title: 'Diagnostic Timed Writing Test (Task 1 + Task 2)', focus: 'Full baseline writing test under exam conditions on computer with no help.', url: 'https://www.ielts.org/for-test-takers/sample-test-questions' },
-  { date: '2026-09-01', week: 1, day: 'Tue', duration: '20m', title: 'Grammar Drill (Articles & Prepositions) + Blocker Setup', focus: '15-min daily grammar de-rusting for articles/prepositions + setup distraction blockers.', url: 'https://ieltsliz.com' },
-  { date: '2026-09-02', week: 1, day: 'Wed', duration: '20m', title: 'Grammar Drill (Tense Consistency) + Spoken Fluency', focus: '15-min tense consistency drill + 10-min spoken fluency out loud.', url: 'https://ieltsliz.com' },
-  { date: '2026-09-03', week: 1, day: 'Thu', duration: '30m', title: 'On-Screen Typing & Word Count Adaptation', focus: 'Timed typing practice without paper crossing out; monitor on-screen word count.', url: 'https://ielts.idp.com/prepare/article-idp-ielts-prepare-app' },
-  { date: '2026-09-04', week: 1, day: 'Fri', duration: '40m', title: 'Week 1 Writing Audit against Band Descriptors', focus: 'Evaluate diagnostic essay against official band descriptors (TR, CC, LR, GRA).', url: 'https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-practice-tests/road-to-ielts' },
+  // Week 1: Diagnose & Habit Lock-in (Aug 31 - Sep 6)
+  { date: '2026-08-31', week: 1, day: 'Mon', duration: '60m', slot: 'Deep Study Block', title: 'Diagnostic Timed Writing Test (Task 1 + Task 2)', focus: 'Full baseline writing test under exam conditions on computer in Deep Study block.', url: 'https://www.ielts.org/for-test-takers/sample-test-questions' },
+  { date: '2026-09-01', week: 1, day: 'Tue', duration: '20m', slot: 'Deep Study Warm-up', title: 'Grammar Drill (Articles & Prepositions) + Blocker Setup', focus: '15-min daily grammar de-rusting for articles/prepositions + setup distraction blockers.', url: 'https://ieltsliz.com' },
+  { date: '2026-09-02', week: 1, day: 'Wed', duration: '20m', slot: 'Deep Study Warm-up', title: 'Grammar Drill (Tense Consistency) + Spoken Fluency', focus: '15-min tense consistency drill + 10-min spoken fluency out loud.', url: 'https://ieltsliz.com' },
+  { date: '2026-09-03', week: 1, day: 'Thu', duration: '30m', slot: 'Deep Work Block', title: 'On-Screen Typing & Word Count Adaptation', focus: 'Timed typing practice without paper crossing out; monitor on-screen word count.', url: 'https://ielts.idp.com/prepare/article-idp-ielts-prepare-app' },
+  { date: '2026-09-04', week: 1, day: 'Fri', duration: '40m', slot: 'Deep Study Block', title: 'Week 1 Writing Audit against Band Descriptors', focus: 'Evaluate diagnostic essay against official band descriptors (TR, CC, LR, GRA).', url: 'https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-practice-tests/road-to-ielts' },
+  { date: '2026-09-05', week: 1, day: 'Sat', duration: '60m', slot: 'Weekend Downtime Slot', title: 'Graded Reading & Listening Sectional Mock', focus: 'Auto-graded timed sectional mock from Jan 2026 IELTS Online Tests collection.', url: 'https://ieltsonlinetests.com/collection/ielts-mock-test-2026-january' },
+  { date: '2026-09-06', week: 1, day: 'Sun', duration: '45m', slot: 'Weekend Downtime Slot', title: 'Writing Error Analysis & Complex Sentence Refinement', focus: 'Analyze Week 1 writing mistakes & practice complex sentence structures.', url: 'https://ieltsliz.com' },
 
-  // Week 2: Targeted Writing Reps & Computer Adaptation (Sep 7 - Sep 11)
-  { date: '2026-09-07', week: 2, day: 'Mon', duration: '45m', title: 'Timed Writing Rep #1 (Task 2 Focus) + Spoken Fluency', focus: '40-min computer Task 2 essay on coherence/transitions + 10m spoken fluency.', url: 'https://ieltsliz.com' },
-  { date: '2026-09-08', week: 2, day: 'Tue', duration: '30m', title: 'Grammar Drill + Timed Writing Rep #2 (Task 1 Focus)', focus: '15-min grammar drill + 20-min computer Task 1 chart report.', url: 'https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-practice-tests/road-to-ielts' },
-  { date: '2026-09-09', week: 2, day: 'Wed', duration: '45m', title: 'Timed Writing Rep #3 (Complex Sentence Structure Focus)', focus: 'Targeting 7 to 8+ jump via complex structures & paragraph cohesion.', url: 'https://ieltsliz.com' },
-  { date: '2026-09-10', week: 2, day: 'Thu', duration: '25m', title: 'Spoken Fluency Drills (Accent Drift Guard)', focus: '10-15 min speaking out loud to keep fluency reflexes sharp against dialect drift.', url: 'https://ieltsliz.com' },
-  { date: '2026-09-11', week: 2, day: 'Fri', duration: '45m', title: 'Timed Writing Rep #4 + Error Review Log', focus: 'Timed computer writing rep + update writing error log.', url: 'https://ieltsonlinetests.com/collection/ielts-mock-test-2026-january' },
+  // Week 2: Targeted Writing Reps & Computer Adaptation (Sep 7 - Sep 13)
+  { date: '2026-09-07', week: 2, day: 'Mon', duration: '45m', slot: 'Deep Work Block', title: 'Timed Writing Rep #1 (Task 2 Focus) + Spoken Fluency', focus: '40-min computer Task 2 essay on coherence/transitions + 10m spoken fluency.', url: 'https://ieltsliz.com' },
+  { date: '2026-09-08', week: 2, day: 'Tue', duration: '30m', slot: 'Deep Study Warm-up', title: 'Grammar Drill + Timed Writing Rep #2 (Task 1 Focus)', focus: '15-min grammar drill + 20-min computer Task 1 chart report.', url: 'https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-practice-tests/road-to-ielts' },
+  { date: '2026-09-09', week: 2, day: 'Wed', duration: '45m', slot: 'Deep Work Block', title: 'Timed Writing Rep #3 (Complex Sentence Structure Focus)', focus: 'Targeting 7 to 8+ jump via complex structures & paragraph cohesion.', url: 'https://ieltsliz.com' },
+  { date: '2026-09-10', week: 2, day: 'Thu', duration: '25m', slot: 'Deep Study Slot', title: 'Spoken Fluency Drills (Accent Drift Guard)', focus: '10-15 min speaking out loud to keep fluency reflexes sharp against dialect drift.', url: 'https://ieltsliz.com' },
+  { date: '2026-09-11', week: 2, day: 'Fri', duration: '45m', slot: 'Deep Study Block', title: 'Timed Writing Rep #4 + Error Review Log', focus: 'Timed computer writing rep + update writing error log.', url: 'https://ieltsonlinetests.com/collection/ielts-mock-test-2026-january' },
+  { date: '2026-09-12', week: 2, day: 'Sat', duration: '90m', slot: 'Weekend Downtime Slot', title: 'Timed Writing + Reading Speed Drill (Dec 2025 Mock)', focus: 'Auto-graded Reading & Task 2 writing rep under timed conditions.', url: 'https://ieltsonlinetests.com/collection/ielts-mock-test-2025-december' },
+  { date: '2026-09-13', week: 2, day: 'Sun', duration: '45m', slot: 'Weekend Downtime Slot', title: 'Writing Coherence Rewrite & Band Descriptor Audit', focus: 'Rewrite weak essay paragraphs focusing on logical flow & band 8+ vocabulary.', url: 'https://ieltsliz.com' },
 
-  // Week 3: Advanced Reps & Complex Structure (Sep 14 - Sep 18)
-  { date: '2026-09-14', week: 3, day: 'Mon', duration: '45m', title: 'Timed Writing Rep #5 (Task 2 Coherence)', focus: 'Computer Task 2 essay focusing on paragraph logical progression.', url: 'https://ieltsliz.com' },
-  { date: '2026-09-15', week: 3, day: 'Tue', duration: '30m', title: 'Grammar Drill + Spoken Fluency Maintenance', focus: '15-min grammar drill on collocations/prepositions + 10m speaking.', url: 'https://ieltsliz.com' },
-  { date: '2026-09-16', week: 3, day: 'Wed', duration: '60m', title: 'Combined Writing Simulation (Task 1 + Task 2 60m)', focus: 'Full 60-min computer writing simulation under strict exam timer.', url: 'https://ielts.idp.com/prepare/article-idp-ielts-prepare-app' },
-  { date: '2026-09-17', week: 3, day: 'Thu', duration: '30m', title: 'Spoken Fluency + Reading Passage Timing Drill', focus: '10m speaking out loud + 20m reading passage timing.', url: 'https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-practice-tests/road-to-ielts' },
-  { date: '2026-09-18', week: 3, day: 'Fri', duration: '45m', title: 'Timed Writing Rep #6 + Error Log Review', focus: 'Review past writing mistakes; rewrite weak paragraphs.', url: 'https://ieltsonlinetests.com/collection/ielts-mock-test-2025-december' },
+  // Week 3: Advanced Reps & Complex Structure (Sep 14 - Sep 20)
+  { date: '2026-09-14', week: 3, day: 'Mon', duration: '45m', slot: 'Deep Study Block', title: 'Timed Writing Rep #5 (Task 2 Coherence)', focus: 'Computer Task 2 essay focusing on paragraph logical progression.', url: 'https://ieltsliz.com' },
+  { date: '2026-09-15', week: 3, day: 'Tue', duration: '30m', slot: 'Deep Study Warm-up', title: 'Grammar Drill + Spoken Fluency Maintenance', focus: '15-min grammar drill on collocations/prepositions + 10m speaking.', url: 'https://ieltsliz.com' },
+  { date: '2026-09-16', week: 3, day: 'Wed', duration: '60m', slot: 'Deep Work Block', title: 'Combined Writing Simulation (Task 1 + Task 2 60m)', focus: 'Full 60-min computer writing simulation under strict exam timer.', url: 'https://ielts.idp.com/prepare/article-idp-ielts-prepare-app' },
+  { date: '2026-09-17', week: 3, day: 'Thu', duration: '30m', slot: 'Deep Study Slot', title: 'Spoken Fluency + Reading Passage Timing Drill', focus: '10m speaking out loud + 20m reading passage timing.', url: 'https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-practice-tests/road-to-ielts' },
+  { date: '2026-09-18', week: 3, day: 'Fri', duration: '45m', slot: 'Deep Study Block', title: 'Timed Writing Rep #6 + Error Log Review', focus: 'Review past writing mistakes; rewrite weak paragraphs.', url: 'https://ieltsonlinetests.com/collection/ielts-mock-test-2025-december' },
+  { date: '2026-09-19', week: 3, day: 'Sat', duration: '120m', slot: 'Weekend Downtime Slot', title: 'Full Sectional Drill (Listening + Reading + Writing)', focus: 'Auto-graded Nov 2025 mock set covering Listening audio & Reading passages.', url: 'https://ieltsonlinetests.com/collection/ielts-mock-test-2025-november' },
+  { date: '2026-09-20', week: 3, day: 'Sun', duration: '60m', slot: 'Weekend Downtime Slot', title: 'Deep Mistake Log Audit & Transition Words Polish', focus: 'Review error log before Week 4 full simulation mocks.', url: 'https://ieltsliz.com' },
 
-  // Week 4: Full Simulation & Polish (Sep 21 - Sep 25)
-  { date: '2026-09-21', week: 4, day: 'Mon', duration: '150m', title: 'Full Computer Mock Test #1 (All Sections Timed)', focus: 'Full simulation test on computer interface under exam conditions.', url: 'https://ieltsonlinetests.com/collection/ielts-mock-test-2025-november' },
-  { date: '2026-09-22', week: 4, day: 'Tue', duration: '45m', title: 'Deep Review of Mock #1 Writing & Error Log', focus: 'Review Mock #1 writing specifically before producing new essays.', url: 'https://ieltsliz.com' },
-  { date: '2026-09-23', week: 4, day: 'Wed', duration: '150m', title: 'Full Computer Mock Test #2 (All Sections Timed)', focus: 'Full simulation test #2 on computer interface under exam conditions.', url: 'https://ieltsonlinetests.com/collection/ielts-mock-test-2025-october' },
-  { date: '2026-09-24', week: 4, day: 'Thu', duration: '45m', title: 'Deep Review of Mock #2 Writing & Error Log', focus: 'Review Mock #2 writing & identify final recurring error patterns.', url: 'https://ieltsliz.com' },
-  { date: '2026-09-25', week: 4, day: 'Fri', duration: '30m', title: 'Computer Interface & On-Screen Shortcut Polish', focus: 'Final drill of split-screen reading, on-screen text highlighting & shortcuts.', url: 'https://www.ielts.org/for-test-takers/sample-test-questions' },
+  // Week 4: Full Simulation & Polish (Sep 21 - Sep 27)
+  { date: '2026-09-21', week: 4, day: 'Mon', duration: '150m', slot: 'Deep Work Block', title: 'Full Computer Mock Test #1 (All Sections Timed)', focus: 'Full simulation test on computer interface under exam conditions.', url: 'https://ieltsonlinetests.com/collection/ielts-mock-test-2025-november' },
+  { date: '2026-09-22', week: 4, day: 'Tue', duration: '45m', slot: 'Deep Study Slot', title: 'Deep Review of Mock #1 Writing & Error Log', focus: 'Review Mock #1 writing specifically before producing new essays.', url: 'https://ieltsliz.com' },
+  { date: '2026-09-23', week: 4, day: 'Wed', duration: '150m', slot: 'Deep Work Block', title: 'Full Computer Mock Test #2 (All Sections Timed)', focus: 'Full simulation test #2 on computer interface under exam conditions.', url: 'https://ieltsonlinetests.com/collection/ielts-mock-test-2025-october' },
+  { date: '2026-09-24', week: 4, day: 'Thu', duration: '45m', slot: 'Deep Study Slot', title: 'Deep Review of Mock #2 Writing & Error Log', focus: 'Review Mock #2 writing & identify final recurring error patterns.', url: 'https://ieltsliz.com' },
+  { date: '2026-09-25', week: 4, day: 'Fri', duration: '30m', slot: 'Deep Study Block', title: 'Computer Interface & On-Screen Shortcut Polish', focus: 'Final drill of split-screen reading, on-screen text highlighting & shortcuts.', url: 'https://www.ielts.org/for-test-takers/sample-test-questions' },
+  { date: '2026-09-26', week: 4, day: 'Sat', duration: '90m', slot: 'Weekend Downtime Slot', title: 'Light Simulation Warm-up & Speaking Part 2/3 Cue Cards', focus: 'Practice Speaking Part 2 cue cards & Part 3 abstract questions out loud.', url: 'https://ieltsliz.com' },
+  { date: '2026-09-27', week: 4, day: 'Sun', duration: '45m', slot: 'Weekend Downtime Slot', title: 'Final Writing Mistake Log Summary & Strategy Review', focus: 'Synthesize final key takeaways from error log into a 1-page cheat sheet.', url: 'https://ieltsliz.com' },
 
-  // Final Polish Week (Sep 28 - Oct 2)
-  { date: '2026-09-28', week: 5, day: 'Mon', duration: '30m', title: 'Writing Mistake Log & Grammar Cheat Sheet Review', focus: 'Review compiled error log and grammar rules. No heavy essay writing.', url: 'https://ieltsliz.com' },
-  { date: '2026-09-29', week: 5, day: 'Tue', duration: '20m', title: 'Spoken Fluency Light Warm-up', focus: '10-15 min light spoken warm-up to keep fluency loose.', url: 'https://ieltsliz.com' },
-  { date: '2026-09-30', week: 5, day: 'Wed', duration: '20m', title: 'Reading & Listening On-Screen Strategy Check', focus: 'Light review of exam strategy and key rules.', url: 'https://www.ielts.org/for-test-takers/sample-test-questions' },
-  { date: '2026-10-01', week: 5, day: 'Thu', duration: '15m', title: 'Mental Prep & Rest (No Heavy Mocks)', focus: 'Rest brain and review exam timing strategy.', url: 'https://www.ielts.org/for-test-takers/sample-test-questions' },
-  { date: '2026-10-02', week: 5, day: 'Fri', duration: '15m', title: 'Passport & Exam Logistics Checklist', focus: 'Confirm test center location, ID passport, and time.', url: 'https://www.ielts.org/for-test-takers/sample-test-questions' },
-  { date: '2026-10-03', week: 5, day: 'Sat', duration: '180m', title: 'OFFICIAL EXAM DAY: IELTS Computer-Based Test', focus: 'Official IELTS Exam Day! Target Band 8.0+', url: 'https://www.ielts.org/for-test-takers/sample-test-questions' },
+  // Final Polish Week (Sep 28 - Oct 3)
+  { date: '2026-09-28', week: 5, day: 'Mon', duration: '30m', slot: 'Deep Study Slot', title: 'Writing Mistake Log & Grammar Cheat Sheet Review', focus: 'Review compiled error log and grammar rules. No heavy essay writing.', url: 'https://ieltsliz.com' },
+  { date: '2026-09-29', week: 5, day: 'Tue', duration: '20m', slot: 'Deep Study Warm-up', title: 'Spoken Fluency Light Warm-up', focus: '10-15 min light spoken warm-up to keep fluency loose.', url: 'https://ieltsliz.com' },
+  { date: '2026-09-30', week: 5, day: 'Wed', duration: '20m', slot: 'Deep Study Slot', title: 'Reading & Listening On-Screen Strategy Check', focus: 'Light review of exam strategy and key rules.', url: 'https://www.ielts.org/for-test-takers/sample-test-questions' },
+  { date: '2026-10-01', week: 5, day: 'Thu', duration: '15m', slot: 'Downtime Slot', title: 'Mental Prep & Rest (No Heavy Mocks)', focus: 'Rest brain and review exam timing strategy.', url: 'https://www.ielts.org/for-test-takers/sample-test-questions' },
+  { date: '2026-10-02', week: 5, day: 'Fri', duration: '15m', slot: 'Downtime Slot', title: 'Passport & Exam Logistics Checklist', focus: 'Confirm test center location, ID passport, and time.', url: 'https://www.ielts.org/for-test-takers/sample-test-questions' },
+  { date: '2026-10-03', week: 5, day: 'Sat', duration: '180m', slot: 'OFFICIAL EXAM DAY', title: 'OFFICIAL EXAM DAY: IELTS Computer-Based Test', focus: 'Official IELTS Exam Day! Target Band 8.0+', url: 'https://www.ielts.org/for-test-takers/sample-test-questions' },
 ]
 
 const GRADED_MOCK_TESTS = [
@@ -431,19 +439,20 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
             </div>
           </div>
 
-          {/* 2. 4-Week Weekday Schedule */}
+          {/* 3. 28-Day Writing De-Rusting & Computer Adaptation Schedule (Oct 3 Exam Target) */}
           <div className="space-y-4">
             <h3 className="text-lg font-mono text-nova/60 flex items-center gap-2">
-              <BookOpen className="w-4 h-4 text-sky" /> Weekday-Only 4-Week Front-Loaded Schedule
+              <BookOpen className="w-4 h-4 text-sky" /> 28-Day De-Rusting & Computer Adaptation Schedule (Oct 3 Exam Target)
             </h3>
 
-            {[1, 2, 3, 4].map(weekNum => {
+            {[1, 2, 3, 4, 5].map(weekNum => {
               const weekSessions = IELTS_SCHEDULE.filter(s => s.week === weekNum)
               const weekLabel = 
-                weekNum === 1 ? 'Week 1 - Diagnostic & Targeted Drilling (45 min/day)' :
-                weekNum === 2 ? 'Week 2 - Light Drilling (30 min/day, Vignesh research ramps up)' :
-                weekNum === 3 ? 'Week 3 - Maintenance Only (25 min/day, 1 Essay + 1 Speaking/week)' :
-                'Week 4 - Pre-Booking & Computer Interface Mock (20-25 min/day)'
+                weekNum === 1 ? 'Week 1 - Diagnostic & Habit Lock-in (Aug 31 - Sep 6)' :
+                weekNum === 2 ? 'Week 2 - Targeted Writing Reps & Computer Adaptation (Sep 7 - Sep 13)' :
+                weekNum === 3 ? 'Week 3 - Advanced Writing Reps & Complex Sentences (Sep 14 - Sep 20)' :
+                weekNum === 4 ? 'Week 4 - Full Simulation Mocks & Mistake Audit (Sep 21 - Sep 27)' :
+                'Final Polish & Official Exam Day (Sep 28 - Oct 3)'
 
               return (
                 <div key={weekNum} className="glass border border-blue-900/25 rounded-xl p-4 space-y-3">
@@ -452,39 +461,50 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
                       <span className="w-2 h-2 rounded-full bg-sky" /> {weekLabel}
                     </h4>
                     <span className="text-xs font-mono text-sky bg-sky/10 border border-sky/20 px-2 py-0.5 rounded-full">
-                      5 Weekdays
+                      {weekSessions.length} Sessions
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
                     {weekSessions.map((s, idx) => (
-                      <div key={idx} className="bg-void/40 border border-pulsar/30 rounded-lg p-2.5 flex flex-col justify-between space-y-1.5">
-                        <div className="space-y-1">
-                          <div className="flex items-center justify-between">
+                      <div key={idx} className="bg-void/40 border border-pulsar/30 rounded-lg p-3 flex flex-col justify-between space-y-2">
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between gap-1">
                             <span className="text-[11px] font-mono font-bold text-sky">{s.day} ({s.date.slice(5)})</span>
-                            <span className="text-[9px] font-mono text-nova/60 bg-stardust/40 px-1 py-0.5 rounded">{s.duration}</span>
+                            <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded border ${
+                              s.slot?.includes('Weekend') 
+                                ? 'bg-amber-500/10 text-amber-400 border-amber-500/30' 
+                                : s.slot?.includes('Deep Work')
+                                ? 'bg-purple-500/10 text-purple-300 border-purple-500/30'
+                                : 'bg-sky/10 text-sky border-sky/30'
+                            }`}>
+                              {s.slot || 'Deep Study'}
+                            </span>
                           </div>
-                          <p className="text-sm font-display font-bold text-starlight leading-snug line-clamp-2">{s.title}</p>
+                          <p className="text-sm font-display font-bold text-starlight leading-snug">{s.title}</p>
                           <p className="text-xs text-nova/60 leading-snug">{s.focus}</p>
                         </div>
 
-                        <div className="pt-1.5 flex flex-col gap-1 text-xs">
-                          {s.url && (
+                        <div className="pt-1.5 flex items-center justify-between border-t border-pulsar/20 text-xs">
+                          <span className="text-[10px] font-mono text-nova/60">{s.duration}</span>
+                          <div className="flex items-center gap-2">
+                            {s.url && (
+                              <a 
+                                href={s.url} 
+                                target="_blank" 
+                                rel="noreferrer" 
+                                className="text-sky hover:underline flex items-center gap-1">
+                                Resource <ExternalLink className="w-2.5 h-2.5" />
+                              </a>
+                            )}
                             <a 
-                              href={s.url} 
+                              href={makeGCalUrl(s)} 
                               target="_blank" 
                               rel="noreferrer" 
-                              className="text-sky hover:underline flex items-center gap-1">
-                              Link <ExternalLink className="w-2.5 h-2.5" />
+                              className="text-amber-400 hover:underline flex items-center gap-1 font-mono">
+                              + Add to GCal <Calendar className="w-2.5 h-2.5" />
                             </a>
-                          )}
-                          <a 
-                            href={makeGCalUrl(s)} 
-                            target="_blank" 
-                            rel="noreferrer" 
-                            className="text-amber-400 hover:underline flex items-center gap-1">
-                            + Add to GCal <Calendar className="w-2.5 h-2.5" />
-                          </a>
+                          </div>
                         </div>
                       </div>
                     ))}
