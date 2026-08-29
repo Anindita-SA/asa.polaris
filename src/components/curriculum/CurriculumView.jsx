@@ -39,33 +39,41 @@ const IELTS_RESOURCES = [
 ]
 
 const IELTS_SCHEDULE = [
-  // Week 1
-  { date: '2026-08-17', week: 1, day: 'Mon', duration: '45m', title: 'Diagnostic Mock (Cambridge 19)', focus: 'Full baseline diagnostic under exam conditions', url: 'https://www.ielts.org/for-test-takers/sample-test-questions' },
-  { date: '2026-08-18', week: 1, day: 'Tue', duration: '45m', title: 'Targeted Drilling - Weakest Section (Drill 1)', focus: 'Focus 45 mins on weakest diagnostic section', url: 'https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-practice-tests/road-to-ielts' },
-  { date: '2026-08-19', week: 1, day: 'Wed', duration: '45m', title: 'Targeted Drilling - Weakest Section (Drill 2)', focus: 'Deep writing structure or reading question types', url: 'https://ieltsliz.com' },
-  { date: '2026-08-20', week: 1, day: 'Thu', duration: '45m', title: 'Targeted Drilling - Weakest Section (Drill 3)', focus: 'Timed section drill (passage or Task 2 essay outline)', url: 'https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-practice-tests/road-to-ielts' },
-  { date: '2026-08-21', week: 1, day: 'Fri', duration: '45m', title: 'Week 1 Review & Error Analysis', focus: 'Review error log before Vignesh research load ramps up', url: 'https://ieltsliz.com' },
-  
-  // Week 2
-  { date: '2026-08-24', week: 2, day: 'Mon', duration: '30m', title: 'Reading & Writing Drilling', focus: 'Reading passage timing (20m) + Task 2 outline (10m)', url: 'https://ieltsliz.com' },
-  { date: '2026-08-25', week: 2, day: 'Tue', duration: '30m', title: 'Listening & Speaking Drilling', focus: 'Listening section audio drill + Speaking Part 2 recording', url: 'https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-practice-tests/road-to-ielts' },
-  { date: '2026-08-26', week: 2, day: 'Wed', duration: '30m', title: 'Reading & Writing Drilling', focus: 'Writing Task 2 essay breakdown (opinion/discussion)', url: 'https://ieltsliz.com' },
-  { date: '2026-08-27', week: 2, day: 'Thu', duration: '30m', title: 'Listening & Speaking Drilling', focus: 'Speaking Part 3 abstract questions & fluency practice', url: 'https://ielts.idp.com/prepare/article-idp-ielts-prepare-app' },
-  { date: '2026-08-28', week: 2, day: 'Fri', duration: '30m', title: 'Reading & Writing Timing Check', focus: 'Timed Reading passage (Cambridge 18) + error review', url: 'https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-practice-tests/road-to-ielts' },
-  
-  // Week 3
-  { date: '2026-08-31', week: 3, day: 'Mon', duration: '25m', title: 'Maintenance - Writing Task 2 Essay Draft', focus: '1 timed Task 2 essay draft / week (25m)', url: 'https://ieltsliz.com' },
-  { date: '2026-09-01', week: 3, day: 'Tue', duration: '25m', title: 'Maintenance - Light Reading Review', focus: 'Review 1 reading passage (light maintenance)', url: 'https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-practice-tests/road-to-ielts' },
-  { date: '2026-09-02', week: 3, day: 'Wed', duration: '25m', title: 'Maintenance - Speaking Part 2 Recording', focus: '1 cue card recording + self-evaluation / week', url: 'https://ieltsliz.com' },
-  { date: '2026-09-03', week: 3, day: 'Thu', duration: '25m', title: 'Maintenance - Light Listening Review', focus: 'Listen to 1 section with transcript check (25m)', url: 'https://www.ielts.org/for-test-takers/sample-test-questions' },
-  { date: '2026-09-04', week: 3, day: 'Fri', duration: '25m', title: 'Maintenance - Vocab & Error Log Polish', focus: 'Academic vocabulary & collocations check (25m)', url: 'https://ieltsliz.com' },
-  
-  // Week 4
-  { date: '2026-09-07', week: 4, day: 'Mon', duration: '45m', title: 'Full Timed Mock (IDP App Computer Interface)', focus: 'Full timed mock on computer interface for typing & navigation', url: 'https://ielts.idp.com/prepare/article-idp-ielts-prepare-app' },
-  { date: '2026-09-08', week: 4, day: 'Tue', duration: '25m', title: 'Pre-booking - Mock Error Analysis', focus: 'Analyze IDP mock mistake areas & navigation quirks', url: 'https://ielts.idp.com/prepare/article-idp-ielts-prepare-app' },
-  { date: '2026-09-09', week: 4, day: 'Wed', duration: '25m', title: 'Pre-booking - Writing Structure Polish', focus: 'Light review of essay structures & transitions', url: 'https://ieltsliz.com' },
-  { date: '2026-09-10', week: 4, day: 'Thu', duration: '25m', title: 'Pre-booking - Speaking Speed Drills', focus: 'Quick warm-up 1 cue card + 2 Part 3 questions aloud', url: 'https://ieltsliz.com' },
-  { date: '2026-09-11', week: 4, day: 'Fri', duration: '20m', title: 'Final Test Strategy & Interface Checklist', focus: 'Final light check of computer interface shortcuts & booking', url: 'https://www.ielts.org/for-test-takers/sample-test-questions' },
+  // Week 1: Diagnose & Habit Lock-in (Aug 31 - Sep 4)
+  { date: '2026-08-31', week: 1, day: 'Mon', duration: '60m', title: 'Diagnostic Timed Writing Test (Task 1 + Task 2)', focus: 'Full baseline writing test under exam conditions on computer with no help.', url: 'https://www.ielts.org/for-test-takers/sample-test-questions' },
+  { date: '2026-09-01', week: 1, day: 'Tue', duration: '20m', title: 'Grammar Drill (Articles & Prepositions) + Blocker Setup', focus: '15-min daily grammar de-rusting for articles/prepositions + setup distraction blockers.', url: 'https://ieltsliz.com' },
+  { date: '2026-09-02', week: 1, day: 'Wed', duration: '20m', title: 'Grammar Drill (Tense Consistency) + Spoken Fluency', focus: '15-min tense consistency drill + 10-min spoken fluency out loud.', url: 'https://ieltsliz.com' },
+  { date: '2026-09-03', week: 1, day: 'Thu', duration: '30m', title: 'On-Screen Typing & Word Count Adaptation', focus: 'Timed typing practice without paper crossing out; monitor on-screen word count.', url: 'https://ielts.idp.com/prepare/article-idp-ielts-prepare-app' },
+  { date: '2026-09-04', week: 1, day: 'Fri', duration: '40m', title: 'Week 1 Writing Audit against Band Descriptors', focus: 'Evaluate diagnostic essay against official band descriptors (TR, CC, LR, GRA).', url: 'https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-practice-tests/road-to-ielts' },
+
+  // Week 2: Targeted Writing Reps & Computer Adaptation (Sep 7 - Sep 11)
+  { date: '2026-09-07', week: 2, day: 'Mon', duration: '45m', title: 'Timed Writing Rep #1 (Task 2 Focus) + Spoken Fluency', focus: '40-min computer Task 2 essay on coherence/transitions + 10m spoken fluency.', url: 'https://ieltsliz.com' },
+  { date: '2026-09-08', week: 2, day: 'Tue', duration: '30m', title: 'Grammar Drill + Timed Writing Rep #2 (Task 1 Focus)', focus: '15-min grammar drill + 20-min computer Task 1 chart report.', url: 'https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-practice-tests/road-to-ielts' },
+  { date: '2026-09-09', week: 2, day: 'Wed', duration: '45m', title: 'Timed Writing Rep #3 (Complex Sentence Structure Focus)', focus: 'Targeting 7 to 8+ jump via complex structures & paragraph cohesion.', url: 'https://ieltsliz.com' },
+  { date: '2026-09-10', week: 2, day: 'Thu', duration: '25m', title: 'Spoken Fluency Drills (Accent Drift Guard)', focus: '10-15 min speaking out loud to keep fluency reflexes sharp against dialect drift.', url: 'https://ieltsliz.com' },
+  { date: '2026-09-11', week: 2, day: 'Fri', duration: '45m', title: 'Timed Writing Rep #4 + Error Review Log', focus: 'Timed computer writing rep + update writing error log.', url: 'https://ieltsonlinetests.com/collection/ielts-mock-test-2026-january' },
+
+  // Week 3: Advanced Reps & Complex Structure (Sep 14 - Sep 18)
+  { date: '2026-09-14', week: 3, day: 'Mon', duration: '45m', title: 'Timed Writing Rep #5 (Task 2 Coherence)', focus: 'Computer Task 2 essay focusing on paragraph logical progression.', url: 'https://ieltsliz.com' },
+  { date: '2026-09-15', week: 3, day: 'Tue', duration: '30m', title: 'Grammar Drill + Spoken Fluency Maintenance', focus: '15-min grammar drill on collocations/prepositions + 10m speaking.', url: 'https://ieltsliz.com' },
+  { date: '2026-09-16', week: 3, day: 'Wed', duration: '60m', title: 'Combined Writing Simulation (Task 1 + Task 2 60m)', focus: 'Full 60-min computer writing simulation under strict exam timer.', url: 'https://ielts.idp.com/prepare/article-idp-ielts-prepare-app' },
+  { date: '2026-09-17', week: 3, day: 'Thu', duration: '30m', title: 'Spoken Fluency + Reading Passage Timing Drill', focus: '10m speaking out loud + 20m reading passage timing.', url: 'https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-practice-tests/road-to-ielts' },
+  { date: '2026-09-18', week: 3, day: 'Fri', duration: '45m', title: 'Timed Writing Rep #6 + Error Log Review', focus: 'Review past writing mistakes; rewrite weak paragraphs.', url: 'https://ieltsonlinetests.com/collection/ielts-mock-test-2025-december' },
+
+  // Week 4: Full Simulation & Polish (Sep 21 - Sep 25)
+  { date: '2026-09-21', week: 4, day: 'Mon', duration: '150m', title: 'Full Computer Mock Test #1 (All Sections Timed)', focus: 'Full simulation test on computer interface under exam conditions.', url: 'https://ieltsonlinetests.com/collection/ielts-mock-test-2025-november' },
+  { date: '2026-09-22', week: 4, day: 'Tue', duration: '45m', title: 'Deep Review of Mock #1 Writing & Error Log', focus: 'Review Mock #1 writing specifically before producing new essays.', url: 'https://ieltsliz.com' },
+  { date: '2026-09-23', week: 4, day: 'Wed', duration: '150m', title: 'Full Computer Mock Test #2 (All Sections Timed)', focus: 'Full simulation test #2 on computer interface under exam conditions.', url: 'https://ieltsonlinetests.com/collection/ielts-mock-test-2025-october' },
+  { date: '2026-09-24', week: 4, day: 'Thu', duration: '45m', title: 'Deep Review of Mock #2 Writing & Error Log', focus: 'Review Mock #2 writing & identify final recurring error patterns.', url: 'https://ieltsliz.com' },
+  { date: '2026-09-25', week: 4, day: 'Fri', duration: '30m', title: 'Computer Interface & On-Screen Shortcut Polish', focus: 'Final drill of split-screen reading, on-screen text highlighting & shortcuts.', url: 'https://www.ielts.org/for-test-takers/sample-test-questions' },
+
+  // Final Polish Week (Sep 28 - Oct 2)
+  { date: '2026-09-28', week: 5, day: 'Mon', duration: '30m', title: 'Writing Mistake Log & Grammar Cheat Sheet Review', focus: 'Review compiled error log and grammar rules. No heavy essay writing.', url: 'https://ieltsliz.com' },
+  { date: '2026-09-29', week: 5, day: 'Tue', duration: '20m', title: 'Spoken Fluency Light Warm-up', focus: '10-15 min light spoken warm-up to keep fluency loose.', url: 'https://ieltsliz.com' },
+  { date: '2026-09-30', week: 5, day: 'Wed', duration: '20m', title: 'Reading & Listening On-Screen Strategy Check', focus: 'Light review of exam strategy and key rules.', url: 'https://www.ielts.org/for-test-takers/sample-test-questions' },
+  { date: '2026-10-01', week: 5, day: 'Thu', duration: '15m', title: 'Mental Prep & Rest (No Heavy Mocks)', focus: 'Rest brain and review exam timing strategy.', url: 'https://www.ielts.org/for-test-takers/sample-test-questions' },
+  { date: '2026-10-02', week: 5, day: 'Fri', duration: '15m', title: 'Passport & Exam Logistics Checklist', focus: 'Confirm test center location, ID passport, and time.', url: 'https://www.ielts.org/for-test-takers/sample-test-questions' },
+  { date: '2026-10-03', week: 5, day: 'Sat', duration: '180m', title: 'OFFICIAL EXAM DAY: IELTS Computer-Based Test', focus: 'Official IELTS Exam Day! Target Band 8.0+', url: 'https://www.ielts.org/for-test-takers/sample-test-questions' },
 ]
 
 const GRADED_MOCK_TESTS = [
