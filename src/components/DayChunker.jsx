@@ -327,10 +327,10 @@ export default function DayChunker({ tasks = [], selectedDay = 'today', onRefres
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         
         {/* SVG Donut Pie Chart */}
-        <div className="md:col-span-1 glass border border-blue-900/20 rounded-xl p-5 flex flex-col items-center justify-center text-center shadow-xl">
+        <div className="md:col-span-1 glass border border-pulsar/30 rounded-xl p-5 flex flex-col items-center justify-center text-center shadow-xl">
           <div className="flex items-center gap-2 mb-3">
             <PieIcon className="w-4 h-4 text-gold" />
-            <h3 className="font-display text-xs text-starlight ">
+            <h3 className="font-display text-lg text-starlight">
               Day Spending Pie
             </h3>
           </div>
@@ -369,22 +369,22 @@ export default function DayChunker({ tasks = [], selectedDay = 'today', onRefres
             </div>
           </div>
 
-          <div className="w-full grid grid-cols-2 gap-1.5 pt-3 text-[10px] font-mono border-t border-blue-900/20">
+          <div className="w-full grid grid-cols-2 gap-1.5 pt-3 text-xs font-mono border-t border-pulsar/30">
             {donutSegments.map((seg, idx) => (
               <div key={idx} className="flex items-center gap-1.5 text-left truncate">
                 <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: seg.color }} />
-                <span className="text-dim truncate">{seg.label}: <strong className="text-starlight">{seg.percent}%</strong></span>
+                <span className="text-nova/60 truncate">{seg.label}: <strong className="text-starlight">{seg.percent}%</strong></span>
               </div>
             ))}
           </div>
         </div>
 
         {/* Day Summary & Ribbon Scale */}
-        <div className="md:col-span-2 glass border border-blue-900/20 rounded-xl p-5 flex flex-col justify-between shadow-xl">
+        <div className="md:col-span-2 glass border border-pulsar/30 rounded-xl p-5 flex flex-col justify-between shadow-xl">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Layers className="w-4 h-4 text-pulsar" />
-              <h3 className="font-display text-xs text-starlight ">
+              <h3 className="font-display text-lg text-starlight">
                 Day Chunking & Time-Blocking
               </h3>
             </div>
@@ -403,22 +403,22 @@ export default function DayChunker({ tasks = [], selectedDay = 'today', onRefres
           </div>
 
           <div className="grid grid-cols-3 gap-3 my-4">
-            <div className="glass border border-blue-900/30 rounded-xl p-3 text-center">
-              <span className="text-[10px] font-mono text-dim block">Focus Work</span>
+            <div className="glass border border-pulsar/40 rounded-xl p-3 text-center">
+              <span className="text-xs font-mono text-nova/60 block">Focus Work</span>
               <span className="font-mono text-lg font-bold text-gold">
                 {Math.floor((pieStats.totalPlannedMins - pieStats.transitionMins) / 60)}h {(pieStats.totalPlannedMins - pieStats.transitionMins) % 60}m
               </span>
             </div>
 
-            <div className="glass border border-blue-900/30 rounded-xl p-3 text-center">
-              <span className="text-[10px] font-mono text-dim block">Rest & Buffer</span>
+            <div className="glass border border-pulsar/40 rounded-xl p-3 text-center">
+              <span className="text-xs font-mono text-nova/60 block">Rest & Buffer</span>
               <span className="font-mono text-lg font-bold text-emerald">
                 {pieStats.transitionMins}m
               </span>
             </div>
 
-            <div className="glass border border-blue-900/30 rounded-xl p-3 text-center">
-              <span className="text-[10px] font-mono text-dim block">Open Window Gaps</span>
+            <div className="glass border border-pulsar/40 rounded-xl p-3 text-center">
+              <span className="text-xs font-mono text-nova/60 block">Open Window Gaps</span>
               <span className="font-mono text-lg font-bold text-pulsar">
                 {Math.floor(pieStats.totalGapMins / 60)}h {pieStats.totalGapMins % 60}m
               </span>
@@ -427,13 +427,13 @@ export default function DayChunker({ tasks = [], selectedDay = 'today', onRefres
 
           {/* 24h Proportional Ribbon Bar */}
           <div className="space-y-1.5">
-            <div className="flex items-center justify-between text-[10px] font-mono text-dim">
+            <div className="flex items-center justify-between text-xs font-mono text-nova/60">
               <span>08:00 AM</span>
               <span>24-Hour Proportional Ribbon Scale</span>
               <span>08:00 PM</span>
             </div>
             
-            <div className="w-full h-3 bg-void/60 rounded-full border border-blue-900/30 overflow-hidden flex">
+            <div className="w-full h-3 bg-void/60 rounded-full border border-pulsar/40 overflow-hidden flex">
               {timelineItems.map((item, idx) => {
                 if (item.isGap) {
                   return (
@@ -465,28 +465,28 @@ export default function DayChunker({ tasks = [], selectedDay = 'today', onRefres
       {/* ==================================================================== */}
       <div className="space-y-3">
         <div className="flex items-center justify-between flex-wrap gap-2">
-          <h3 className="font-display text-xs text-starlight flex items-center gap-2">
+          <h3 className="font-display text-lg text-starlight flex items-center gap-2">
             <Clock className="w-4 h-4 text-gold" /> Whole Day At A Glance (Timeline Stack)
           </h3>
 
           {/* Zoom Level Capsule Pill Switcher */}
-          <div className="glass border border-blue-900/30 p-0.5 rounded-full flex items-center gap-1">
+          <div className="glass border border-pulsar/40 p-0.5 rounded-full flex items-center gap-1">
             <button
               onClick={() => setViewMode('compact')}
-              className={`px-3 py-1 rounded-full text-[10px] font-display transition-all cursor-pointer ${
+              className={`px-3 py-1 rounded-full text-xs font-mono uppercase tracking-wider transition-all cursor-pointer ${
                 viewMode === 'compact'
-                  ? 'bg-cosmic text-gold border border-gold/40 shadow-[0_0_10px_rgba(245,158,11,0.25)] font-bold'
-                  : 'text-dim hover:text-starlight'
+                  ? 'bg-cosmic text-gold border border-gold/40  font-bold'
+                  : 'text-nova/60 hover:text-starlight'
               }`}
             >
               Compact All-Day
             </button>
             <button
               onClick={() => setViewMode('zoomed')}
-              className={`px-3 py-1 rounded-full text-[10px] font-display transition-all cursor-pointer ${
+              className={`px-3 py-1 rounded-full text-xs font-mono uppercase tracking-wider transition-all cursor-pointer ${
                 viewMode === 'zoomed'
-                  ? 'bg-cosmic text-pulsar border border-pulsar/40 shadow-[0_0_10px_rgba(59,130,246,0.25)] font-bold'
-                  : 'text-dim hover:text-starlight'
+                  ? 'bg-cosmic text-pulsar border border-pulsar/40  font-bold'
+                  : 'text-nova/60 hover:text-starlight'
               }`}
             >
               Zoomed Ruler
@@ -495,18 +495,18 @@ export default function DayChunker({ tasks = [], selectedDay = 'today', onRefres
         </div>
 
         {loading ? (
-          <div className="p-8 text-center text-xs text-dim glass border border-blue-900/20 rounded-2xl">
+          <div className="p-8 text-center text-xs text-nova/60 glass border border-pulsar/30 rounded-xl">
             Loading timeline...
           </div>
         ) : timelineItems.length === 0 ? (
-          <div className="p-8 text-center text-xs text-dim glass border border-blue-900/20 rounded-2xl italic">
+          <div className="p-8 text-center text-xs text-nova/60 glass border border-pulsar/30 rounded-xl italic">
             No time blocks created yet. Click "Add Chunk" to block your day!
           </div>
         ) : viewMode === 'compact' ? (
           /* ================================================================= */
           /* COMPACT MODE: Sleek Stacked Time Pills (Fits Whole Day on Screen) */
           /* ================================================================= */
-          <div className="glass border border-blue-900/20 rounded-2xl p-4 space-y-2 shadow-2xl">
+          <div className="glass border border-pulsar/30 rounded-xl p-4 space-y-2 shadow-2xl">
             {timelineItems.map((item, idx) => {
               const isExpanded = expandedPillId === (item.id || item.start_time);
               const isTransition = item.type === 'transition';
@@ -516,12 +516,12 @@ export default function DayChunker({ tasks = [], selectedDay = 'today', onRefres
                   <div
                     key={`gap-compact-${idx}`}
                     onClick={() => openForGap(item.start_time, item.duration_minutes)}
-                    className="group relative rounded-xl border border-dashed border-pulsar/40 bg-pulsar/5 hover:bg-pulsar/15 transition-all p-2.5 flex items-center justify-between cursor-pointer"
+                    className="group relative rounded-xl border border-dashed border-pulsar/40 bg-pulsar/10 hover:bg-pulsar/15 transition-all p-2.5 flex items-center justify-between cursor-pointer"
                   >
                     <div className="flex items-center gap-2 font-mono text-xs text-pulsar">
                       <Sparkles className="w-3.5 h-3.5 animate-pulse" />
                       <span className="font-bold">{item.start_time} - {item.end_time}</span>
-                      <span className="text-[10px] bg-pulsar/20 px-2 py-0.5 rounded-full font-semibold">
+                      <span className="text-xs bg-pulsar/20 px-2 py-0.5 rounded-full font-semibold">
                         ✨ {item.duration_minutes}m FREE WINDOW
                       </span>
                     </div>
@@ -531,7 +531,7 @@ export default function DayChunker({ tasks = [], selectedDay = 'today', onRefres
                         e.stopPropagation();
                         openForGap(item.start_time, item.duration_minutes);
                       }}
-                      className="text-[10px] font-display bg-pulsar/20 border border-pulsar/40 text-pulsar hover:bg-pulsar hover:text-void px-2.5 py-1 rounded-lg transition-all"
+                      className="text-xs font-mono uppercase tracking-wider bg-pulsar/20 border border-pulsar/40 text-pulsar hover:bg-pulsar hover:text-void px-2.5 py-1 rounded-lg transition-all"
                     >
                       + FILL ({item.duration_minutes}m)
                     </button>
@@ -549,8 +549,8 @@ export default function DayChunker({ tasks = [], selectedDay = 'today', onRefres
                     item.done
                       ? 'opacity-40 line-through border-dim/20'
                       : isExpanded
-                      ? 'border-gold shadow-[0_0_20px_rgba(245,158,11,0.25)] bg-cosmic/90'
-                      : 'border-blue-900/30 hover:border-gold/50'
+                      ? 'border-gold  bg-cosmic/90'
+                      : 'border-pulsar/40 hover:border-gold/50'
                   }`}
                   style={{
                     borderLeftWidth: '4px',
@@ -560,10 +560,10 @@ export default function DayChunker({ tasks = [], selectedDay = 'today', onRefres
                   {/* Compact Header Pill Bar */}
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <span className="px-2 py-0.5 rounded-lg bg-void border border-blue-900/30 font-mono text-xs font-bold text-gold shrink-0">
+                      <span className="px-2 py-0.5 rounded-lg bg-void border border-pulsar/40 font-mono text-xs font-bold text-gold shrink-0">
                         {item.start_time}
                       </span>
-                      <h4 className="text-xs font-body font-bold text-starlight truncate">
+                      <h4 className="text-sm font-body font-bold text-starlight truncate">
                         {item.title}
                       </h4>
                       <span className={`text-[9px] font-mono px-2 py-0.5 rounded-full shrink-0 hidden sm:inline-block ${
@@ -574,11 +574,11 @@ export default function DayChunker({ tasks = [], selectedDay = 'today', onRefres
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs text-dim bg-void px-2 py-0.5 rounded-lg border border-blue-900/30">
+                      <span className="font-mono text-xs text-nova/60 bg-void px-2 py-0.5 rounded-lg border border-pulsar/40">
                         {item.duration_minutes}m
                       </span>
 
-                      {isExpanded ? <ChevronUp className="w-4 h-4 text-gold" /> : <ChevronDown className="w-4 h-4 text-dim" />}
+                      {isExpanded ? <ChevronUp className="w-4 h-4 text-gold" /> : <ChevronDown className="w-4 h-4 text-nova/60" />}
                     </div>
                   </div>
 
@@ -590,17 +590,17 @@ export default function DayChunker({ tasks = [], selectedDay = 'today', onRefres
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
                         transition={{ duration: 0.15 }}
-                        className="pt-3 mt-2 border-t border-blue-900/20 flex flex-wrap items-center justify-between gap-3"
+                        className="pt-3 mt-2 border-t border-pulsar/30 flex flex-wrap items-center justify-between gap-3"
                         onClick={e => e.stopPropagation()}
                       >
-                        <div className="text-xs font-mono text-dim">
+                        <div className="text-xs font-mono text-nova/60">
                           <span>Status: <strong className={item.done ? 'text-emerald' : 'text-gold'}>{item.done ? 'COMPLETED' : 'PLANNED'}</strong></span>
                         </div>
 
                         <div className="flex items-center gap-2">
                           {tasks.length > 0 && !isTransition && (
-                            <div className="flex items-center gap-1.5 bg-void border border-blue-900/30 px-2.5 py-1 rounded-xl text-[10px] font-mono">
-                              <span className="text-dim">Assign Task:</span>
+                            <div className="flex items-center gap-1.5 bg-void border border-pulsar/40 px-2.5 py-1 rounded-xl text-xs font-mono">
+                              <span className="text-nova/60">Assign Task:</span>
                               <select
                                 onChange={(e) => {
                                   const task = tasks.find(t => t.id === e.target.value);
@@ -609,7 +609,7 @@ export default function DayChunker({ tasks = [], selectedDay = 'today', onRefres
                                 className="bg-transparent text-gold font-bold outline-none cursor-pointer max-w-[130px] truncate"
                                 defaultValue=""
                               >
-                                <option value="" disabled className="bg-void text-dim">Select task</option>
+                                <option value="" disabled className="bg-void text-nova/60">Select task</option>
                                 {tasks.map(t => (
                                   <option key={t.id} value={t.id} className="bg-void text-starlight">
                                     {t.title}
@@ -621,7 +621,7 @@ export default function DayChunker({ tasks = [], selectedDay = 'today', onRefres
 
                           <button
                             onClick={() => toggleBlockDone(item)}
-                            className="p-1.5 rounded-xl glass border border-blue-900/20 text-dim hover:text-emerald transition-all"
+                            className="p-1.5 rounded-xl glass border border-pulsar/30 text-nova/60 hover:text-emerald transition-all"
                             title="Toggle Done"
                           >
                             <CheckCircle2 className="w-4 h-4" />
@@ -629,7 +629,7 @@ export default function DayChunker({ tasks = [], selectedDay = 'today', onRefres
                           
                           <button
                             onClick={() => deleteBlock(item.id)}
-                            className="p-1.5 rounded-xl glass border border-blue-900/20 text-dim hover:text-danger transition-all"
+                            className="p-1.5 rounded-xl glass border border-pulsar/30 text-nova/60 hover:text-danger transition-all"
                             title="Delete Block"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -646,18 +646,18 @@ export default function DayChunker({ tasks = [], selectedDay = 'today', onRefres
           /* ================================================================= */
           /* ZOOMED MODE: Proportional Ruler Scaled to Duration                */
           /* ================================================================= */
-          <div className="relative glass border border-blue-900/20 rounded-2xl p-4 sm:p-6 space-y-2 overflow-hidden shadow-2xl">
+          <div className="relative glass border border-pulsar/30 rounded-xl p-4 sm:p-6 space-y-2 overflow-hidden shadow-2xl">
             {timelineItems.some(i => !i.isGap && nowMins >= i.start_mins && nowMins <= i.end_mins) && (
               <div className="absolute left-0 right-0 z-30 pointer-events-none flex items-center gap-2"
                 style={{
                   top: `${Math.max(10, (nowMins - (timelineItems[0]?.start_mins || 480)) * SCALE)}px`
                 }}
               >
-                <div className="h-0.5 flex-1 bg-gold shadow-[0_0_12px_rgba(245,158,11,0.8)]" />
-                <span className="text-[10px] font-mono font-bold bg-gold text-void px-2 py-0.5 rounded-full shadow-lg">
+                <div className="h-0.5 flex-1 bg-gold " />
+                <span className="text-xs font-mono font-bold bg-gold text-void px-2 py-0.5 rounded-full shadow-lg">
                   NOW - {minsToTime(nowMins)}
                 </span>
-                <div className="h-0.5 flex-1 bg-gold shadow-[0_0_12px_rgba(245,158,11,0.8)]" />
+                <div className="h-0.5 flex-1 bg-gold " />
               </div>
             )}
 
@@ -668,19 +668,19 @@ export default function DayChunker({ tasks = [], selectedDay = 'today', onRefres
                   <div
                     key={`gap-${idx}`}
                     style={{ height: `${gapHeight}px` }}
-                    className="group relative rounded-xl border border-dashed border-pulsar/40 bg-pulsar/5 hover:bg-pulsar/10 transition-all flex items-center justify-between px-4"
+                    className="group relative rounded-xl border border-dashed border-pulsar/40 bg-pulsar/10 hover:bg-pulsar/10 transition-all flex items-center justify-between px-4"
                   >
                     <div className="flex items-center gap-2 font-mono text-xs text-pulsar">
                       <Sparkles className="w-3.5 h-3.5 animate-pulse" />
                       <span className="font-bold">{item.start_time} - {item.end_time}</span>
-                      <span className="text-[10px] bg-pulsar/20 px-2 py-0.5 rounded-full">
+                      <span className="text-xs bg-pulsar/20 px-2 py-0.5 rounded-full">
                         ✨ {item.duration_minutes}m OPEN WINDOW
                       </span>
                     </div>
 
                     <button
                       onClick={() => openForGap(item.start_time, item.duration_minutes)}
-                      className="opacity-80 group-hover:opacity-100 bg-pulsar/20 hover:bg-pulsar text-pulsar hover:text-void font-display text-[10px] px-3 py-1 rounded-lg transition-all border border-pulsar/40 cursor-pointer"
+                      className="opacity-80 group-hover:opacity-100 bg-pulsar/20 hover:bg-pulsar text-pulsar hover:text-void font-display text-xs px-3 py-1 rounded-lg transition-all border border-pulsar/40 cursor-pointer"
                     >
                       + FILL WINDOW ({item.duration_minutes}m)
                     </button>
@@ -695,12 +695,12 @@ export default function DayChunker({ tasks = [], selectedDay = 'today', onRefres
                 <div
                   key={item.id}
                   style={{ height: `${blockHeight}px` }}
-                  className={`group relative rounded-2xl glass border transition-all p-4 flex flex-col justify-between overflow-hidden shadow-md ${
+                  className={`group relative rounded-xl glass border transition-all p-4 flex flex-col justify-between overflow-hidden shadow-md ${
                     item.done
                       ? 'opacity-40 line-through border-dim/20'
                       : isTransition
                       ? 'border-emerald/40 bg-emerald/5'
-                      : 'border-blue-900/30 hover:border-gold/50'
+                      : 'border-pulsar/40 hover:border-gold/50'
                   }`}
                 >
                   <div
@@ -712,10 +712,10 @@ export default function DayChunker({ tasks = [], selectedDay = 'today', onRefres
 
                   <div className="flex items-center justify-between gap-3 pl-2">
                     <div className="flex items-center gap-3 min-w-0">
-                      <span className="px-2.5 py-1 rounded-xl bg-void border border-blue-900/30 font-mono text-xs font-bold text-gold shrink-0">
+                      <span className="px-2.5 py-1 rounded-xl bg-void border border-pulsar/40 font-mono text-xs font-bold text-gold shrink-0">
                         {item.start_time}
                       </span>
-                      <h4 className="text-xs sm:text-sm font-body font-bold text-starlight truncate">
+                      <h4 className="text-lg sm:text-sm font-body font-bold text-starlight truncate">
                         {item.title}
                       </h4>
                       <span className={`text-[9px] font-mono px-2 py-0.5 rounded-full shrink-0 ${
@@ -726,20 +726,20 @@ export default function DayChunker({ tasks = [], selectedDay = 'today', onRefres
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs font-bold text-starlight bg-void px-2.5 py-1 rounded-xl border border-blue-900/30">
+                      <span className="font-mono text-xs font-bold text-starlight bg-void px-2.5 py-1 rounded-xl border border-pulsar/40">
                         {item.duration_minutes}m SCALE
                       </span>
 
                       <button
                         onClick={() => toggleBlockDone(item)}
-                        className="p-1.5 rounded-xl glass border border-blue-900/20 text-dim hover:text-emerald transition-all"
+                        className="p-1.5 rounded-xl glass border border-pulsar/30 text-nova/60 hover:text-emerald transition-all"
                       >
                         <CheckCircle2 className="w-4 h-4" />
                       </button>
                       
                       <button
                         onClick={() => deleteBlock(item.id)}
-                        className="p-1.5 rounded-xl glass border border-blue-900/20 text-dim hover:text-danger transition-all opacity-0 group-hover:opacity-100"
+                        className="p-1.5 rounded-xl glass border border-pulsar/30 text-nova/60 hover:text-danger transition-all opacity-0 group-hover:opacity-100"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -747,10 +747,10 @@ export default function DayChunker({ tasks = [], selectedDay = 'today', onRefres
                   </div>
 
                   {blockHeight >= 90 && (
-                    <div className="flex items-center justify-between pl-2 pt-2 border-t border-blue-900/20 text-[11px] font-mono text-dim">
+                    <div className="flex items-center justify-between pl-2 pt-2 border-t border-pulsar/30 text-[11px] font-mono text-nova/60">
                       <span>Proportional Height: {Math.round(blockHeight)}px</span>
                       {tasks.length > 0 && !isTransition && (
-                        <div className="flex items-center gap-1.5 bg-void border border-blue-900/30 px-2.5 py-1 rounded-xl">
+                        <div className="flex items-center gap-1.5 bg-void border border-pulsar/40 px-2.5 py-1 rounded-xl">
                           <span>Assign Task:</span>
                           <select
                             onChange={(e) => {
@@ -760,7 +760,7 @@ export default function DayChunker({ tasks = [], selectedDay = 'today', onRefres
                             className="bg-transparent text-gold font-bold outline-none cursor-pointer max-w-[140px] truncate"
                             defaultValue=""
                           >
-                            <option value="" disabled className="bg-void text-dim">Select task</option>
+                            <option value="" disabled className="bg-void text-nova/60">Select task</option>
                             {tasks.map(t => (
                               <option key={t.id} value={t.id} className="bg-void text-starlight">
                                 {t.title}
@@ -781,51 +781,51 @@ export default function DayChunker({ tasks = [], selectedDay = 'today', onRefres
       {/* Add Block Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-void/80 backdrop-blur-md z-50 flex items-center justify-center p-4" onClick={() => setShowAddModal(false)}>
-          <div className="glass border border-blue-900/40 rounded-2xl p-6 w-full max-w-md space-y-4 shadow-2xl" onClick={e => e.stopPropagation()}>
-            <h3 className="font-display text-starlight text-sm">Create Time Block Chunk</h3>
+          <div className="glass border border-blue-900/40 rounded-xl p-6 w-full max-w-md space-y-4 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <h3 className="font-display text-starlight text-lg">Create Time Block Chunk</h3>
 
             <form onSubmit={handleCreateBlock} className="space-y-3 font-body text-xs">
               <div>
-                <label className="text-dim font-mono text-[10px] block mb-1">Block Title</label>
+                <label className="text-nova/60 font-mono text-xs block mb-1">Block Title</label>
                 <input
                   type="text"
                   required
                   value={newTitle}
                   onChange={e => setNewTitle(e.target.value)}
                   placeholder="e.g. Deep Coding Sprint / Evening Review"
-                  className="w-full bg-stardust/50 border border-blue-900/30 text-starlight rounded-xl px-3 py-2 outline-none focus:border-gold"
+                  className="w-full bg-stardust/50 border border-pulsar/40 text-starlight rounded-xl px-3 py-2 outline-none focus:border-gold"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-dim font-mono text-[10px] block mb-1">Start Time</label>
+                  <label className="text-nova/60 font-mono text-xs block mb-1">Start Time</label>
                   <input
                     type="text"
                     value={newStartTime}
                     onChange={e => setNewStartTime(e.target.value)}
                     placeholder="09:00"
-                    className="w-full bg-stardust/50 border border-blue-900/30 text-starlight rounded-xl px-3 py-2 outline-none font-mono"
+                    className="w-full bg-stardust/50 border border-pulsar/40 text-starlight rounded-xl px-3 py-2 outline-none font-mono"
                   />
                 </div>
 
                 <div>
-                  <label className="text-dim font-mono text-[10px] block mb-1">Duration (Mins)</label>
+                  <label className="text-nova/60 font-mono text-xs block mb-1">Duration (Mins)</label>
                   <input
                     type="number"
                     value={newDuration}
                     onChange={e => setNewDuration(e.target.value)}
-                    className="w-full bg-stardust/50 border border-blue-900/30 text-starlight rounded-xl px-3 py-2 outline-none font-mono"
+                    className="w-full bg-stardust/50 border border-pulsar/40 text-starlight rounded-xl px-3 py-2 outline-none font-mono"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="text-dim font-mono text-[10px] block mb-1">Block Type</label>
+                <label className="text-nova/60 font-mono text-xs block mb-1">Block Type</label>
                 <select
                   value={newType}
                   onChange={e => setNewType(e.target.value)}
-                  className="w-full bg-stardust/50 border border-blue-900/30 text-starlight rounded-xl px-3 py-2 outline-none font-mono"
+                  className="w-full bg-stardust/50 border border-pulsar/40 text-starlight rounded-xl px-3 py-2 outline-none font-mono"
                 >
                   <option value="task">Focus Work Block</option>
                   <option value="transition">Rest / Transition Buffer</option>
@@ -836,7 +836,7 @@ export default function DayChunker({ tasks = [], selectedDay = 'today', onRefres
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 rounded-xl glass text-dim text-xs font-display"
+                  className="px-4 py-2 rounded-xl glass text-nova/60 text-xs font-mono uppercase tracking-wider"
                 >
                   Cancel
                 </button>

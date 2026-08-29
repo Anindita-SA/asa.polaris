@@ -607,3 +607,228 @@
 | `name` | `text` |  Nullable |
 | `user_id` | `uuid` |  Nullable |
 
+
+## Table `hardware_opportunities`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `id` | `uuid` | Primary, Default `gen_random_uuid()` |
+| `user_id` | `uuid` | Not Null |
+| `title` | `text` | Not Null |
+| `url` | `text` | Nullable |
+| `deadline` | `date` | Nullable |
+| `effort` | `text` | Nullable |
+| `project_fit` | `text` | Nullable |
+| `what_offered` | `text` | Nullable |
+| `application_draft` | `text` | Nullable |
+| `status` | `text` | Default `'new'` |
+| `task_id` | `uuid` | Nullable, References `tasks` |
+| `created_at` | `timestamptz` | Default `now()` |
+
+## Table `day_plan_blocks`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `id` | `uuid` | Primary, Default `gen_random_uuid()` |
+| `user_id` | `uuid` | Not Null, Default `auth.uid()` |
+| `log_date` | `date` | Not Null |
+| `start_time` | `text` | Not Null |
+| `duration_minutes` | `int4` | Not Null |
+| `title` | `text` | Not Null |
+| `type` | `text` | Not Null (task \| transition) |
+| `source_type` | `text` | Nullable (focus_item \| daily_task \| goal \| custom) |
+| `source_id` | `uuid` | Nullable |
+| `done` | `bool` | Not Null, Default `false` |
+| `created_at` | `timestamptz` | Nullable, Default `now()` |
+
+## Table `tasks`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `id` | `uuid` | Primary, Default `gen_random_uuid()` |
+| `user_id` | `uuid` | Not Null, Default `auth.uid()` |
+| `title` | `text` | Not Null |
+| `notes` | `text` | Nullable |
+| `quadrant` | `text` | Nullable (urgent_important \| important_not_urgent \| urgent_not_important \| neither) |
+| `deadline` | `date` | Nullable |
+| `estimated_minutes` | `int4` | Nullable |
+| `estimate_source` | `text` | Nullable (user \| ai) |
+| `status` | `text` | Not Null, Default `'inbox'` (inbox \| active \| scheduled \| done) |
+| `source_template_id` | `uuid` | Nullable, References `recurring_task_templates` |
+| `created_at` | `timestamptz` | Nullable, Default `now()` |
+
+## Table `wins`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `id` | `uuid` | Primary |
+| `user_id` | `uuid` | Not Null |
+| `text` | `text` |  |
+| `size` | `text` | Nullable |
+| `node_id` | `uuid` | Nullable |
+| `log_date` | `date` |  |
+| `created_at` | `timestamptz` | Nullable |
+
+## Table `contacts`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `id` | `uuid` | Primary |
+| `user_id` | `uuid` | Not Null |
+| `name` | `text` |  |
+| `tier` | `text` | Nullable |
+| `frequency_days` | `int4` | Nullable |
+| `category` | `text` | Nullable |
+| `contact_number` | `text` | Nullable |
+| `social_handle` | `text` | Nullable |
+| `notes` | `text` | Nullable |
+| `active` | `bool` | Nullable, Default `true` |
+| `last_contacted_at` | `date` | Nullable |
+| `created_at` | `timestamptz` | Nullable |
+
+## Table `nudges`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `id` | `uuid` | Primary |
+| `user_id` | `uuid` | Not Null |
+| `title` | `text` |  |
+| `interval_minutes` | `int4` |  |
+| `active` | `bool` | Default `true` |
+| `created_at` | `timestamptz` | Nullable |
+
+## Table `focus_sessions`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `id` | `uuid` | Primary |
+| `user_id` | `uuid` | Not Null |
+| `duration_minutes` | `int4` |  |
+| `mode` | `text` |  |
+| `io_type` | `text` | Nullable |
+| `comment` | `text` | Nullable |
+| `node_title` | `text` | Nullable |
+| `goal_id` | `uuid` | Nullable |
+| `created_at` | `timestamptz` | Nullable |
+
+## Table `calendar_events`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `id` | `uuid` | Primary |
+| `user_id` | `uuid` | Not Null |
+| `gcal_event_id` | `text` | Nullable |
+| `summary` | `text` |  |
+| `description` | `text` | Nullable |
+| `start_time` | `timestamptz` |  |
+| `end_time` | `timestamptz` |  |
+| `is_all_day` | `bool` | Nullable |
+| `color_id` | `text` | Nullable |
+| `location` | `text` | Nullable |
+| `source` | `text` | Nullable |
+| `status` | `text` | Nullable |
+| `raw_payload` | `jsonb` | Nullable |
+| `created_at` | `timestamptz` | Nullable |
+| `updated_at` | `timestamptz` | Nullable |
+
+## Table `calendar_backups`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `id` | `uuid` | Primary |
+| `user_id` | `uuid` | Not Null |
+| `snapshot_name` | `text` |  |
+| `event_count` | `int4` |  |
+| `raw_ics_content` | `text` |  |
+| `created_at` | `timestamptz` | Nullable |
+
+## Table `mini_games`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `id` | `uuid` | Primary |
+| `user_id` | `uuid` | Not Null |
+| `title` | `text` |  |
+| `url` | `text` | Nullable |
+| `type` | `text` | Nullable |
+| `icon` | `text` | Nullable |
+| `category` | `text` | Nullable |
+| `sort_order` | `int4` | Nullable |
+| `active` | `bool` | Default `true` |
+| `created_at` | `timestamptz` | Nullable |
+
+## Table `hardware_opportunities`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `id` | `uuid` | Primary, Default `gen_random_uuid()` |
+| `user_id` | `uuid` | Not Null, Default `auth.uid()` |
+| `title` | `text` | Not Null |
+| `url` | `text` | Nullable |
+| `deadline` | `date` | Nullable |
+| `what_offered` | `text` | Nullable |
+| `project_fit` | `text` | Nullable |
+| `effort` | `text` | Nullable (low \| med \| high) |
+| `status` | `text` | Not Null, Default `'drafting'` (new \| drafting \| applied \| rejected \| accepted) |
+| `application_draft` | `text` | Nullable |
+| `task_id` | `uuid` | Nullable |
+| `created_at` | `timestamptz` | Nullable, Default `now()` |
+
+## Storage Buckets
+
+| Bucket Name | Description |
+|-------------|-------------|
+| `journal-photos` | Stores photos uploaded alongside daily journal wins |
+
+## Table `recurring_task_templates`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `id` | `uuid` | Primary, Default `gen_random_uuid()` |
+| `user_id` | `uuid` | Not Null, References `auth.users` |
+| `title` | `text` | Not Null |
+| `notes` | `text` | Nullable |
+| `quadrant` | `text` | Nullable, Default `'important_not_urgent'` |
+| `estimated_minutes` | `int4` | Nullable, Default `30` |
+| `frequency` | `text` | Nullable, Default `'daily'` |
+| `last_generated_date` | `date` | Nullable |
+| `is_active` | `bool` | Nullable, Default `true` |
+| `created_at` | `timestamptz` | Not Null, Default `now()` |
+
+
+## Table `morning_briefs`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `id` | `uuid` | Primary, Default `gen_random_uuid()` |
+| `user_id` | `uuid` | Not Null, Default `auth.uid()` |
+| `date` | `date` | Not Null |
+| `items` | `jsonb` | Nullable |
+| `seen` | `bool` | Default `false` |
+| `created_at` | `timestamptz` | Default `now()` |

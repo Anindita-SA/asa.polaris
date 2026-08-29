@@ -72,11 +72,11 @@ const WinsBook = ({ dateStr }) => {
     <div className="glass border border-amber-500/20 rounded-xl p-5 mb-6">
       <div className="flex items-center gap-2 mb-4">
         <Trophy className="w-5 h-5 text-amber-400" />
-        <h3 className="font-display text-starlight text-xs ">Wins Book</h3>
+        <h3 className="font-display text-starlight text-lg">Wins Book</h3>
       </div>
 
       {/* Quick Add Bar */}
-      <form onSubmit={handleSubmit} className="flex flex-col md:flex-row gap-3 mb-6 bg-white/5 p-3 rounded-lg border border-white/10">
+      <form onSubmit={handleSubmit} className="flex flex-col md:flex-row gap-3 mb-6 bg-pulsar/10 p-3 rounded-lg border border-nova/20">
         <input 
           type="text" 
           placeholder="Log a win..." 
@@ -85,11 +85,11 @@ const WinsBook = ({ dateStr }) => {
           className="flex-1 bg-transparent border-none text-sm text-starlight placeholder-dim focus:outline-none focus:ring-0 px-2"
         />
         
-        <div className="flex items-center gap-3 border-t md:border-t-0 md:border-l border-white/10 pt-3 md:pt-0 md:pl-3">
+        <div className="flex items-center gap-3 border-t md:border-t-0 md:border-l border-nova/20 pt-3 md:pt-0 md:pl-3">
           <select 
             value={size} 
             onChange={(e) => setSize(e.target.value)}
-            className="bg-void border border-white/10 text-xs text-dim rounded px-2 py-1.5 focus:outline-none"
+            className="bg-void border border-nova/20 text-xs text-nova/60 rounded px-2 py-1.5 focus:outline-none"
           >
             <option value="micro">Micro Win</option>
             <option value="big">Big Win</option>
@@ -98,7 +98,7 @@ const WinsBook = ({ dateStr }) => {
           <select 
             value={nodeId} 
             onChange={(e) => setNodeId(e.target.value)}
-            className="bg-void border border-white/10 text-xs text-dim rounded px-2 py-1.5 focus:outline-none max-w-[120px]"
+            className="bg-void border border-nova/20 text-xs text-nova/60 rounded px-2 py-1.5 focus:outline-none max-w-[120px]"
           >
             <option value="">No Link</option>
             {nodes.map(n => (
@@ -112,7 +112,7 @@ const WinsBook = ({ dateStr }) => {
             className="h-8 px-3 bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 rounded-lg flex items-center gap-1 transition-colors disabled:opacity-50"
           >
             <Plus className="w-4 h-4" />
-            <span className="text-xs font-display hidden md:inline">Add</span>
+            <span className="text-xs font-mono uppercase tracking-wider hidden md:inline">Add</span>
           </button>
         </div>
       </form>
@@ -128,11 +128,11 @@ const WinsBook = ({ dateStr }) => {
               <div className="flex-1 min-w-0">
                 <p className="text-sm text-starlight leading-snug">{win.text}</p>
                 <div className="flex flex-wrap items-center gap-2 mt-1.5">
-                  <span className="text-[10px] font-mono text-dim opacity-70">
+                  <span className="text-xs font-mono text-nova/60 opacity-70">
                     {win.log_date ? format(parseISO(win.log_date), 'MMM d, yyyy') : 'No Date'}
                   </span>
                   {win.node_id && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded border border-blue-900/30 text-sky bg-sky/5 font-mono">
+                    <span className="text-xs px-1.5 py-0.5 rounded border border-pulsar/40 text-sky bg-sky/5 font-mono">
                       {getNodeTitle(win.node_id)}
                     </span>
                   )}
@@ -140,14 +140,14 @@ const WinsBook = ({ dateStr }) => {
               </div>
             </div>
             <div className="shrink-0 flex items-center mt-2 md:mt-0">
-               <span className={`text-[10px] px-2 py-0.5 rounded font-display ${win.size === 'big' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' : 'bg-sky-500/10 text-sky-400 border border-sky-500/20'}`}>
+               <span className={`text-xs px-2 py-0.5 rounded font-display ${win.size === 'big' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' : 'bg-sky-500/10 text-sky-400 border border-sky-500/20'}`}>
                  {win.size}
                </span>
             </div>
           </div>
         ))}
         {wins.length === 0 && (
-          <p className="text-center text-xs text-dim italic py-4">No wins logged yet. Celebrate the small things!</p>
+          <p className="text-center text-xs text-nova/60 italic py-4">No wins logged yet. Celebrate the small things!</p>
         )}
       </div>
     </div>

@@ -106,7 +106,7 @@ const ProgressDashboard = () => {
 
     if (loading) return (
         <div className="flex items-center justify-center h-full">
-            <p className="font-display text-dim text-sm animate-pulse">Computing Stars...</p>
+            <p className="font-display text-nova/60 text-sm animate-pulse">Computing Stars...</p>
         </div>
     )
 
@@ -115,7 +115,7 @@ const ProgressDashboard = () => {
             <div className="max-w-3xl mx-auto space-y-6">
 
                 {/* XP + Level ring */}
-                <div className="glass border border-blue-900/20 rounded-xl p-5 flex items-center gap-6">
+                <div className="glass border border-pulsar/30 rounded-xl p-5 flex items-center gap-6">
                     <div className="relative w-24 h-24 flex-shrink-0">
                         <svg viewBox="0 0 100 100" className="-rotate-90 w-full h-full">
                             <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="8" />
@@ -125,13 +125,13 @@ const ProgressDashboard = () => {
                                 strokeLinecap="round" style={{ transition: 'stroke-dashoffset 0.8s ease' }} />
                         </svg>
                         <div className="absolute inset-0 flex flex-col items-center justify-center">
-                            <span className="text-xl font-display text-gold leading-none">{current.level}</span>
-                            <span className="text-xs font-mono text-dim">LV</span>
+                            <span className="text-base font-display text-gold leading-none">{current.level}</span>
+                            <span className="text-xs font-mono text-nova/60">LV</span>
                         </div>
                     </div>
                     <div className="flex-1 min-w-0">
                         <p className="font-display text-gold text-lg">{current.name}</p>
-                        <p className="text-xs font-mono text-dim mt-1">{xp} XP {next ? `/ ${next.minXp} to ${next.name}` : '- MAX'}</p>
+                        <p className="text-xs font-mono text-nova/60 mt-1">{xp} XP {next ? `/ ${next.minXp} to ${next.name}` : '- MAX'}</p>
                         <div className="mt-2 h-2 bg-stardust rounded-full overflow-hidden">
                             <div className="h-full bg-gold rounded-full xp-bar-fill transition-all duration-700"
                                 style={{ width: `${progress}%` }} />
@@ -140,8 +140,8 @@ const ProgressDashboard = () => {
                 </div>
 
                 {/* Milestones - LeetCode style */}
-                <div className="glass border border-blue-900/20 rounded-xl p-5">
-                    <h3 className="font-display text-starlight text-sm flex items-center gap-2 mb-4">
+                <div className="glass border border-pulsar/30 rounded-xl p-5">
+                    <h3 className="font-display text-starlight text-lg flex items-center gap-2 mb-4">
                         <Trophy className="w-3.5 h-3.5 text-gold" /> Milestones
                     </h3>
                     <div className="flex items-center gap-6">
@@ -156,7 +156,7 @@ const ProgressDashboard = () => {
                             </svg>
                             <div className="absolute inset-0 flex flex-col items-center justify-center">
                                 <span className="text-lg font-display text-starlight leading-none">{msDone}</span>
-                                <span className="text-xs font-mono text-dim">/{msTotal}</span>
+                                <span className="text-xs font-mono text-nova/60">/{msTotal}</span>
                             </div>
                         </div>
                         {/* Bars */}
@@ -167,12 +167,12 @@ const ProgressDashboard = () => {
                                 { label: 'Upcoming', count: msUpcoming, color: 'bg-dim/40', total: msTotal },
                             ].map(({ label, count, color, total }) => (
                                 <div key={label} className="flex items-center gap-3">
-                                    <span className="text-xs text-dim font-body w-20">{label}</span>
+                                    <span className="text-xs text-nova/60 font-body w-20">{label}</span>
                                     <div className="flex-1 h-2 bg-stardust rounded-full overflow-hidden">
                                         <div className={`h-full rounded-full transition-all duration-700 ${color}`}
                                             style={{ width: `${total ? (count / total) * 100 : 0}%` }} />
                                     </div>
-                                    <span className="text-xs font-mono text-dim w-8 text-right">{count}</span>
+                                    <span className="text-xs font-mono text-nova/60 w-8 text-right">{count}</span>
                                 </div>
                             ))}
                         </div>
@@ -180,32 +180,32 @@ const ProgressDashboard = () => {
                 </div>
 
                 {/* Goals completion */}
-                <div className="glass border border-blue-900/20 rounded-xl p-5">
-                    <h3 className="font-display text-starlight text-sm flex items-center gap-2 mb-4">
+                <div className="glass border border-pulsar/30 rounded-xl p-5">
+                    <h3 className="font-display text-starlight text-lg flex items-center gap-2 mb-4">
                         <Target className="w-3.5 h-3.5 text-aurora" /> Goals
                     </h3>
                     <div className="space-y-3">
                         {scopeStats.map(({ scope, done, total }) => (
                             <div key={scope} className="flex items-center gap-3">
-                                <span className="text-xs font-mono text-dim capitalize w-20">{scope}</span>
+                                <span className="text-xs font-mono text-nova/60 capitalize w-20">{scope}</span>
                                 <div className="flex-1 h-2 bg-stardust rounded-full overflow-hidden">
                                     <div className={`h-full rounded-full transition-all duration-700 ${scope === 'weekly' ? 'bg-emerald' :
                                             scope === 'monthly' ? 'bg-pulsar' : 'bg-aurora'
                                         }`} style={{ width: `${total ? (done / total) * 100 : 0}%` }} />
                                 </div>
-                                <span className="text-xs font-mono text-dim">{done}/{total}</span>
+                                <span className="text-xs font-mono text-nova/60">{done}/{total}</span>
                             </div>
                         ))}
-                        {!goals.length && <p className="text-xs text-dim italic font-body">No goals yet - add some in the Goals tab.</p>}
+                        {!goals.length && <p className="text-xs text-nova/60 italic font-body">No goals yet - add some in the Goals tab.</p>}
                     </div>
                 </div>
 
                 {/* Focus time - 7 day bar chart */}
-                <div className="glass border border-blue-900/20 rounded-xl p-5">
-                    <h3 className="font-display text-starlight text-sm flex items-center gap-2 mb-1">
+                <div className="glass border border-pulsar/30 rounded-xl p-5">
+                    <h3 className="font-display text-starlight text-lg flex items-center gap-2 mb-1">
                         <Clock className="w-3.5 h-3.5 text-pulsar" /> Focus Time
                     </h3>
-                    <p className="text-xs text-dim font-mono mb-4">
+                    <p className="text-xs text-nova/60 font-mono mb-4">
                         {Math.floor(totalFocusWeek / 60)}h {totalFocusWeek % 60}m this week
                     </p>
                     <div className="flex items-end gap-1.5 h-20">
@@ -218,25 +218,25 @@ const ProgressDashboard = () => {
                                         <div className={`w-full rounded-sm transition-all duration-500 ${isToday ? 'bg-pulsar' : 'bg-pulsar/30'
                                             }`} style={{ height: `${heightPct}%`, minHeight: d.mins > 0 ? 4 : 0 }} />
                                     </div>
-                                    <span className={`text-xs font-mono ${isToday ? 'text-pulsar' : 'text-dim/50'}`}>{d.label}</span>
+                                    <span className={`text-xs font-mono ${isToday ? 'text-pulsar' : 'text-nova/60/50'}`}>{d.label}</span>
                                 </div>
                             )
                         })}
                     </div>
                     {totalFocusWeek === 0 && (
-                        <p className="text-xs text-dim italic font-body mt-2">No pomodoro sessions logged yet.</p>
+                        <p className="text-xs text-nova/60 italic font-body mt-2">No pomodoro sessions logged yet.</p>
                     )}
                 </div>
 
                 {/* Habit heatmap - full year */}
-                <div className="glass border border-blue-900/20 rounded-xl p-5">
-                    <h3 className="font-display text-starlight text-sm flex items-center gap-2 mb-2">
+                <div className="glass border border-pulsar/30 rounded-xl p-5">
+                    <h3 className="font-display text-starlight text-lg flex items-center gap-2 mb-2">
                         <Flame className="w-3.5 h-3.5 text-gold" /> Habit Activity
                     </h3>
                     <div className="flex gap-4 mb-3 text-xs font-mono">
                         <span className="text-starlight">{totalActiveDays} active days</span>
                         <span className="text-gold">🔥 {streak} day streak</span>
-                        <span className="text-dim">max {maxStreak}</span>
+                        <span className="text-nova/60">max {maxStreak}</span>
                     </div>
 
                     {/* Month labels */}
@@ -248,7 +248,7 @@ const ProgressDashboard = () => {
                                 return (
                                     <div key={wi} className="flex flex-col gap-1" style={{ width: 12 }}>
                                         {showMonth && (
-                                            <span className="text-dim/50 font-mono" style={{ fontSize: 8, marginBottom: 1 }}>
+                                            <span className="text-nova/60/50 font-mono" style={{ fontSize: 8, marginBottom: 1 }}>
                                                 {months[firstDay.getMonth()]}
                                             </span>
                                         )}
@@ -272,11 +272,11 @@ const ProgressDashboard = () => {
 
                     <div className="flex items-center gap-3 mt-2">
                         <div className="w-3 h-3 rounded-sm bg-stardust/40 border border-blue-900/10" />
-                        <span className="text-xs text-dim font-mono">none</span>
+                        <span className="text-xs text-nova/60 font-mono">none</span>
                         <div className="w-3 h-3 rounded-sm bg-emerald/30 border border-emerald/15 ml-2" />
-                        <span className="text-xs text-dim font-mono">partial</span>
+                        <span className="text-xs text-nova/60 font-mono">partial</span>
                         <div className="w-3 h-3 rounded-sm bg-emerald border border-emerald/30 ml-2" />
-                        <span className="text-xs text-dim font-mono">all habits</span>
+                        <span className="text-xs text-nova/60 font-mono">all habits</span>
                     </div>
                 </div>
 

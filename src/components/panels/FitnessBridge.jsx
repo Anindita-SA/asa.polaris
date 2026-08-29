@@ -108,7 +108,7 @@ const FitnessBridge = () => {
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center">
-        <p className="text-dim font-mono text-sm animate-pulse">Syncing data...</p>
+        <p className="text-nova/60 font-mono text-sm animate-pulse">Syncing data...</p>
       </div>
     )
   }
@@ -128,28 +128,28 @@ const FitnessBridge = () => {
       <div className="max-w-2xl mx-auto space-y-6">
         
         {/* Navigation Pills */}
-        <div className="flex bg-void/50 p-1 rounded-lg border border-blue-900/20 max-w-md mx-auto">
+        <div className="flex bg-void/70 p-1 rounded-lg border border-pulsar/30 max-w-md mx-auto">
           <button 
             onClick={() => setActiveSubTab('fitness')}
-            className={`flex-1 py-1.5 text-xs font-mono rounded transition-colors ${activeSubTab === 'fitness' ? 'bg-stardust/80 text-starlight' : 'text-dim hover:text-starlight/70'}`}
+            className={`flex-1 py-1.5 text-xs font-mono uppercase tracking-wider rounded transition-colors ${activeSubTab === 'fitness' ? 'bg-stardust/80 text-starlight' : 'text-nova/60 hover:text-nova/80'}`}
           >
             Fitness
           </button>
           <button 
             onClick={() => setActiveSubTab('relationships')}
-            className={`flex-1 py-1.5 text-xs font-mono rounded transition-colors ${activeSubTab === 'relationships' ? 'bg-stardust/80 text-starlight' : 'text-dim hover:text-starlight/70'}`}
+            className={`flex-1 py-1.5 text-xs font-mono uppercase tracking-wider rounded transition-colors ${activeSubTab === 'relationships' ? 'bg-stardust/80 text-starlight' : 'text-nova/60 hover:text-nova/80'}`}
           >
             Social
           </button>
           <button 
             onClick={() => setActiveSubTab('play')}
-            className={`flex-1 py-1.5 text-xs font-mono rounded transition-colors ${activeSubTab === 'play' ? 'bg-stardust/80 text-starlight' : 'text-dim hover:text-starlight/70'}`}
+            className={`flex-1 py-1.5 text-xs font-mono uppercase tracking-wider rounded transition-colors ${activeSubTab === 'play' ? 'bg-stardust/80 text-starlight' : 'text-nova/60 hover:text-nova/80'}`}
           >
             Play
           </button>
           <button 
             onClick={() => setActiveSubTab('scout')}
-            className={`flex-1 py-1.5 text-xs font-mono rounded transition-colors ${activeSubTab === 'scout' ? 'bg-stardust/80 text-starlight' : 'text-dim hover:text-starlight/70'}`}
+            className={`flex-1 py-1.5 text-xs font-mono uppercase tracking-wider rounded transition-colors ${activeSubTab === 'scout' ? 'bg-stardust/80 text-starlight' : 'text-nova/60 hover:text-nova/80'}`}
           >
             Scout
           </button>
@@ -163,15 +163,15 @@ const FitnessBridge = () => {
           <HardwareScoutPanel />
         ) : (
           <>
-            <p className="text-xs font-mono text-dim mt-2">Aloka-Fit Bridge - last 14 days</p>
+            <p className="text-xs font-mono text-nova/60 mt-2">Aloka-Fit Bridge - last 14 days</p>
 
         {/* AI Verdict */}
-        <div className="glass border border-blue-900/20 rounded-xl p-5 mb-2">
+        <div className="glass border border-pulsar/30 rounded-xl p-5 mb-2">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-display text-starlight text-sm flex items-center gap-2">
+            <h3 className="font-display text-starlight text-lg flex items-center gap-2">
               <Zap className="w-3.5 h-3.5 text-gold" /> AI Coach Verdict
             </h3>
-            <button onClick={generateVerdict} disabled={aiLoading} className="text-xs px-3 py-1 bg-gold/10 hover:bg-gold/20 text-gold border border-gold/30 rounded-lg transition-colors disabled:opacity-50 font-display ">
+            <button onClick={generateVerdict} disabled={aiLoading} className="text-xs px-3 py-1 bg-gold/10 hover:bg-gold/20 text-gold border border-gold/50 rounded-lg transition-colors disabled:opacity-50 font-display">
               {aiLoading ? 'ANALYZING...' : 'GENERATE'}
             </button>
           </div>
@@ -179,30 +179,30 @@ const FitnessBridge = () => {
             <div className="bg-void/40 rounded-lg p-4 border border-blue-900/10">
               <p className="text-sm text-starlight/90 font-body leading-relaxed">{verdict.verdict}</p>
               <div className="mt-3 flex items-center justify-between text-xs font-mono">
-                <span className="text-dim">Last generated: {format(new Date(verdict.date), 'MMM d')}</span>
+                <span className="text-nova/60">Last generated: {format(new Date(verdict.date), 'MMM d')}</span>
                 <span className="text-emerald">+{verdict.xp_reward} XP Awarded ✦</span>
               </div>
             </div>
           ) : (
-            <p className="text-xs text-dim italic font-body">Generate a verdict to let the AI analyze your 14-day performance and award XP.</p>
+            <p className="text-xs text-nova/60 italic font-body">Generate a verdict to let the AI analyze your 14-day performance and award XP.</p>
           )}
         </div>
 
         {/* Stats row */}
         <div className="grid grid-cols-3 gap-3">
-          <div className="glass border border-blue-900/20 rounded-xl p-4 text-center">
+          <div className="glass border border-pulsar/30 rounded-xl p-4 text-center">
             <Activity className="w-4 h-4 text-pulsar mx-auto mb-2" />
-            <p className="font-display text-2xl text-starlight">{workouts.length}</p>
-            <p className="text-xs text-dim font-body mt-1">Workout sessions</p>
+            <p className="font-display text-lg text-starlight">{workouts.length}</p>
+            <p className="text-xs text-nova/60 font-body mt-1">Workout sessions</p>
           </div>
-          <div className="glass border border-blue-900/20 rounded-xl p-4 text-center">
+          <div className="glass border border-pulsar/30 rounded-xl p-4 text-center">
             <Utensils className="w-4 h-4 text-emerald mx-auto mb-2" />
-            <p className="font-display text-2xl text-starlight">{meals.length}</p>
-            <p className="text-xs text-dim font-body mt-1">Meals logged</p>
+            <p className="font-display text-lg text-starlight">{meals.length}</p>
+            <p className="text-xs text-nova/60 font-body mt-1">Meals logged</p>
           </div>
-          <div className="glass border border-blue-900/20 rounded-xl p-4 text-center">
+          <div className="glass border border-pulsar/30 rounded-xl p-4 text-center">
             <Scale className="w-4 h-4 text-aurora mx-auto mb-2" />
-            <p className="font-display text-2xl text-starlight">
+            <p className="font-display text-lg text-starlight">
               {latestWeight ? `${latestWeight.weight_kg}` : '-'}
             </p>
             {weightDelta && (
@@ -210,13 +210,13 @@ const FitnessBridge = () => {
                 {parseFloat(weightDelta) > 0 ? '+' : ''}{weightDelta} kg
               </p>
             )}
-            <p className="text-xs text-dim font-body mt-0.5">Latest weight</p>
+            <p className="text-xs text-nova/60 font-body mt-0.5">Latest weight</p>
           </div>
         </div>
 
         {/* Recent workouts */}
-        <div className="glass border border-blue-900/20 rounded-xl p-5">
-          <h3 className="font-display text-starlight text-sm flex items-center gap-2 mb-4">
+        <div className="glass border border-pulsar/30 rounded-xl p-5">
+          <h3 className="font-display text-starlight text-lg flex items-center gap-2 mb-4">
             <Activity className="w-3.5 h-3.5 text-pulsar" /> Recent Workouts
           </h3>
           <div className="space-y-2">
@@ -224,20 +224,20 @@ const FitnessBridge = () => {
               <div key={i} className="flex items-center justify-between py-2 border-b border-blue-900/10 last:border-0">
                 <div>
                   <p className="text-sm text-starlight/80 font-body">{w.day_type}</p>
-                  <p className="text-xs text-dim">{w.exercise_count} exercises</p>
+                  <p className="text-xs text-nova/60">{w.exercise_count} exercises</p>
                 </div>
-                <span className="text-xs font-mono text-dim">
+                <span className="text-xs font-mono text-nova/60">
                   {format(new Date(w.log_date), 'd MMM')}
                 </span>
               </div>
             ))}
-            {!workouts.length && <p className="text-xs text-dim italic font-body">No workouts in the last 14 days.</p>}
+            {!workouts.length && <p className="text-xs text-nova/60 italic font-body">No workouts in the last 14 days.</p>}
           </div>
         </div>
 
         {/* Recent meals */}
-        <div className="glass border border-blue-900/20 rounded-xl p-5">
-          <h3 className="font-display text-starlight text-sm flex items-center gap-2 mb-4">
+        <div className="glass border border-pulsar/30 rounded-xl p-5">
+          <h3 className="font-display text-starlight text-lg flex items-center gap-2 mb-4">
             <Utensils className="w-3.5 h-3.5 text-emerald" /> Recent Meals
           </h3>
           <div className="space-y-2">
@@ -246,32 +246,32 @@ const FitnessBridge = () => {
                 <div>
                   <p className="text-sm text-starlight/80 font-body">{m.food_name}</p>
                   <div className="flex gap-2 mt-0.5">
-                    {m.kcal && <span className="text-xs font-mono text-dim">{m.kcal} kcal</span>}
+                    {m.kcal && <span className="text-xs font-mono text-nova/60">{m.kcal} kcal</span>}
                     {m.meal_tag && <span className="text-xs text-aurora/60 font-mono">{m.meal_tag}</span>}
                   </div>
                 </div>
-                <span className="text-xs font-mono text-dim flex-shrink-0 ml-3">
+                <span className="text-xs font-mono text-nova/60 flex-shrink-0 ml-3">
                   {format(new Date(m.log_date), 'd MMM')}
                 </span>
               </div>
             ))}
-            {!meals.length && <p className="text-xs text-dim italic font-body">No meals logged in the last 14 days.</p>}
+            {!meals.length && <p className="text-xs text-nova/60 italic font-body">No meals logged in the last 14 days.</p>}
           </div>
         </div>
 
         {/* Weight log */}
-        <div className="glass border border-blue-900/20 rounded-xl p-5">
-          <h3 className="font-display text-starlight text-sm flex items-center gap-2 mb-4">
+        <div className="glass border border-pulsar/30 rounded-xl p-5">
+          <h3 className="font-display text-starlight text-lg flex items-center gap-2 mb-4">
             <Scale className="w-3.5 h-3.5 text-aurora" /> Weight Log
           </h3>
           <div className="space-y-1">
             {weights.slice(0, 10).map((w, i) => (
               <div key={w.id || i} className="flex items-center justify-between py-1.5 border-b border-blue-900/10 last:border-0">
-                <span className="text-xs font-mono text-dim">{format(new Date(w.log_date), 'd MMM yyyy')}</span>
+                <span className="text-xs font-mono text-nova/60">{format(new Date(w.log_date), 'd MMM yyyy')}</span>
                 <span className="text-sm font-mono text-starlight">{w.weight_kg} kg</span>
               </div>
             ))}
-            {!weights.length && <p className="text-xs text-dim italic font-body">No weight entries yet.</p>}
+            {!weights.length && <p className="text-xs text-nova/60 italic font-body">No weight entries yet.</p>}
           </div>
         </div>
         </>

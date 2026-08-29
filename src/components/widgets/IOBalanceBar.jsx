@@ -81,7 +81,7 @@ const IOBalanceBar = () => {
 
       {/* Balance bar row - matches XP bar width */}
       <div className="flex items-center gap-2 cursor-pointer" onClick={() => setShowQuickLog(s => !s)}>
-        <span className="text-xs font-display whitespace-nowrap" style={{
+        <span className="text-xs font-mono uppercase tracking-wider whitespace-nowrap" style={{
           color: balanceState === 'balanced' ? '#10b981' : balanceState === 'warning' ? '#f59e0b' : '#ef4444'
         }}>I/O</span>
 
@@ -139,29 +139,29 @@ const IOBalanceBar = () => {
 
         <div className="flex gap-1 text-xs font-mono whitespace-nowrap">
           <span className={balanceState === 'alert' ? 'text-red-400' : 'text-amber-400/70'}>{inputMins}m</span>
-          <span className="text-dim/30">:</span>
+          <span className="text-nova/60/30">:</span>
           <span className={balanceState === 'balanced' && outputMins > 0 ? 'text-emerald-400' : 'text-emerald-400/50'}>{outputMins}m</span>
         </div>
       </div>
 
       {/* Quick-log dropdown */}
       {showQuickLog && (
-        <div className="fixed top-14 right-4 z-[60] glass border border-blue-900/20 rounded-2xl p-4 w-72 shadow-2xl space-y-3">
+        <div className="fixed top-14 right-4 z-[60] glass border border-pulsar/30 rounded-xl p-4 w-72 shadow-2xl space-y-3">
           <div className="flex items-center justify-between">
-            <h4 className="font-display text-sm text-starlight ">Log I/O</h4>
-            <button onClick={() => setShowQuickLog(false)} className="text-dim hover:text-starlight">
+            <h4 className="font-display text-base text-starlight">Log I/O</h4>
+            <button onClick={() => setShowQuickLog(false)} className="text-nova/60 hover:text-starlight">
               <X className="w-4 h-4" />
             </button>
           </div>
 
           {/* Type toggle */}
-          <div className="flex rounded-lg overflow-hidden border border-blue-900/20">
+          <div className="flex rounded-lg overflow-hidden border border-pulsar/30">
             <button onClick={() => { setLogType('input'); setLogCategory(INPUT_CATEGORIES[0]) }}
-              className={`flex-1 text-xs py-1.5 font-body transition-all ${logType === 'input' ? 'bg-amber-500/20 text-amber-400' : 'text-dim hover:text-starlight'}`}>
+              className={`flex-1 text-xs py-1.5 font-body transition-all ${logType === 'input' ? 'bg-amber-500/20 text-amber-400' : 'text-nova/60 hover:text-starlight'}`}>
               📥 Input
             </button>
             <button onClick={() => { setLogType('output'); setLogCategory(OUTPUT_CATEGORIES[0]) }}
-              className={`flex-1 text-xs py-1.5 font-body transition-all ${logType === 'output' ? 'bg-emerald-500/20 text-emerald-400' : 'text-dim hover:text-starlight'}`}>
+              className={`flex-1 text-xs py-1.5 font-body transition-all ${logType === 'output' ? 'bg-emerald-500/20 text-emerald-400' : 'text-nova/60 hover:text-starlight'}`}>
               📤 Output
             </button>
           </div>
@@ -181,7 +181,7 @@ const IOBalanceBar = () => {
                 className={`flex-1 text-xs py-1.5 rounded-lg border transition-all font-mono ${
                   logMins === m 
                     ? 'border-pulsar/40 bg-pulsar/10 text-starlight' 
-                    : 'border-blue-900/20 text-dim hover:text-starlight'
+                    : 'border-pulsar/30 text-nova/60 hover:text-starlight'
                 }`}>
                 {m}m
               </button>
@@ -189,7 +189,7 @@ const IOBalanceBar = () => {
           </div>
 
           <button onClick={addLog}
-            className="w-full py-2 rounded-lg text-xs font-display transition-all border"
+            className="w-full py-2 rounded-lg text-xs font-mono uppercase tracking-wider transition-all border"
             style={{
               background: logType === 'output' ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)',
               borderColor: logType === 'output' ? 'rgba(16,185,129,0.3)' : 'rgba(245,158,11,0.3)',
@@ -200,12 +200,12 @@ const IOBalanceBar = () => {
 
           {/* Today's breakdown */}
           <div className="pt-2 border-t border-blue-900/10 space-y-1">
-            <p className="text-[10px] font-mono text-dim ">Today</p>
+            <p className="text-xs font-mono text-nova/60 ">Today</p>
             <div className="flex justify-between text-xs font-body">
               <span className="text-amber-400">📥 {inputMins} min input</span>
               <span className="text-emerald-400">📤 {outputMins} min output</span>
             </div>
-            <p className={`text-[10px] font-mono text-center mt-1 ${
+            <p className={`text-xs font-mono text-center mt-1 ${
               balanceState === 'balanced' ? 'text-emerald-400' : 
               balanceState === 'warning' ? 'text-amber-400' : 'text-red-400'
             }`}>

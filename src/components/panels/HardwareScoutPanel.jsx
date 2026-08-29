@@ -95,17 +95,17 @@ const HardwareScoutPanel = () => {
     fetchOpportunities()
   }
 
-  if (loading) return <div className="p-8 text-dim">Loading opportunities...</div>
+  if (loading) return <div className="p-8 text-nova/60">Loading opportunities...</div>
 
   return (
     <div className="space-y-6 max-w-4xl w-full">
       <div className="flex items-center gap-3">
         <Cpu className="text-amber-500 w-6 h-6" />
-        <h2 className="text-xl font-display text-starlight">Hardware & Grants Scout</h2>
+        <h2 className="text-base font-display text-starlight">Hardware & Grants Scout</h2>
       </div>
 
       {opportunities.length === 0 ? (
-        <div className="glass p-6 rounded-2xl border border-blue-900/30 text-dim text-center">
+        <div className="glass p-6 rounded-xl border border-pulsar/40 text-nova/60 text-center">
           No active opportunities found. The weekly/monthly scout will populate this list.
         </div>
       ) : (
@@ -113,7 +113,7 @@ const HardwareScoutPanel = () => {
           {opportunities.map((opp) => {
             const isEditing = editingId === opp.id
             return (
-              <div key={opp.id} className="glass p-5 rounded-2xl border border-blue-900/30 flex flex-col gap-4">
+              <div key={opp.id} className="glass p-5 rounded-xl border border-pulsar/40 flex flex-col gap-4">
                 <div className="flex justify-between items-start">
                   <div className="flex-1 mr-4">
                     {isEditing ? (
@@ -124,29 +124,29 @@ const HardwareScoutPanel = () => {
                         placeholder="Opportunity Title"
                       />
                     ) : (
-                      <h3 className="text-lg font-display text-starlight flex items-center gap-2">
+                      <h3 className="text-xl font-display font-bold text-starlight flex items-center gap-2">
                         {opp.title}
                         {opp.url && (
-                          <a href={opp.url} target="_blank" rel="noreferrer" className="text-dim hover:text-pulsar">
+                          <a href={opp.url} target="_blank" rel="noreferrer" className="text-nova/60 hover:text-pulsar">
                             <ExternalLink className="w-4 h-4" />
                           </a>
                         )}
                       </h3>
                     )}
                     
-                    <div className="flex flex-wrap gap-4 text-xs text-dim mt-1">
+                    <div className="flex flex-wrap gap-4 text-xs text-nova/60 mt-1">
                       {isEditing ? (
                         <>
                           <input 
                             type="date"
                             value={editForm.deadline || ''}
                             onChange={e => setEditForm({...editForm, deadline: e.target.value})}
-                            className="bg-void/50 border border-blue-900/30 rounded px-2 py-1 text-starlight outline-none"
+                            className="bg-void/70 border border-pulsar/40 rounded px-2 py-1 text-starlight outline-none"
                           />
                           <select
                             value={editForm.effort || ''}
                             onChange={e => setEditForm({...editForm, effort: e.target.value})}
-                            className="bg-void/50 border border-blue-900/30 rounded px-2 py-1 text-starlight outline-none"
+                            className="bg-void/70 border border-pulsar/40 rounded px-2 py-1 text-starlight outline-none"
                           >
                             <option value="">Effort...</option>
                             <option value="low">Low</option>
@@ -156,13 +156,13 @@ const HardwareScoutPanel = () => {
                           <input 
                             value={editForm.project_fit || ''}
                             onChange={e => setEditForm({...editForm, project_fit: e.target.value})}
-                            className="bg-void/50 border border-blue-900/30 rounded px-2 py-1 text-starlight outline-none flex-1"
+                            className="bg-void/70 border border-pulsar/40 rounded px-2 py-1 text-starlight outline-none flex-1"
                             placeholder="Project Fit"
                           />
                           <input 
                             value={editForm.url || ''}
                             onChange={e => setEditForm({...editForm, url: e.target.value})}
-                            className="bg-void/50 border border-blue-900/30 rounded px-2 py-1 text-starlight outline-none flex-1"
+                            className="bg-void/70 border border-pulsar/40 rounded px-2 py-1 text-starlight outline-none flex-1"
                             placeholder="URL"
                           />
                         </>
@@ -178,11 +178,11 @@ const HardwareScoutPanel = () => {
                   
                   <div className="flex gap-2 items-start">
                     {!isEditing && (
-                      <button onClick={() => startEditing(opp)} className="p-1.5 text-dim hover:text-starlight rounded bg-blue-900/10">
+                      <button onClick={() => startEditing(opp)} className="p-1.5 text-nova/60 hover:text-starlight rounded bg-blue-900/10">
                         <Edit2 className="w-3.5 h-3.5" />
                       </button>
                     )}
-                    <span className="px-2 py-1 rounded bg-blue-900/20 text-dim text-xs ">
+                    <span className="px-2 py-1 rounded bg-blue-900/20 text-nova/60 text-xs ">
                       {opp.status}
                     </span>
                   </div>
@@ -193,13 +193,13 @@ const HardwareScoutPanel = () => {
                     <input 
                       value={editForm.what_offered || ''}
                       onChange={e => setEditForm({...editForm, what_offered: e.target.value})}
-                      className="bg-void/50 border border-blue-900/30 rounded px-3 py-2 text-sm text-starlight outline-none w-full"
+                      className="bg-void/70 border border-pulsar/40 rounded px-3 py-2 text-sm text-starlight outline-none w-full"
                       placeholder="What is offered?"
                     />
                     <textarea 
                       value={editForm.application_draft || ''}
                       onChange={e => setEditForm({...editForm, application_draft: e.target.value})}
-                      className="bg-void/50 border border-blue-900/30 rounded px-3 py-2 text-sm text-starlight outline-none w-full min-h-[120px] font-mono"
+                      className="bg-void/70 border border-pulsar/40 rounded px-3 py-2 text-sm text-starlight outline-none w-full min-h-[120px] font-mono"
                       placeholder="Application draft text..."
                     />
                   </div>
@@ -207,12 +207,12 @@ const HardwareScoutPanel = () => {
                   <>
                     {opp.what_offered && (
                       <div className="text-sm">
-                        <span className="text-dim">Offered:</span> <span className="text-starlight">{opp.what_offered}</span>
+                        <span className="text-nova/60">Offered:</span> <span className="text-starlight">{opp.what_offered}</span>
                       </div>
                     )}
 
                     {opp.application_draft && (
-                      <div className="bg-void/50 p-3 rounded-xl border border-blue-900/20 text-sm whitespace-pre-wrap font-mono text-starlight/80 max-h-48 overflow-y-auto">
+                      <div className="bg-void/70 p-3 rounded-xl border border-pulsar/30 text-sm whitespace-pre-wrap font-mono text-starlight/80 max-h-48 overflow-y-auto">
                         {opp.application_draft}
                       </div>
                     )}
@@ -224,7 +224,7 @@ const HardwareScoutPanel = () => {
                     <>
                       <button
                         onClick={() => setEditingId(null)}
-                        className="px-4 py-2 rounded-lg text-sm text-dim hover:text-starlight hover:bg-white/5 transition-colors"
+                        className="px-4 py-2 rounded-lg text-sm text-nova/60 hover:text-starlight hover:bg-pulsar/10 transition-colors"
                       >
                         Cancel
                       </button>
@@ -239,7 +239,7 @@ const HardwareScoutPanel = () => {
                     <>
                       <button
                         onClick={() => rejectOpportunity(opp.id)}
-                        className="px-4 py-2 rounded-lg text-sm text-dim hover:text-red-400 hover:bg-red-400/10 transition-colors"
+                        className="px-4 py-2 rounded-lg text-sm text-nova/60 hover:text-red-400 hover:bg-red-400/10 transition-colors"
                       >
                         Dismiss
                       </button>

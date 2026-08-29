@@ -206,7 +206,7 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
       {/* Back button */}
       <button
         onClick={onBack}
-        className="flex items-center gap-2 text-dim hover:text-starlight transition-colors text-sm font-body"
+        className="flex items-center gap-2 text-nova/60 hover:text-starlight transition-colors text-sm font-body"
       >
         <ArrowLeft className="w-4 h-4" /> Back to shelf
       </button>
@@ -225,28 +225,28 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
           </svg>
           <div className="absolute inset-0 flex items-center justify-center flex-col">
             <span className="text-lg font-mono text-starlight font-medium">{pct}%</span>
-            <span className="text-[9px] font-mono text-dim">{doneCount}/{totalCount}</span>
+            <span className="text-[9px] font-mono text-nova/60">{doneCount}/{totalCount}</span>
           </div>
         </div>
 
         <div className="flex-1 min-w-0 pt-2">
           <div className="flex items-center justify-between">
-            <h1 className="font-display text-2xl text-starlight tracking-wide leading-tight">{curriculum.title}</h1>
+            <h1 className="font-display text-xl font-bold text-starlight leading-tight">{curriculum.title}</h1>
             {isIeltsCurriculum && (
               <a 
                 href="/ielts_2026_study_schedule.ics" 
                 download="ielts_2026_study_schedule.ics"
-                className="glass border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 px-3 py-1.5 rounded-lg text-xs font-display flex items-center gap-1.5 transition-all">
+                className="glass border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 px-3 py-1.5 rounded-lg text-xs font-mono uppercase tracking-wider flex items-center gap-1.5 transition-all">
                 <Download className="w-3.5 h-3.5" /> Download .ICS Sub-Calendar
               </a>
             )}
           </div>
           {curriculum.description && (
-            <p className="font-body text-sm text-dim mt-1">{curriculum.description}</p>
+            <p className="font-body text-sm text-nova/60 mt-1">{curriculum.description}</p>
           )}
           <div className="flex gap-4 mt-2">
             {curriculum.estimated_hours && (
-              <span className="text-xs font-mono text-dim">
+              <span className="text-xs font-mono text-nova/60">
                 {curriculum.estimated_hours}h total • {totalHours}h mapped
               </span>
             )}
@@ -263,29 +263,29 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
             <ShieldCheck className="w-5 h-5 text-sky shrink-0 mt-0.5" />
             <div className="flex-1 text-xs text-starlight space-y-1">
               <p className="font-display text-sky text-sm">IELTS 2026 Preparation Sprint - Sub-Calendar & GCal Links</p>
-              <p className="text-dim leading-relaxed">
-                Import <code className="text-sky bg-void/50 px-1 py-0.5 rounded">ielts_2026_study_schedule.ics</code> into your dedicated <b>IELTS sub-calendar</b> in Google Calendar to keep your main calendar clean. You can also click the 1-click <b>+ Add to GCal</b> links on individual sessions below.
+              <p className="text-nova/60 leading-relaxed">
+                Import <code className="text-sky bg-void/70 px-1 py-0.5 rounded">ielts_2026_study_schedule.ics</code> into your dedicated <b>IELTS sub-calendar</b> in Google Calendar to keep your main calendar clean. You can also click the 1-click <b>+ Add to GCal</b> links on individual sessions below.
               </p>
             </div>
           </div>
 
           {/* 1. Verified 2026 Free Resources */}
           <div className="space-y-3">
-            <h3 className="text-xs font-mono text-dim flex items-center gap-2">
+            <h3 className="text-lg font-mono text-nova/60 flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-amber-400" /> Current Verified 2026 Resources (No Random YouTube Mocks)
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {IELTS_RESOURCES.map((res, i) => (
-                <div key={i} className="glass border border-blue-900/30 p-3.5 rounded-xl flex flex-col justify-between space-y-2">
+                <div key={i} className="glass border border-pulsar/40 p-3.5 rounded-xl flex flex-col justify-between space-y-2">
                   <div className="space-y-1">
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-sky/10 border border-sky/30 text-sky ">
+                      <span className="text-xs font-mono px-2 py-0.5 rounded bg-sky/10 border border-sky/30 text-sky ">
                         {res.badge}
                       </span>
                       <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                     </div>
-                    <h4 className="text-xs font-display text-starlight leading-snug">{res.name}</h4>
-                    <p className="text-[11px] text-dim leading-relaxed">{res.desc}</p>
+                    <h4 className="text-lg font-mono uppercase tracking-wider text-starlight leading-snug">{res.name}</h4>
+                    <p className="text-[11px] text-nova/60 leading-relaxed">{res.desc}</p>
                   </div>
                   {res.url ? (
                     <a 
@@ -296,7 +296,7 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
                       Open Resource <ExternalLink className="w-3 h-3" />
                     </a>
                   ) : (
-                    <span className="mt-2 text-center text-[11px] text-dim bg-void/30 border border-blue-900/10 py-1 rounded-lg">
+                    <span className="mt-2 text-center text-[11px] text-nova/60 bg-void/60 border border-blue-900/10 py-1 rounded-lg">
                       Local Cambridge PDFs
                     </span>
                   )}
@@ -308,14 +308,14 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
           {/* 2. Graded Online Mock Test Collections (IELTS Online Tests) with Tick Options */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-mono text-starlight flex items-center gap-2">
+              <h3 className="text-lg font-mono text-starlight flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-emerald-400" /> Graded Mock Test Collections (IELTS Online Tests)
               </h3>
               <span className="text-[11px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
                 {Object.values(completedMocks).filter(Boolean).length} / {GRADED_MOCK_TESTS.length} Completed
               </span>
             </div>
-            <p className="text-[11px] text-dim leading-relaxed">
+            <p className="text-[11px] text-nova/60 leading-relaxed">
               Official sample tests are un-graded. These collections are <b>auto-graded</b> with instant band score feedback for Listening, Reading, Writing, and Speaking. Tick them off as you complete each mock set:
             </p>
 
@@ -329,31 +329,31 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
                     className={`glass border p-3.5 rounded-xl flex flex-col justify-between space-y-3 transition-all ${
                       isDone 
                         ? 'border-emerald-500/40 bg-emerald-500/5' 
-                        : 'border-blue-900/30 hover:border-sky/30'
+                        : 'border-pulsar/40 hover:border-sky/30'
                     }`}>
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-semibold">
+                        <span className="text-xs font-mono px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-semibold">
                           {mock.badge}
                         </span>
 
                         {/* Interactive Tick Checkbox */}
                         <button
                           onClick={() => toggleMockComplete(mock.id)}
-                          className={`px-2.5 py-1 rounded-lg text-xs font-display flex items-center gap-1.5 transition-all ${
+                          className={`px-2.5 py-1 rounded-lg text-xs font-mono uppercase tracking-wider flex items-center gap-1.5 transition-all ${
                             isDone 
                               ? 'bg-emerald-500 text-void font-bold shadow-sm' 
-                              : 'bg-stardust/40 text-dim border border-blue-900/30 hover:text-starlight hover:border-sky/40'
+                              : 'bg-stardust/40 text-nova/60 border border-pulsar/40 hover:text-starlight hover:border-sky/40'
                           }`}>
-                          <CheckCircle className={`w-3.5 h-3.5 ${isDone ? 'text-void fill-current' : 'text-dim'}`} />
+                          <CheckCircle className={`w-3.5 h-3.5 ${isDone ? 'text-void fill-current' : 'text-nova/60'}`} />
                           <span>{isDone ? 'Completed ✓' : 'Mark Completed'}</span>
                         </button>
                       </div>
 
-                      <h4 className={`text-xs font-display transition-colors ${isDone ? 'text-emerald-300 line-through' : 'text-starlight'}`}>
+                      <h4 className={`text-xs font-mono uppercase tracking-wider transition-colors ${isDone ? 'text-emerald-300 line-through' : 'text-starlight'}`}>
                         {mock.title}
                       </h4>
-                      <p className="text-[11px] text-dim leading-relaxed">{mock.desc}</p>
+                      <p className="text-[11px] text-nova/60 leading-relaxed">{mock.desc}</p>
                     </div>
 
                     <div className="pt-2 flex items-center justify-between border-t border-blue-900/15">
@@ -366,7 +366,7 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
                       </a>
 
                       {isDone && (
-                        <span className="text-[10px] font-mono text-emerald-400 flex items-center gap-1">
+                        <span className="text-xs font-mono text-emerald-400 flex items-center gap-1">
                           Graded & Saved
                         </span>
                       )}
@@ -379,7 +379,7 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
 
           {/* 2. 4-Week Weekday Schedule */}
           <div className="space-y-4">
-            <h3 className="text-xs font-mono text-dim flex items-center gap-2">
+            <h3 className="text-lg font-mono text-nova/60 flex items-center gap-2">
               <BookOpen className="w-4 h-4 text-sky" /> Weekday-Only 4-Week Front-Loaded Schedule
             </h3>
 
@@ -393,28 +393,28 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
 
               return (
                 <div key={weekNum} className="glass border border-blue-900/25 rounded-xl p-4 space-y-3">
-                  <div className="flex items-center justify-between border-b border-blue-900/20 pb-2">
-                    <h4 className="font-display text-starlight text-xs flex items-center gap-2">
+                  <div className="flex items-center justify-between border-b border-pulsar/30 pb-2">
+                    <h4 className="font-display text-starlight text-lg flex items-center gap-2">
                       <span className="w-2 h-2 rounded-full bg-sky" /> {weekLabel}
                     </h4>
-                    <span className="text-[10px] font-mono text-sky bg-sky/10 border border-sky/20 px-2 py-0.5 rounded-full">
+                    <span className="text-xs font-mono text-sky bg-sky/10 border border-sky/20 px-2 py-0.5 rounded-full">
                       5 Weekdays
                     </span>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
                     {weekSessions.map((s, idx) => (
-                      <div key={idx} className="bg-void/40 border border-blue-900/20 rounded-lg p-2.5 flex flex-col justify-between space-y-1.5">
+                      <div key={idx} className="bg-void/40 border border-pulsar/30 rounded-lg p-2.5 flex flex-col justify-between space-y-1.5">
                         <div className="space-y-1">
                           <div className="flex items-center justify-between">
                             <span className="text-[11px] font-mono font-bold text-sky">{s.day} ({s.date.slice(5)})</span>
-                            <span className="text-[9px] font-mono text-dim bg-stardust/40 px-1 py-0.5 rounded">{s.duration}</span>
+                            <span className="text-[9px] font-mono text-nova/60 bg-stardust/40 px-1 py-0.5 rounded">{s.duration}</span>
                           </div>
-                          <p className="text-[11px] font-display text-starlight leading-snug line-clamp-2">{s.title}</p>
-                          <p className="text-[10px] text-dim leading-snug">{s.focus}</p>
+                          <p className="text-sm font-display font-bold text-starlight leading-snug line-clamp-2">{s.title}</p>
+                          <p className="text-xs text-nova/60 leading-snug">{s.focus}</p>
                         </div>
 
-                        <div className="pt-1.5 flex flex-col gap-1 text-[10px]">
+                        <div className="pt-1.5 flex flex-col gap-1 text-xs">
                           {s.url && (
                             <a 
                               href={s.url} 
@@ -445,25 +445,25 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
       {/* Syllabus */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="font-display text-base text-starlight ">Syllabus</h2>
+          <h2 className="font-display text-xl font-bold text-starlight">Syllabus</h2>
           <button onClick={() => setAddingTopic(true)}
-            className="text-dim hover:text-starlight text-xs font-body flex items-center gap-1 transition-colors">
+            className="text-nova/60 hover:text-starlight text-xs font-body flex items-center gap-1 transition-colors">
             <Plus className="w-3 h-3" /> Add topic
           </button>
         </div>
 
         {addingTopic && (
-          <div className="glass border border-dashed border-blue-900/30 rounded-xl p-3 space-y-2">
+          <div className="glass border border-dashed border-pulsar/40 rounded-xl p-3 space-y-2">
             <input type="text" placeholder="Topic title..." value={newTopic.title}
               onChange={e => setNewTopic(p => ({ ...p, title: e.target.value }))}
               onKeyDown={e => e.key === 'Enter' && addTopicHandler()}
-              className="w-full bg-transparent border-b border-blue-900/30 text-sm text-starlight outline-none focus:border-pulsar font-body pb-1" autoFocus />
+              className="w-full bg-transparent border-b border-pulsar/40 text-sm text-starlight outline-none focus:border-pulsar font-body pb-1" autoFocus />
             <div className="flex gap-2 items-center">
               <input type="number" placeholder="Hours" value={newTopic.estimated_hours}
                 onChange={e => setNewTopic(p => ({ ...p, estimated_hours: e.target.value }))}
-                className="w-20 bg-transparent border-b border-blue-900/30 text-xs text-dim outline-none font-mono pb-1" />
-              <button onClick={addTopicHandler} className="px-3 py-1 text-xs font-display rounded" style={{ background: `${accentColor}20`, color: accentColor, border: `1px solid ${accentColor}30` }}>Add</button>
-              <button onClick={() => setAddingTopic(false)} className="text-dim text-xs">Cancel</button>
+                className="w-20 bg-transparent border-b border-pulsar/40 text-xs text-nova/60 outline-none font-mono pb-1" />
+              <button onClick={addTopicHandler} className="px-3 py-1 text-xs font-mono uppercase tracking-wider rounded" style={{ background: `${accentColor}20`, color: accentColor, border: `1px solid ${accentColor}30` }}>Add</button>
+              <button onClick={() => setAddingTopic(false)} className="text-nova/60 text-xs">Cancel</button>
             </div>
           </div>
         )}
@@ -476,14 +476,14 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
               onUpdate={fetchData}
             />
             <button onClick={() => deleteTopic(topic.id)}
-              className="absolute top-3 right-3 text-dim hover:text-danger opacity-0 group-hover/topic:opacity-100 transition-all">
+              className="absolute top-3 right-3 text-nova/60 hover:text-danger opacity-0 group-hover/topic:opacity-100 transition-all">
               <Trash2 className="w-3 h-3" />
             </button>
           </div>
         ))}
 
         {topics.length === 0 && !addingTopic && (
-          <div className="text-center py-8 text-dim/50 font-body text-sm italic">
+          <div className="text-center py-8 text-nova/60/50 font-body text-sm italic">
             No topics yet. Click "Add topic" to build your syllabus.
           </div>
         )}
@@ -497,29 +497,29 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
         >
           <div className="flex items-center gap-2">
             <BookOpen className="w-4 h-4" style={{ color: accentColor }} />
-            <span className="font-display text-sm text-starlight ">Resources</span>
-            <span className="text-[10px] font-mono text-dim ml-1">({resources.length})</span>
+            <span className="font-display text-sm text-starlight">Resources</span>
+            <span className="text-xs font-mono text-nova/60 ml-1">({resources.length})</span>
           </div>
-          <ChevronDown className={`w-4 h-4 text-dim transition-transform duration-200 ${resourcesOpen ? 'rotate-180' : ''}`} />
+          <ChevronDown className={`w-4 h-4 text-nova/60 transition-transform duration-200 ${resourcesOpen ? 'rotate-180' : ''}`} />
         </button>
 
         {resourcesOpen && (
           <div className="px-4 pb-4 space-y-2 border-t border-blue-900/10 pt-3">
             <div className="flex justify-end">
               <button onClick={() => setAddingResource(true)}
-                className="text-dim hover:text-starlight text-xs font-body flex items-center gap-1 transition-colors">
+                className="text-nova/60 hover:text-starlight text-xs font-body flex items-center gap-1 transition-colors">
                 <Plus className="w-3 h-3" /> Add
               </button>
             </div>
 
             {addingResource && (
-              <div className="glass border border-dashed border-blue-900/30 rounded-lg p-3 space-y-2">
+              <div className="glass border border-dashed border-pulsar/40 rounded-lg p-3 space-y-2">
                 <input type="text" placeholder="Title..." value={newResource.title}
                   onChange={e => setNewResource(p => ({ ...p, title: e.target.value }))}
-                  className="w-full bg-transparent border-b border-blue-900/30 text-xs text-starlight outline-none font-body pb-1" autoFocus />
+                  className="w-full bg-transparent border-b border-pulsar/40 text-xs text-starlight outline-none font-body pb-1" autoFocus />
                 <input type="text" placeholder="Author..." value={newResource.author}
                   onChange={e => setNewResource(p => ({ ...p, author: e.target.value }))}
-                  className="w-full bg-transparent border-b border-blue-900/20 text-xs text-dim outline-none font-body pb-1" />
+                  className="w-full bg-transparent border-b border-pulsar/30 text-xs text-nova/60 outline-none font-body pb-1" />
                 <div className="flex gap-2 items-center">
                   <select value={newResource.resource_type}
                     onChange={e => setNewResource(p => ({ ...p, resource_type: e.target.value }))}
@@ -530,8 +530,8 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
                     <option value="course">Course</option>
                     <option value="podcast">Podcast</option>
                   </select>
-                  <button onClick={addResourceHandler} className="px-3 py-1 text-xs font-display rounded" style={{ background: `${accentColor}20`, color: accentColor }}>Add</button>
-                  <button onClick={() => setAddingResource(false)} className="text-dim text-xs">✕</button>
+                  <button onClick={addResourceHandler} className="px-3 py-1 text-xs font-mono uppercase tracking-wider rounded" style={{ background: `${accentColor}20`, color: accentColor }}>Add</button>
+                  <button onClick={() => setAddingResource(false)} className="text-nova/60 text-xs">✕</button>
                 </div>
               </div>
             )}
@@ -544,18 +544,18 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
                   </span>
                   <div className="min-w-0">
                     <span className="font-body text-xs text-starlight truncate block">{r.title}</span>
-                    {r.author && <span className="text-[10px] font-body text-dim">{r.author}</span>}
+                    {r.author && <span className="text-xs font-body text-nova/60">{r.author}</span>}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   {r.url && (
                     <a href={r.url} target="_blank" rel="noopener noreferrer"
-                      className="text-[10px] font-mono flex items-center gap-1 hover:underline" style={{ color: accentColor }}>
+                      className="text-xs font-mono flex items-center gap-1 hover:underline" style={{ color: accentColor }}>
                       <LinkIcon className="w-3 h-3" />
                     </a>
                   )}
                   <button onClick={() => deleteResource(r.id)}
-                    className="text-dim hover:text-danger opacity-0 group-hover/res:opacity-100 transition-all">
+                    className="text-nova/60 hover:text-danger opacity-0 group-hover/res:opacity-100 transition-all">
                     <X className="w-3 h-3" />
                   </button>
                 </div>
@@ -563,7 +563,7 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
             ))}
 
             {resources.length === 0 && !addingResource && (
-              <p className="text-xs text-dim/50 font-body italic text-center py-2">No resources yet.</p>
+              <p className="text-xs text-nova/60/50 font-body italic text-center py-2">No resources yet.</p>
             )}
           </div>
         )}

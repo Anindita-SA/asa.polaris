@@ -205,11 +205,11 @@ const CurriculumShelf = () => {
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <BookOpen className="w-5 h-5" style={{ color: tabColor }} />
-            <h2 className="font-display text-2xl text-starlight ">Personal Curriculum</h2>
+            <h2 className="font-display text-xl font-bold text-starlight">Personal Curriculum</h2>
           </div>
           {activeTab !== 'Media & Lit' && (
             <button onClick={() => setAddingCurriculum(true)}
-              className="glass border border-blue-900/20 text-dim hover:text-starlight hover:bg-stardust/30 transition-all rounded-lg px-4 py-2 text-sm font-body flex items-center gap-2">
+              className="glass border border-pulsar/30 text-nova/60 hover:text-starlight hover:bg-stardust/30 transition-all rounded-lg px-4 py-2 text-sm font-body flex items-center gap-2">
               <Plus className="w-4 h-4" /> New Book
             </button>
           )}
@@ -218,11 +218,11 @@ const CurriculumShelf = () => {
 
       {/* Tabs */}
       <div className="px-6 pt-4">
-        <div className="max-w-4xl mx-auto flex border-b border-blue-900/20">
+        <div className="max-w-4xl mx-auto flex border-b border-pulsar/30">
           {TABS.map(tab => (
             <button key={tab.id} onClick={() => { setActiveTab(tab.id); setSelectedCurriculum(null) }}
-              className={`flex-1 py-3 text-sm font-display transition-all border-b-2 ${
-                activeTab === tab.id ? 'text-starlight' : 'text-dim hover:text-starlight border-transparent'
+              className={`flex-1 py-3 text-lg font-display transition-all border-b-2 ${
+                activeTab === tab.id ? 'text-starlight' : 'text-nova/60 hover:text-starlight border-transparent'
               }`}
               style={activeTab === tab.id ? { borderBottomColor: tab.color, color: tab.color } : {}}>
               {tab.label}
@@ -244,20 +244,20 @@ const CurriculumShelf = () => {
             {/* Add curriculum form */}
             {addingCurriculum && (
               <div className="px-6">
-                <div className="max-w-4xl mx-auto glass border border-dashed border-blue-900/30 rounded-xl p-4 space-y-3 mb-4">
+                <div className="max-w-4xl mx-auto glass border border-dashed border-pulsar/40 rounded-xl p-4 space-y-3 mb-4">
                   <input type="text" placeholder="Curriculum title..." value={newForm.title}
                     onChange={e => setNewForm(p => ({ ...p, title: e.target.value }))}
                     onKeyDown={e => e.key === 'Enter' && addCurriculum()}
-                    className="w-full bg-transparent border-b border-blue-900/30 text-sm text-starlight outline-none focus:border-pulsar font-body pb-1" autoFocus />
+                    className="w-full bg-transparent border-b border-pulsar/40 text-sm text-starlight outline-none focus:border-pulsar font-body pb-1" autoFocus />
                   <input type="text" placeholder="Description (optional)" value={newForm.description}
                     onChange={e => setNewForm(p => ({ ...p, description: e.target.value }))}
-                    className="w-full bg-transparent border-b border-blue-900/20 text-xs text-dim outline-none font-body pb-1" />
+                    className="w-full bg-transparent border-b border-pulsar/30 text-xs text-nova/60 outline-none font-body pb-1" />
                   <div className="flex gap-3 items-center">
                     <input type="number" placeholder="Est. hours" value={newForm.estimated_hours}
                       onChange={e => setNewForm(p => ({ ...p, estimated_hours: e.target.value }))}
-                      className="w-24 bg-transparent border-b border-blue-900/20 text-xs text-dim outline-none font-mono pb-1" />
-                    <button onClick={addCurriculum} className="px-4 py-1.5 text-xs font-display rounded-lg" style={{ background: `${tabColor}20`, color: tabColor, border: `1px solid ${tabColor}40` }}>Add</button>
-                    <button onClick={() => setAddingCurriculum(false)} className="text-dim text-xs hover:text-starlight transition-colors">Cancel</button>
+                      className="w-24 bg-transparent border-b border-pulsar/30 text-xs text-nova/60 outline-none font-mono pb-1" />
+                    <button onClick={addCurriculum} className="px-4 py-1.5 text-xs font-mono uppercase tracking-wider rounded-lg" style={{ background: `${tabColor}20`, color: tabColor, border: `1px solid ${tabColor}40` }}>Add</button>
+                    <button onClick={() => setAddingCurriculum(false)} className="text-nova/60 text-xs hover:text-starlight transition-colors">Cancel</button>
                   </div>
                 </div>
               </div>
@@ -290,7 +290,7 @@ const CurriculumShelf = () => {
                 </div>
               </div>
             ) : !addingCurriculum && (
-              <div className="text-center py-16 text-dim/50 font-body">
+              <div className="text-center py-16 text-nova/60/50 font-body">
                 <BookOpen className="w-12 h-12 mx-auto mb-4 opacity-30" />
                 <p className="text-sm">No curricula yet for {activeTab}.</p>
                 {categories.length === 0 ? (

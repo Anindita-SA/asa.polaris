@@ -181,10 +181,10 @@ const FocusBoard = () => {
         {/* Active Focus */}
         <div>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="font-display text-starlight flex items-center gap-2">
+            <h2 className="text-lg font-display text-starlight flex items-center gap-2">
               <Flame className="w-4 h-4 text-gold" /> Active Focus
             </h2>
-            <span className="text-xs font-mono text-dim">{focusItems.length}/3</span>
+            <span className="text-xs font-mono text-nova/60">{focusItems.length}/3</span>
           </div>
 
           <div className="grid gap-3">
@@ -196,7 +196,7 @@ const FocusBoard = () => {
                   onDragStart={() => handleDragStart(i)}
                   onDragOver={handleDragOver}
                   onDrop={() => handleDrop(i)}
-                  className="glass glass-hover p-4 rounded-xl border border-blue-900/20 relative group cursor-grab active:cursor-grabbing hover:-translate-y-1 transition-transform">
+                  className="glass glass-hover p-4 rounded-xl border border-pulsar/30 relative group cursor-grab active:cursor-grabbing hover:-translate-y-1 transition-transform">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
@@ -207,7 +207,7 @@ const FocusBoard = () => {
                         }`}>{item.category}</span>
                       </div>
                       <p className="text-sm text-starlight font-body">{item.title}</p>
-                      {item.why_now && <p className="text-xs text-dim mt-1 italic">"{item.why_now}"</p>}
+                      {item.why_now && <p className="text-xs text-nova/60 mt-1 italic">"{item.why_now}"</p>}
                       <button onClick={() => { setBreakdownTarget(item); setTaskDescription(item.title); }} className="text-xs text-gold mt-2 flex items-center gap-1">
                         <Zap className="w-3 h-3" /> Break it down
                       </button>
@@ -222,8 +222,8 @@ const FocusBoard = () => {
                       )}
                     </div>
                     <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => completeFocus(item)} title="Complete" className="text-dim hover:text-emerald transition-colors p-1"><Check className="w-3.5 h-3.5" /></button>
-                      <button onClick={() => sendToBackburner(item)} title="Backburner" className="text-dim hover:text-gold transition-colors p-1"><Archive className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => completeFocus(item)} title="Complete" className="text-nova/60 hover:text-emerald transition-colors p-1"><Check className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => sendToBackburner(item)} title="Backburner" className="text-nova/60 hover:text-gold transition-colors p-1"><Archive className="w-3.5 h-3.5" /></button>
                     </div>
                   </div>
                 </div>
@@ -231,13 +231,13 @@ const FocusBoard = () => {
                 <div key={i} 
                   onDragOver={handleDragOver}
                   onDrop={() => handleDrop(focusItems.length)}
-                  className={`border border-dashed border-blue-900/30 rounded-xl p-4 flex items-center justify-center ${focusItems.length <= i ? 'opacity-60' : 'opacity-20'}`}>
+                  className={`border border-dashed border-pulsar/40 rounded-xl p-4 flex items-center justify-center ${focusItems.length <= i ? 'opacity-60' : 'opacity-20'}`}>
                   {focusItems.length <= i && i === focusItems.length ? (
-                    <button onClick={() => setShowModal('focus')} className="flex items-center gap-2 text-dim hover:text-nova transition-colors text-xs font-body">
+                    <button onClick={() => setShowModal('focus')} className="flex items-center gap-2 text-nova/60 hover:text-nova transition-colors text-xs font-body">
                       <Plus className="w-3.5 h-3.5" /> Add focus item
                     </button>
                   ) : (
-                    <span className="text-dim text-xs">slot {i + 1}</span>
+                    <span className="text-nova/60 text-xs">slot {i + 1}</span>
                   )}
                 </div>
               )
@@ -248,10 +248,10 @@ const FocusBoard = () => {
         {/* Backburner */}
         <div>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="font-display text-starlight flex items-center gap-2">
-              <Archive className="w-4 h-4 text-dim" /> Backburner
+            <h2 className="text-lg font-display text-starlight flex items-center gap-2">
+              <Archive className="w-4 h-4 text-nova/60" /> Backburner
             </h2>
-            <button onClick={() => setShowModal('backburner')} className="text-dim hover:text-nova transition-colors">
+            <button onClick={() => setShowModal('backburner')} className="text-nova/60 hover:text-nova transition-colors">
               <Plus className="w-4 h-4" />
             </button>
           </div>
@@ -261,17 +261,17 @@ const FocusBoard = () => {
               <div key={item.id} className="glass p-3 rounded-lg border border-blue-900/10 group flex items-start gap-3">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-starlight/80 font-body">{item.title}</p>
-                  {item.why_deferred && <p className="text-xs text-dim mt-0.5">Why deferred: {item.why_deferred}</p>}
-                  {item.context_snapshot && <p className="text-xs text-dim/70 mt-0.5 italic truncate">"{item.context_snapshot}"</p>}
+                  {item.why_deferred && <p className="text-xs text-nova/60 mt-0.5">Why deferred: {item.why_deferred}</p>}
+                  {item.context_snapshot && <p className="text-xs text-nova/60/70 mt-0.5 italic truncate">"{item.context_snapshot}"</p>}
                   {item.revisit_after && <p className="text-xs font-mono text-aurora/60 mt-1">revisit after {new Date(item.revisit_after).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}</p>}
                 </div>
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                  <button onClick={() => promoteToFocus(item)} title="Promote to Focus" className="text-dim hover:text-pulsar transition-colors p-1"><ArrowUp className="w-3 h-3" /></button>
-                  <button onClick={() => deleteBackburner(item.id)} className="text-dim hover:text-danger transition-colors p-1"><X className="w-3 h-3" /></button>
+                  <button onClick={() => promoteToFocus(item)} title="Promote to Focus" className="text-nova/60 hover:text-pulsar transition-colors p-1"><ArrowUp className="w-3 h-3" /></button>
+                  <button onClick={() => deleteBackburner(item.id)} className="text-nova/60 hover:text-danger transition-colors p-1"><X className="w-3 h-3" /></button>
                 </div>
               </div>
             ))}
-            {!backburner.length && <p className="text-xs text-dim italic font-body">Nothing deferred yet. Things you're not doing now go here.</p>}
+            {!backburner.length && <p className="text-xs text-nova/60 italic font-body">Nothing deferred yet. Things you're not doing now go here.</p>}
           </div>
         </div>
       </div>
@@ -279,43 +279,43 @@ const FocusBoard = () => {
       {/* Modals */}
       {showModal && (
         <div className="modal-overlay fixed inset-0 bg-void/80 z-50 flex items-end md:items-center justify-center p-0 md:p-4" onClick={e => e.target === e.currentTarget && setShowModal(null)}>
-          <div className="modal-content glass border border-blue-900/30 rounded-t-2xl rounded-b-none md:rounded-2xl p-6 w-full w-full max-w-full md:max-w-md space-y-4">
+          <div className="modal-content glass border border-pulsar/40 rounded-t-2xl rounded-b-none md:rounded-xl p-6 w-full w-full max-w-full md:max-w-md space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="font-display text-starlight">{showModal === 'focus' ? 'New Focus Item' : 'Add to Backburner'}</h3>
-              <button onClick={() => setShowModal(null)}><X className="w-4 h-4 text-dim hover:text-starlight" /></button>
+              <h3 className="text-lg font-display text-starlight">{showModal === 'focus' ? 'New Focus Item' : 'Add to Backburner'}</h3>
+              <button onClick={() => setShowModal(null)}><X className="w-4 h-4 text-nova/60 hover:text-starlight" /></button>
             </div>
 
-            <input placeholder="Title" className="w-full bg-stardust/50 text-sm text-starlight border border-blue-900/20 rounded-lg px-3 py-2 outline-none focus:border-pulsar/40 font-body"
+            <input placeholder="Title" className="w-full bg-stardust/50 text-sm text-starlight border border-pulsar/30 rounded-lg px-3 py-2 outline-none focus:border-pulsar/40 font-body"
               value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
 
             {showModal === 'focus' ? (
               <>
-                <select className="w-full bg-stardust/50 text-sm text-dim border border-blue-900/20 rounded-lg px-3 py-2 outline-none"
+                <select className="w-full bg-stardust/50 text-sm text-nova/60 border border-pulsar/30 rounded-lg px-3 py-2 outline-none"
                   value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}>
                   {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
-                <select className="w-full bg-stardust/50 text-sm text-dim border border-blue-900/20 rounded-lg px-3 py-2 outline-none"
+                <select className="w-full bg-stardust/50 text-sm text-nova/60 border border-pulsar/30 rounded-lg px-3 py-2 outline-none"
                   value={form.linkedMilestone} onChange={e => setForm(f => ({ ...f, linkedMilestone: e.target.value, why_now: '' }))}>
                   <option value="">No milestone linked</option>
                   {milestones.map(m => <option key={m.id} value={m.title}>{m.title}</option>)}
                 </select>
                 {!form.linkedMilestone && (
-                  <input placeholder="Why now? (optional)" className="w-full bg-stardust/50 text-sm text-starlight border border-blue-900/20 rounded-lg px-3 py-2 outline-none focus:border-pulsar/40 font-body"
+                  <input placeholder="Why now? (optional)" className="w-full bg-stardust/50 text-sm text-starlight border border-pulsar/30 rounded-lg px-3 py-2 outline-none focus:border-pulsar/40 font-body"
                     value={form.why_now} onChange={e => setForm(f => ({ ...f, why_now: e.target.value }))} />
                 )}
-                <button onClick={addFocus} disabled={focusItems.length >= 3} className="w-full py-2 bg-pulsar/20 border border-pulsar/30 text-pulsar text-sm font-display rounded-lg hover:bg-pulsar/30 transition-colors disabled:opacity-40">
+                <button onClick={addFocus} disabled={focusItems.length >= 3} className="w-full py-2 bg-pulsar/20 border border-pulsar/30 text-pulsar text-lg font-display rounded-lg hover:bg-pulsar/30 transition-colors disabled:opacity-40">
                   {focusItems.length >= 3 ? 'FOCUS FULL (max 3)' : 'ADD TO FOCUS'}
                 </button>
               </>
             ) : (
               <>
-                <input placeholder="Why deferred?" className="w-full bg-stardust/50 text-sm text-starlight border border-blue-900/20 rounded-lg px-3 py-2 outline-none focus:border-pulsar/40 font-body"
+                <input placeholder="Why deferred?" className="w-full bg-stardust/50 text-sm text-starlight border border-pulsar/30 rounded-lg px-3 py-2 outline-none focus:border-pulsar/40 font-body"
                   value={form.why_deferred} onChange={e => setForm(f => ({ ...f, why_deferred: e.target.value }))} />
-                <textarea placeholder="Context snapshot - what you know so far" rows={2} className="w-full bg-stardust/50 text-sm text-starlight border border-blue-900/20 rounded-lg px-3 py-2 outline-none focus:border-pulsar/40 font-body resize-none"
+                <textarea placeholder="Context snapshot - what you know so far" rows={2} className="w-full bg-stardust/50 text-sm text-starlight border border-pulsar/30 rounded-lg px-3 py-2 outline-none focus:border-pulsar/40 font-body resize-none"
                   value={form.context_snapshot} onChange={e => setForm(f => ({ ...f, context_snapshot: e.target.value }))} />
-                <input type="date" className="w-full bg-stardust/50 text-sm text-dim border border-blue-900/20 rounded-lg px-3 py-2 outline-none"
+                <input type="date" className="w-full bg-stardust/50 text-sm text-nova/60 border border-pulsar/30 rounded-lg px-3 py-2 outline-none"
                   value={form.revisit_after} onChange={e => setForm(f => ({ ...f, revisit_after: e.target.value }))} />
-                <button onClick={addBackburner} className="w-full py-2 bg-gold-dim/20 border border-gold/20 text-gold text-sm font-display rounded-lg hover:bg-gold-dim/30 transition-colors">
+                <button onClick={addBackburner} className="w-full py-2 bg-gold-dim/20 border border-gold/50 text-gold text-lg font-display rounded-lg hover:bg-gold-dim/30 transition-colors">
                   Defer To Backburner
                 </button>
               </>
@@ -325,11 +325,11 @@ const FocusBoard = () => {
       )}
       {breakdownTarget && (
         <div className="modal-overlay fixed inset-0 bg-void/80 z-50 flex items-end md:items-center justify-center p-0 md:p-4" onClick={e => e.target === e.currentTarget && setBreakdownTarget(null)}>
-          <div className="modal-content glass border border-blue-900/30 rounded-t-2xl rounded-b-none md:rounded-2xl p-6 w-full w-full max-w-full md:max-w-lg space-y-3">
-            <h3 className="font-display text-starlight">Break down: {breakdownTarget.title}</h3>
+          <div className="modal-content glass border border-pulsar/40 rounded-t-2xl rounded-b-none md:rounded-xl p-6 w-full w-full max-w-full md:max-w-lg space-y-3">
+            <h3 className="text-lg font-display text-starlight">Break down: {breakdownTarget.title}</h3>
             <textarea rows={4} value={taskDescription} onChange={e => setTaskDescription(e.target.value)}
-              className="w-full bg-stardust/50 text-sm text-starlight border border-blue-900/20 rounded-lg px-3 py-2 outline-none resize-none" />
-            <button onClick={breakDownTask} className="w-full py-2 bg-gold/20 border border-gold/30 text-gold rounded-lg text-sm">Break It Down</button>
+              className="w-full bg-stardust/50 text-sm text-starlight border border-pulsar/30 rounded-lg px-3 py-2 outline-none resize-none" />
+            <button onClick={breakDownTask} className="w-full py-2 bg-gold/20 border border-gold/50 text-gold rounded-lg text-sm">Break It Down</button>
             {generatedSteps.map((step, idx) => <p key={idx} className="text-xs text-starlight">{idx + 1}. {step}</p>)}
             {!!generatedSteps.length && <button onClick={saveSubtasks} className="w-full py-2 bg-pulsar/20 border border-pulsar/30 text-pulsar rounded-lg text-sm">Save To Polaris</button>}
           </div>

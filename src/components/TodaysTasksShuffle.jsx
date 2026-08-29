@@ -1,6 +1,7 @@
-﻿import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useWSJFScore } from '../hooks/useWSJFScore';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../hooks/useAuth';
 import DayChunker from './DayChunker';
 import { 
   Shuffle, 
@@ -46,6 +47,7 @@ const TINY_FIRST_STEPS = [
 ];
 
 export default function TodaysTasksShuffle() {
+  const { user } = useAuth();
   const { tasks, loading, error, refetch } = useWSJFScore();
   
   useEffect(() => {
@@ -119,7 +121,7 @@ export default function TodaysTasksShuffle() {
       const { error } = await supabase
         .from('tasks')
         .update({ scheduled_day: weekdayId })
-        .eq('id', taskId);
+        .eq('id', taskId).eq('user_id', user?.id);
 
       if (error) throw error;
       refetch();
@@ -150,7 +152,7 @@ export default function TodaysTasksShuffle() {
       const { error } = await supabase
         .from('tasks')
         .update({ status: 'done' })
-        .eq('id', task.id);
+        .eq('id', task.id).eq('user_id', user?.id);
 
       if (error) throw error;
 
@@ -175,15 +177,15 @@ export default function TodaysTasksShuffle() {
     <div className="w-full min-h-full bg-transparent text-starlight font-body p-4 sm:p-6 md:p-8 pb-32 selection:bg-gold selection:text-black">
       
       {/* Header Bar */}
-      <div className="max-w-5xl mx-auto mb-6 border-b border-blue-900/20 pb-5 flex flex-wrap items-center justify-between gap-4">
+      <div className="max-w-5xl mx-auto mb-6 border-b border-pulsar/30 pb-5 flex flex-wrap items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
             <CalendarDays className="w-5 h-5 text-gold" />
-            <h1 className="font-display text-xl sm:text-2xl text-starlight">
+            <h1 className="font-display text-lg sm:text-xl font-bold text-starlight">
               Day Planner <span className="text-gold font-mono text-base">/</span> Weekday Memory
             </h1>
           </div>
-          <p className="text-xs sm:text-sm font-body text-dim italic mt-1">
+          <p className="text-xs sm:text-sm font-body text-nova/60 italic mt-1">
             Plan and tweak your daily capacity per weekday. Ready for Calendar & Reminder sync.
           </p>
         </div>
@@ -193,8 +195,8 @@ export default function TodaysTasksShuffle() {
             onClick={() => setShowScores(!showScores)}
             className={`px-3.5 py-1.5 rounded-full text-xs font-mono font-semibold transition-all glass border ${
               showScores
-                ? 'bg-gold/20 border-gold text-gold shadow-[0_0_10px_rgba(245,158,11,0.3)]'
-                : 'border-blue-900/30 text-dim hover:text-starlight'
+                ? 'bg-gold/20 border-gold text-gold '
+                : 'border-pulsar/40 text-nova/60 hover:text-starlight'
             }`}
           >
             {showScores ? 'HIDE SCORES' : 'SHOW SCORES'}
@@ -203,7 +205,7 @@ export default function TodaysTasksShuffle() {
           <button
             onClick={handleShuffle}
             disabled={loading || tasks.length === 0}
-            className="bg-gold hover:bg-gold/90 disabled:opacity-50 text-void font-display text-xs sm:text-sm px-4 py-2 rounded-full flex items-center gap-2 transition-all shadow-[0_0_20px_rgba(245,158,11,0.3)] active:scale-95 cursor-pointer"
+            className="bg-gold hover:bg-gold/90 disabled:opacity-50 text-void font-display text-xs sm:text-sm px-4 py-2 rounded-full flex items-center gap-2 transition-all active:scale-95 cursor-pointer"
           >
             <Shuffle className="w-4 h-4" />
             <span>SHUFFLE {WEEKDAYS.find(w => w.id === selectedDay)?.short}</span>
@@ -216,13 +218,13 @@ export default function TodaysTasksShuffle() {
         {/* ==================================================================== */}
         {/* Weekday Memory Selector Capsule Strip                                */}
         {/* ==================================================================== */}
-        <section className="glass border border-blue-900/20 rounded-2xl p-3 sm:p-5 shadow-2xl">
+        <section className="glass border border-pulsar/30 rounded-xl p-3 sm:p-5 shadow-2xl">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-display text-starlight flex items-center gap-1.5">
+            <span className="text-xs font-mono uppercase tracking-wider text-starlight flex items-center gap-1.5">
               <Star className="w-4 h-4 text-gold fill-current" /> Weekday Memory Slots
             </span>
 
-            <span className="inline-flex items-center gap-1 text-[10px] font-mono text-pulsar bg-pulsar/10 border border-pulsar/30 px-3 py-1 rounded-full">
+            <span className="inline-flex items-center gap-1 text-xs font-mono text-pulsar bg-pulsar/10 border border-pulsar/30 px-3 py-1 rounded-full">
               <Share2 className="w-3 h-3" /> Ready for Calendar & Reminders Sync
             </span>
           </div>
@@ -238,21 +240,21 @@ export default function TodaysTasksShuffle() {
                 <button
                   key={day.id}
                   onClick={() => setSelectedDay(day.id)}
-                  className={`flex flex-col items-center justify-center p-3 rounded-2xl border transition-all cursor-pointer ${
+                  className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all cursor-pointer ${
                     isSelected
-                      ? 'bg-cosmic border-gold text-starlight shadow-[0_0_15px_rgba(245,158,11,0.3)] font-bold scale-[1.03]'
+                      ? 'bg-cosmic border-gold text-starlight  font-bold scale-[1.03]'
                       : isToday
                       ? 'glass border-pulsar/40 text-starlight hover:border-gold'
-                      : 'glass border-blue-900/20 text-dim hover:text-starlight hover:border-blue-900/40'
+                      : 'glass border-pulsar/30 text-nova/60 hover:text-starlight hover:border-blue-900/40'
                   }`}
                 >
-                  <span className="font-display text-xs ">{day.short}</span>
+                  <span className="font-display text-xs">{day.short}</span>
                   {isToday && (
                     <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded-full mt-1 ${isSelected ? 'bg-gold text-void font-bold' : 'bg-pulsar/20 text-pulsar'}`}>
                       Today
                     </span>
                   )}
-                  <span className={`text-[9px] font-mono mt-1 ${isSelected ? 'text-gold' : 'text-dim'}`}>
+                  <span className={`text-[9px] font-mono mt-1 ${isSelected ? 'text-gold' : 'text-nova/60'}`}>
                     {cap}m
                   </span>
                 </button>
@@ -271,7 +273,7 @@ export default function TodaysTasksShuffle() {
               initial={{ opacity: 0, y: -12 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -12 }}
-              className="relative rounded-2xl p-5 glass border-2 border-gold shadow-[0_0_30px_rgba(245,158,11,0.3)] overflow-hidden"
+              className="relative rounded-xl p-5 glass border-2 border-gold  overflow-hidden"
             >
               <div
                 className="absolute top-0 left-0 bottom-0 bg-gold/10 transition-all duration-1000 pointer-events-none"
@@ -284,16 +286,16 @@ export default function TodaysTasksShuffle() {
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="h-2.5 w-2.5 rounded-full bg-gold animate-ping" />
-                    <span className="text-xs font-display text-gold font-bold">
+                    <span className="text-xs font-mono uppercase tracking-widest text-gold font-bold">
                       Launch Pad Active - {WEEKDAYS.find(w => w.id === selectedDay)?.label}
                     </span>
                   </div>
-                  <h2 className="text-lg sm:text-xl font-body font-bold text-starlight mt-1">
+                  <h2 className="text-xl sm:text-sm font-body font-bold text-starlight mt-1">
                     {activeTask.title}
                   </h2>
 
                   {activeCue && (
-                    <div className="mt-2 text-xs bg-gold/15 border border-gold/30 text-starlight px-3 py-1.5 rounded-xl flex items-center gap-2 font-body">
+                    <div className="mt-2 text-xs bg-gold/15 border border-gold/50 text-starlight px-3 py-1.5 rounded-xl flex items-center gap-2 font-body">
                       <Zap className="w-3.5 h-3.5 text-gold shrink-0" />
                       <span><strong>First Step:</strong> {activeCue}</span>
                     </div>
@@ -305,7 +307,7 @@ export default function TodaysTasksShuffle() {
                     <div className="text-2xl font-mono font-bold text-gold">
                       {formatTimer(timerSeconds)}
                     </div>
-                    <div className="text-[11px] font-mono text-dim">
+                    <div className="text-[11px] font-mono text-nova/60">
                       Est: {activeTask.estimated_minutes || 30}m
                     </div>
                   </div>
@@ -313,7 +315,7 @@ export default function TodaysTasksShuffle() {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => setIsTimerRunning(!isTimerRunning)}
-                      className="p-2.5 rounded-xl glass border border-blue-900/30 text-starlight hover:border-gold transition-all"
+                      className="p-2.5 rounded-xl glass border border-pulsar/40 text-starlight hover:border-gold transition-all"
                     >
                       {isTimerRunning ? <Pause className="w-4 h-4 text-gold" /> : <Play className="w-4 h-4 text-emerald" />}
                     </button>
@@ -332,28 +334,28 @@ export default function TodaysTasksShuffle() {
         </AnimatePresence>
 
         {/* Selected Weekday Capacity Controls */}
-        <div className="glass border border-blue-900/20 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
+        <div className="glass border border-pulsar/30 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
           <div className="flex items-center gap-3">
-            <span className="text-dim">
+            <span className="text-nova/60">
               Capacity for <strong className="text-starlight font-display">{WEEKDAYS.find(w => w.id === selectedDay)?.label}</strong>:
             </span>
             <span className="font-bold text-gold">
               {dayAllocatedMinutes}m / {weekdayCapacities[selectedDay] || 240}m
             </span>
-            <span className="text-dim">
+            <span className="text-nova/60">
               ({Math.round((dayAllocatedMinutes / (weekdayCapacities[selectedDay] || 240)) * 100)}% filled)
             </span>
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-dim">Adjust Budget:</span>
+            <span className="text-nova/60">Adjust Budget:</span>
             <select
               value={weekdayCapacities[selectedDay] || 240}
               onChange={(e) => {
                 const val = parseInt(e.target.value, 10);
                 setWeekdayCapacities(prev => ({ ...prev, [selectedDay]: val }));
               }}
-              className="bg-void border border-blue-900/30 text-xs font-mono font-bold text-gold rounded-lg px-2.5 py-1 outline-none cursor-pointer"
+              className="bg-void border border-pulsar/40 text-xs font-mono font-bold text-gold rounded-lg px-2.5 py-1 outline-none cursor-pointer"
             >
               <option value={120}>2h (120m)</option>
               <option value={180}>3h (180m)</option>
@@ -367,11 +369,11 @@ export default function TodaysTasksShuffle() {
 
         {/* Task Cards Stack */}
         {loading ? (
-          <div className="p-12 text-center text-sm text-dim glass border border-blue-900/20 rounded-2xl font-body">
+          <div className="p-12 text-center text-sm text-nova/60 glass border border-pulsar/30 rounded-xl font-body">
             Loading weekday schedule & scoring tasks...
           </div>
         ) : dayTasks.length === 0 ? (
-          <div className="p-12 text-center text-sm text-dim glass border border-blue-900/20 rounded-2xl font-body italic">
+          <div className="p-12 text-center text-sm text-nova/60 glass border border-pulsar/30 rounded-xl font-body italic">
             No tasks planned for {WEEKDAYS.find(w => w.id === selectedDay)?.label} yet. Select another day or dump new tasks in the TASK VOMIT!
           </div>
         ) : (
@@ -409,39 +411,39 @@ function WeekdayTaskCard({ task, rank, showScore, selectedDay, isActive, onStart
       exit={{ opacity: 0, scale: 0.98 }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className={`group relative rounded-2xl p-4 glass border transition-all duration-200 backdrop-blur-md flex flex-wrap items-center justify-between gap-4 ${
+      className={`group relative rounded-xl p-4 glass border transition-all duration-200 backdrop-blur-md flex flex-wrap items-center justify-between gap-4 ${
         isActive
-          ? 'bg-cosmic border-gold shadow-[0_0_20px_rgba(245,158,11,0.25)]'
-          : 'border-blue-900/20 hover:border-gold/50 hover:bg-white/5'
+          ? 'bg-cosmic border-gold '
+          : 'border-pulsar/30 hover:border-gold/50 hover:bg-pulsar/10'
       }`}
     >
       <div className="flex items-center gap-3.5 min-w-0 flex-1">
-        <div className="h-7 w-7 rounded-xl bg-void border border-blue-900/30 flex items-center justify-center text-xs font-mono font-bold text-gold shrink-0">
+        <div className="h-7 w-7 rounded-xl bg-void border border-pulsar/40 flex items-center justify-center text-xs font-mono font-bold text-gold shrink-0">
           #{rank}
         </div>
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="text-sm font-body font-semibold text-starlight truncate">
+            <h3 className="text-base font-body font-semibold text-starlight truncate">
               {task.title}
             </h3>
 
             {(showScore || isHovered) && task.wsjfScore !== undefined && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-mono font-semibold bg-gold/15 border border-gold/40 text-gold px-2.5 py-0.5 rounded-full">
+              <span className="inline-flex items-center gap-1 text-xs font-mono font-semibold bg-gold/15 border border-gold/40 text-gold px-2.5 py-0.5 rounded-full">
                 <Award className="w-3 h-3 text-gold" />
                 <span>WSJF: {task.wsjfScore}</span>
               </span>
             )}
           </div>
 
-          <div className="flex items-center gap-2 mt-1 flex-wrap text-[11px] font-mono text-dim">
-            <span className="flex items-center gap-1 bg-void px-2 py-0.5 rounded-lg border border-blue-900/30">
+          <div className="flex items-center gap-2 mt-1 flex-wrap text-[11px] font-mono text-nova/60">
+            <span className="flex items-center gap-1 bg-void px-2 py-0.5 rounded-lg border border-pulsar/40">
               <Clock className="w-3 h-3 text-pulsar" />
               <span>{task.estimated_minutes || 30}m</span>
             </span>
 
             {task.deadline && (
-              <span className="flex items-center gap-1 bg-void px-2 py-0.5 rounded-lg border border-blue-900/30">
+              <span className="flex items-center gap-1 bg-void px-2 py-0.5 rounded-lg border border-pulsar/40">
                 <Calendar className="w-3 h-3 text-gold" />
                 <span>{task.deadline}</span>
               </span>
@@ -451,7 +453,7 @@ function WeekdayTaskCard({ task, rank, showScore, selectedDay, isActive, onStart
       </div>
 
       <div className="flex items-center gap-2">
-        <div className="flex items-center gap-1 bg-void border border-blue-900/30 px-2.5 py-1 rounded-xl text-[10px] font-mono text-dim">
+        <div className="flex items-center gap-1 bg-void border border-pulsar/40 px-2.5 py-1 rounded-xl text-xs font-mono text-nova/60">
           <span>Move:</span>
           <select
             value={task.scheduled_day || selectedDay}
@@ -476,7 +478,7 @@ function WeekdayTaskCard({ task, rank, showScore, selectedDay, isActive, onStart
 
         <button
           onClick={onMarkDone}
-          className="p-2 rounded-xl glass border border-blue-900/20 text-dim hover:text-emerald transition-all cursor-pointer"
+          className="p-2 rounded-xl glass border border-pulsar/30 text-nova/60 hover:text-emerald transition-all cursor-pointer"
           title="Mark done"
         >
           <CheckCircle2 className="w-4 h-4" />

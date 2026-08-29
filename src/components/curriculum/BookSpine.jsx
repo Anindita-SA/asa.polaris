@@ -62,7 +62,7 @@
                 {curriculum.title}
               </span>
               {curriculum.description && (
-                <span className="text-[11px] text-dim mt-2 block font-body line-clamp-3">{curriculum.description}</span>
+                <span className="text-[11px] text-nova/60 mt-2 block font-body line-clamp-3">{curriculum.description}</span>
               )}
             </div>
           </div>
@@ -82,7 +82,7 @@
 
           {/* Hours badge */}
           {curriculum.estimated_hours && (
-            <div className="absolute top-3 right-3 text-[10px] font-mono text-dim/60 px-2 py-0.5 rounded-full bg-void/50">
+            <div className="absolute top-3 right-3 text-xs font-mono text-nova/60/60 px-2 py-0.5 rounded-full bg-void/70">
               {curriculum.estimated_hours}h
             </div>
           )}

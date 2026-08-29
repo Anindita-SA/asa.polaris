@@ -306,12 +306,12 @@ const PomodoroTimer = ({ mobilePill = false }) => {
 
       <div className="relative z-10 flex flex-col items-center w-full max-w-sm">
         {/* Mode tabs */}
-        <div className="flex w-full mb-6 bg-blue-900/10 rounded-xl p-1 border border-blue-900/20">
+        <div className="flex w-full mb-6 bg-blue-900/10 rounded-xl p-1 border border-pulsar/30">
           {Object.entries(MODE_CONFIG).map(([key, cfg]) => (
             <button key={key} onClick={() => setMode(key)}
               className={`flex-1 py-2 rounded-lg text-sm font-body transition-all ${mode === key
                   ? 'text-starlight shadow-sm font-bold'
-                  : 'text-dim hover:text-starlight hover:bg-blue-900/10'
+                  : 'text-nova/60 hover:text-starlight hover:bg-blue-900/10'
                 }`}
               style={mode === key ? { background: color } : {}}>
               {cfg.label}
@@ -351,32 +351,32 @@ const PomodoroTimer = ({ mobilePill = false }) => {
               strokeLinecap="round" style={{ transition: 'stroke-dashoffset 1s linear' }} />
           </svg>
           <div className="relative text-center select-none">
-            <p className="text-sm font-body text-dim mb-2 ">{MODE_CONFIG[mode].label}</p>
+            <p className="text-sm font-body text-nova/60 mb-2 ">{MODE_CONFIG[mode].label}</p>
             <p className="text-7xl font-display text-starlight tracking-tight leading-none mb-2">
               {mins}:{secs}
             </p>
-            <p className="text-xs text-dim font-mono">{isRunning ? 'Click to pause' : 'Click to start'}</p>
+            <p className="text-xs text-nova/60 font-mono">{isRunning ? 'Click to pause' : 'Click to start'}</p>
           </div>
         </div>
 
         <div className="mt-8 flex flex-col gap-3 w-full">
           {/* IO Type toggle */}
-          <div className="flex rounded-lg overflow-hidden border border-blue-900/20 bg-stardust/20">
+          <div className="flex rounded-lg overflow-hidden border border-pulsar/30 bg-stardust/20">
             <button onClick={() => { setIoType('input'); localStorage.setItem('polaris_pomo_iotype', 'input') }}
-              className={`flex-1 text-xs py-2 font-body transition-all ${ioType === 'input' ? 'bg-blue-900/50 text-amber-400 border-r border-blue-900/20 shadow-inner font-bold' : 'text-dim hover:text-starlight border-r border-blue-900/20'}`}>
+              className={`flex-1 text-xs py-2 font-body transition-all ${ioType === 'input' ? 'bg-blue-900/50 text-amber-400 border-r border-pulsar/30  font-bold' : 'text-nova/60 hover:text-starlight border-r border-pulsar/30'}`}>
               📥 Input
             </button>
             <button onClick={() => { setIoType('output'); localStorage.setItem('polaris_pomo_iotype', 'output') }}
-              className={`flex-1 text-xs py-2 font-body transition-all ${ioType === 'output' ? 'bg-blue-900/50 text-emerald-400 shadow-inner font-bold' : 'text-dim hover:text-starlight'}`}>
+              className={`flex-1 text-xs py-2 font-body transition-all ${ioType === 'output' ? 'bg-blue-900/50 text-emerald-400  font-bold' : 'text-nova/60 hover:text-starlight'}`}>
               📤 Output
             </button>
           </div>
           
           <div className="flex items-center gap-3 w-full">
             <input type="text" placeholder="What's cookin?" value={comment} onChange={e => setComment(e.target.value)}
-              className="flex-1 bg-stardust/50 text-starlight border border-blue-900/30 rounded-xl px-4 py-3 outline-none font-body text-sm placeholder:text-dim text-center" />
+              className="flex-1 bg-stardust/50 text-starlight border border-pulsar/40 rounded-xl px-4 py-3 outline-none font-body text-sm placeholder:text-nova/60 text-center" />
             <button onClick={() => setIsExpanded(false)}
-              className="w-11 h-11 rounded-xl border border-blue-900/30 text-dim bg-stardust/40 hover:bg-stardust/80 hover:text-starlight flex items-center justify-center transition-all flex-shrink-0">
+              className="w-11 h-11 rounded-xl border border-pulsar/40 text-nova/60 bg-stardust/40 hover:bg-stardust/80 hover:text-starlight flex items-center justify-center transition-all flex-shrink-0">
               <Minimize2 className="w-5 h-5" />
             </button>
           </div>
@@ -394,7 +394,7 @@ const PomodoroTimer = ({ mobilePill = false }) => {
         <div className="flex gap-1">
           {Object.entries(MODE_CONFIG).map(([key, cfg]) => (
             <button key={key} onClick={() => setMode(key)}
-              className={`px-2 py-0.5 text-xs rounded font-body transition-all ${mode === key ? 'text-starlight font-bold' : 'text-dim hover:text-starlight'}`}
+              className={`px-2 py-0.5 text-xs rounded font-body transition-all ${mode === key ? 'text-starlight font-bold' : 'text-nova/60 hover:text-starlight'}`}
               style={mode === key ? { color, borderBottom: `1px solid ${color}` } : {}}>
               {key === 'focus' ? 'Focus' : key === 'short' ? 'Short' : 'Long'}
             </button>
@@ -402,15 +402,15 @@ const PomodoroTimer = ({ mobilePill = false }) => {
         </div>
         <div className="flex gap-1">
           <button onClick={() => { setCollapsed(c => { localStorage.setItem('polaris_pomo_collapsed', !c); return !c }) }}
-            className="text-dim hover:text-starlight transition-colors p-1">
+            className="text-nova/60 hover:text-starlight transition-colors p-1">
             {collapsed ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
           </button>
           <button onClick={() => setShowSettings(s => !s)}
-            className="text-dim hover:text-starlight transition-colors p-1">
+            className="text-nova/60 hover:text-starlight transition-colors p-1">
             <Settings className="w-3 h-3" />
           </button>
           <button onClick={() => setIsExpanded(true)}
-            className="text-dim hover:text-starlight transition-colors p-1">
+            className="text-nova/60 hover:text-starlight transition-colors p-1">
             <Maximize2 className="w-3 h-3" />
           </button>
         </div>
@@ -422,7 +422,7 @@ const PomodoroTimer = ({ mobilePill = false }) => {
           <p className="text-lg font-mono text-starlight">{mins}:{secs}</p>
           <div className="flex items-center gap-2">
             <button onClick={handleClockClick}
-              className="w-7 h-7 rounded-lg border border-blue-900/30 flex items-center justify-center transition-all"
+              className="w-7 h-7 rounded-lg border border-pulsar/40 flex items-center justify-center transition-all"
               style={{ color, borderColor: `${color}50` }}>
               {isRunning ? (
                 <svg className="w-3 h-3 fill-current" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
@@ -430,7 +430,7 @@ const PomodoroTimer = ({ mobilePill = false }) => {
                 <svg className="w-3.5 h-3.5 fill-current ml-0.5" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
               )}
             </button>
-            <button onClick={handleReset} className="text-dim hover:text-starlight transition-colors p-0.5">
+            <button onClick={handleReset} className="text-nova/60 hover:text-starlight transition-colors p-0.5">
               <RotateCcw className="w-3 h-3" />
             </button>
           </div>
@@ -442,7 +442,7 @@ const PomodoroTimer = ({ mobilePill = false }) => {
             <div className="px-3 pb-2 space-y-1">
               {Object.entries(durations).map(([key, val]) => (
                 <div key={key} className="flex items-center justify-between">
-                  <span className="text-xs text-dim font-body capitalize">{key}</span>
+                  <span className="text-xs text-nova/60 font-body capitalize">{key}</span>
                   <input type="number" defaultValue={val} min={1} max={180}
                     onBlur={e => {
                       const v = parseInt(e.target.value) || 1
@@ -451,7 +451,7 @@ const PomodoroTimer = ({ mobilePill = false }) => {
                       if (key === mode) setTimeLeft(v * 60)
                     }}
                     onKeyDown={e => e.key === 'Enter' && e.target.blur()}
-                    className="w-14 bg-stardust text-xs text-starlight border border-blue-900/20 rounded px-2 py-0.5 outline-none font-mono text-center" />
+                    className="w-14 bg-stardust text-xs text-starlight border border-pulsar/30 rounded px-2 py-0.5 outline-none font-mono text-center" />
                 </div>
               ))}
             </div>
@@ -475,7 +475,7 @@ const PomodoroTimer = ({ mobilePill = false }) => {
             {/* Controls row */}
             <div className="flex items-center gap-3 mt-2">
               <button onClick={handleClockClick}
-                className="w-8 h-8 rounded-lg border border-blue-900/30 flex items-center justify-center transition-all hover:bg-blue-900/20"
+                className="w-8 h-8 rounded-lg border border-pulsar/40 flex items-center justify-center transition-all hover:bg-blue-900/20"
                 style={{ color, borderColor: `${color}50` }}>
                 {isRunning ? (
                   <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
@@ -483,7 +483,7 @@ const PomodoroTimer = ({ mobilePill = false }) => {
                   <svg className="w-4 h-4 fill-current ml-0.5" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                 )}
               </button>
-              <button onClick={handleReset} className="text-dim hover:text-starlight transition-colors p-1">
+              <button onClick={handleReset} className="text-nova/60 hover:text-starlight transition-colors p-1">
                 <RotateCcw className="w-3.5 h-3.5" />
               </button>
               <button onClick={() => setAutoRestart(r => !r)}
@@ -500,7 +500,7 @@ const PomodoroTimer = ({ mobilePill = false }) => {
                 <select
                   value={selectedTaskId}
                   onChange={e => handleSelectTodayTask(e.target.value)}
-                  className="w-full bg-stardust/60 text-xs text-starlight border border-blue-900/30 focus:border-amber-400/60 rounded-lg px-2 py-1.5 outline-none font-body truncate"
+                  className="w-full bg-stardust/60 text-xs text-starlight border border-pulsar/40 focus:border-amber-400/60 rounded-lg px-2 py-1.5 outline-none font-body truncate"
                 >
                   <option value="">🎯 Select Task to Focus On...</option>
                   {taskGroups.map(group => (
@@ -520,14 +520,14 @@ const PomodoroTimer = ({ mobilePill = false }) => {
             {currentTask && (
               <div className="mt-2 w-full glass border border-amber-400/30 bg-amber-400/10 rounded-lg p-2 flex items-center justify-between text-xs">
                 <div className="flex items-center gap-1.5 min-w-0">
-                  <span className="text-[10px] font-mono px-1 py-0.5 rounded bg-amber-400/20 text-amber-400 font-bold shrink-0">
+                  <span className="text-xs font-mono px-1 py-0.5 rounded bg-amber-400/20 text-amber-400 font-bold shrink-0">
                     {ioType === 'input' ? '📥 Input' : '📤 Output'}
                   </span>
                   <span className="text-starlight font-body truncate leading-snug">{currentTask.title}</span>
                 </div>
                 <button
                   onClick={() => toggleTaskComplete(currentTask)}
-                  className={`p-1 rounded transition-colors shrink-0 ${currentTask.completed ? 'text-emerald-400' : 'text-dim hover:text-emerald-400'}`}
+                  className={`p-1 rounded transition-colors shrink-0 ${currentTask.completed ? 'text-emerald-400' : 'text-nova/60 hover:text-emerald-400'}`}
                   title={currentTask.completed ? 'Mark incomplete' : 'Mark complete'}
                 >
                   <CheckCircle2 className="w-3.5 h-3.5" />
@@ -537,13 +537,13 @@ const PomodoroTimer = ({ mobilePill = false }) => {
 
             {/* IO Type toggle + Comment */}
             <div className="mt-2 w-full space-y-1.5">
-              <div className="flex rounded-lg overflow-hidden border border-blue-900/20 bg-stardust/20">
+              <div className="flex rounded-lg overflow-hidden border border-pulsar/30 bg-stardust/20">
                 <button onClick={() => { setIoType('input'); localStorage.setItem('polaris_pomo_iotype', 'input') }}
-                  className={`flex-1 text-xs py-1.5 font-body transition-all ${ioType === 'input' ? 'bg-blue-900/50 text-amber-400 border-r border-blue-900/20 shadow-inner font-bold' : 'text-dim hover:text-starlight border-r border-blue-900/20'}`}>
+                  className={`flex-1 text-xs py-1.5 font-body transition-all ${ioType === 'input' ? 'bg-blue-900/50 text-amber-400 border-r border-pulsar/30  font-bold' : 'text-nova/60 hover:text-starlight border-r border-pulsar/30'}`}>
                   📥 Input
                 </button>
                 <button onClick={() => { setIoType('output'); localStorage.setItem('polaris_pomo_iotype', 'output') }}
-                  className={`flex-1 text-xs py-1.5 font-body transition-all ${ioType === 'output' ? 'bg-blue-900/50 text-emerald-400 shadow-inner font-bold' : 'text-dim hover:text-starlight'}`}>
+                  className={`flex-1 text-xs py-1.5 font-body transition-all ${ioType === 'output' ? 'bg-blue-900/50 text-emerald-400  font-bold' : 'text-nova/60 hover:text-starlight'}`}>
                   📤 Output
                 </button>
               </div>
@@ -552,12 +552,12 @@ const PomodoroTimer = ({ mobilePill = false }) => {
                 placeholder="What's cookin?"
                 value={comment}
                 onChange={e => setComment(e.target.value)}
-                className="w-full bg-stardust/40 text-xs text-starlight border border-blue-900/10 rounded-lg px-2 py-1.5 outline-none font-body placeholder:text-dim"
+                className="w-full bg-stardust/40 text-xs text-starlight border border-blue-900/10 rounded-lg px-2 py-1.5 outline-none font-body placeholder:text-nova/60"
               />
 
               {/* Ambient Audio Widget */}
               <div className="flex items-center justify-between bg-stardust/20 border border-blue-900/10 rounded-lg px-2 py-1 mt-1">
-                <button onClick={() => setAudioEnabled(e => !e)} className={`flex items-center gap-2 text-xs transition-colors ${audioEnabled ? 'text-emerald-400' : 'text-dim hover:text-starlight'}`}>
+                <button onClick={() => setAudioEnabled(e => !e)} className={`flex items-center gap-2 text-xs transition-colors ${audioEnabled ? 'text-emerald-400' : 'text-nova/60 hover:text-starlight'}`}>
                   <Music className="w-3 h-3 flex-shrink-0" />
                   {audioEnabled ? 'Audio On' : 'Audio Off'}
                 </button>

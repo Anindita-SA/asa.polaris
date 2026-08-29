@@ -23,7 +23,7 @@ export default function BottomNav({ activeView, setActiveView }) {
   }
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#030712]/90 backdrop-blur-md md:hidden border-t border-blue-900/20" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+    <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#030712]/90 backdrop-blur-md md:hidden border-t border-pulsar/30" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
       <div className="flex flex-row items-center overflow-x-auto scrollbar-hide px-2 py-2 gap-2" style={{ scrollbarWidth: 'none' }}>
         {TABS.map(tab => {
           const Icon = tab.icon
@@ -34,12 +34,12 @@ export default function BottomNav({ activeView, setActiveView }) {
               onClick={(e) => handleClick(e, tab.id)}
               className={`flex flex-col items-center justify-center gap-0.5 px-3 py-2 min-w-[64px] flex-shrink-0 rounded-lg transition-all ${
                 isActive 
-                  ? 'text-amber-400 bg-white/5' 
+                  ? 'text-amber-400 bg-pulsar/10' 
                   : 'text-white/40 hover:text-white/70'
               }`}
             >
               <Icon size={18} />
-              <span className="text-[10px] font-display leading-none mt-1">{tab.label}</span>
+              <span className="text-xs font-mono uppercase tracking-wider leading-none mt-1">{tab.label}</span>
             </button>
           )
         })}

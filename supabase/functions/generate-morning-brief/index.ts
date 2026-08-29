@@ -143,11 +143,14 @@ serve(async (req) => {
       summary: (i.summary || '').substring(0, 500) // truncate large XML contents
     }))
 
-    const prompt = `Here is a pool of recent tech developments, news, and opportunities:
+    const prompt = `Here is a pool of recent developments, news, and opportunities:
 ${JSON.stringify(minifiedPool)}
 
 Pick the 3 most exciting and relevant developments or opportunities from this pool. 
-You MUST meticulously prioritize items that match my profile: Electrical & Electronics Engineering (EEE), Robotics, Hardware Engineering, Scholarships, or TU Delft preparation. If no exact matches exist, pick the best general tech/engineering updates.
+You MUST meticulously prioritize a mix of the following: 
+1. Opportunities: Paid volunteer work (especially UN), internships, or startup job positions that align with my goals (EE, Robotics, Agri-tech, sustainable products, hardware engineering, TU Delft prep). Focus heavily on dates/deadlines (they must be fairly new with time to apply).
+2. News: Conservation tech breakthroughs, conservation effort successes and failures, sustainable ecosystems, and agri-tech. (Do NOT just pick generic tech breakthrough news).
+
 Write a tightened 1-2 sentence summary for each.
 You MUST strictly use the exact 'title', 'url', and 'source_name' provided in the pool for your chosen items. DO NOT invent or modify those fields.
 

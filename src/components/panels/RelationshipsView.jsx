@@ -122,42 +122,42 @@ export default function RelationshipsView() {
         <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide py-1">
           {categories.map(cat => (
             <button key={cat} onClick={() => setActiveCategory(cat)}
-              className={`px-3 py-1 rounded-full text-xs whitespace-nowrap transition-colors ${activeCategory === cat ? 'bg-starlight text-void' : 'glass text-starlight border border-blue-900/30 hover:bg-blue-900/20'}`}>
+              className={`px-3 py-1 rounded-full text-xs whitespace-nowrap transition-colors ${activeCategory === cat ? 'bg-starlight text-void' : 'glass text-starlight border border-pulsar/40 hover:bg-blue-900/20'}`}>
               {cat}
             </button>
           ))}
         </div>
         <div className="flex gap-2">
-          <button onClick={() => setIsSettingsOpen(true)} className="glass border border-blue-900/30 p-2 rounded-lg text-dim hover:text-starlight shrink-0">
+          <button onClick={() => setIsSettingsOpen(true)} className="glass border border-pulsar/40 p-2 rounded-lg text-nova/60 hover:text-starlight shrink-0">
             <Settings className="w-4 h-4" />
           </button>
-          <button onClick={() => openModal()} className="glass border border-blue-900/30 px-3 py-1.5 flex items-center gap-2 rounded-lg text-xs font-display text-emerald hover:text-emerald-300 shrink-0">
+          <button onClick={() => openModal()} className="glass border border-pulsar/40 px-3 py-1.5 flex items-center gap-2 rounded-lg text-xs font-mono uppercase tracking-wider text-emerald hover:text-emerald-300 shrink-0">
             <Plus className="w-3.5 h-3.5" /> Add Contact
           </button>
         </div>
       </div>
 
       {grouped.length === 0 && (
-        <div className="glass border border-blue-900/20 rounded-xl p-8 text-center mt-8">
-          <Users className="w-8 h-8 text-dim mx-auto mb-3 opacity-50" />
-          <p className="text-sm text-dim">No contacts found in this orbit.</p>
+        <div className="glass border border-pulsar/30 rounded-xl p-8 text-center mt-8">
+          <Users className="w-8 h-8 text-nova/60 mx-auto mb-3 opacity-50" />
+          <p className="text-sm text-nova/60">No contacts found in this orbit.</p>
         </div>
       )}
 
       {grouped.map(group => (
         <div key={group.tier} className="space-y-3 mt-6">
-          <h3 className="text-xs font-mono text-dim px-2 border-b border-blue-900/20 pb-2">{group.tier} Orbit</h3>
+          <h3 className="text-lg font-mono text-nova/60 px-2 border-b border-pulsar/30 pb-2">{group.tier} Orbit</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {group.items.map(contact => (
-              <div key={contact.id} className="glass border border-blue-900/20 rounded-xl p-4 overflow-hidden transition-all hover:border-blue-900/40">
+              <div key={contact.id} className="glass border border-pulsar/30 rounded-xl p-4 overflow-hidden transition-all hover:border-blue-900/40">
                 <div className="flex items-start justify-between cursor-pointer" onClick={() => setExpandedId(expandedId === contact.id ? null : contact.id)}>
                   <div>
                     <h4 className="text-starlight font-body">{contact.name}</h4>
                     <div className="flex items-center gap-2 mt-1">
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded border ${TIER_COLORS[contact.tier]}`}>
+                      <span className={`text-xs px-1.5 py-0.5 rounded border ${TIER_COLORS[contact.tier]}`}>
                         {contact.tier}
                       </span>
-                      <span className={`text-xs ${contact.isOverdue ? 'text-amber-400 font-bold' : 'text-dim'}`}>
+                      <span className={`text-xs ${contact.isOverdue ? 'text-amber-400 font-bold' : 'text-nova/60'}`}>
                         {contact.isOverdue ? `${contact.daysSince === Infinity ? 'Overdue' : `${contact.daysSince}d overdue`}` : `in ${contact.frequency_days - contact.daysSince}d`}
                       </span>
                     </div>
@@ -168,17 +168,17 @@ export default function RelationshipsView() {
                 </div>
                 
                 {expandedId === contact.id && (
-                  <div className="mt-4 pt-4 border-t border-blue-900/20 space-y-3 animate-in slide-in-from-top-2">
-                    <div className="flex flex-wrap gap-4 text-xs text-dim">
+                  <div className="mt-4 pt-4 border-t border-pulsar/30 space-y-3 animate-in slide-in-from-top-2">
+                    <div className="flex flex-wrap gap-4 text-xs text-nova/60">
                       {contact.contact_number && <div className="flex items-center gap-1.5"><Phone className="w-3 h-3"/> {contact.contact_number}</div>}
                       {contact.social_handle && <div className="flex items-center gap-1.5"><Globe className="w-3 h-3"/> {contact.social_handle}</div>}
                     </div>
-                    {contact.notes && <p className="text-xs text-starlight/70 italic border-l-2 border-blue-900/30 pl-2">"{contact.notes}"</p>}
+                    {contact.notes && <p className="text-xs text-nova/80 italic border-l-2 border-pulsar/40 pl-2">"{contact.notes}"</p>}
                     <div className="flex gap-2 pt-2">
-                      <button onClick={() => openModal(contact)} className="text-[10px] bg-blue-900/20 text-sky border border-sky/20 px-3 py-1.5 rounded hover:bg-blue-900/40 flex items-center gap-1.5">
+                      <button onClick={() => openModal(contact)} className="text-xs bg-blue-900/20 text-sky border border-sky/20 px-3 py-1.5 rounded hover:bg-blue-900/40 flex items-center gap-1.5">
                         <Edit2 className="w-3 h-3" /> Edit
                       </button>
-                      <button onClick={() => deleteContact(contact.id)} className="text-[10px] bg-red-500/10 text-red-400 border border-red-500/20 px-3 py-1.5 rounded hover:bg-red-500/20 flex items-center gap-1.5">
+                      <button onClick={() => deleteContact(contact.id)} className="text-xs bg-red-500/10 text-red-400 border border-red-500/20 px-3 py-1.5 rounded hover:bg-red-500/20 flex items-center gap-1.5">
                         <Trash2 className="w-3 h-3" /> Delete
                       </button>
                     </div>
@@ -193,21 +193,21 @@ export default function RelationshipsView() {
       {/* Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-void/80 z-50 flex items-end md:items-center justify-center p-0 md:p-4">
-          <div className="glass border border-blue-900/30 rounded-t-2xl rounded-b-none md:rounded-2xl w-full w-full max-w-full md:max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="p-4 border-b border-blue-900/30 flex justify-between items-center bg-blue-900/10">
-              <h3 className="font-display text-starlight">{editingContact ? 'Edit Contact' : 'Add Contact'}</h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-dim hover:text-starlight"><X className="w-4 h-4"/></button>
+          <div className="glass border border-pulsar/40 rounded-t-2xl rounded-b-none md:rounded-xl w-full w-full max-w-full md:max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-4 border-b border-pulsar/40 flex justify-between items-center bg-blue-900/10">
+              <h3 className="text-lg font-display text-starlight">{editingContact ? 'Edit Contact' : 'Add Contact'}</h3>
+              <button onClick={() => setIsModalOpen(false)} className="text-nova/60 hover:text-starlight"><X className="w-4 h-4"/></button>
             </div>
             <div className="p-5 space-y-4">
               <div className="space-y-1">
-                <label className="text-xs text-dim ">Name</label>
-                <input className="w-full bg-stardust/50 text-starlight border border-blue-900/20 rounded-lg px-3 py-2 outline-none focus:border-nova/50"
+                <label className="text-xs text-nova/60 ">Name</label>
+                <input className="w-full bg-stardust/50 text-starlight border border-pulsar/30 rounded-lg px-3 py-2 outline-none focus:border-nova/50"
                   value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} autoFocus />
               </div>
               <div className="flex gap-4">
                 <div className="flex-1 space-y-1">
-                  <label className="text-xs text-dim ">Tier</label>
-                  <select className="w-full bg-stardust/50 text-starlight border border-blue-900/20 rounded-lg px-3 py-2 outline-none focus:border-nova/50"
+                  <label className="text-xs text-nova/60 ">Tier</label>
+                  <select className="w-full bg-stardust/50 text-starlight border border-pulsar/30 rounded-lg px-3 py-2 outline-none focus:border-nova/50"
                     value={formData.tier} onChange={handleTierChange}>
                     <option value="hearth">Hearth (Inner)</option>
                     <option value="parlour">Parlour (Close)</option>
@@ -216,14 +216,14 @@ export default function RelationshipsView() {
                   </select>
                 </div>
                 <div className="w-24 space-y-1">
-                  <label className="text-xs text-dim ">Freq (days)</label>
-                  <input type="number" className="w-full bg-stardust/50 text-starlight border border-blue-900/20 rounded-lg px-3 py-2 outline-none focus:border-nova/50"
+                  <label className="text-xs text-nova/60 ">Freq (days)</label>
+                  <input type="number" className="w-full bg-stardust/50 text-starlight border border-pulsar/30 rounded-lg px-3 py-2 outline-none focus:border-nova/50"
                     value={formData.frequency_days} onChange={e => setFormData({...formData, frequency_days: e.target.value})} />
                 </div>
               </div>
               <div className="space-y-1">
-                <label className="text-xs text-dim ">Category (Tag)</label>
-                <input className="w-full bg-stardust/50 text-starlight border border-blue-900/20 rounded-lg px-3 py-2 outline-none focus:border-nova/50"
+                <label className="text-xs text-nova/60 ">Category (Tag)</label>
+                <input className="w-full bg-stardust/50 text-starlight border border-pulsar/30 rounded-lg px-3 py-2 outline-none focus:border-nova/50"
                   value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} placeholder="e.g. Work, College, Family" list="category-options" />
                 <datalist id="category-options">
                   {categories.filter(c => c !== 'All').map(c => <option key={c} value={c} />)}
@@ -231,24 +231,24 @@ export default function RelationshipsView() {
               </div>
               <div className="flex gap-4">
                 <div className="flex-1 space-y-1">
-                  <label className="text-xs text-dim ">Phone</label>
-                  <input className="w-full bg-stardust/50 text-starlight border border-blue-900/20 rounded-lg px-3 py-2 outline-none focus:border-nova/50"
+                  <label className="text-xs text-nova/60 ">Phone</label>
+                  <input className="w-full bg-stardust/50 text-starlight border border-pulsar/30 rounded-lg px-3 py-2 outline-none focus:border-nova/50"
                     value={formData.contact_number} onChange={e => setFormData({...formData, contact_number: e.target.value})} />
                 </div>
                 <div className="flex-1 space-y-1">
-                  <label className="text-xs text-dim ">Social</label>
-                  <input className="w-full bg-stardust/50 text-starlight border border-blue-900/20 rounded-lg px-3 py-2 outline-none focus:border-nova/50"
+                  <label className="text-xs text-nova/60 ">Social</label>
+                  <input className="w-full bg-stardust/50 text-starlight border border-pulsar/30 rounded-lg px-3 py-2 outline-none focus:border-nova/50"
                     value={formData.social_handle} onChange={e => setFormData({...formData, social_handle: e.target.value})} placeholder="@username" />
                 </div>
               </div>
               <div className="space-y-1">
-                <label className="text-xs text-dim ">Notes</label>
-                <textarea rows={2} className="w-full bg-stardust/50 text-starlight border border-blue-900/20 rounded-lg px-3 py-2 outline-none focus:border-nova/50 resize-none"
+                <label className="text-xs text-nova/60 ">Notes</label>
+                <textarea rows={2} className="w-full bg-stardust/50 text-starlight border border-pulsar/30 rounded-lg px-3 py-2 outline-none focus:border-nova/50 resize-none"
                   value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} />
               </div>
             </div>
-            <div className="p-4 border-t border-blue-900/30 bg-blue-900/5">
-              <button onClick={saveContact} disabled={!formData.name} className="w-full py-2 bg-emerald/20 text-emerald border border-emerald/30 rounded-lg font-display tracking-wide disabled:opacity-50 transition-colors">
+            <div className="p-4 border-t border-pulsar/40 bg-blue-900/5">
+              <button onClick={saveContact} disabled={!formData.name} className="w-full py-2 bg-emerald/20 text-emerald border border-emerald/30 rounded-lg font-display disabled:opacity-50 transition-colors">
                 Save Contact
               </button>
             </div>
@@ -259,26 +259,26 @@ export default function RelationshipsView() {
       {/* Settings Modal */}
       {isSettingsOpen && (
         <div className="fixed inset-0 bg-void/80 z-50 flex items-end md:items-center justify-center p-0 md:p-4">
-          <div className="glass border border-blue-900/30 rounded-t-2xl rounded-b-none md:rounded-2xl w-full w-full max-w-full md:max-w-sm overflow-hidden p-5 space-y-4 animate-in zoom-in-95 duration-200">
+          <div className="glass border border-pulsar/40 rounded-t-2xl rounded-b-none md:rounded-xl w-full w-full max-w-full md:max-w-sm overflow-hidden p-5 space-y-4 animate-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center mb-2">
-              <h3 className="font-display text-starlight">Tag Manager</h3>
-              <button onClick={() => setIsSettingsOpen(false)} className="text-dim hover:text-starlight"><X className="w-4 h-4"/></button>
+              <h3 className="text-lg font-display text-starlight">Tag Manager</h3>
+              <button onClick={() => setIsSettingsOpen(false)} className="text-nova/60 hover:text-starlight"><X className="w-4 h-4"/></button>
             </div>
-            <p className="text-xs text-dim mb-4">Categories are derived from contacts. Rename or clear them globally here.</p>
+            <p className="text-xs text-nova/60 mb-4">Categories are derived from contacts. Rename or clear them globally here.</p>
             <div className="space-y-2 pt-2 max-h-60 overflow-y-auto scrollbar-hide">
               {categories.filter(c => c !== 'All').map(cat => (
                 <div key={cat} className="flex gap-2 items-center">
-                  <input className="flex-1 bg-stardust/50 text-xs text-starlight border border-blue-900/20 rounded px-3 py-2 outline-none focus:border-nova/50" 
+                  <input className="flex-1 bg-stardust/50 text-xs text-starlight border border-pulsar/30 rounded px-3 py-2 outline-none focus:border-nova/50" 
                     defaultValue={cat} 
                     onBlur={(e) => {
                       if (e.target.value !== cat) renameCategory(cat, e.target.value)
                     }}
                     onKeyDown={e => { if (e.key === 'Enter') e.target.blur() }}
                   />
-                  <button onClick={() => renameCategory(cat, '')} className="text-dim hover:text-red-400 p-2 border border-transparent hover:border-red-500/20 hover:bg-red-500/10 rounded transition-colors"><Trash2 className="w-4 h-4" /></button>
+                  <button onClick={() => renameCategory(cat, '')} className="text-nova/60 hover:text-red-400 p-2 border border-transparent hover:border-red-500/20 hover:bg-red-500/10 rounded transition-colors"><Trash2 className="w-4 h-4" /></button>
                 </div>
               ))}
-              {categories.length <= 1 && <span className="text-xs text-dim italic">No tags exist yet.</span>}
+              {categories.length <= 1 && <span className="text-xs text-nova/60 italic">No tags exist yet.</span>}
             </div>
           </div>
         </div>

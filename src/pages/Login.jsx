@@ -28,17 +28,17 @@ const Login = () => {
             <Star className="w-8 h-8 text-gold animate-pulse-slow" fill="currentColor" />
             <div className="w-px h-12 bg-gold/40" />
           </div>
-          <h1 className="font-display text-5xl tracking-[0.3em] text-starlight">Polaris</h1>
-          <p className="font-body text-dim text-sm italic">your north star</p>
+          <h1 className="font-display text-5xl tracking-[0.3em] text-starlight">POLARIS</h1>
+          <p className="font-body text-nova/60 text-sm italic">your north star</p>
         </div>
 
         {/* Tagline */}
-        <div className="glass border border-blue-900/20 rounded-xl px-8 py-5 max-w-sm mx-auto">
-          <p className="font-body text-sm text-starlight/70 leading-relaxed">
+        <div className="glass border border-pulsar/30 rounded-xl px-8 py-5 max-w-sm mx-auto">
+          <p className="font-body text-sm text-nova/80 leading-relaxed">
             A personal command centre for<br />
             <span className="text-aurora">Anindita Sarker Aloka</span>
           </p>
-          <p className="font-mono text-xs text-dim mt-2">Engineer. Designer. Inventor.</p>
+          <p className="font-mono text-xs text-nova/60 mt-2">Engineer. Designer. Inventor.</p>
         </div>
 
         {errorMsg && (
@@ -64,19 +64,19 @@ const Login = () => {
               <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
             </svg>
             Sign in with Google
-            <span className="text-dim group-hover:text-starlight transition-colors text-xs font-mono ml-1">→</span>
+            <span className="text-nova/60 group-hover:text-starlight transition-colors text-xs font-mono ml-1">→</span>
           </button>
 
           <button
             onClick={signInAsGuest}
-            className="group flex items-center justify-center gap-3 w-full px-8 py-2.5 glass border border-gold/20 rounded-xl text-gold text-xs font-display hover:border-gold/50 hover:bg-gold/5 transition-all"
+            className="group flex items-center justify-center gap-3 w-full px-8 py-2.5 glass border border-gold/50 rounded-xl text-gold text-xs font-mono uppercase tracking-wider hover:border-gold/50 hover:bg-gold/5 transition-all"
           >
             <span>✨</span> Try as Guest / Demo
-            <span className="text-dim group-hover:text-gold transition-colors text-xs font-mono ml-1">→</span>
+            <span className="text-nova/60 group-hover:text-gold transition-colors text-xs font-mono ml-1">→</span>
           </button>
         </div>
 
-        <p className="text-xs text-dim/40 font-mono">private · encrypted · yours</p>
+        <p className="text-xs text-nova/60/40 font-mono">private · encrypted · yours</p>
       </div>
     </div>
   )

@@ -67,13 +67,13 @@ const SurpriseTaskModal = ({ isOpen, onClose, tasks = [], toggleComplete }) => {
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.9, opacity: 0, y: 20 }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="modal-content glass border border-amber-500/30 rounded-2xl p-8 w-full max-w-sm space-y-6 text-center relative shadow-2xl"
+            className="modal-content glass border border-amber-500/30 rounded-xl p-8 w-full max-w-sm space-y-6 text-center relative shadow-2xl"
           >
-            <button onClick={onClose} className="absolute top-4 right-4 text-dim hover:text-starlight">
+            <button onClick={onClose} className="absolute top-4 right-4 text-nova/60 hover:text-starlight">
               <X className="w-5 h-5"/>
             </button>
             
-            <div className="mx-auto w-16 h-16 rounded-full bg-amber-500/20 flex items-center justify-center mb-4 border border-amber-500/40 shadow-[0_0_20px_rgba(245,158,11,0.3)]">
+            <div className="mx-auto w-16 h-16 rounded-full bg-amber-500/20 flex items-center justify-center mb-4 border border-amber-500/40 ">
               <Dices className={`w-8 h-8 text-amber-400 ${isRolling ? 'animate-spin' : ''}`} />
             </div>
 
@@ -82,19 +82,19 @@ const SurpriseTaskModal = ({ isOpen, onClose, tasks = [], toggleComplete }) => {
                 <p className="text-xs font-mono text-amber-400 font-bold">
                   AI & WSJF Picked Task
                 </p>
-                <h3 className="text-xl font-display text-starlight leading-snug">
+                <h3 className="text-base font-display text-starlight leading-snug">
                   {selectedTask.title}
                 </h3>
                 {selectedTask.estimated_minutes && (
-                  <p className="text-xs font-mono text-dim">
+                  <p className="text-xs font-mono text-nova/60">
                     Estimated Time: {selectedTask.estimated_minutes}m
                   </p>
                 )}
               </div>
             ) : (
               <div className="space-y-2 min-h-[100px] flex flex-col justify-center">
-                <h3 className="text-xl font-display text-starlight">No active tasks in queue</h3>
-                <p className="text-sm text-dim italic">Add new tasks in Brain Dump or run AI Auditor!</p>
+                <h3 className="text-base font-display text-starlight">No active tasks in queue</h3>
+                <p className="text-sm text-nova/60 italic">Add new tasks in Brain Dump or run AI Auditor!</p>
               </div>
             )}
 
@@ -111,7 +111,7 @@ const SurpriseTaskModal = ({ isOpen, onClose, tasks = [], toggleComplete }) => {
               <button 
                 onClick={selectedTask ? pickRandom : onClose}
                 disabled={isRolling}
-                className="w-full py-2.5 bg-white/5 text-starlight border border-white/10 rounded-xl hover:bg-white/10 transition-colors text-sm font-body disabled:opacity-50"
+                className="w-full py-2.5 bg-pulsar/10 text-starlight border border-nova/20 rounded-xl hover:bg-white/10 transition-colors text-sm font-body disabled:opacity-50"
               >
                 {selectedTask ? 'SHUFFLE AGAIN' : 'CLOSE'}
               </button>

@@ -474,7 +474,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
   }, [tasks, selectedTaskId]);
 
   return (
-    <div className="w-full h-full bg-transparent text-starlight font-body flex flex-col md:flex-row-reverse overflow-hidden relative selection:bg-gold selection:text-black">
+    <div className="w-full h-full bg-transparent text-starlight font-['Inter'] flex flex-col md:flex-row-reverse overflow-hidden relative selection:bg-gold selection:text-black">
       
       {/* ==================================================================== */}
       {/* Left / Center: Spatial Constellation 2d Canvas Matrix                */}
@@ -515,25 +515,25 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                   <div
                     key={q.id}
                     data-role="quadrant-bg"
-                    className="relative rounded-2xl border transition-all p-5 flex flex-col glass shadow-xl"
+                    className="relative rounded-xl border transition-all p-5 flex flex-col glass shadow-xl"
                     style={{
                       backgroundColor: q.bg,
                       borderColor: q.border,
                     }}
                   >
                     {/* Quadrant Header */}
-                    <div className="flex items-center justify-between border-b border-blue-900/20 pb-3 mb-2 shrink-0">
+                    <div className="flex items-center justify-between border-b border-pulsar/30 pb-3 mb-2 shrink-0">
                       <div className="flex items-center gap-3">
                         <QIcon className="w-5 h-5" style={{ color: q.color }} />
                         <div>
-                          <h3 className="font-display text-sm text-starlight">
+                          <h3 className="font-display text-lg text-starlight">
                             {q.title}
                           </h3>
-                          <p className="text-[11px] font-body text-dim italic">{q.subtitle}</p>
+                          <p className="text-[11px] font-['Inter'] text-nova/60 italic">{q.subtitle}</p>
                         </div>
                       </div>
                       <span
-                        className="text-[10px] font-mono px-2.5 py-1 rounded-md border"
+                        className="text-xs font-mono px-2.5 py-1 rounded-md border"
                         style={{ color: q.color, borderColor: q.border, backgroundColor: 'rgba(3,7,18,0.7)' }}
                       >
                         {qTasks.length} tasks
@@ -617,43 +617,43 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                               )}
                               
                               {/* Title */}
-                              <h4 className="text-xs font-body font-medium text-[#e2e8f0] truncate leading-none pointer-events-none">
+                              <h4 className="text-[13px] font-body text-[#e2e8f0] truncate leading-none pointer-events-none">
                                 {task.title}
                               </h4>
 
                               {/* Right Tags (IN / OUT & Duration) + Action Controls */}
-                              <div className="flex items-center gap-1.5 shrink-0 font-mono text-[10px]">
+                              <div className="flex items-center gap-1.5 shrink-0 font-mono text-xs">
                                 <span className={`px-1.5 py-0.5 rounded font-bold pointer-events-none ${
-                                  ioTag === 'IN' ? 'bg-[#1a263d] text-[#60a5fa]' : 'bg-stardust text-dim border border-blue-900/30'
+                                  ioTag === 'IN' ? 'bg-[#1a263d] text-[#60a5fa]' : 'bg-stardust text-nova/60 border border-pulsar/40'
                                 }`}>
                                   {ioTag}
                                 </span>
 
                                 {task.estimated_minutes && (
-                                  <span className="text-dim bg-void/60 px-1 py-0.5 rounded border border-blue-900/30 pointer-events-none">
+                                  <span className="text-nova/60 bg-void/60 px-1 py-0.5 rounded border border-pulsar/40 pointer-events-none">
                                     {task.estimated_minutes}m
                                   </span>
                                 )}
 
                                 {/* Quick Hover Controls */}
-                                <div className="hidden group-hover:flex items-center gap-1 pl-1 border-l border-blue-900/30">
+                                <div className="hidden group-hover:flex items-center gap-1 pl-1 border-l border-pulsar/40">
                                   <button
                                     onClick={(e) => { e.stopPropagation(); handleUntether(task); }}
-                                    className="text-dim hover:text-aurora p-0.5"
+                                    className="text-nova/60 hover:text-aurora p-0.5"
                                     title="Untether Node to Float Freely in Space"
                                   >
                                     <Unlink className="w-3 h-3" />
                                   </button>
                                   <button
                                     onClick={(e) => { e.stopPropagation(); returnToBrainDump(task.id); }}
-                                    className="text-dim hover:text-starlight p-0.5"
+                                    className="text-nova/60 hover:text-starlight p-0.5"
                                     title="Return to Brain Dump"
                                   >
                                     <Inbox className="w-3 h-3" />
                                   </button>
                                   <button
                                     onClick={(e) => { e.stopPropagation(); toggleDone(task); }}
-                                    className="text-dim hover:text-emerald p-0.5"
+                                    className="text-nova/60 hover:text-emerald p-0.5"
                                     title="Mark Done"
                                   >
                                     <Check className="w-3 h-3" />
@@ -666,7 +666,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                       </AnimatePresence>
 
                       {qTasks.length === 0 && (
-                        <div className="h-full flex items-center justify-center text-[11px] font-body text-dim/50 italic border border-dashed border-blue-900/20 rounded-xl p-4">
+                        <div className="h-full flex items-center justify-center text-[11px] font-['Inter'] text-nova/60/50 italic border border-dashed border-pulsar/30 rounded-xl p-4">
                           No tasks in this quadrant
                         </div>
                       )}
@@ -722,19 +722,19 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                   className="group inline-flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-[#0a0f1e]/95 border-2 cursor-grab active:cursor-grabbing w-fit max-w-[450px] select-none"
                 >
                   <span className="w-2.5 h-2.5 rounded-full shrink-0 animate-pulse pointer-events-none" style={{ backgroundColor: qColor }} />
-                  <h4 className="text-xs font-body font-semibold text-starlight truncate leading-none pointer-events-none">
+                  <h4 className="text-[13px] font-body text-starlight truncate leading-none pointer-events-none">
                     {task.title}
                   </h4>
 
                   <div className="flex items-center gap-1.5 shrink-0 font-mono text-[9px]">
                     <span className={`px-1.5 py-0.5 rounded font-bold pointer-events-none ${
-                      ioTag === 'IN' ? 'bg-[#1a263d] text-[#60a5fa]' : 'bg-stardust text-dim border border-blue-900/30'
+                      ioTag === 'IN' ? 'bg-[#1a263d] text-[#60a5fa]' : 'bg-stardust text-nova/60 border border-pulsar/40'
                     }`}>
                       {ioTag}
                     </span>
 
                     {/* Retether & Hover Controls */}
-                    <div className="hidden group-hover:flex items-center gap-1 pl-1 border-l border-blue-900/30">
+                    <div className="hidden group-hover:flex items-center gap-1 pl-1 border-l border-pulsar/40">
                       <button
                         onClick={(e) => { e.stopPropagation(); handleRetether(task); }}
                         className="text-gold hover:text-white p-0.5"
@@ -744,14 +744,14 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                       </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); returnToBrainDump(task.id); }}
-                        className="text-dim hover:text-starlight p-0.5"
+                        className="text-nova/60 hover:text-starlight p-0.5"
                         title="Return to Brain Dump"
                       >
                         <Inbox className="w-3 h-3" />
                       </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); toggleDone(task); }}
-                        className="text-dim hover:text-emerald p-0.5"
+                        className="text-nova/60 hover:text-emerald p-0.5"
                         title="Mark Done"
                       >
                         <Check className="w-3 h-3" />
@@ -769,21 +769,21 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
       {/* ==================================================================== */}
       {/* Left Sidebar: Restored Brain Dump Panel (Unsorted + Completed)      */}
       {/* ==================================================================== */}
-      <aside className={`glass border-t md:border-t-0 md:border-r border-blue-900/20 flex flex-col h-auto md:h-full z-20 shadow-2xl transition-all duration-300 ${
+      <aside className={`glass border-t md:border-t-0 md:border-r border-pulsar/30 flex flex-col h-auto md:h-full z-20 shadow-2xl transition-all duration-300 ${
         brainDumpCollapsed ? 'w-full md:w-12' : 'w-full md:w-80'
       }`}>
         {/* Brain Dump Header with BACKLOG & COMPLETED Sub-Tabs */}
-        <div className={`border-b border-blue-900/20 bg-white/5 flex items-center ${brainDumpCollapsed ? 'justify-center py-3' : 'px-4 py-3 justify-between gap-2'}`}>
+        <div className={`border-b border-pulsar/30 bg-pulsar/10 flex items-center ${brainDumpCollapsed ? 'justify-center py-3' : 'px-4 py-3 justify-between gap-2'}`}>
           {!brainDumpCollapsed && (
             <div className="flex items-center gap-1.5 min-w-0 w-full pr-2">
               <Inbox className="w-4 h-4 text-gold shrink-0 hidden sm:block" />
-              <div className="glass border border-blue-900/30 p-1 rounded-xl flex items-center gap-1 overflow-x-auto scrollbar-hide min-w-0 w-full">
+              <div className="glass border border-pulsar/40 p-1 rounded-xl flex items-center gap-1 overflow-x-auto scrollbar-hide min-w-0 w-full">
                 <button
                   onClick={() => setActiveBrainDumpTab('backlog')}
                   className={`flex-1 justify-center px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 shrink-0 ${
                     activeBrainDumpTab === 'backlog'
-                      ? 'bg-cosmic text-gold border border-gold/40 shadow-[0_0_8px_rgba(245,158,11,0.2)]'
-                      : 'border border-transparent text-dim hover:text-starlight hover:bg-white/5'
+                      ? 'bg-cosmic text-gold border border-gold/40 '
+                      : 'border border-transparent text-nova/60 hover:text-starlight hover:bg-pulsar/10'
                   }`}
                   title={`Backlog (${brainDumpTasks.length})`}
                 >
@@ -794,8 +794,8 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                   onClick={() => setActiveBrainDumpTab('completed')}
                   className={`flex-1 justify-center px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 shrink-0 ${
                     activeBrainDumpTab === 'completed'
-                      ? 'bg-cosmic text-emerald border border-emerald/40 shadow-[0_0_8px_rgba(16,185,129,0.2)]'
-                      : 'border border-transparent text-dim hover:text-starlight hover:bg-white/5'
+                      ? 'bg-cosmic text-emerald border border-emerald/40 '
+                      : 'border border-transparent text-nova/60 hover:text-starlight hover:bg-pulsar/10'
                   }`}
                   title={`Completed (${completedTasks.length})`}
                 >
@@ -806,8 +806,8 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                   onClick={() => setActiveBrainDumpTab('details')}
                   className={`flex-1 justify-center px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 shrink-0 ${
                     activeBrainDumpTab === 'details'
-                      ? 'bg-cosmic text-pulsar border border-pulsar/40 shadow-[0_0_8px_rgba(59,130,246,0.2)]'
-                      : 'border border-transparent text-dim hover:text-starlight hover:bg-white/5'
+                      ? 'bg-cosmic text-pulsar border border-pulsar/40 '
+                      : 'border border-transparent text-nova/60 hover:text-starlight hover:bg-pulsar/10'
                   }`}
                   title="Task Details"
                 >
@@ -819,7 +819,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
 
           <button
             onClick={() => setBrainDumpCollapsed(!brainDumpCollapsed)}
-            className="text-dim hover:text-starlight p-1 rounded-lg transition-colors hidden md:block shrink-0"
+            className="text-nova/60 hover:text-starlight p-1 rounded-lg transition-colors hidden md:block shrink-0"
             title={brainDumpCollapsed ? "Expand Brain Dump" : "Collapse Brain Dump"}
           >
             {brainDumpCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
@@ -831,33 +831,33 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
             {activeBrainDumpTab === 'backlog' ? (
               <>
                 {/* Quick Capture Input (Zero Friction Brain Dump) */}
-                <div className="px-4 py-3 border-b border-blue-900/20 space-y-2">
+                <div className="px-4 py-3 border-b border-pulsar/30 space-y-2">
                   <form onSubmit={handleDumpTask} className="flex items-center gap-2">
                     <input
                       type="text"
                       value={newTitle}
                       onChange={(e) => setNewTitle(e.target.value)}
                       placeholder="Dump thoughts here (Press Enter)..."
-                      className="w-full bg-stardust/50 border border-blue-900/30 focus:border-gold text-starlight text-xs rounded-lg px-3 py-2 outline-none font-body"
+                      className="w-full bg-stardust/50 border border-pulsar/40 focus:border-gold text-starlight text-xs rounded-lg px-3 py-2 outline-none font-['Inter']"
                     />
                     <button
                       type="submit"
                       disabled={!newTitle.trim()}
-                      className="bg-gold hover:bg-gold/90 disabled:opacity-50 text-void font-display text-xs px-4 py-2 rounded-lg shrink-0 cursor-pointer shadow-md"
+                      className="bg-[#f5a623] hover:bg-[#f5a623]/90 text-[#0c0f14] font-display font-bold uppercase tracking-widest text-xs px-5 py-2 rounded-lg shrink-0 cursor-pointer shadow-md transition-all"
                     >
-                      Dump
+                      DUMP
                     </button>
                   </form>
 
                   {/* Search Bar */}
                   <div className="relative">
-                    <Search className="w-3.5 h-3.5 text-dim absolute left-2.5 top-2.5" />
+                    <Search className="w-3.5 h-3.5 text-nova/60 absolute left-2.5 top-2.5" />
                     <input
                       type="text"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       placeholder="Search backlog..."
-                      className="w-full bg-void/60 border border-blue-900/30 text-starlight text-xs rounded-lg pl-8 pr-3 py-2 outline-none font-body"
+                      className="w-full bg-void/60 border border-pulsar/40 text-starlight text-xs rounded-lg pl-8 pr-3 py-2 outline-none font-['Inter']"
                     />
                   </div>
                 </div>
@@ -865,7 +865,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                 {/* Unsorted Brain Dump Backlog Tasks */}
                 <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2 scrollbar-hide">
                   {brainDumpTasks.length === 0 ? (
-                    <div className="p-6 text-center text-xs text-dim italic border border-dashed border-blue-900/20 rounded-xl font-body">
+                    <div className="p-6 text-center text-xs text-nova/60 italic border border-dashed border-pulsar/30 rounded-xl font-['Inter']">
                       Brain Dump is clear! Type above to capture thoughts.
                     </div>
                   ) : (
@@ -876,22 +876,22 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                           setSelectedTaskId(task.id);
                           setActiveBrainDumpTab('details');
                         }}
-                        className="group p-3 rounded-lg glass border border-blue-900/20 hover:border-gold/50 transition-all flex flex-col gap-1.5 shadow-sm cursor-pointer"
+                        className="group p-3 rounded-lg glass border border-pulsar/30 hover:border-gold/50 transition-all flex flex-col gap-1.5 shadow-sm cursor-pointer"
                       >
                         <div className="flex items-start justify-between gap-2">
-                          <span className="text-xs font-body text-starlight leading-snug">
+                          <span className="text-xs font-['Inter'] text-starlight leading-snug">
                             {task.title}
                           </span>
                           <button
                             onClick={(e) => { e.stopPropagation(); deleteTask(task.id); }}
-                            className="text-dim hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity p-0.5"
+                            className="text-nova/60 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity p-0.5"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
 
-                        <div className="flex items-center justify-between pt-1 border-t border-blue-900/20 text-[10px] font-mono">
-                          <span className="text-dim">Deploy to Matrix:</span>
+                        <div className="flex items-center justify-between pt-1 border-t border-pulsar/30 text-xs font-mono">
+                          <span className="text-nova/60">Deploy to Matrix:</span>
                           <div className="flex items-center gap-1">
                             <button
                               onClick={(e) => { e.stopPropagation(); deployFromBrainDump(task, 'urgent_important'); }}
@@ -916,7 +916,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                             </button>
                             <button
                               onClick={(e) => { e.stopPropagation(); deployFromBrainDump(task, 'neither'); }}
-                              className="px-1.5 py-0.5 rounded bg-dim/15 text-dim hover:bg-dim hover:text-void transition-all font-bold"
+                              className="px-1.5 py-0.5 rounded bg-dim/15 text-nova/60 hover:bg-dim hover:text-void transition-all font-bold"
                               title="Deploy to Neither (Backburner)"
                             >
                               Nei
@@ -932,7 +932,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
               /* Completed Tasks List Tab */
               <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2 scrollbar-hide">
                 {completedTasks.length === 0 ? (
-                  <div className="p-6 text-center text-xs text-dim italic border border-dashed border-blue-900/20 rounded-lg font-body">
+                  <div className="p-6 text-center text-xs text-nova/60 italic border border-dashed border-pulsar/30 rounded-lg font-['Inter']">
                     No completed tasks yet.
                   </div>
                 ) : (
@@ -943,14 +943,14 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                         setSelectedTaskId(t.id);
                         setActiveBrainDumpTab('details');
                       }}
-                      className="flex items-center justify-between text-xs text-dim p-3 rounded-lg glass border border-blue-900/20 cursor-pointer hover:border-emerald/50 transition-all"
+                      className="flex items-center justify-between text-xs text-nova/60 p-3 rounded-lg glass border border-pulsar/30 cursor-pointer hover:border-emerald/50 transition-all"
                     >
-                      <span className="truncate line-through text-starlight/70">{t.title}</span>
+                      <span className="truncate line-through text-nova/80">{t.title}</span>
                       <div className="flex items-center gap-1.5 shrink-0">
                         <button onClick={(e) => { e.stopPropagation(); toggleDone(t); }} className="text-emerald hover:text-starlight p-1" title="Restore to Inbox">
                           <Check className="w-3.5 h-3.5" />
                         </button>
-                        <button onClick={(e) => { e.stopPropagation(); deleteTask(t.id); }} className="text-dim hover:text-red-400 p-1" title="Delete Task">
+                        <button onClick={(e) => { e.stopPropagation(); deleteTask(t.id); }} className="text-nova/60 hover:text-red-400 p-1" title="Delete Task">
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
@@ -964,28 +964,28 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                 {selectedTask ? (
                   <div key={selectedTask.id} className="flex flex-col gap-4 text-starlight">
                     <div>
-                      <h4 className="text-xs font-bold text-dim mb-1 font-mono ">Title</h4>
+                      <h4 className="text-xs uppercase tracking-wider font-bold text-nova/60 mb-1 font-mono ">Title</h4>
                       <input 
                         type="text" 
                         defaultValue={selectedTask.title} 
                         onBlur={(e) => updateTaskField(selectedTask.id, 'title', e.target.value)}
-                        className="w-full bg-void/40 border border-blue-900/30 rounded-lg p-3 text-sm font-body leading-relaxed outline-none focus:border-pulsar/50 transition-colors"
+                        className="w-full bg-void/40 border border-pulsar/40 rounded-lg p-3 text-sm font-['Inter'] leading-relaxed outline-none focus:border-pulsar/50 transition-colors"
                       />
                     </div>
                     <div>
-                      <h4 className="text-xs font-bold text-dim mb-1 font-mono ">Notes</h4>
+                      <h4 className="text-xs uppercase tracking-wider font-bold text-nova/60 mb-1 font-mono ">Notes</h4>
                       <textarea
                         defaultValue={selectedTask.notes || ''}
                         onBlur={(e) => updateTaskField(selectedTask.id, 'notes', e.target.value)}
                         rows={4}
-                        className="w-full bg-void/40 border border-blue-900/30 rounded-lg p-3 text-xs font-body leading-relaxed whitespace-pre-wrap outline-none focus:border-pulsar/50 transition-colors resize-none"
+                        className="w-full bg-void/40 border border-pulsar/40 rounded-lg p-3 text-xs font-['Inter'] leading-relaxed whitespace-pre-wrap outline-none focus:border-pulsar/50 transition-colors resize-none"
                         placeholder="Add notes..."
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <h4 className="text-xs font-bold text-dim mb-1 font-mono ">Estimate (m)</h4>
-                        <div className="bg-void/40 border border-blue-900/30 rounded-xl p-2.5 text-xs flex items-center gap-2 focus-within:border-pulsar/50 transition-colors">
+                        <h4 className="text-xs uppercase tracking-wider font-bold text-nova/60 mb-1 font-mono ">Estimate (m)</h4>
+                        <div className="bg-void/40 border border-pulsar/40 rounded-xl p-2.5 text-xs flex items-center gap-2 focus-within:border-pulsar/50 transition-colors">
                           <Clock className="w-3.5 h-3.5 text-gold shrink-0" />
                           <input
                             type="number"
@@ -998,10 +998,10 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                         </div>
                       </div>
                       <div className="relative">
-                        <h4 className="text-xs font-bold text-dim mb-1 font-mono uppercase">Status</h4>
+                        <h4 className="text-xs uppercase tracking-wider font-bold text-nova/60 mb-1 font-mono uppercase">Status</h4>
                         <button
                           onClick={() => setStatusDropdownOpen(!statusDropdownOpen)}
-                          className={`w-full bg-void/40 border ${statusDropdownOpen ? 'border-pulsar/50' : 'border-blue-900/30'} rounded-xl p-2.5 text-xs flex items-center justify-between transition-colors outline-none cursor-pointer`}
+                          className={`w-full bg-void/40 border ${statusDropdownOpen ? 'border-pulsar/50' : 'border-pulsar/40'} rounded-xl p-2.5 text-xs flex items-center justify-between transition-colors outline-none cursor-pointer`}
                         >
                           <div className="flex items-center gap-2">
                             {selectedTask.status === 'done' ? (
@@ -1011,7 +1011,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                             ) : selectedTask.status === 'scheduled' ? (
                               <Calendar className="w-3.5 h-3.5 text-pulsar shrink-0" />
                             ) : selectedTask.status === 'inbox' ? (
-                              <Inbox className="w-3.5 h-3.5 text-dim shrink-0" />
+                              <Inbox className="w-3.5 h-3.5 text-nova/60 shrink-0" />
                             ) : (
                               <Flame className="w-3.5 h-3.5 text-pulsar shrink-0" />
                             )}
@@ -1022,7 +1022,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                                selectedTask.status === 'inbox' ? 'Inbox' : 'Active'}
                             </span>
                           </div>
-                          <ChevronDown className={`w-3.5 h-3.5 text-dim shrink-0 transition-transform ${statusDropdownOpen ? 'rotate-180' : ''}`} />
+                          <ChevronDown className={`w-3.5 h-3.5 text-nova/60 shrink-0 transition-transform ${statusDropdownOpen ? 'rotate-180' : ''}`} />
                         </button>
 
                         <AnimatePresence>
@@ -1037,7 +1037,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                                 className="absolute top-full mt-2 left-0 right-0 bg-[#0a0f1e]/95 backdrop-blur-xl border border-blue-900/50 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.5)] z-50 overflow-hidden py-1"
                               >
                                 {[
-                                  { value: 'inbox', label: 'Inbox', icon: Inbox, color: 'text-dim' },
+                                  { value: 'inbox', label: 'Inbox', icon: Inbox, color: 'text-nova/60' },
                                   { value: 'active', label: 'Active', icon: Flame, color: 'text-pulsar' },
                                   { value: 'in_progress', label: 'In Progress', icon: Zap, color: 'text-amber-400' },
                                   { value: 'scheduled', label: 'Scheduled', icon: Calendar, color: 'text-pulsar' },
@@ -1050,7 +1050,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                                       setStatusDropdownOpen(false);
                                     }}
                                     className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs transition-colors ${
-                                      selectedTask.status === option.value ? 'bg-pulsar/20 text-starlight' : 'text-dim hover:bg-blue-900/30 hover:text-starlight'
+                                      selectedTask.status === option.value ? 'bg-pulsar/20 text-starlight' : 'text-nova/60 hover:bg-blue-900/30 hover:text-starlight'
                                     }`}
                                   >
                                     <option.icon className={`w-3.5 h-3.5 shrink-0 ${option.color}`} />
@@ -1065,7 +1065,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                     </div>
                   </div>
                 ) : (
-                  <div className="p-6 text-center text-xs text-dim italic border border-dashed border-blue-900/20 rounded-xl font-body mt-4">
+                  <div className="p-6 text-center text-xs text-nova/60 italic border border-dashed border-pulsar/30 rounded-xl font-['Inter'] mt-4">
                     Select a task from the matrix or backlog to view its details.
                   </div>
                 )}
