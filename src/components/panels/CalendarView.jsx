@@ -117,14 +117,24 @@ const CalendarView = () => {
           </div>
 
           {/* Sync & Backup Toolbar */}
-          <button
-            onClick={syncNow}
-            disabled={isSyncing || !providerToken}
-            className="glass border border-sky/30 text-sky hover:bg-sky/20 px-3 py-1.5 rounded-lg text-xs font-mono uppercase tracking-wider flex items-center gap-1.5 transition-all disabled:opacity-50"
-            title="Sync Google Calendar to Supabase Database">
-            <RefreshCcw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
-            {isSyncing ? 'Syncing...' : 'Sync GCal → DB'}
-          </button>
+          {!providerToken ? (
+            <button
+              onClick={signInWithGoogle}
+              className="glass border border-sky/40 text-sky hover:bg-sky/20 px-3 py-1.5 rounded-lg text-xs font-mono uppercase tracking-wider flex items-center gap-1.5 transition-all"
+              title="Connect Google Account to sync live sub-calendars">
+              <LogIn className="w-3.5 h-3.5" />
+              Connect GCal to Sync
+            </button>
+          ) : (
+            <button
+              onClick={syncNow}
+              disabled={isSyncing}
+              className="glass border border-sky/30 text-sky hover:bg-sky/20 px-3 py-1.5 rounded-lg text-xs font-mono uppercase tracking-wider flex items-center gap-1.5 transition-all disabled:opacity-50"
+              title="Sync Google Calendar to Supabase Database">
+              <RefreshCcw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+              {isSyncing ? 'Syncing...' : lastSyncedAt ? `Synced (${lastSyncedAt})` : 'Sync GCal → DB'}
+            </button>
+          )}
 
           <button
             onClick={() => createBackup()}
