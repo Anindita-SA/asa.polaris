@@ -4,6 +4,10 @@ All notable changes to Polaris will be documented in this file.
 
 ## [Current Version]
 ### Changed
+- **Eisenhower Matrix Coordinates Fix**: Added a Supabase migration to create missing canvas_x and canvas_y columns in the 	asks table, resolving the bug where untethered tasks would snap back or disappear when dragged across the spatial canvas.
+- **Backlog Obliteration Fix**: Removed the hover-state trash icon from the Brain Dump Backlog list to prevent accidental deletions while attempting to drag. Task deletion is now safely located inside the Task Details pane with a confirmation prompt.
+- **Hide Far Scheduled Tasks**: Added a toggle control to the Eisenhower Canvas to hide tasks scheduled more than 7 days in the future, keeping the matrix clean while preserving visibility for upcoming week deliverables.
+
 - **Day Guide View Scrolling Fix**: Resolved layout height and scroll truncation across all four sub-tabs (`Matrix`, `Picks`, `Auditor`, `Brief`). Replaced conflicting `min-h-screen` and `md:h-screen` classes with `h-full` and added `min-h-0` flex constraints on parent wrappers, allowing content to scroll smoothly to the bottom without getting clipped by Dashboard overflow boundaries. Added `pb-32` spacing to ensure buttons and lists clear the viewport.
 - **Morning Brief Edge Function**: Migrated Morning Brief generation logic to a Supabase Edge Function (`generate-morning-brief`). RSS fetching and parsing for fixed feeds, manual summary processing for curated feeds, Groq API calling, reasoning suppression, and JSON extraction now run entirely server-side. Removed `VITE_GROQ_API_KEY` from the client `.env` and rewired `useMorningBrief` and `DayBriefView` to invoke the Edge Function directly via `supabase.functions.invoke`.
 - **Day Brief Redesign**: Refactored `DayBriefView` to use the `useTodaysTasks` hook as its data source, matching the task scope used elsewhere in the app. Replaced the "...and X more" pattern with full lists, and added a dynamic summary paragraph at the top detailing the count of urgent/strategic tasks and the title of the current highest-priority weekly campaign goal.
