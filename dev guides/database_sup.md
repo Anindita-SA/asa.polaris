@@ -656,6 +656,8 @@
 | `title` | `text` | Not Null |
 | `notes` | `text` | Nullable |
 | `quadrant` | `text` | Nullable (urgent_important \| important_not_urgent \| urgent_not_important \| neither) |
+| canvas_x | loat8 |  Nullable |
+| canvas_y | loat8 |  Nullable |
 | `deadline` | `date` | Nullable |
 | `estimated_minutes` | `int4` | Nullable |
 | `estimate_source` | `text` | Nullable (user \| ai) |

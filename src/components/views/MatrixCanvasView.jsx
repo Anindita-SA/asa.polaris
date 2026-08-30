@@ -124,6 +124,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [showCompleted, setShowCompleted] = useState(false);
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
+  const [hideFarScheduled, setHideFarScheduled] = useState(true);
 
   const canvasRef = useRef(null);
   const innerRef = useRef(null);
@@ -436,8 +437,17 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
 
   // Active matrix tasks (Finished tasks `status === 'done'` are hidden from matrix plane)
   const matrixTasks = useMemo(() => {
-    return tasks.filter((t) => t.quadrant !== null && t.status !== 'done');
-  }, [tasks]);
+    const now = new Date();
+    const oneWeekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    return tasks.filter((t) => {
+      if (t.quadrant === null || t.status === 'done') return false;
+      if (hideFarScheduled && t.status === 'scheduled' && t.deadline) {
+        const deadlineDate = new Date(t.deadline);
+        if (deadlineDate > oneWeekFromNow) return false;
+      }
+      return true;
+    });
+  }, [tasks, hideFarScheduled]);
 
   // Unsorted Brain Dump tasks (`quadrant === null` and `status !== 'done'`)
   const brainDumpTasks = useMemo(() => {
@@ -480,6 +490,19 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
       {/* Left / Center: Spatial Constellation 2d Canvas Matrix                */}
       {/* ==================================================================== */}
       <div className="flex-1 relative flex flex-col overflow-hidden bg-transparent">
+        {/* Canvas Controls */}
+        <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
+          <button
+            onClick={() => setHideFarScheduled(!hideFarScheduled)}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-mono transition-colors ${
+              hideFarScheduled ? 'bg-pulsar/20 text-pulsar border border-pulsar/40' : 'glass border border-pulsar/20 text-nova/60 hover:text-starlight'
+            }`}
+            title="Hide Scheduled Tasks (> 1 week away)"
+          >
+            {hideFarScheduled ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+            Hide Far Scheduled
+          </button>
+        </div>
         {/* 2D Canvas Surface */}
         <div
           ref={canvasRef}
@@ -882,12 +905,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                           <span className="text-xs font-['Inter'] text-starlight leading-snug">
                             {task.title}
                           </span>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); deleteTask(task.id); }}
-                            className="text-nova/60 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity p-0.5"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+
                         </div>
 
                         <div className="flex items-center justify-between pt-1 border-t border-pulsar/30 text-xs font-mono">
@@ -1075,6 +1093,23 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                           )}
                         </AnimatePresence>
                       </div>
+                    </div>
+                    {/* Delete Task Button */}
+                    <div className="pt-4 mt-2 border-t border-pulsar/30 flex justify-end">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (window.confirm('Are you sure you want to delete this task?')) {
+                            deleteTask(selectedTask.id);
+                            setSelectedTaskId(null);
+                            setActiveBrainDumpTab('backlog');
+                          }
+                        }}
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold text-red-400/80 hover:text-red-400 hover:bg-red-400/10 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        Delete Task
+                      </button>
                     </div>
                   </div>
                 ) : (
