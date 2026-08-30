@@ -272,16 +272,17 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
   const handleNodeDragStop = async (taskId, newX, newY) => {
     const newQuadrant = getQuadrantFromCoords(newX, newY);
 
+    // Auto-tether untethered nodes to the quadrant they are dragged into
     setTasks((prev) =>
       prev.map((t) =>
-        t.id === taskId ? { ...t, quadrant: newQuadrant, canvasX: newX, canvasY: newY } : t
+        t.id === taskId ? { ...t, quadrant: newQuadrant, canvasX: null, canvasY: null } : t
       )
     );
 
     try {
       const { error } = await supabase
         .from('tasks')
-        .update({ quadrant: newQuadrant, canvas_x: newX, canvas_y: newY })
+        .update({ quadrant: newQuadrant, canvas_x: null, canvas_y: null })
         .eq('id', taskId);
 
       if (error) throw error;
@@ -494,13 +495,12 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
         <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
           <button
             onClick={() => setHideFarScheduled(!hideFarScheduled)}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-mono transition-colors ${
+            className={`flex items-center justify-center w-8 h-8 rounded-lg transition-colors ${
               hideFarScheduled ? 'bg-pulsar/20 text-pulsar border border-pulsar/40' : 'glass border border-pulsar/20 text-nova/60 hover:text-starlight'
             }`}
             title="Hide Scheduled Tasks (> 1 week away)"
           >
-            {hideFarScheduled ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-            Hide Far Scheduled
+            {hideFarScheduled ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
           </button>
         </div>
         {/* 2D Canvas Surface */}
@@ -1000,41 +1000,49 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                         placeholder="Add notes..."
                       />
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="col-span-2">
-                        <h4 className="text-xs uppercase tracking-wider font-bold text-nova/60 mb-1 font-mono">Deadline</h4>
-                        <div className="bg-void/40 border border-pulsar/40 rounded-xl p-2.5 text-xs flex items-center gap-2 focus-within:border-pulsar/50 transition-colors">
-                          <Calendar className="w-3.5 h-3.5 text-pulsar shrink-0" />
-                          <input
-                            type="date"
-                            defaultValue={selectedTask.deadline || ''}
-                            onBlur={(e) => updateTaskField(selectedTask.id, 'deadline', e.target.value || null)}
-                            className="bg-transparent w-full outline-none font-mono text-starlight"
-                            style={{ colorScheme: 'dark' }}
-                          />
+                    <div className="grid grid-cols-3 gap-2">
+                      {/* Quadrant */}
+                      <div className="col-span-1">
+                        <h4 className="text-[10px] uppercase tracking-wider font-bold text-nova/60 mb-1 font-mono">Quad</h4>
+                        <div className="bg-void/40 border border-pulsar/40 rounded-lg px-2 py-1.5 text-xs flex items-center focus-within:border-pulsar/50 transition-colors">
+                          <select
+                            value={selectedTask.quadrant || ''}
+                            onChange={(e) => updateTaskField(selectedTask.id, 'quadrant', e.target.value || null)}
+                            className="bg-transparent w-full outline-none font-mono text-starlight cursor-pointer"
+                          >
+                            <option value="" className="bg-void text-nova/60">--</option>
+                            <option value="urgent_important" className="bg-void text-amber-400">Q1</option>
+                            <option value="important_not_urgent" className="bg-void text-blue-400">Q2</option>
+                            <option value="urgent_not_important" className="bg-void text-purple-400">Q3</option>
+                            <option value="neither" className="bg-void text-emerald-400">Q4</option>
+                          </select>
                         </div>
                       </div>
-                      <div>
-                        <h4 className="text-xs uppercase tracking-wider font-bold text-nova/60 mb-1 font-mono ">Estimate (m)</h4>
-                        <div className="bg-void/40 border border-pulsar/40 rounded-xl p-2.5 text-xs flex items-center gap-2 focus-within:border-pulsar/50 transition-colors">
+                      
+                      {/* Estimate */}
+                      <div className="col-span-1">
+                        <h4 className="text-[10px] uppercase tracking-wider font-bold text-nova/60 mb-1 font-mono">Est (m)</h4>
+                        <div className="bg-void/40 border border-pulsar/40 rounded-lg px-2 py-1.5 text-xs flex items-center gap-1.5 focus-within:border-pulsar/50 transition-colors">
                           <Clock className="w-3.5 h-3.5 text-gold shrink-0" />
                           <input
                             type="number"
                             min="0"
                             defaultValue={selectedTask.estimated_minutes || ''}
                             onBlur={(e) => updateTaskField(selectedTask.id, 'estimated_minutes', e.target.value ? parseInt(e.target.value) : null)}
-                            className="bg-transparent w-full outline-none font-mono"
-                            placeholder="None"
+                            className="bg-transparent w-full outline-none font-mono text-starlight"
+                            placeholder="-"
                           />
                         </div>
                       </div>
-                      <div className="relative">
-                        <h4 className="text-xs uppercase tracking-wider font-bold text-nova/60 mb-1 font-mono uppercase">Status</h4>
+
+                      {/* Status */}
+                      <div className="col-span-1 relative">
+                        <h4 className="text-[10px] uppercase tracking-wider font-bold text-nova/60 mb-1 font-mono">Status</h4>
                         <button
                           onClick={() => setStatusDropdownOpen(!statusDropdownOpen)}
-                          className={`w-full bg-void/40 border ${statusDropdownOpen ? 'border-pulsar/50' : 'border-pulsar/40'} rounded-xl p-2.5 text-xs flex items-center justify-between transition-colors outline-none cursor-pointer`}
+                          className={`w-full bg-void/40 border ${statusDropdownOpen ? 'border-pulsar/50' : 'border-pulsar/40'} rounded-lg px-2 py-1.5 text-[11px] flex items-center justify-between transition-colors outline-none cursor-pointer`}
                         >
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1.5 truncate">
                             {selectedTask.status === 'done' ? (
                               <CheckCircle2 className="w-3.5 h-3.5 text-emerald shrink-0" />
                             ) : selectedTask.status === 'in_progress' ? (
@@ -1046,14 +1054,14 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                             ) : (
                               <Flame className="w-3.5 h-3.5 text-pulsar shrink-0" />
                             )}
-                            <span className="text-starlight">
-                              {selectedTask.status === 'in_progress' ? 'In Progress' :
+                            <span className="text-starlight truncate">
+                              {selectedTask.status === 'in_progress' ? 'Prog' :
                                selectedTask.status === 'done' ? 'Done' :
-                               selectedTask.status === 'scheduled' ? 'Scheduled' :
+                               selectedTask.status === 'scheduled' ? 'Schd' :
                                selectedTask.status === 'inbox' ? 'Inbox' : 'Active'}
                             </span>
                           </div>
-                          <ChevronDown className={`w-3.5 h-3.5 text-nova/60 shrink-0 transition-transform ${statusDropdownOpen ? 'rotate-180' : ''}`} />
+                          <ChevronDown className={`w-3 h-3 text-nova/60 shrink-0 transition-transform ${statusDropdownOpen ? 'rotate-180' : ''}`} />
                         </button>
 
                         <AnimatePresence>

@@ -39,6 +39,13 @@ All notable changes to Polaris will be documented in this file.
 - **Reminders Panel Layout**: Reordered sections to prioritize "Today's Tasks" at the top, followed by "Nudges", and then "Reach Out".
 
 ### Fixed
+- **Eisenhower Matrix Auto-Tether Restored**: Restored the auto-tethering logic so untethered tasks cleanly snap back into matrix lists when dropped.
+- **Task Details Panel UX Improvements**: 
+  - Restructured the grid layout to place Quadrant, Estimate, and Status on a single compact line to prevent horizontal overflow in the side panel.
+  - Shortened Quadrant dropdown options to 2-letter indicators (Q1, Q2, Q3, Q4) for faster selection.
+  - Fixed the Date Picker visual bug (rogue comma appearing) by swapping to the standard system sans-serif font which correctly handles the native date formatter's spacing.
+
+
 - **Pomodoro Pop-Out Timer Fix**: Completely removed the experimental Document Picture-in-Picture (PiP) API in favor of a standard `window.open` popup. The Document PiP API was found to consume the browser's single global PiP slot, which forcefully kicked out other video PiP sessions (like study lectures) on other tabs. The timer now opens in a safe, isolated window that won't interfere with media playback elsewhere.
 
 - **Pomodoro Pop-Out Timer Fix**: Added robust fallback to traditional `window.open` popup if the experimental Document PiP API fails or is unavailable on localhost. Added a "Bring Back" button and fixed window focus management to prevent the button from becoming unresponsive if the popup is closed forcefully.
