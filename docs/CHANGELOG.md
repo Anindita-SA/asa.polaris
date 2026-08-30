@@ -23,6 +23,8 @@ All notable changes to Polaris will be documented in this file.
 - **Day Guide Tab Order**: Reordered the Day Guide sub-tabs to push "DAY BRIEF" to the 4th position as it's considered non-essential for now. The default view upon opening Day Guide is now the "CONSTELLATION MATRIX" (Spatial).
 
 ### Added
+- **Pomodoro Pop-Out Timer**: Implemented a Picture-in-Picture (PiP) mode for the Pomodoro Timer using the experimental Document PiP API. Clicking the pop-out icon opens a dedicated, floating window for the timer that persists on top of other applications, keeping it fully visible without needing multiple tabs open.
+
 - **Morning Brief Read More Links**: Added "Read more ->" links to each Morning Brief item card across `SparkPopup` and `DayBriefView`, opening the original article source in a new tab with security attributes (`target="_blank" rel="noopener noreferrer"`).
 - **Morning Brief UI**: Wired up the `useMorningSequence` hook to the UI. Created `SparkPopup` to display the day's positive climate signals. It automatically pops up during the "spark" stage on initialization and includes a dismiss button that marks the brief as seen, navigating straight to the Day Brief view. The day's climate signals are also rendered statically at the top of the Day Brief view so they can be revisited at any time.
 - **Morning Brief Generation**: Implemented the `useMorningBrief` hook that triggers on app load. It asks Groq (bypassing the manual opt-in rule as an intentional exception) to generate 3 recent, positive climate-tech/renewable-energy developments based on the user's active `brief_sources` and saves them to `morning_briefs`.
@@ -37,6 +39,10 @@ All notable changes to Polaris will be documented in this file.
 - **Reminders Panel Layout**: Reordered sections to prioritize "Today's Tasks" at the top, followed by "Nudges", and then "Reach Out".
 
 ### Fixed
+- **Pomodoro Pop-Out Timer Fix**: Completely removed the experimental Document Picture-in-Picture (PiP) API in favor of a standard `window.open` popup. The Document PiP API was found to consume the browser's single global PiP slot, which forcefully kicked out other video PiP sessions (like study lectures) on other tabs. The timer now opens in a safe, isolated window that won't interfere with media playback elsewhere.
+
+- **Pomodoro Pop-Out Timer Fix**: Added robust fallback to traditional `window.open` popup if the experimental Document PiP API fails or is unavailable on localhost. Added a "Bring Back" button and fixed window focus management to prevent the button from becoming unresponsive if the popup is closed forcefully.
+
 - **Mobile Styling**: Fixed tab pill wrapping in `BottomNav.jsx` and padded the `ConstellationGraph` container to prevent nodes from clipping on small screens.
 - **Service Worker Message Parsing**: Updated `sw-notifications.js` to correctly handle `Array.isArray(event.data)` vs `{ type: 'UPDATE_NUDGES', nudges: [...] }` to fix the Nudge notification bug.
 

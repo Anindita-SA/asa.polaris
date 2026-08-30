@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { useTodaysTasks } from '../../hooks/useTodaysTasks'
-import { Settings, X, Maximize2, Minimize2, RotateCcw, ChevronDown, ChevronUp, Music, CheckCircle2, Target } from 'lucide-react'
+import { Settings, X, Maximize2, Minimize2, RotateCcw, ChevronDown, ChevronUp, Music, CheckCircle2, Target, ExternalLink } from 'lucide-react'
 
 import Starfield from '../layout/Starfield'
 
@@ -97,6 +97,73 @@ const PomodoroTimer = ({ mobilePill = false }) => {
   const [trackIndex, setTrackIndex] = useState(0)
 
   const widgetRef = useRef(null)
+
+  const [pipWindow, setPipWindow] = useState(null)
+  
+  const handlePopOut = async () => {
+    if (pipWindow && !pipWindow.closed) {
+      pipWindow.focus()
+      return
+    }
+    
+    try {
+      // We exclusively use window.open now, because Document PiP API 
+      // steals the browser's single global PiP slot, which breaks 
+      // video playback PiP on other tabs (e.g. study lectures).
+      const pip = window.open('', 'PomodoroPopOut', 'width=320,height=480,menubar=no,toolbar=no,location=no,status=no,personalbar=no')
+      
+      if (!pip) {
+        alert('Popup was blocked by your browser. Please allow popups for this site to use the pop-out timer.')
+        return
+      }
+      
+      // Clear in case it already existed
+      pip.document.body.innerHTML = ''
+      
+      // Copy styles robustly
+      const styleSheets = Array.from(document.styleSheets)
+      for (let i = 0; i < styleSheets.length; i++) {
+        const styleSheet = styleSheets[i]
+        try {
+          if (styleSheet.href) {
+            const link = document.createElement('link')
+            link.rel = 'stylesheet'
+            link.href = styleSheet.href
+            pip.document.head.appendChild(link)
+          } else {
+            const rules = Array.from(styleSheet.cssRules).map(r => r.cssText).join('')
+            const style = document.createElement('style')
+            style.textContent = rules
+            pip.document.head.appendChild(style)
+          }
+        } catch (e) {
+          // Cross-origin CSS rules will throw, ignore
+        }
+      }
+      
+      const rootDiv = pip.document.createElement('div')
+      rootDiv.id = 'pip-root'
+      rootDiv.className = 'w-full h-full bg-[#030712] font-body text-starlight'
+      pip.document.body.appendChild(rootDiv)
+      pip.document.body.style.margin = '0'
+      pip.document.body.style.padding = '0'
+      pip.document.body.style.overflow = 'hidden'
+      
+      pip.addEventListener('unload', () => setPipWindow(null))
+      const checkClosed = setInterval(() => {
+        if (pip.closed) {
+          clearInterval(checkClosed)
+          setPipWindow(null)
+        }
+      }, 500)
+      
+      setPipWindow(pip)
+      setIsExpanded(false)
+    } catch (err) {
+      console.error('Failed to pop out:', err)
+      alert('Failed to open pop-out window: ' + err.message)
+    }
+  }
 
   const [matrixTasks, setMatrixTasks] = useState([])
 
@@ -298,6 +365,59 @@ const PomodoroTimer = ({ mobilePill = false }) => {
   }
 
   // EXPANDED (fullscreen)
+  if (pipWindow) {
+    const pipRoot = pipWindow.document.getElementById('pip-root')
+    if (pipRoot) {
+      return (
+        <>
+          <div className="relative w-full glass rounded-none select-none group p-4 flex flex-col items-center justify-center border-dashed border border-pulsar/40 text-center min-h-[150px]">
+            <ExternalLink className="w-6 h-6 text-pulsar mb-2 opacity-50" />
+            <p className="text-xs text-nova/60 font-body mb-3">Timer is popped out</p>
+            <button onClick={() => pipWindow.close()} className="px-3 py-1 bg-pulsar/10 text-pulsar rounded border border-pulsar/30 text-xs hover:bg-pulsar hover:text-void font-bold transition-colors">Bring Back</button>
+          </div>
+          {createPortal(
+            <div className="flex flex-col items-center justify-center w-full h-full bg-void overflow-hidden relative p-4">
+              <div className="absolute inset-0 z-0 opacity-50"><Starfield /></div>
+              <div className="relative z-10 flex flex-col items-center w-full max-w-sm">
+                
+                {/* Mode tabs for PIP */}
+                <div className="flex w-full mb-6 bg-blue-900/10 rounded-xl p-1 border border-pulsar/30 max-w-[240px]">
+                  {Object.entries(MODE_CONFIG).map(([key, cfg]) => (
+                    <button key={key} onClick={() => setMode(key)}
+                      className={`flex-1 py-1.5 rounded-lg text-xs font-body transition-all ${mode === key
+                          ? 'text-starlight shadow-sm font-bold'
+                          : 'text-nova/60 hover:text-starlight hover:bg-blue-900/10'
+                        }`}
+                      style={mode === key ? { background: color } : {}}>
+                      {cfg.label.split(' ')[0]}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="relative w-48 h-48 flex items-center justify-center cursor-pointer group mb-4" onClick={handleClockClick}>
+                  <svg viewBox="0 0 120 120" className="absolute inset-0 w-full h-full -rotate-90 drop-shadow-2xl">
+                    <circle cx="60" cy="60" r="54" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="4" />
+                    <circle cx="60" cy="60" r="54" fill="none" stroke={color} strokeWidth="4" strokeDasharray={circumference} strokeDashoffset={dashoffset} strokeLinecap="round" style={{ transition: 'stroke-dashoffset 1s linear' }} />
+                  </svg>
+                  <div className="relative text-center select-none mt-2">
+                    <p className="text-4xl font-display text-starlight tracking-tight leading-none mb-1">{mins}:{secs}</p>
+                    <p className="text-[9px] text-nova/60 font-mono">{isRunning ? 'Click to pause' : 'Click to start'}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center justify-center gap-6 mt-2 w-full">
+                  <button onClick={handleReset} className="text-nova/60 hover:text-starlight transition-colors p-2 bg-stardust/30 rounded-full"><RotateCcw className="w-4 h-4" /></button>
+                  <button onClick={() => setAutoRestart(r => !r)} title="Auto-restart loop" className={`text-xl leading-none transition-all p-1.5 bg-stardust/30 rounded-full ${autoRestart ? 'opacity-100' : 'opacity-40 hover:opacity-80'}`} style={autoRestart ? { color } : { color: '#64748b' }}>⟳</button>
+                </div>
+              </div>
+            </div>,
+            pipRoot
+          )}
+        </>
+      )
+    }
+  }
+  
   if (isExpanded) return createPortal(
     <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-void/90 overflow-hidden">
       <div className="absolute inset-0 z-0">
@@ -409,8 +529,12 @@ const PomodoroTimer = ({ mobilePill = false }) => {
             className="text-nova/60 hover:text-starlight transition-colors p-1">
             <Settings className="w-3 h-3" />
           </button>
+          <button onClick={handlePopOut}
+            className="text-nova/60 hover:text-starlight transition-colors p-1" title="Pop Out Timer">
+            <ExternalLink className="w-3 h-3" />
+          </button>
           <button onClick={() => setIsExpanded(true)}
-            className="text-nova/60 hover:text-starlight transition-colors p-1">
+            className="text-nova/60 hover:text-starlight transition-colors p-1" title="Fullscreen">
             <Maximize2 className="w-3 h-3" />
           </button>
         </div>
