@@ -30,3 +30,4 @@ scripts/logs/
 .user_id_lock
 agent_scout_payload.json
 
+scripts/.last_run_date
