@@ -4,11 +4,10 @@ Write-Host "Configuring Ollama Environment Variables..." -ForegroundColor Cyan
 [System.Environment]::SetEnvironmentVariable('OLLAMA_MAX_LOADED_MODELS', '1', 'User')
 [System.Environment]::SetEnvironmentVariable('OLLAMA_KEEP_ALIVE', '30s', 'User')
 Write-Host "Set OLLAMA_MAX_LOADED_MODELS=1 and OLLAMA_KEEP_ALIVE=30s for the current user."
-Write-Host "(Note: You must restart the Ollama app for these variables to take effect.)" -ForegroundColor Yellow
 
 $TaskName = "PolarisTaskTriage"
 $WorkingDir = (Get-Item .).FullName
-$NodeExe = (Get-Command node).Source
+$PowershellExe = (Get-Command powershell).Source
 
 Write-Host "Creating Scheduled Task: $TaskName" -ForegroundColor Cyan
 
@@ -33,8 +32,8 @@ $TaskXml = @"
   </Settings>
   <Actions Context="Author">
     <Exec>
-      <Command>$NodeExe</Command>
-      <Arguments>scripts\task_triage.js</Arguments>
+      <Command>$PowershellExe</Command>
+      <Arguments>-WindowStyle Hidden -ExecutionPolicy Bypass -File "scripts\run_triage_wrapper.ps1"</Arguments>
       <WorkingDirectory>$WorkingDir</WorkingDirectory>
     </Exec>
   </Actions>
@@ -42,4 +41,4 @@ $TaskXml = @"
 "@
 
 Register-ScheduledTask -Xml $TaskXml -TaskName $TaskName -Force
-Write-Host "Scheduled task successfully created. It will trigger on Logon and Workstation Unlock." -ForegroundColor Green
+Write-Host "Scheduled task successfully updated! It will trigger on your FIRST unlock/logon of the day." -ForegroundColor Green
