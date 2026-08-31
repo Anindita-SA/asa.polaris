@@ -8,58 +8,46 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader) {
-      throw new Error('Unauthorized: Missing Authorization header')
-    }
-    const token = authHeader.replace(/^Bearer\s+/i, '')
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    const targetUserId = Deno.env.get('TARGET_USER_ID')
 
-    // Create client with the user's token so RLS policies pass for subsequent queries
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: `Bearer ${token}` } } }
-    )
+    if (!serviceRoleKey) throw new Error('SUPABASE_SERVICE_ROLE_KEY is not set')
+    if (!targetUserId) throw new Error('TARGET_USER_ID is not set in secrets')
 
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token)
-    if (authError || !user) {
-      throw new Error(`Unauthorized: ${authError?.message || 'No user found'}`)
-    }
+    const supabaseClient = createClient(supabaseUrl, serviceRoleKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
 
-    // 1.5 Parse request body to check for 'force' flag
+    const user = { id: targetUserId };
+
     let force = false;
     try {
       const body = await req.json();
       force = body.force === true;
-    } catch (e) {
-      // ignore JSON parse error if body is empty
-    }
+    } catch (e) {}
 
-    // 2. Check if today's brief already exists (unless forced)
     const today = new Date().toLocaleDateString('en-CA')
-    if (!force) {
-      const { data: existingBrief } = await supabaseClient
-        .from('morning_briefs')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('date', today)
-        .maybeSingle()
+    
+    // Check for existing brief
+    const { data: existingBrief } = await supabaseClient
+      .from('morning_briefs')
+      .select('id, items')
+      .eq('user_id', user.id)
+      .eq('date', today)
+      .maybeSingle()
 
-      if (existingBrief) {
-        return new Response(JSON.stringify({ message: 'Brief already exists for today' }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 200,
-        })
-      }
-    }
-
-    // 3. Fetch all active sources for the user
+    // We no longer abort if existingBrief is found. We append.
+    
+    // Fetch active sources
     const { data: sources, error: sourcesError } = await supabaseClient
       .from('brief_sources')
       .select('*')
@@ -67,14 +55,18 @@ serve(async (req) => {
       .eq('active', true)
 
     if (sourcesError) throw sourcesError
-    if (!sources || sources.length === 0) {
-      return new Response(JSON.stringify({ message: 'No active sources found' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      })
+
+    // Fallback RSS feeds if empty
+    let activeSources = sources || [];
+    if (activeSources.length === 0) {
+      activeSources = [
+        { type: 'fixed', name: 'Wildlabs', url: 'https://www.wildlabs.net/feed' },
+        { type: 'fixed', name: 'The Revelator', url: 'https://www.therevelator.org/feed' },
+        { type: 'fixed', name: 'TechCrunch Climate', url: 'https://techcrunch.com/tag/climate/feed/' },
+        { type: 'fixed', name: 'Mongabay', url: 'https://news.mongabay.com/feed/' }
+      ];
     }
 
-    // 4. Fetch past briefs to filter curated URLs
     const { data: pastBriefs } = await supabaseClient
       .from('morning_briefs')
       .select('items')
@@ -84,20 +76,14 @@ serve(async (req) => {
       (pastBriefs || []).flatMap(b => (b.items || []).map((i: any) => i.url).filter(Boolean))
     )
 
-    // 5. Gather items from sources
     const pool = []
     const parser = new Parser()
     const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000)
 
-    for (const source of sources) {
+    for (const source of activeSources) {
       if (source.type === 'curated' && source.manual_summary) {
         if (!usedUrls.has(source.url)) {
-          pool.push({
-            title: source.name,
-            url: source.url,
-            source_name: source.name,
-            summary: source.manual_summary
-          })
+          pool.push({ title: source.name, url: source.url, source_name: source.name, summary: source.manual_summary })
         }
       } else if (source.type === 'fixed') {
         try {
@@ -105,7 +91,7 @@ serve(async (req) => {
           let count = 0
           for (const item of feed.items) {
             const pubDate = item.pubDate ? new Date(item.pubDate) : new Date()
-            if (pubDate >= fourteenDaysAgo) {
+            if (pubDate >= fourteenDaysAgo && !usedUrls.has(item.link)) {
               pool.push({
                 title: item.title || '',
                 url: item.link || '',
@@ -129,40 +115,28 @@ serve(async (req) => {
       })
     }
 
-    // 6. Call Groq
     const groqApiKey = Deno.env.get('GROQ_API_KEY')
-    if (!groqApiKey) {
-      throw new Error('GROQ_API_KEY secret is not set')
-    }
+    if (!groqApiKey) throw new Error('GROQ_API_KEY secret is not set')
 
-    // Minify pool to save tokens (strip overly long summaries if needed, but we'll send as is for now)
     const minifiedPool = pool.map(i => ({
-      title: i.title,
-      url: i.url,
-      source_name: i.source_name,
-      summary: (i.summary || '').substring(0, 500) // truncate large XML contents
+      title: i.title, url: i.url, source_name: i.source_name, summary: (i.summary || '').substring(0, 500)
     }))
 
-    const prompt = `Here is a pool of recent developments, news, and opportunities:
+    const prompt = `Here is a pool of recent news and developments:
 ${JSON.stringify(minifiedPool)}
 
-Pick the 3 most exciting and relevant developments or opportunities from this pool. 
-You MUST meticulously prioritize a mix of the following: 
-1. Opportunities: Paid volunteer work (especially UN), internships, or startup job positions that align with my goals (EE, Robotics, Agri-tech, sustainable products, hardware engineering, TU Delft prep). Focus heavily on dates/deadlines (they must be fairly new with time to apply).
-2. News: Conservation tech breakthroughs, conservation effort successes and failures, sustainable ecosystems, and agri-tech. (Do NOT just pick generic tech breakthrough news).
+Pick the 3 most exciting and relevant developments from this pool. 
+You MUST meticulously prioritize conservation tech breakthroughs, sustainable ecosystems, agri-tech, and climate action. DO NOT pick opportunities or job postings. DO NOT just pick generic tech breakthrough news.
 
 Write a tightened 1-2 sentence summary for each.
-You MUST strictly use the exact 'title', 'url', and 'source_name' provided in the pool for your chosen items. DO NOT invent or modify those fields.
+You MUST strictly use the exact 'title', 'url', and 'source_name' provided in the pool for your chosen items.
 
 Return ONLY valid JSON in this exact format:
 {"items": [{"title": "Exact Title", "summary": "1-2 sentences...", "source_name": "Exact Source", "url": "Exact URL"}]}`
 
     const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${groqApiKey}`,
-        'Content-Type': 'application/json'
-      },
+      headers: { 'Authorization': `Bearer ${groqApiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'qwen/qwen3.6-27b',
         messages: [{ role: 'user', content: prompt }],
@@ -172,53 +146,50 @@ Return ONLY valid JSON in this exact format:
       })
     })
 
-    if (!res.ok) {
-      const errBody = await res.text()
-      throw new Error(`Groq API Error: ${res.status} ${res.statusText} ${errBody}`)
-    }
+    if (!res.ok) throw new Error(`Groq API Error: ${res.status} ${await res.text()}`)
 
     const data = await res.json()
-    let items = []
-    
-    let content = data.choices[0].message.content
-    // Remove <think> blocks if present
-    content = content.replace(/<think>[\s\S]*?<\/think>/gi, '').trim()
-    
-    // Extract just the JSON object
+    let content = data.choices[0].message.content.replace(/<think>[\s\S]*?<\/think>/gi, '').trim()
     const firstBrace = content.indexOf('{')
     const lastBrace = content.lastIndexOf('}')
+    if (firstBrace !== -1 && lastBrace !== -1) content = content.slice(firstBrace, lastBrace + 1)
     
-    if (firstBrace !== -1 && lastBrace !== -1) {
-      content = content.slice(firstBrace, lastBrace + 1)
-    }
+    let parsedItems = JSON.parse(content).items || []
+    
+    // Tag with type="news"
+    const newsItems = parsedItems.slice(0, 3).map((i: any) => ({ ...i, type: 'news' }))
 
-    const parsed = JSON.parse(content)
-    items = parsed.items || []
-
-    if (items.length > 0) {
-      // 7. Insert into morning_briefs
-      if (force) {
-        const { error: delErr } = await supabaseClient
-          .from('morning_briefs')
-          .delete()
-          .eq('user_id', user.id)
-          .eq('date', today)
-        
-        if (delErr) {
-          console.error("Warning: Failed to delete existing brief before force-inserting:", delErr)
+    if (newsItems.length > 0) {
+      if (existingBrief) {
+        // Keep existing non-news items (like type="opportunity"), append new news items
+        const nonNewsItems = (existingBrief.items || []).filter((i: any) => i.type !== 'news');
+        if (force) {
+          // If force, we wipe old news and add new ones
+          const newItems = [...nonNewsItems, ...newsItems];
+          const { error: updateErr } = await supabaseClient.from('morning_briefs').update({ items: newItems }).eq('id', existingBrief.id);
+          if (updateErr) throw updateErr;
+        } else {
+          // If not force, and we already have news, don't generate more
+          const hasNews = (existingBrief.items || []).some((i: any) => i.type === 'news');
+          if (hasNews) {
+            return new Response(JSON.stringify({ message: 'Brief already has news items for today' }), {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              status: 200,
+            })
+          } else {
+             const newItems = [...nonNewsItems, ...newsItems];
+             const { error: updateErr } = await supabaseClient.from('morning_briefs').update({ items: newItems }).eq('id', existingBrief.id);
+             if (updateErr) throw updateErr;
+          }
         }
+      } else {
+        const { error: insertErr } = await supabaseClient.from('morning_briefs').insert({
+          user_id: user.id, date: today, items: newsItems, seen: false
+        })
+        if (insertErr) throw insertErr
       }
 
-      const { error: insertErr } = await supabaseClient.from('morning_briefs').insert({
-        user_id: user.id,
-        date: today,
-        items: items.slice(0, 3), // Ensure max 3
-        seen: false
-      })
-
-      if (insertErr) throw insertErr
-
-      return new Response(JSON.stringify({ success: true, items }), {
+      return new Response(JSON.stringify({ success: true, items: newsItems }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       })

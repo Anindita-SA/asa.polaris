@@ -290,6 +290,7 @@
 | Name | Type | Constraints |
 |------|------|-------------|
 | `id` | `uuid` | Primary |
+| `user_id` | `uuid` | Foreign Key (`auth.users`), Nullable |
 | `day_type` | `text` |  |
 | `exercise_name` | `text` |  |
 | `target_sets` | `int4` |  Nullable |
@@ -304,6 +305,7 @@
 | Name | Type | Constraints |
 |------|------|-------------|
 | `id` | `uuid` | Primary |
+| `user_id` | `uuid` | Foreign Key (`auth.users`), Nullable |
 | `logged_at` | `timestamptz` |  Nullable |
 | `log_date` | `date` |  |
 | `day_type` | `text` |  |
@@ -518,6 +520,7 @@
 | Name | Type | Constraints |
 |------|------|-------------|
 | `id` | `uuid` | Primary |
+| `user_id` | `uuid` | Foreign Key (`auth.users`), Nullable |
 | `plan_id` | `uuid` |  Nullable |
 | `name` | `text` |  |
 | `sets` | `text` |  Nullable |

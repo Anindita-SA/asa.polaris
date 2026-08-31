@@ -1,42 +1,47 @@
-import { createClient } from '@supabase/supabase-js';
-import fs from 'fs';
+﻿import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import 'dotenv/config';
-
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-if (!SUPABASE_URL || !SUPABASE_KEY) {
-  console.error('ERROR: Missing SUPABASE_SERVICE_ROLE_KEY or SUPABASE_URL in environment.');
-  process.exit(1);
-}
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
-  auth: { persistSession: false }
-});
+import { createSafeClient } from './lib/safe_supabase.js';
 
 async function run() {
+  const isDryRun = process.argv.includes('--dry-run');
+  let supabase;
+  
+  try {
+    supabase = await createSafeClient('agent_scout_insert', false, isDryRun);
+  } catch (err) {
+    console.error('Initialization failed:', err.message);
+    process.exit(1);
+  }
+
+  const uid = supabase._uid;
+
   try {
     const input = fs.readFileSync(0, 'utf-8');
-    const cleanInput = input.charCodeAt(0) === 0xFEFF ? input.slice(1) : input; const payload = JSON.parse(cleanInput);
-    const { userId, opportunities, morningBriefHighlight } = payload;
+    const cleanInput = input.charCodeAt(0) === 0xFEFF ? input.slice(1) : input; 
     
-    let uid = userId; 
-    if (!uid) { 
-      const { data } = await supabase.from('profiles').select('id').limit(1); 
-      uid = data?.[0]?.id; 
-    } 
-    if (!uid) throw new Error('Could not find user profile');
+    if (!cleanInput.trim()) {
+      console.log('No input provided.');
+      return;
+    }
 
+    const payload = JSON.parse(cleanInput);
+    const { opportunities, morningBriefItems } = payload;
+    
     if (opportunities && opportunities.length > 0) {
       const { error } = await supabase.from('hardware_opportunities').insert(
         opportunities.map(opp => ({ ...opp, user_id: uid }))
       );
-      if (error) throw error;
+      if (error && !isDryRun) throw error;
       console.log(`Successfully inserted ${opportunities.length} opportunities.`);
     }
 
-    if (morningBriefHighlight) {
+    if (morningBriefItems && morningBriefItems.length > 0) {
+      // Tag items as opportunity
+      const taggedItems = morningBriefItems.map(item => ({ ...item, type: 'opportunity' }));
       const today = new Date().toLocaleDateString('en-CA');
+      
       const { data: existingBrief } = await supabase
         .from('morning_briefs')
         .select('id, items')
@@ -45,14 +50,27 @@ async function run() {
         .maybeSingle();
         
       if (existingBrief) {
-        const newItems = [...(existingBrief.items || []), morningBriefHighlight];
-        await supabase.from('morning_briefs').update({ items: newItems }).eq('id', existingBrief.id);
-        console.log(`Appended highlight to today's brief.`);
+        // Keep existing news, replace/append opportunities
+        const existingNews = (existingBrief.items || []).filter(i => i.type !== 'opportunity');
+        const newItems = [...existingNews, ...taggedItems];
+        
+        const updateChain = supabase.from('morning_briefs').update({ items: newItems });
+        if (isDryRun) {
+            updateChain.eq('id', existingBrief.id);
+        } else {
+            const { error: updErr } = await updateChain.eq('id', existingBrief.id);
+            if (updErr) throw updErr;
+        }
+        console.log(`Appended ${taggedItems.length} opportunities to today's brief.`);
       } else {
-        await supabase.from('morning_briefs').insert({
-          user_id: uid, date: today, items: [morningBriefHighlight], seen: false
+        const insertChain = supabase.from('morning_briefs').insert({
+          user_id: uid, date: today, items: taggedItems, seen: false
         });
-        console.log(`Created new brief with highlight.`);
+        if (!isDryRun) {
+            const { error: insErr } = await insertChain;
+            if (insErr) throw insErr;
+        }
+        console.log(`Created new brief with ${taggedItems.length} opportunities.`);
       }
     }
   } catch (err) {

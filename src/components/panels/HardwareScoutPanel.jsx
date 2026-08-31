@@ -9,10 +9,25 @@ const HardwareScoutPanel = () => {
   const [loading, setLoading] = useState(true)
   const [editingId, setEditingId] = useState(null)
   const [editForm, setEditForm] = useState({})
+  const [isScouting, setIsScouting] = useState(false)
 
   useEffect(() => {
     fetchOpportunities()
   }, [])
+
+  const invokeScout = async () => {
+    setIsScouting(true)
+    try {
+      const { error } = await supabase.functions.invoke('scout-opportunities')
+      if (error) throw error
+      await fetchOpportunities()
+    } catch (err) {
+      console.error('Error invoking scout:', err)
+      alert('Failed to invoke scout. Check console logs.')
+    } finally {
+      setIsScouting(false)
+    }
+  }
 
   const fetchOpportunities = async () => {
     const { data } = await supabase
@@ -30,6 +45,9 @@ const HardwareScoutPanel = () => {
   }
 
   const approveAndActivate = async (opp) => {
+    // Optimistic update
+    setOpportunities(prev => prev.filter(o => o.id !== opp.id))
+
     let newTaskId = opp.task_id
 
     if (opp.task_id) {
@@ -60,15 +78,20 @@ const HardwareScoutPanel = () => {
       .update({ status: 'applied', task_id: newTaskId })
       .eq('id', opp.id)
 
+    // Ensure state remains synchronized with backend
     fetchOpportunities()
   }
 
   const rejectOpportunity = async (oppId) => {
+    // Optimistic update
+    setOpportunities(prev => prev.filter(o => o.id !== oppId))
+
     await supabase
       .from('hardware_opportunities')
       .update({ status: 'rejected' })
       .eq('id', oppId)
     
+    // Ensure state remains synchronized with backend
     fetchOpportunities()
   }
 
@@ -99,9 +122,18 @@ const HardwareScoutPanel = () => {
 
   return (
     <div className="space-y-6 max-w-4xl w-full">
-      <div className="flex items-center gap-3">
-        <Cpu className="text-amber-500 w-6 h-6" />
-        <h2 className="text-base font-display text-starlight">Hardware & Grants Scout</h2>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Cpu className="text-amber-500 w-6 h-6" />
+          <h2 className="text-base font-display text-starlight">Hardware & Grants Scout</h2>
+        </div>
+        <button 
+          onClick={invokeScout} 
+          disabled={isScouting}
+          className="flex items-center gap-2 px-3 py-1.5 text-xs font-mono uppercase tracking-wider text-nova/60 hover:text-amber-400 bg-pulsar/10 hover:bg-amber-500/10 border border-pulsar/30 hover:border-amber-500/30 rounded-lg transition-all"
+        >
+          {isScouting ? 'SCOUTING...' : 'RUN SCOUT NOW'}
+        </button>
       </div>
 
       {opportunities.length === 0 ? (
@@ -168,9 +200,9 @@ const HardwareScoutPanel = () => {
                         </>
                       ) : (
                         <>
-                          {opp.deadline && <span>Deadline: {opp.deadline}</span>}
-                          {opp.effort && <span>Effort: {opp.effort}</span>}
-                          {opp.project_fit && <span>Fit: {opp.project_fit}</span>}
+                          {opp.deadline && <span className="px-2 py-1 rounded bg-amber-500/10 text-amber-500/80">Deadline: {opp.deadline}</span>}
+                          {opp.effort && <span className="px-2 py-1 rounded bg-blue-500/10 text-blue-400">Effort: {opp.effort}</span>}
+                          {opp.project_fit && <span className="px-2 py-1 rounded bg-emerald-500/10 text-emerald-400">Fit: {opp.project_fit}</span>}
                         </>
                       )}
                     </div>
