@@ -36,23 +36,42 @@ export const DEFAULT_SUBNODES = [
 ## 2. Multi-Scope Goals (The Engine)
 Goals are categorized by scopes to represent different granularities of time.
 
-- **Scopes**: `daily` | `weekly` | `monthly` | `quarterly` | `yearly` | `5yr`
+- **Scopes**: `daily` | `weekly` | `monthly` | `quarterly` | `yearly` | `decade`
 - **XP Reward Rules**:
   - Weekly/Monthly/Quarterly/Yearly Goals: **+50 XP** on completion.
-  - 5-Year Goals: **+500 XP to +1000 XP** depending on size.
+  - Decade Goals: **+500 XP to +1000 XP** depending on size.
   - Completion triggers a green progress bar animation and visual badge completion.
 
 ### Data Format (`DEFAULT_GOALS`):
 ```javascript
 export const DEFAULT_GOALS = [
   { title: 'Work on portfolio case study', scope: 'weekly', target: 3, unit: 'sessions', xp_reward: 50 },
-  { title: 'Complete MSc in Europe', scope: '5yr', target: 1, unit: 'degree', xp_reward: 500 }
+  { title: 'Complete MSc in Europe', scope: 'decade', target: 1, unit: 'degree', xp_reward: 500 }
 ]
 ```
 
 ---
 
-## 3. Daily Ritual Stack (The Routine)
+## 3. Day Guide & Eisenhower Matrix
+The Day Guide consists of the Spatial Matrix Canvas and the Unified Scout Pipeline.
+
+- **Matrix Canvas**: Drag-and-drop tasks on an Urgency vs. Importance 2D graph.
+- **Brain Dump**: Sidebar containing untethered tasks, backlog, and completed items.
+- **Local AI Triage**: A background script (`task_triage.js`) running a local LLM (`qwen2.5:3b`) auto-categorizes tasks in the Brain Dump into quadrants.
+- **Master's App Tracking**: Application deadlines are stored as `status = 'scheduled'` and only appear in the matrix one week before they are due to prevent clutter.
+
+---
+
+## 4. Morning Brief & Edge Scouts
+Triggered via pg_cron, background Edge Functions run daily to populate the Morning Brief.
+
+- **News Scout**: Collects 2-3 positive climate/sustainability news items, displaying them via `SparkPopup`.
+- **Opportunity Scout**: Uses Firecrawl + Groq to find hardware/engineering jobs or scholarships matching strict eligibility.
+- **Flag to Apply**: One-click button in the Day Brief View to create matrix tasks out of opportunities.
+
+---
+
+## 5. Daily Ritual Stack (The Routine)
 The Daily Ritual Stack sits at the top of your **Journal** tab. It tracks daily recurring habits to keep you grounded every single morning and night.
 
 - **Categorizations**:
@@ -73,17 +92,16 @@ export const DEFAULT_HABITS = [
 
 ---
 
-## 4. Google Calendar Synchronizer (The Grid)
+## 6. Google Calendar Synchronizer (The Grid)
 The Calendar tab maps your real-time Google Calendar events into an ultra-premium weekly dashboard.
 
-- **True Color Coding**: Supports Google's API v3 color spectrum with actual hex representations:
-  - *Sage, Grape, Flamingo, Banana, Tangerine, Peacock, Blueberry, Basil, Tomato.*
+- **True Color Coding**: Supports Google's API v3 color spectrum with actual hex representations.
 - **Glow & Translucency**: Each calendar pill features a **5% transparent background tint matching its Google color**, plus a solid color-coded left-border highlight.
 - **Permissions**: Safe, secure, and uses the `calendar.readonly` scope. Seamlessly handles token expiration with a beautiful connect screen.
 
 ---
 
-## 5. Focus Board & Backburner (The Workspace)
+## 7. Focus Board & Backburner (The Workspace)
 The Focus Board houses active projects, while the Backburner contains your deferred ideas with their context frozen in time.
 
 - **Focus Board (Max 3 Active Items)**:
@@ -106,12 +124,12 @@ export const DEFAULT_BACKBURNER = [
 
 ---
 
-## 6. Personal Development Identity (The Compass)
+## 8. Personal Development Identity (The Compass)
 Your overarching identity blocks are visible globally or inside specific dashboard widgets.
 
 - **Eulogy**: Your long-term vision of how you want to be remembered (Versioned and timestamped).
 - **Clarity Anchor**: A persistent italicized mission statement on your top HUD.
-- **Current Chapter**: Tracks your current phase of life (e.g., *"Chapter I: The Foundation"*).
+- **Current Chapter**: Tracks your current phase of life.
 
 ### Data Format (`DEFAULT_EULOGY`, `DEFAULT_CLARITY_ANCHOR`, `DEFAULT_CURRENT_CHAPTER`):
 ```javascript
@@ -127,11 +145,12 @@ export const DEFAULT_EULOGY = {
 
 ---
 
-## 7. Pomodoro Timer & Leveling System
+## 9. Pomodoro Timer & Leveling System
 The floating widgets and progress metrics keep you focused and reward your effort.
 
 - **Pomodoro Timer**:
   - Fully persistent and double-mount safe.
+  - PiP Pop-out window via `window.open` for floating timer support.
   - Earn **+1 XP per minute of focus** (e.g., 30 min focus = 30 XP!).
   - Loop mode (∞) keeps alternating between Focus and Break automatically.
   - Link sessions to active Constellation nodes.

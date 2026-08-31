@@ -22,3 +22,10 @@
 - Created the **Orbit Tab** for Fitness, Relationships (CRM), and Play (Mini-games).
 - Wrote Service Workers for push notifications (Nudges).
 - Unified Daily Tasks and Goals into a single system with randomized gamification (`Surprise Me`).
+
+## Phase 5: Automation & Triage
+- Built the **Eisenhower Matrix (Spatial)** and untethered **Brain Dump**.
+- Implemented **Local LLM Triage** to automatically sort backlog tasks via a background script (`task_triage.js`).
+- Created the **Unified Morning Brief** powered by Deno Edge Functions (News & Opportunities Scouts) and pg_cron.
+- Secured the database with strict RLS policies, a `safe_supabase.js` wrapper, and an audit logger.
+- Integrated the Master's App Strategy directly into the database as hidden, scheduled tasks.

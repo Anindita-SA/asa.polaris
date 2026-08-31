@@ -2,7 +2,7 @@
 
 All notable changes to Polaris will be documented in this file.
 
-## [Current Version]
+## [2026-09-01] Sprint: Triage & Morning Brief
 ### Changed
 - **Thermonuclear Security Update**: Fixed 12 tables that were exposed by weak RLS policies (`auth only` or `Allow all for authenticated`). Added missing `user_id` columns to `workout_goals`, `workout_performance`, and `plan_exercises` to ensure cross-tenant data isolation.
 - **Hardware Scout Tag System Fixes**: Replaced raw text spans with pill-styled UI badges for tags (`Deadline`, `Effort`, `Fit`) in `HardwareScoutPanel.jsx`. Added optimistic UI updates for dismissing and activating opportunities.
@@ -57,3 +57,31 @@ All notable changes to Polaris will be documented in this file.
 - **Mobile Styling**: Fixed tab pill wrapping in `BottomNav.jsx` and padded the `ConstellationGraph` container to prevent nodes from clipping on small screens.
 - **Service Worker Message Parsing**: Updated `sw-notifications.js` to correctly handle `Array.isArray(event.data)` vs `{ type: 'UPDATE_NUDGES', nudges: [...] }` to fix the Nudge notification bug.
 
+-   * * A u t h   B u g   F i x * * :   F i x e d   a   b u g   w h e r e   t h e   G o o g l e   C a l e n d a r   p r o v i d e r   t o k e n   w a s   n o t   p e r s i s t e d   i n   l o c a l S t o r a g e   a c r o s s   p a g e   r e l o a d s ,   c a u s i n g   t h e   a p p   t o   e r r o n e o u s l y   r e q u e s t   r e - a u t h e n t i c a t i o n   e v e r y   t i m e . 
+ 
+ 
+## [2026-06-09] Database Schema Audit & Fixes
+- **Bug Fix (Goals Panel):** Identified and resolved a constraint issue where the `goals` table's `goals_scope_check` blocked `daily` and `side_quest` goal scopes.
+- **Bug Fix (Goals Panel):** Added missing `description` and `deadline` columns to the `goals` table to ensure the GoalsPanel functions without silently dropping data.
+- **Bug Fix (Fitness Bridge):** Added rigorous `user_id` filtering to the `workout_logs`, `meal_logs`, and `weight_logs` queries in `FitnessBridge.jsx` to prevent data leaking across users if Row Level Security (RLS) is disabled or misconfigured.
+- **Bug Fix (Pomodoro Data):** Corrected a silent failure in `CurriculumView.jsx` where it attempted to read a non-existent `duration` column from `pomodoro_logs` instead of the correct `duration_minutes` column.
+
+## [2026-05-24] Curriculum UI/UX Visual Overhaul
+- **Aesthetic Update:** Implemented a single-row horizontal scrolling bookshelf, replacing the older grid layout, giving a highly premium "library" feel.
+- **Interactive Books:** Upgraded `BookSpine.jsx` to feature 3D interactions. Books now lift outward `translateY(-16px) scale(1.06)` on hover, and execute a fully animated `rotateY` 3D "page flip" when opening.
+- **Layout Alignment:** Matched the padding across the `CurriculumView` to mirror the `Timeline` panel (`max-w-2xl mx-auto`), dropping edge-to-edge layouts for a more contained, readable experience.
+- **Resources Restructure:** Moved Curriculum Resources from a rigid side-column into an elegant, collapsible dropdown menu nested directly beneath the syllabus.
+- **Scrollbar Suppression:** Injected `.scrollbar-hide` CSS utilities into `global.css` to permanently hide ugly browser scrollbars while retaining full horizontal scroll capabilities.
+
+## [2026-05-23] Curriculum Architecture Complete Rewrite (v2)
+- **Database Schema Overhaul:** Scrapped the flat curriculum design in favor of a 5-table relational structure: `curriculum_categories`, `curricula`, `curriculum_topics`, `curriculum_resources`, and `media_log`.
+- **Database Seeding (`seed_complete.sql`):** Created a monolithic SQL transaction that purges old legacy curriculum data and cleanly seeds 4 master categories, 16 comprehensive subjects (Career, Academic, Self, Media & Lit), and 15 media log watchlist items.
+- **Media Log / Watchlist:** Implemented a dedicated tracking system for Books, Movies, and Shows, allowing the user to mark items as "In Progress" or "Want to Read", add 5-star ratings, and tag them by genre.
+
+## [2026-05-08] Leveling & XP Engine Integration
+- **Centralized Logic:** Deployed `src/data/xpRewards.js` as the single source of truth for all XP values across the entire application (Pomodoros, Curriculum topics, Goals, I/O Balance).
+- **Punishment Removal:** Stripped out the negative (-300 XP) punitive buttons, favoring a purely positive-reinforcement structure based on the user's ADHD-friendly requirements.
+- **Global Font Swap:** Set `DM Serif Display` as the global header font to achieve the desired "Dark Academia" aesthetic.
+
+---
+*(End of current logs)*

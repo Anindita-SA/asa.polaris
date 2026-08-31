@@ -20,11 +20,13 @@ Dashboard (Main Entry)
 - **Calendar Tab**: `CalendarView` (GCal sync integration).
 - **Curriculum Tab**: `CurriculumView`, `CurriculumShelf`, `MediaLog`, `TopicCard`.
 - **Orbit Tab**: `RelationshipsView`, `FitnessBridge`, `PlayView`.
+- **Day Guide**: `MatrixCanvasView` (Eisenhower Matrix), `DayBriefView` (Morning Brief), `HardwareScoutPanel` (Opportunities).
 
 ## Modals
 - `StatsModal`: In-depth breakdown of XP.
 - `AddMediaModal`: Form for adding items to the Curriculum.
 - `SurpriseTaskModal`: Random task picker.
+- `SparkPopup`: Morning brief climate signal popup.
 
 ## Widgets
 - `MusicPlayer`: Handles background Lofi tracks.
