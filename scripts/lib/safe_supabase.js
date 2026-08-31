@@ -1,4 +1,4 @@
-﻿import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -17,7 +17,8 @@ const ALLOWED_TABLES = [
   'morning_briefs',
   'tasks',
   'goals',
-  'eulogies'
+  'eulogies',
+  'milestones'
 ];
 
 function logAudit(entry) {

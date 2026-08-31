@@ -1,4 +1,4 @@
-﻿import { createContext, useContext, useEffect, useState, useRef } from 'react'
+import { createContext, useContext, useEffect, useState, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { 
   DEFAULT_MILESTONES, DEFAULT_NODES, DEFAULT_SUBNODES,
@@ -209,7 +209,15 @@ export const AuthProvider = ({ children }) => {
       if (!mounted) return
       const u = session?.user ?? null
       setUser(u)
-      setProviderToken(session?.provider_token ?? null)
+      
+      let pToken = session?.provider_token ?? null
+      if (pToken) {
+        localStorage.setItem('polaris_provider_token', pToken)
+      } else {
+        pToken = localStorage.getItem('polaris_provider_token')
+      }
+      setProviderToken(pToken)
+      
       if (u) fetchProfile(u.id)
       setLoading(false)
     })
@@ -218,9 +226,21 @@ export const AuthProvider = ({ children }) => {
       if (!mounted) return
       const u = session?.user ?? null
       setUser(u)
-      setProviderToken(session?.provider_token ?? null)
+      
+      let pToken = session?.provider_token ?? null
+      if (pToken) {
+        localStorage.setItem('polaris_provider_token', pToken)
+      } else if (u) {
+        pToken = localStorage.getItem('polaris_provider_token')
+      }
+      setProviderToken(pToken)
+
       if (u) fetchProfile(u.id)
-      else { setProfile(null); fetchingFor.current = null }
+      else { 
+        setProfile(null)
+        fetchingFor.current = null 
+        localStorage.removeItem('polaris_provider_token')
+      }
     })
 
     return () => {
