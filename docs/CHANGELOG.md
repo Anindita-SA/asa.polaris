@@ -4,6 +4,10 @@ All notable changes to Polaris will be documented in this file.
 
 ## [Current Version]
 ### Changed
+- **Thermonuclear Security Update**: Fixed 12 tables that were exposed by weak RLS policies (`auth only` or `Allow all for authenticated`). Added missing `user_id` columns to `workout_goals`, `workout_performance`, and `plan_exercises` to ensure cross-tenant data isolation.
+- **Hardware Scout Tag System Fixes**: Replaced raw text spans with pill-styled UI badges for tags (`Deadline`, `Effort`, `Fit`) in `HardwareScoutPanel.jsx`. Added optimistic UI updates for dismissing and activating opportunities.
+- **Local Triage Pipeline Fix**: Fixed bug where `task_triage.js` failed to parse the local LLM output when exactly one unsorted task was found (handling object vs array responses).
+
 - **Eisenhower Matrix Coordinates Fix**: Added a Supabase migration to create missing canvas_x and canvas_y columns in the 	asks table, resolving the bug where untethered tasks would snap back or disappear when dragged across the spatial canvas.
 - **Backlog Obliteration Fix**: Removed the hover-state trash icon from the Brain Dump Backlog list to prevent accidental deletions while attempting to drag. Task deletion is now safely located inside the Task Details pane with a confirmation prompt.
 - **Hide Far Scheduled Tasks**: Added a toggle control to the Eisenhower Canvas to hide tasks scheduled more than 7 days in the future, keeping the matrix clean while preserving visibility for upcoming week deliverables.

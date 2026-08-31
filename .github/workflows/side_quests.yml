@@ -1,0 +1,33 @@
+name: Scheduled Side Quests
+
+on:
+  schedule:
+    # Runs at 00:00 (midnight) every Sunday. 
+    # To tweak frequency:
+    # Once a week (every Sunday): '0 0 * * 0'
+    # Twice a month (1st and 15th): '0 0 1,15 * *'
+    # Once a month (1st): '0 0 1 * *'
+    - cron: '0 0 * * 0'
+  workflow_dispatch: # Allows you to run it manually from the GitHub UI
+
+jobs:
+  side-quests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Dependencies
+        run: npm install @supabase/supabase-js ws
+
+      - name: Insert Side Quests
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: node scripts/side_quests.js
