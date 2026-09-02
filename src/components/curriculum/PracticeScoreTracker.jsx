@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Target, Plus, Trash2, Award, ChevronDown, ChevronUp, LineChart } from 'lucide-react';
 
 export default function PracticeScoreTracker({ curriculumId }) {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(true);
   const [scores, setScores] = useState([]);
   
   // New entry form
