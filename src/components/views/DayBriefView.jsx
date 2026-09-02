@@ -17,6 +17,7 @@ export default function DayBriefView() {
   const [showFire, setShowFire] = useState(false);
   const [briefAttempted, setBriefAttempted] = useState(false);
   const [applyingIds, setApplyingIds] = useState(new Set()); // For "Flag to Apply" loading state
+  const [noNewOpp, setNoNewOpp] = useState(false);
 
   const fetchedRef = React.useRef(false);
   useEffect(() => {
@@ -33,8 +34,36 @@ export default function DayBriefView() {
       supabase.from('goals').select('title').eq('user_id', user.id).eq('scope', 'weekly').eq('completed', false).order('created_at', { ascending: true }).limit(1).maybeSingle()
     ]);
     
-    // We need to know if the hardware opportunities have been applied to
-    const items = briefRes.data?.items || [];
+    let items = briefRes.data?.items || [];
+    let oppItems = items.filter(i => i.type === 'opportunity' || i.hardware_opportunity_id);
+    let noNewOpp = false;
+
+    // Tweak: if no opportunities fetched, get top previous ones
+    if (oppItems.length === 0) {
+      const { data: pastOpps } = await supabase
+        .from('hardware_opportunities')
+        .select('*')
+        .eq('user_id', user.id)
+        .in('status', ['new', 'drafting'])
+        .order('created_at', { ascending: false })
+        .limit(3);
+      
+      if (pastOpps && pastOpps.length > 0) {
+        noNewOpp = true;
+        const mappedOpps = pastOpps.map(o => ({
+          title: o.title,
+          summary: o.what_offered || 'No description available',
+          url: o.url,
+          deadline: o.deadline,
+          effort: o.effort,
+          hardware_opportunity_id: o.id,
+          type: 'opportunity',
+          source_name: 'Database'
+        }));
+        items = [...items, ...mappedOpps];
+      }
+    }
+
     const hwIds = items.filter(i => i.hardware_opportunity_id).map(i => i.hardware_opportunity_id);
     
     let appliedIds = new Set();
@@ -54,6 +83,7 @@ export default function DayBriefView() {
 
     setBriefItems(enhancedItems);
     setWeeklyGoal(goalRes.data?.title || 'None');
+    setNoNewOpp(noNewOpp);
     setLoadingExtras(false);
   };
 
@@ -128,6 +158,11 @@ export default function DayBriefView() {
           <h3 className="text-lg font-display text-amber-400 flex items-center gap-2 mb-4">
             <Rocket className="w-5 h-5" /> Curated Opportunities
           </h3>
+          {noNewOpp && (
+            <p className="text-sm font-body text-nova/60 italic mb-4">
+              Scout did not find any new eligible opportunities today. Here are the most suitable ones from your backlog.
+            </p>
+          )}
           <div className="space-y-4">
             {oppItems.map((item, i) => {
               const originalIndex = briefItems.indexOf(item);

@@ -32,10 +32,6 @@ if (-not $OllamaRunning) {
     Write-Host "Ollama is already running. We will leave it open after execution."
 }
 
-# 2. Sync upcoming milestones to tasks
-Write-Host "Syncing milestones to tasks..."
-node "$ScriptDir\milestone_task_sync.js"
-
 # 3. Run the actual triage script
 Write-Host "Executing Node triage script..."
 node "$ScriptDir\task_triage.js"

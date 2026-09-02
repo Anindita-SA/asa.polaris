@@ -5,7 +5,7 @@ import { X, TrendingUp, Activity, Shield, Award, Plus, Trash2 } from 'lucide-rea
 import { getLevelInfo, TIERS } from '../../data/defaults'
 import ProgressDashboard from '../widgets/ProgressDashboard'
 
-const StatsModal = ({ onClose }) => {
+const StatsModal = ({ onClose, systemAlerts = [] }) => {
   const { user, profile } = useAuth()
   const [activeTab, setActiveTab] = useState('evolution') // 'evolution' | 'io' | 'progress'
   const [ioHistory, setIoHistory] = useState([])
@@ -140,6 +140,21 @@ const StatsModal = ({ onClose }) => {
                   </div>
                 ))}
               </div>
+
+              {systemAlerts && systemAlerts.length > 0 && (
+                <div className="w-full max-w-md mx-auto mt-6 glass p-4 rounded-xl border border-red-500/30 bg-red-500/5">
+                  <h3 className="text-sm font-display text-red-400 mb-2 flex items-center gap-2">
+                    <Activity className="w-4 h-4" /> System Alerts
+                  </h3>
+                  <ul className="space-y-2">
+                    {systemAlerts.map((alert, i) => (
+                      <li key={i} className="text-xs font-mono text-nova/80 flex items-start gap-2">
+                        <span className="text-red-500 mt-0.5">▪</span> {alert}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           )}
 

@@ -233,7 +233,8 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
     );
 
     try {
-      await supabase.from('tasks').update({ canvas_x: freeX, canvas_y: freeY }).eq('id', task.id);
+      saveLocalCoords(task.id, freeX, freeY);
+      // Wait, if we untether, we don't need to update Supabase since quadrant doesn't change
       if (onTasksChanged) onTasksChanged();
     } catch (err) {
       console.error('Error untethering task:', err);
@@ -246,7 +247,9 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
     setTasks(prev => prev.map(t => t.id === task.id ? { ...t, quadrant: targetQuadrant, canvasX: null, canvasY: null } : t));
     
     try {
-      await supabase.from('tasks').update({ quadrant: targetQuadrant, canvas_x: null, canvas_y: null }).eq('id', task.id);
+      saveLocalCoords(task.id, null, null);
+      const { error } = await supabase.from('tasks').update({ quadrant: targetQuadrant }).eq('id', task.id);
+      if (error) throw error;
       if (onTasksChanged) onTasksChanged();
     } catch (err) {
       console.error('Error retethering task:', err);
@@ -258,9 +261,11 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
     setTasks((prev) =>
       prev.map((t) => (t.id === taskId ? { ...t, quadrant: null, canvasX: null, canvasY: null } : t))
     );
+    saveLocalCoords(taskId, null, null);
 
     try {
-      await supabase.from('tasks').update({ quadrant: null, canvas_x: null, canvas_y: null }).eq('id', taskId);
+      const { error } = await supabase.from('tasks').update({ quadrant: null }).eq('id', taskId);
+      if (error) throw error;
       if (onTasksChanged) onTasksChanged();
     } catch (err) {
       console.error('Error returning to brain dump:', err);
@@ -280,9 +285,10 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
     );
 
     try {
+      saveLocalCoords(taskId, null, null);
       const { error } = await supabase
         .from('tasks')
-        .update({ quadrant: newQuadrant, canvas_x: null, canvas_y: null })
+        .update({ quadrant: newQuadrant })
         .eq('id', taskId);
 
       if (error) throw error;
@@ -659,7 +665,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                                 )}
 
                                 {/* Quick Hover Controls */}
-                                <div className="hidden group-hover:flex items-center gap-1 pl-1 border-l border-pulsar/40">
+                                <div className="hidden lg:group-hover:flex items-center gap-1 pl-1 border-l border-pulsar/40">
                                   <button
                                     onClick={(e) => { e.stopPropagation(); handleUntether(task); }}
                                     className="text-nova/60 hover:text-aurora p-0.5"
@@ -757,7 +763,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                     </span>
 
                     {/* Retether & Hover Controls */}
-                    <div className="hidden group-hover:flex items-center gap-1 pl-1 border-l border-pulsar/40">
+                    <div className="hidden lg:group-hover:flex items-center gap-1 pl-1 border-l border-pulsar/40">
                       <button
                         onClick={(e) => { e.stopPropagation(); handleRetether(task); }}
                         className="text-gold hover:text-white p-0.5"

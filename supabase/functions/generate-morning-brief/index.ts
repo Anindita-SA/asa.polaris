@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
 import Parser from 'npm:rss-parser'
+import { extractJsonFromLlm } from '../_shared/llm_utils.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -149,12 +150,13 @@ Return ONLY valid JSON in this exact format:
     if (!res.ok) throw new Error(`Groq API Error: ${res.status} ${await res.text()}`)
 
     const data = await res.json()
-    let content = data.choices[0].message.content.replace(/<think>[\s\S]*?<\/think>/gi, '').trim()
-    const firstBrace = content.indexOf('{')
-    const lastBrace = content.lastIndexOf('}')
-    if (firstBrace !== -1 && lastBrace !== -1) content = content.slice(firstBrace, lastBrace + 1)
-    
-    let parsedItems = JSON.parse(content).items || []
+    let parsedItems = []
+    try {
+      const parsed = extractJsonFromLlm(data.choices[0].message.content)
+      parsedItems = parsed.items || []
+    } catch (err) {
+      console.error("Failed to parse LLM JSON:", err)
+    }
     
     // Tag with type="news"
     const newsItems = parsedItems.slice(0, 3).map((i: any) => ({ ...i, type: 'news' }))

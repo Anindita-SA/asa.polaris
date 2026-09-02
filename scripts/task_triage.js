@@ -99,32 +99,60 @@ async function run() {
     }
 
     const json = await res.json();
-    let resultText = json.response.trim();
+    let resultText = json.response ? json.response.trim() : (json.message?.content || "").trim();
     
+    console.log("LLM Raw Output:", resultText);
+
     let parsed = JSON.parse(resultText);
     
-    if (!Array.isArray(parsed)) {
-      parsed = [parsed];
+    // Normalize LLM output to a flat array
+    let normalized = [];
+    if (Array.isArray(parsed)) {
+      normalized = parsed;
+    } else if (typeof parsed === 'object' && parsed !== null) {
+      // Handle cases where the LLM returns {"id": [...]} or {"id": {id, quadrant}}
+      for (const key in parsed) {
+        if (Array.isArray(parsed[key])) {
+          normalized.push(...parsed[key]);
+        } else if (typeof parsed[key] === 'object') {
+          normalized.push(parsed[key]);
+        } else if (parsed.id && parsed.quadrant) {
+          // It's a single object
+          normalized.push(parsed);
+          break;
+        }
+      }
     }
-
+    
     const validQuadrants = ['urgent_important', 'important_not_urgent', 'urgent_not_important', 'neither'];
     let successCount = 0;
 
-    // 5. Apply updates
+    // 5. Apply updates in parallel
     const validIds = new Set(unsortedTasks.map(t => t.id));
-    for (const item of parsed) {
-      if (item.id && validIds.has(item.id) && validQuadrants.includes(item.quadrant)) {
-        const updateChain = supabase.from('tasks').update({ quadrant: item.quadrant });
-        if (isDryRun) {
-           updateChain.eq('id', item.id);
-        } else {
-           const { error } = await updateChain.eq('id', item.id);
-           if (error) console.error(`Error updating task ${item.id}:`, error);
-           else successCount++;
-        }
+    const validItems = normalized.filter(item => item.id && validIds.has(item.id) && validQuadrants.includes(item.quadrant));
+    
+    const updatePromises = validItems.map(async (item) => {
+      const updateChain = supabase.from('tasks').update({ quadrant: item.quadrant });
+      if (isDryRun) {
+        updateChain.eq('id', item.id);
+        return true;
       } else {
-        console.warn('Invalid item skipped:', item);
+        const { error } = await updateChain.eq('id', item.id);
+        if (error) {
+          console.error(`Error updating task ${item.id}:`, error);
+          return false;
+        }
+        return true;
       }
+    });
+
+    const results = await Promise.all(updatePromises);
+    successCount = results.filter(success => success).length;
+
+    // Log items that were skipped because they were invalid
+    const invalidItems = normalized.filter(item => !(item.id && validIds.has(item.id) && validQuadrants.includes(item.quadrant)));
+    if (invalidItems.length > 0) {
+      console.warn(`Skipped ${invalidItems.length} invalid items from LLM response.`);
     }
 
     console.log(`Triage complete. Successfully processed ${isDryRun ? parsed.length : successCount} tasks.`);

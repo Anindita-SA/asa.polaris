@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
+import { extractJsonFromLlm } from '../_shared/llm_utils.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -47,7 +48,8 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         query: query,
-        limit: 10
+        limit: 10,
+        tbs: 'qdr:w'
       })
     })
 
@@ -98,12 +100,13 @@ Return ONLY valid JSON in this exact format:
     if (!groqRes.ok) throw new Error(`Groq API Error: ${groqRes.status} ${await groqRes.text()}`)
 
     const groqData = await groqRes.json()
-    let content = groqData.choices[0].message.content.trim()
-    const firstBrace = content.indexOf('{')
-    const lastBrace = content.lastIndexOf('}')
-    if (firstBrace !== -1 && lastBrace !== -1) content = content.slice(firstBrace, lastBrace + 1)
-    
-    let parsedOpps = JSON.parse(content).opportunities || []
+    let parsedOpps = []
+    try {
+      const parsed = extractJsonFromLlm(groqData.choices[0].message.content)
+      parsedOpps = parsed.opportunities || []
+    } catch (err) {
+      console.error("Failed to parse LLM JSON:", err)
+    }
 
     if (parsedOpps.length === 0) {
       return new Response(JSON.stringify({ message: 'Groq returned no opportunities' }), {
@@ -142,7 +145,7 @@ Return ONLY valid JSON in this exact format:
       user_id: user.id,
       title: o.title,
       url: o.url,
-      deadline: o.deadline,
+      deadline: (o.deadline && String(o.deadline).match(/^\d{4}-\d{2}-\d{2}$/)) ? o.deadline : null,
       effort: o.effort || 'med',
       project_fit: o.project_fit,
       what_offered: o.what_offered,
