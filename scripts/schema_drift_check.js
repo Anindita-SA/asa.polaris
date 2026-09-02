@@ -6,7 +6,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const ROOT_DIR = path.join(__dirname, '..');
-const SCHEMA_FILE = path.join(ROOT_DIR, 'dev guides', 'database_sup.md');
+const SCHEMA_FILE = path.join(ROOT_DIR, 'docs', 'DATABASE_SCHEMA.md');
 const SRC_DIR = path.join(ROOT_DIR, 'src');
 
 /**

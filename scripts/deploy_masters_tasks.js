@@ -32,7 +32,7 @@ async function main() {
   
   // Generic application tasks derived from MASTERS_APP_STRATEGY.md
   const manualTasks = [
-    { title: "Agri energy survey paper — Draft/Phase 1", deadline: "2026-08-31", note: "Need to check current draft state and unblock to MDPI Energies" },
+    { title: "Agri energy survey paper - Draft/Phase 1", deadline: "2026-08-31", note: "Need to check current draft state and unblock to MDPI Energies" },
     { title: "Swedish Institute Scholarship Opens", deadline: "2026-09-01", note: "Apply for Swedish Institute Scholarship" },
     { title: "ISFiT27 Results", deadline: "2026-09-02", note: "Expected results for ISFiT27" },
     { title: "IELTS Retake (Computer-delivered)", deadline: "2026-09-30", note: "Required for Delft, TU/e, Wageningen. Weekday only." },
@@ -40,13 +40,13 @@ async function main() {
     { title: "GOI-IES Ireland Scholarship", deadline: "2026-11-15", note: "For UCD/TU Dublin track" }
   ];
 
-  const allTasks = [];
+  const allMilestones = [];
   for (let mt of manualTasks) {
-    allTasks.push({
+    allMilestones.push({
+      user_id: supabase._uid,
       title: mt.title,
-      notes: mt.note,
-      status: "scheduled",
-      quadrant: "important_not_urgent",
+      note: mt.note,
+      status: "upcoming",
       deadline: mt.deadline
     });
   }
@@ -60,22 +60,21 @@ async function main() {
     else if (d.includes("Oct-Dec 2026")) deadlineDate = "2026-12-31";
     else deadlineDate = "2027-01-01"; // fallback
 
-    allTasks.push({
+    allMilestones.push({
+      user_id: supabase._uid,
       title: `Master's App: ${p.institution} - ${p.program}`,
-      notes: `Original Deadline text: ${d}`,
-      status: "scheduled",
-      quadrant: "important_not_urgent",
+      note: `Original Deadline text: ${d}`,
+      status: "upcoming",
       deadline: deadlineDate
     });
   }
 
-  for (let t of allTasks) {
-    t.user_id = supabase._uid; // We inject user_id directly just to be safe, though safe_supabase may handle it
-    const { error } = await supabase.from("tasks").insert([t]);
+  if (allMilestones.length > 0) {
+    const { error } = await supabase.from("milestones").insert(allMilestones);
     if (error) {
-      console.error("Error inserting", t.title, error);
+      console.error("Error inserting milestones:", error);
     } else {
-      console.log("Inserted:", t.title);
+      console.log(`Inserted ${allMilestones.length} milestones.`);
     }
   }
 }

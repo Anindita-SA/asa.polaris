@@ -85,3 +85,6 @@ All notable changes to Polaris will be documented in this file.
 
 ---
 *(End of current logs)*
+-   2 0 2 6 - 0 9 - 0 2 :   T w e a k e d   D a y B r i e f V i e w   t o   s h o w   p a s t   o p p o r t u n i t i e s   i f   s c o u t s   f i n d   n o n e ,   a d d e d   S y s t e m   A l e r t s   c a r d   t o   S t a t s M o d a l   a n d   i n d i c a t o r   d o t   t o   H U D   f o r   m o n i t o r i n g   b a c k g r o u n d   t a s k s ,   a n d   i m p r o v e d   m o b i l e   c a n v a s   t o u c h   e x p e r i e n c e   i n   M a t r i x C a n v a s V i e w   b y   d i s a b l i n g   h o v e r   a c t i o n s .  
+ -   2 0 2 6 - 0 9 - 0 2   ( H o t f i x ) :   F i x e d   M a t r i x C a n v a s V i e w   d a t a b a s e   u p d a t e   c r a s h e s   c a u s e d   b y   u n m i g r a t e d   c a n v a s _ x / c a n v a s _ y   c o l u m n s ,   w h i c h   b r o k e   t h e   ' R e t u r n   t o   B r a i n   D u m p ' ,   ' U n t e t h e r ' ,   a n d   ' R e t e t h e r '   t a s k   a c t i o n s .  
+ 

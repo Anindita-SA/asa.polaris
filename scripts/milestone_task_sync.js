@@ -54,6 +54,7 @@ async function main() {
   let insertedCount = 0;
 
   // 3. Insert tasks for milestones that aren't synced
+  const newTasks = [];
   for (const ms of milestones) {
     if (existingIds.has(ms.id)) {
       continue;
@@ -62,21 +63,23 @@ async function main() {
     const isUrgent = new Date(ms.deadline) <= new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
     const quadrant = isUrgent ? "urgent_important" : "important_not_urgent";
 
-    const newTask = {
+    newTasks.push({
       user_id: uid,
       title: ms.title,
       notes: `[Auto-generated from Milestone: ${ms.id}]\n${ms.note || ""}`,
       deadline: ms.deadline,
       status: "active",
       quadrant: quadrant
-    };
+    });
+  }
 
-    const { error } = await supabase.from("tasks").insert([newTask]);
+  if (newTasks.length > 0) {
+    const { error } = await supabase.from("tasks").insert(newTasks);
     if (error) {
-      console.error(`Failed to sync milestone ${ms.id}:`, error);
+      console.error("Failed to sync milestones:", error);
     } else {
-      console.log(`Synced Milestone to Task: ${ms.title}`);
-      insertedCount++;
+      newTasks.forEach(t => console.log(`Synced Milestone to Task: ${t.title}`));
+      insertedCount = newTasks.length;
     }
   }
 

@@ -183,8 +183,9 @@ export async function runAudit() {
   console.log(`Successfully inserted ${insertedCount} tasks into the inbox.`);
 }
 
+import { fileURLToPath } from 'url';
 // Execute if run directly via Node CLI
-if (process.argv[1] && process.argv[1] === new URL(import.meta.url).pathname) {
+if (process.argv[1] && process.argv[1] === fileURLToPath(import.meta.url)) {
   runAudit().catch(err => {
     console.error("Audit failed:", err);
     process.exit(1);

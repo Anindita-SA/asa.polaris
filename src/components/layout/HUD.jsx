@@ -1,4 +1,5 @@
-﻿import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { getLevelInfo } from '../../data/defaults'
 import { Star, LogOut, Edit2, Check, Menu, X, PanelRightClose, PanelRightOpen } from 'lucide-react'
@@ -12,6 +13,30 @@ const HUD = ({ activeView, setActiveView, rightPanelOpen, setRightPanelOpen }) =
   const [anchorText, setAnchorText] = useState('')
   const [chapterText, setChapterText] = useState('')
   const [isStatsOpen, setIsStatsOpen] = useState(false)
+  const [systemAlerts, setSystemAlerts] = useState([])
+
+  useEffect(() => {
+    if (!profile) return;
+    const checkSystem = async () => {
+      const alerts = [];
+      const today = new Date().toLocaleDateString('en-CA');
+      
+      const { data: brief } = await supabase.from('morning_briefs').select('id').eq('date', today).maybeSingle();
+      if (!brief) alerts.push('Morning Brief Scout failed to run or has not run today.');
+
+      const yesterday = new Date();
+      yesterday.setHours(yesterday.getHours() - 24);
+      const { count: untriaged } = await supabase.from('tasks')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'inbox')
+        .lt('created_at', yesterday.toISOString());
+      
+      if (untriaged > 0) alerts.push(`Task Triage offline or falling behind (${untriaged} old tasks in inbox).`);
+
+      setSystemAlerts(alerts);
+    };
+    checkSystem();
+  }, [profile]);
 
   const xp = profile?.xp || 0
   const { current, next, progress } = getLevelInfo(xp)
@@ -108,7 +133,10 @@ const HUD = ({ activeView, setActiveView, rightPanelOpen, setRightPanelOpen }) =
           <div className="w-px h-6 bg-blue-900/40 hidden lg:block mx-1" />
 
           {/* Stacked bars: XP + IO */}
-          <div onClick={() => setIsStatsOpen(true)} className="flex flex-col gap-0.5 flex-1 min-w-[140px] max-w-[350px] cursor-pointer group hover:bg-pulsar/10 p-1 rounded transition-colors -ml-1">
+          <div onClick={() => setIsStatsOpen(true)} className="relative flex flex-col gap-0.5 flex-1 min-w-[140px] max-w-[350px] cursor-pointer group hover:bg-pulsar/10 p-1 rounded transition-colors -ml-1">
+            {systemAlerts.length > 0 && (
+              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse z-10" />
+            )}
             {/* XP row */}
             <div className="flex items-center gap-2">
               <span className="text-xs font-mono uppercase tracking-widest text-gold whitespace-nowrap hidden sm:inline group-hover:text-nova transition-colors">{current.name}</span>
@@ -134,7 +162,7 @@ const HUD = ({ activeView, setActiveView, rightPanelOpen, setRightPanelOpen }) =
         </div>
       </div>
 
-      {isStatsOpen && <StatsModal onClose={() => setIsStatsOpen(false)} />}
+      {isStatsOpen && <StatsModal onClose={() => setIsStatsOpen(false)} systemAlerts={systemAlerts} />}
     </>
   )
 }

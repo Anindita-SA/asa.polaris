@@ -19,8 +19,8 @@ jobs:
           node-version: '20'
 
       - name: Install Dependencies
-        # Installs the supabase client locally for the script
-        run: npm install @supabase/supabase-js
+        # Installs the supabase client and ws locally for the script
+        run: npm install @supabase/supabase-js ws
 
       - name: Run Weekly Audit
         env:
