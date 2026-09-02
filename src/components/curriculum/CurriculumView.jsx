@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { ArrowLeft, Plus, X, BookOpen, Link as LinkIcon, Trash2, ChevronDown, Download, ExternalLink, Calendar, CheckCircle, Sparkles, ShieldCheck } from 'lucide-react'
 import TopicCard from './TopicCard'
+import PracticeScoreTracker from './PracticeScoreTracker'
 
 const IELTS_RESOURCES = [
   {
@@ -526,6 +527,8 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
           </div>
         </div>
       )}
+
+      <PracticeScoreTracker curriculumId={curriculum.id} />
 
       {/* Syllabus */}
       <div className="space-y-3">
