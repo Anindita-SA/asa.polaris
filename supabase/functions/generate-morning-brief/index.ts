@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
 import Parser from 'npm:rss-parser'
 import { extractJsonFromLlm } from '../_shared/llm_utils.ts'
+import { newsPrompt } from '../_shared/personal_prompts.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -123,17 +124,7 @@ serve(async (req) => {
       title: i.title, url: i.url, source_name: i.source_name, summary: (i.summary || '').substring(0, 500)
     }))
 
-    const prompt = `Here is a pool of recent news and developments:
-${JSON.stringify(minifiedPool)}
-
-Pick the 3 most exciting and relevant developments from this pool. 
-You MUST meticulously prioritize conservation tech breakthroughs, sustainable ecosystems, agri-tech, and climate action. DO NOT pick opportunities or job postings. DO NOT just pick generic tech breakthrough news.
-
-Write a tightened 1-2 sentence summary for each.
-You MUST strictly use the exact 'title', 'url', and 'source_name' provided in the pool for your chosen items.
-
-Return ONLY valid JSON in this exact format:
-{"items": [{"title": "Exact Title", "summary": "1-2 sentences...", "source_name": "Exact Source", "url": "Exact URL"}]}`
+    const prompt = newsPrompt(JSON.stringify(minifiedPool));
 
     const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',

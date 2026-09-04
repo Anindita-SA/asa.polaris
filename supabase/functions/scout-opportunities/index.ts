@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
 import { extractJsonFromLlm } from '../_shared/llm_utils.ts'
+import { opportunitiesPrompt } from '../_shared/personal_prompts.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -39,7 +40,7 @@ serve(async (req) => {
     if (!groqApiKey) throw new Error('GROQ_API_KEY is not set')
 
     // 1. Search Firecrawl
-    const query = "conservation tech OR robotics OR UN programs grants funding hardware opportunities"
+    const query = "fully funded international travel OR global field expeditions OR conservation tech OR robotics OR UN programs grants funding opportunities"
     const firecrawlRes = await fetch('https://api.firecrawl.dev/v1/search', {
       method: 'POST',
       headers: {
@@ -72,18 +73,7 @@ serve(async (req) => {
       title: r.title, url: r.url, snippet: r.description
     }))
 
-    const prompt = `Here is a pool of opportunities found online:
-${JSON.stringify(minifiedPool)}
-
-Pick the 2 to 3 most relevant hardware/conservation/robotics/UN opportunities.
-CRITICAL CONSTRAINTS:
-1. Must be eligible for Bangladeshi nationality.
-2. Must be eligible for a student currently on a student visa in India.
-3. Must require ZERO self-funding (must be fully funded, grant, paid, or zero-cost).
-4. If an opportunity does not explicitly state it meets these requirements, or if it is ambiguous, explicitly flag that requirement in the 'project_fit' field.
-
-Return ONLY valid JSON in this exact format:
-{"opportunities": [{"title": "Exact Title", "url": "Exact URL", "deadline": "YYYY-MM-DD or null if not found", "effort": "low, med, or high", "project_fit": "Why it fits and any flagged missing constraints", "what_offered": "Funding, mentorship, etc."}]}`
+    const prompt = opportunitiesPrompt(JSON.stringify(minifiedPool));
 
     const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
@@ -93,7 +83,7 @@ Return ONLY valid JSON in this exact format:
         messages: [{ role: 'user', content: prompt }],
         response_format: { type: 'json_object' },
         reasoning_effort: 'none',
-        max_tokens: 1024
+        max_tokens: 800
       })
     })
 
