@@ -83,6 +83,10 @@ All notable changes to Polaris will be documented in this file.
 
 All notable changes to Polaris will be documented in this file.
 
+## [2026-09-06] Scout Opportunities Upgrade
+- **Scout Precision Upgrade**: Modified the `scout-opportunities` edge function to request full `markdown` content from the Firecrawl search API instead of just relying on the short HTML meta descriptions. The LLM is now fed up to 2000 characters of the actual opportunity page, allowing it to correctly verify strict eligibility requirements (like Bangladeshi citizenship or no-fee applications) rather than guessing from a 160-character snippet.
+- **Aggregator Rejection**: Updated the scout LLM prompt to explicitly reject generic aggregator links, newsletters, and "Top 10" lists (like Substack) to ensure only direct, actionable applications make it to the dashboard.
+
 ## [2026-09-01] Sprint: Triage & Morning Brief
 ### Changed
 - **Thermonuclear Security Update**: Fixed 12 tables that were exposed by weak RLS policies (`auth only` or `Allow all for authenticated`). Added missing `user_id` columns to `workout_goals`, `workout_performance`, and `plan_exercises` to ensure cross-tenant data isolation.
@@ -168,4 +172,5 @@ All notable changes to Polaris will be documented in this file.
 
 ## [2026-09-04] Scout Opportunities Update
 - **Scout Config Updated**: Updated `scout-opportunities` edge function query and LLM prompt to actively look for fully-funded global travel, international internships, and field research expeditions. 
-- **Groq Rate Limit Fix**: Fixed an issue where the Scout would fail silently due to requesting 1024 max_tokens (Groq free tier limit is 1000). Reduced `max_tokens` to 800.
+- **Groq Rate Limit Fix**: Fixed an issue where the Scout would fail silently due to requesting 1024 max_tokens (Groq free tier limit is 1000). Reduced `max_tokens` to 800.-   * * B u g   F i x   ( H U D ) : * *   A d d e d   m i s s i n g   \ u s e r _ i d \   f i l t e r s   t o   t h e   \ m o r n i n g _ b r i e f s \   a n d   \ 	 a s k s \   q u e r i e s   i n   \ H U D . j s x \   t o   f i x   s c h e m a   d r i f t   w a r n i n g s   a n d   p r e v e n t   p o t e n t i a l   d a t a   l e a k s .  
+ 

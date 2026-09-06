@@ -49,8 +49,9 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         query: query,
-        limit: 10,
-        tbs: 'qdr:w'
+        limit: 5,
+        tbs: 'qdr:w',
+        scrapeOptions: { formats: ["markdown"] }
       })
     })
 
@@ -69,8 +70,9 @@ serve(async (req) => {
     }
 
     // 2. Query Groq
-    const minifiedPool = searchResults.map((r: any) => ({
-      title: r.title, url: r.url, snippet: r.description
+    const minifiedPool = searchResults.slice(0, 5).map((r: any) => ({
+      title: r.title, url: r.url, 
+      content: r.markdown ? r.markdown.substring(0, 2000) : r.description
     }))
 
     const prompt = opportunitiesPrompt(JSON.stringify(minifiedPool));
