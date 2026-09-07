@@ -176,6 +176,33 @@ export const useNudgeScheduler = () => {
 
   const dismissNudge = async (id) => {
     localStorage.setItem(`nudge_last_dismissed_${id}`, Date.now().toString());
+
+    // For task-type nudges, increment skip_count in Supabase
+    const nudge = nudges.find(n => n.id === id);
+    if (nudge?.isTask && user?.id) {
+      try {
+        const { data: taskData, error: fetchErr } = await supabase
+          .from('tasks')
+          .select('skip_count')
+          .eq('id', id)
+          .eq('user_id', user.id)
+          .single();
+
+        if (!fetchErr && taskData) {
+          const currentSkipCount = taskData.skip_count || 0;
+          const { error: updateErr } = await supabase
+            .from('tasks')
+            .update({ skip_count: currentSkipCount + 1 })
+            .eq('id', id)
+            .eq('user_id', user.id);
+
+          if (updateErr) console.error('Failed to increment skip_count:', updateErr);
+        }
+      } catch (err) {
+        console.error('Error incrementing skip_count on dismiss:', err);
+      }
+    }
+
     setNudges(prev => prev.map(n => n.id === id ? { ...n, isDue: false } : n));
     await fetchNudges();
   };

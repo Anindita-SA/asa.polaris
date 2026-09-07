@@ -62,7 +62,10 @@ serve(async (req) => {
         url: o.url,
         source_name: 'Previous Scout',
         summary: o.project_fit || 'Highly recommended from previous scout.',
-        type: 'opportunity'
+        type: 'opportunity',
+        is_previous: true,
+        profile_match: o.profile_match,
+        acceptance_chance: o.acceptance_chance
       }))
 
       const { data: existingBrief } = await supabaseAdmin
@@ -187,6 +190,8 @@ serve(async (req) => {
       url: o.url,
       deadline: (o.deadline && String(o.deadline).match(/^\d{4}-\d{2}-\d{2}$/)) ? o.deadline : null,
       effort: o.effort || 'med',
+      profile_match: o.profile_match,
+      acceptance_chance: o.acceptance_chance,
       project_fit: o.project_fit,
       what_offered: o.what_offered,
       status: 'new'
@@ -204,7 +209,9 @@ serve(async (req) => {
       url: o.url,
       source_name: 'Firecrawl Scout',
       summary: o.project_fit,
-      type: 'opportunity'
+      type: 'opportunity',
+      profile_match: o.profile_match,
+      acceptance_chance: o.acceptance_chance
     }))
 
     const { data: existingBrief } = await supabaseAdmin

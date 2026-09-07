@@ -58,7 +58,10 @@ export default function DayBriefView() {
           effort: o.effort,
           hardware_opportunity_id: o.id,
           type: 'opportunity',
-          source_name: 'Database'
+          source_name: 'Database',
+          is_previous: true,
+          profile_match: o.profile_match,
+          acceptance_chance: o.acceptance_chance
         }));
         items = [...items, ...mappedOpps];
       }
@@ -113,6 +116,21 @@ export default function DayBriefView() {
       await supabase.from('hardware_opportunities')
         .update({ status: 'applied', task_id: newTaskId })
         .eq('id', item.hardware_opportunity_id);
+        
+      // Fire-and-forget subtask generation
+      supabase.functions.invoke('generate-application-subtasks', {
+        body: {
+          parent_task_id: newTaskId,
+          opportunity: {
+            title: item.title,
+            url: item.url,
+            deadline: item.deadline,
+            effort: item.effort,
+            project_fit: item.summary,
+            what_offered: item.what_offered || item.summary
+          }
+        }
+      }).catch(err => console.error('Background subtask generation failed:', err));
     }
     
     await fetchExtras();
@@ -176,6 +194,21 @@ export default function DayBriefView() {
                         <span className="text-amber-400/80 border border-amber-500/20 bg-amber-500/10 px-2 py-1 rounded">{item.source_name || 'Scout'}</span>
                         {item.effort && <span className="text-nova/70 border border-pulsar/30 px-2 py-1 rounded">Effort: {item.effort}</span>}
                         {item.deadline && <span className="text-nova/70 border border-pulsar/30 px-2 py-1 rounded">Deadline: {item.deadline}</span>}
+                        {item.is_previous && <span className="text-amber-400/70 border border-amber-500/30 px-2 py-1 rounded">Previously Scouted</span>}
+                        {item.profile_match != null && (
+                          <span className={`border px-2 py-1 rounded ${
+                            item.profile_match >= 80 ? 'border-emerald-500/30 text-emerald-400' :
+                            item.profile_match >= 50 ? 'border-pulsar/30 text-nova/70' :
+                            'border-red-500/30 text-red-400/70'
+                          }`}>Match: {item.profile_match}%</span>
+                        )}
+                        {item.acceptance_chance != null && (
+                          <span className={`border px-2 py-1 rounded ${
+                            item.acceptance_chance >= 60 ? 'border-blue-500/30 text-blue-400' :
+                            item.acceptance_chance >= 30 ? 'border-pulsar/30 text-nova/70' :
+                            'border-red-500/30 text-red-400/70'
+                          }`}>Chance: {item.acceptance_chance}%</span>
+                        )}
                       </div>
                     </div>
                     {item.hardware_opportunity_id && (
