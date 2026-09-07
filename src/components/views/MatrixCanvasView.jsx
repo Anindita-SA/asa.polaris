@@ -33,7 +33,9 @@ import {
   RefreshCw,
   List,
   FileText,
-  ChevronDown
+  ChevronDown,
+  Bell,
+  BellOff
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -136,6 +138,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
   const [showCompleted, setShowCompleted] = useState(false);
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
   const [hideFarScheduled, setHideFarScheduled] = useState(true);
+  const [hideReminders, setHideReminders] = useState(false);
 
   const canvasRef = useRef(null);
   const innerRef = useRef(null);
@@ -149,6 +152,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
       const { data, error } = await supabase
         .from('tasks')
         .select('*')
+        .eq('user_id', (await supabase.auth.getUser()).data?.user?.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -187,12 +191,13 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
     try {
       const { data: userData } = await supabase.auth.getUser();
       const userId = userData?.user?.id;
+      if (!userId) return;
 
       const newTask = {
         title,
         status: 'inbox',
         quadrant: null,
-        ...(userId ? { user_id: userId } : {})
+        user_id: userId
       };
 
       const { data, error } = await supabase
@@ -223,7 +228,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
       const { error } = await supabase
         .from('tasks')
         .update({ quadrant: targetQuadrant })
-        .eq('id', task.id);
+        .eq('id', task.id).eq('user_id', (await supabase.auth.getUser()).data?.user?.id);
 
       if (error) throw error;
       if (onTasksChanged) onTasksChanged();
@@ -259,7 +264,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
     
     try {
       saveLocalCoords(task.id, null, null);
-      const { error } = await supabase.from('tasks').update({ quadrant: targetQuadrant }).eq('id', task.id);
+      const { error } = await supabase.from('tasks').update({ quadrant: targetQuadrant }).eq('id', task.id).eq('user_id', (await supabase.auth.getUser()).data?.user?.id);
       if (error) throw error;
       if (onTasksChanged) onTasksChanged();
     } catch (err) {
@@ -275,7 +280,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
     saveLocalCoords(taskId, null, null);
 
     try {
-      const { error } = await supabase.from('tasks').update({ quadrant: null }).eq('id', taskId);
+      const { error } = await supabase.from('tasks').update({ quadrant: null }).eq('id', taskId).eq('user_id', (await supabase.auth.getUser()).data?.user?.id);
       if (error) throw error;
       if (onTasksChanged) onTasksChanged();
     } catch (err) {
@@ -300,7 +305,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
       const { error } = await supabase
         .from('tasks')
         .update({ quadrant: newQuadrant })
-        .eq('id', taskId);
+        .eq('id', taskId).eq('user_id', (await supabase.auth.getUser()).data?.user?.id);
 
       if (error) throw error;
       if (onTasksChanged) onTasksChanged();
@@ -318,7 +323,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
     );
 
     try {
-      await supabase.from('tasks').update({ status: newStatus }).eq('id', task.id);
+      await supabase.from('tasks').update({ status: newStatus }).eq('id', task.id).eq('user_id', (await supabase.auth.getUser()).data?.user?.id);
       if (onTasksChanged) onTasksChanged();
     } catch (err) {
       console.error('Error toggling done:', err);
@@ -330,7 +335,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
   const deleteTask = async (taskId) => {
     setTasks((prev) => prev.filter((t) => t.id !== taskId));
     try {
-      await supabase.from('tasks').delete().eq('id', taskId);
+      await supabase.from('tasks').delete().eq('id', taskId).eq('user_id', (await supabase.auth.getUser()).data?.user?.id);
       if (onTasksChanged) onTasksChanged();
     } catch (err) {
       console.error('Error deleting task:', err);
@@ -355,7 +360,8 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
       if (unestimated.length > 0) {
         setAuditMessage(`Estimating duration for ${unestimated.length} unestimated tasks via AI...`);
         for (const task of unestimated) {
-          const prompt = `Estimate realistic duration in minutes for task: "${task.title}". Return ONLY JSON like {"minutes": 35}.`;
+          const safeTitle = JSON.stringify(task.title);
+          const prompt = `Estimate realistic duration in minutes for task: ${safeTitle}. Return ONLY JSON like {"minutes": 35}.`;
           try {
             const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
               method: 'POST',
@@ -373,7 +379,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
             await supabase
               .from('tasks')
               .update({ estimated_minutes: mins, estimate_source: 'ai' })
-              .eq('id', task.id);
+              .eq('id', task.id).eq('user_id', (await supabase.auth.getUser()).data?.user?.id);
           } catch (e) {
             console.error('Estimate error for task:', task.title, e);
           }
@@ -381,7 +387,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
       }
 
       setAuditMessage("Scoring tasks with WSJF algorithm and picking Today's Tasks...");
-      const { data: updatedData } = await supabase.from('tasks').select('*');
+      const { data: updatedData } = await supabase.from('tasks').select('*').eq('user_id', (await supabase.auth.getUser()).data?.user?.id);
       const scored = (updatedData || []).map(t => ({
         ...t,
         score: computeWSJFScore(t).score
@@ -401,7 +407,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
       for (const id of todayPickIds) {
         const task = scored.find(t => t.id === id);
         if (task && task.status !== 'in_progress' && task.status !== 'active') {
-          await supabase.from('tasks').update({ status: 'active' }).eq('id', id);
+          await supabase.from('tasks').update({ status: 'active' }).eq('id', id).eq('user_id', (await supabase.auth.getUser()).data?.user?.id);
         }
       }
 
@@ -459,22 +465,32 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
     const oneWeekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
     return tasks.filter((t) => {
       if (t.parent_task_id || t.quadrant === null || t.status === 'done') return false;
+      if (hideReminders && t.category === 'reminders') return false;
       if (hideFarScheduled && t.status === 'scheduled' && t.deadline) {
         const deadlineDate = new Date(t.deadline);
         if (deadlineDate > oneWeekFromNow) return false;
       }
       return true;
     });
-  }, [tasks, hideFarScheduled]);
+  }, [tasks, hideFarScheduled, hideReminders]);
 
   // Unsorted Brain Dump tasks (`quadrant === null` and `status !== 'done'`)
   const brainDumpTasks = useMemo(() => {
     let result = tasks.filter((t) => !t.parent_task_id && t.quadrant === null && t.status !== 'done');
+    if (hideReminders) {
+      result = result.filter(t => t.category !== 'reminders');
+    }
     if (searchQuery.trim()) {
       result = result.filter(t => t.title.toLowerCase().includes(searchQuery.toLowerCase().trim()));
     }
+    const catOrder = { 'polaris': 1, 'normal': 2, 'reminders': 3 };
+    result.sort((a, b) => {
+      const aCat = catOrder[a.category || 'normal'] || 2;
+      const bCat = catOrder[b.category || 'normal'] || 2;
+      return aCat - bCat;
+    });
     return result;
-  }, [tasks, searchQuery]);
+  }, [tasks, searchQuery, hideReminders]);
 
   // Completed Tasks list (`status === 'done'`)
   const completedTasks = useMemo(() => {
@@ -489,7 +505,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
       const { error } = await supabase
         .from('tasks')
         .update({ [field]: value })
-        .eq('id', taskId);
+        .eq('id', taskId).eq('user_id', (await supabase.auth.getUser()).data?.user?.id);
       if (error) throw error;
       if (onTasksChanged) onTasksChanged();
     } catch (err) {
@@ -510,6 +526,15 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
       <div className="flex-1 relative flex flex-col overflow-hidden bg-transparent">
         {/* Canvas Controls */}
         <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
+          <button
+            onClick={() => setHideReminders(!hideReminders)}
+            className={`flex items-center justify-center w-8 h-8 rounded-lg transition-colors ${
+              hideReminders ? 'bg-pulsar/20 text-pulsar border border-pulsar/40' : 'glass border border-pulsar/20 text-nova/60 hover:text-starlight'
+            }`}
+            title="Hide Reminders"
+          >
+            {hideReminders ? <BellOff className="w-4 h-4" /> : <Bell className="w-4 h-4" />}
+          </button>
           <button
             onClick={() => setHideFarScheduled(!hideFarScheduled)}
             className={`flex items-center justify-center w-8 h-8 rounded-lg transition-colors ${
@@ -628,7 +653,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                                   if (targetQuadrant && targetQuadrant !== task.quadrant) {
                                     setTasks(prev => prev.map(t => t.id === task.id ? { ...t, quadrant: targetQuadrant } : t));
                                     try {
-                                      await supabase.from('tasks').update({ quadrant: targetQuadrant }).eq('id', task.id);
+                                      await supabase.from('tasks').update({ quadrant: targetQuadrant }).eq('id', task.id).eq('user_id', (await supabase.auth.getUser()).data?.user?.id);
                                       if (onTasksChanged) onTasksChanged();
                                     } catch (err) {
                                       console.error('Error updating task quadrant on drag drop:', err);
@@ -1184,8 +1209,23 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                           type="date"
                           defaultValue={selectedTask.deadline || ''}
                           onBlur={(e) => updateTaskField(selectedTask.id, 'deadline', e.target.value || null)}
-                          className="bg-transparent w-full outline-none font-mono text-starlight cursor-pointer"
+                          className="bg-transparent w-full outline-none text-starlight cursor-pointer min-w-[130px] font-sans"
                         />
+                      </div>
+                    </div>
+                    {/* Category */}
+                    <div className="mt-2">
+                      <h4 className="text-[10px] uppercase tracking-wider font-bold text-nova/60 mb-1 font-mono">Category</h4>
+                      <div className="bg-void/40 border border-pulsar/40 rounded-lg px-2 py-1.5 text-xs flex items-center gap-1.5 focus-within:border-pulsar/50 transition-colors">
+                        <select
+                          value={selectedTask.category || 'normal'}
+                          onChange={(e) => updateTaskField(selectedTask.id, 'category', e.target.value === 'normal' ? null : e.target.value)}
+                          className="bg-transparent w-full outline-none text-starlight cursor-pointer font-sans"
+                        >
+                          <option value="normal" className="bg-void">Normal Task</option>
+                          <option value="polaris" className="bg-void">Polaris Edit / Building</option>
+                          <option value="reminders" className="bg-void">Reminders</option>
+                        </select>
                       </div>
                     </div>
                     {/* Delete Task Button */}

@@ -1,3 +1,9 @@
+
+## [2026-09-07] Task Categories & Security Hotfixes
+- **Task Category Sorting**: Added a 'Category' dropdown to the Task Details modal with options for 'Polaris Edit / Building', 'Reminders', and 'Normal Task' (which saves as null to keep the DB clean). Backlog tasks are now sorted by these categories.
+- **Hide Reminders Toggle**: Added a toggle button in the Matrix Canvas to instantly hide all tasks categorized as 'reminders' from the board.
+- **Security Audit Hotfix**: Added explicit .eq('user_id', currentUser) checks across all MatrixCanvasView.jsx Supabase queries to prevent IDOR and data leakage, and sanitized 	ask.title in the AI Auditor prompt to mitigate prompt injection.
+- **Task Triage Script Updates**: Updated scripts/task_triage.js to correctly classify polaris tags to 'polaris' and chained .is('parent_task_id', null) to strictly ignore subtasks (preventing them from being converted into top-level feature proposals).
 # Changelog
 ## [2026-09-07]
 ### Added
@@ -7,6 +13,7 @@
 - **Task Triage Upgrades**: Triage script now automatically scopes application parent tasks into the prompt with their opportunity match scores to properly place them into quadrants, and inherently skips triaging subtasks.
 
 ### Changed
+- Made the Polaris logo in the top navigation clickable to trigger a hard refresh (`window.location.reload()`), making it easier to restart the app on mobile devices.
 - Created the 'Polaris Dev Pipeline' allowing AI-driven execution of app features directly from the Eisenhower Matrix.
 - Added #polaris hashtag detection to triage script to automatically flag dev tasks.
 - Added category column to 	asks table.
@@ -199,3 +206,4 @@ All notable changes to Polaris will be documented in this file.
 - **Groq Rate Limit Fix**: Fixed an issue where the Scout would fail silently due to requesting 1024 max_tokens (Groq free tier limit is 1000). Reduced `max_tokens` to 800.-   * * B u g   F i x   ( H U D ) : * *   A d d e d   m i s s i n g   \ u s e r _ i d \   f i l t e r s   t o   t h e   \ m o r n i n g _ b r i e f s \   a n d   \ 	 a s k s \   q u e r i e s   i n   \ H U D . j s x \   t o   f i x   s c h e m a   d r i f t   w a r n i n g s   a n d   p r e v e n t   p o t e n t i a l   d a t a   l e a k s . 
  
  
+
