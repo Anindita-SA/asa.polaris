@@ -583,11 +583,15 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                     {/* Vertically Stacked Compact Task Pills with Drag-Between-Quadrants & Hover into Space */}
                     <div className="flex-1 flex flex-col items-start gap-3 py-2 overflow-visible">
                       <AnimatePresence>
-                        {qTasks.map((task) => {
+                        {qTasks.flatMap((task) => {
                           const isOutput = task.estimate_source === 'ai' || task.title.toLowerCase().includes('write') || task.title.toLowerCase().includes('code') || task.title.toLowerCase().includes('ppt') || task.title.toLowerCase().includes('fix');
                           const ioTag = isOutput ? 'OUT' : 'IN';
+                          const subtasks = tasks.filter(t => t.parent_task_id === task.id && t.status !== 'done');
+                          const doneSubtasksCount = tasks.filter(t => t.parent_task_id === task.id && t.status === 'done').length;
+                          const totalSubtasksCount = subtasks.length + doneSubtasksCount;
+                          const isExpanded = expandedTasks.has(task.id);
 
-                          return (
+                          const parentNode = (
                             <motion.div
                               key={task.id}
                               layout
@@ -675,6 +679,16 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                                   </span>
                                 )}
 
+                                {totalSubtasksCount > 0 && (
+                                  <button
+                                    onClick={(e) => toggleTaskExpand(e, task.id)}
+                                    className="ml-1 bg-pulsar/20 text-nova/80 hover:text-starlight hover:bg-pulsar/40 px-1.5 py-0.5 rounded flex items-center gap-1 border border-pulsar/30 transition-colors pointer-events-auto"
+                                    title="Toggle Subtasks"
+                                  >
+                                    {isExpanded ? <ChevronDown className="w-3 h-3" /> : <><List className="w-3 h-3" /> {doneSubtasksCount}/{totalSubtasksCount}</>}
+                                  </button>
+                                )}
+
                                 {/* Quick Hover Controls */}
                                 <div className="hidden lg:group-hover:flex items-center gap-1 pl-1 border-l border-pulsar/40">
                                   <button
@@ -702,6 +716,48 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                               </div>
                             </motion.div>
                           );
+
+                          const childNodes = isExpanded ? subtasks.map(subtask => {
+                            const subIsOutput = subtask.estimate_source === 'ai' || subtask.title.toLowerCase().includes('write');
+                            const subIoTag = subIsOutput ? 'OUT' : 'IN';
+                            return (
+                              <motion.div
+                                key={subtask.id}
+                                layout
+                                initial={{ opacity: 0, scale: 0.9, x: -10 }}
+                                animate={{ opacity: 1, scale: 1, x: 0 }}
+                                exit={{ opacity: 0, scale: 0.9, x: -10 }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedTaskId(subtask.id);
+                                  setActiveBrainDumpTab('details');
+                                  setBrainDumpCollapsed(false);
+                                }}
+                                className="group flex items-center gap-2 px-3 py-1.5 rounded-lg bg-void/50 border border-pulsar/20 ml-6 w-fit max-w-[400px] select-none cursor-pointer hover:border-pulsar/40 transition-colors"
+                              >
+                                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: q.color }} />
+                                <h4 className="text-[12px] text-nova/80 truncate pointer-events-none">
+                                  {subtask.title}
+                                </h4>
+                                <div className="flex items-center gap-1.5 shrink-0 font-mono text-[10px]">
+                                  {subtask.estimated_minutes && (
+                                    <span className="text-nova/60 bg-void/60 px-1 py-0.5 rounded border border-pulsar/40 pointer-events-none">
+                                      {subtask.estimated_minutes}m
+                                    </span>
+                                  )}
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); toggleDone(subtask); }}
+                                    className="text-nova/60 hover:text-emerald p-0.5 pointer-events-auto"
+                                    title="Mark Done"
+                                  >
+                                    <Check className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              </motion.div>
+                            );
+                          }) : [];
+
+                          return [parentNode, ...childNodes];
                         })}
                       </AnimatePresence>
 
