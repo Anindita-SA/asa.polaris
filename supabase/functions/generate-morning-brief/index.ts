@@ -63,9 +63,9 @@ serve(async (req) => {
     if (activeSources.length === 0) {
       activeSources = [
         { type: 'fixed', name: 'Wildlabs', url: 'https://www.wildlabs.net/feed' },
-        { type: 'fixed', name: 'The Revelator', url: 'https://www.therevelator.org/feed' },
-        { type: 'fixed', name: 'TechCrunch Climate', url: 'https://techcrunch.com/tag/climate/feed/' },
-        { type: 'fixed', name: 'Mongabay', url: 'https://news.mongabay.com/feed/' }
+        { type: 'fixed', name: 'Mongabay India', url: 'https://india.mongabay.com/feed/' },
+        { type: 'fixed', name: 'AgFunderNews', url: 'https://agfundernews.com/feed' },
+        { type: 'fixed', name: 'Innovation Origins', url: 'https://innovationorigins.com/en/feed/' }
       ];
     }
 

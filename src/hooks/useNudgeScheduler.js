@@ -47,8 +47,41 @@ export const useNudgeScheduler = () => {
       return;
     }
 
+    const today = new Date().toISOString().split('T')[0];
+    const { data: overdueData, error: overdueError } = await supabase
+      .from('tasks')
+      .select('id, title, deadline, skip_count')
+      .eq('user_id', user.id)
+      .neq('status', 'done')
+      .or(`deadline.lt.${today},skip_count.gte.3`);
+
+    if (overdueError) {
+      console.error('Error fetching overdue tasks:', overdueError);
+    }
+
+    const taskNudges = (overdueData || []).map(task => {
+      let interval_minutes = 240; // Day 0-1 overdue or skip_count trigger (every 4 hr)
+      if (task.deadline && task.deadline < today) {
+        const daysOverdue = Math.floor((new Date(today) - new Date(task.deadline)) / (1000 * 60 * 60 * 24));
+        if (daysOverdue >= 4) {
+          interval_minutes = 60; // every 1 hr
+        } else if (daysOverdue >= 2) {
+          interval_minutes = 120; // every 2 hr
+        }
+      }
+      return {
+        id: task.id,
+        title: task.title,
+        interval_minutes,
+        active: true,
+        isTask: true
+      };
+    });
+
+    const combinedNudges = [...data, ...taskNudges];
+
     const now = Date.now();
-    const processedNudges = data.map((nudge) => {
+    const processedNudges = combinedNudges.map((nudge) => {
       const lastDismissedStr = localStorage.getItem(`nudge_last_dismissed_${nudge.id}`);
       let nextFireAt;
       const intervalMs = nudge.interval_minutes * 60000;
@@ -81,7 +114,8 @@ export const useNudgeScheduler = () => {
           nudges: processedNudges.map(n => ({
             id: n.id,
             title: n.title,
-            intervalMs: n.intervalMs
+            intervalMs: n.intervalMs,
+            isTask: n.isTask
           }))
         });
         
@@ -103,9 +137,10 @@ export const useNudgeScheduler = () => {
               const timeUntilNext = Math.max(0, nudge.nextFireAt - Date.now());
               
               const fire = () => {
-                new Notification(nudge.title, { body: "Polaris nudge" });
+                const title = nudge.isTask ? `⚠️ OVERDUE: ${nudge.title}` : nudge.title;
+                new Notification(title, { body: "Polaris nudge" });
                 const intId = setInterval(() => {
-                  new Notification(nudge.title, { body: "Polaris nudge" });
+                  new Notification(title, { body: "Polaris nudge" });
                 }, nudge.intervalMs);
                 fallbackIntervals.current[nudge.id] = intId;
               };

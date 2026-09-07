@@ -21,13 +21,14 @@ const HUD = ({ activeView, setActiveView, rightPanelOpen, setRightPanelOpen }) =
       const alerts = [];
       const today = new Date().toLocaleDateString('en-CA');
       
-      const { data: brief } = await supabase.from('morning_briefs').select('id').eq('date', today).maybeSingle();
+      const { data: brief } = await supabase.from('morning_briefs').select('id').eq('user_id', profile.id).eq('date', today).maybeSingle();
       if (!brief) alerts.push('Morning Brief Scout failed to run or has not run today.');
 
       const yesterday = new Date();
       yesterday.setHours(yesterday.getHours() - 24);
       const { count: untriaged } = await supabase.from('tasks')
         .select('id', { count: 'exact', head: true })
+        .eq('user_id', profile.id)
         .eq('status', 'inbox')
         .lt('created_at', yesterday.toISOString());
       

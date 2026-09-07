@@ -264,10 +264,21 @@ const PomodoroTimer = ({ mobilePill = false }) => {
   // Service Worker Alarm Integration
   useEffect(() => {
     if (isRunning && timeLeft > 0) {
+      if (currentTask && currentTask.id) {
+        supabase.from('tasks')
+          .update({ skip_count: 0 })
+          .eq('id', currentTask.id)
+          .then(({ error }) => {
+            if (error) console.error('Failed to reset skip_count:', error)
+            else console.log(`Reset skip_count for task ${currentTask.id}`)
+          })
+      }
+
       if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
         navigator.serviceWorker.controller.postMessage({
           type: 'POMODORO_START',
           taskName: currentTask ? currentTask.title : 'Focus Session',
+          taskId: currentTask ? currentTask.id : null,
           durationMs: timeLeft * 1000
         })
       }

@@ -80,6 +80,12 @@ async function main() {
     } else {
       newTasks.forEach(t => console.log(`Synced Milestone to Task: ${t.title}`));
       insertedCount = newTasks.length;
+      
+      // Update the milestones to prevent re-syncing if the user deletes the auto-generated task
+      const milestoneIdsToUpdate = milestones.filter(ms => !existingIds.has(ms.id)).map(ms => ms.id);
+      if (milestoneIdsToUpdate.length > 0) {
+        await supabase.from("milestones").update({ status: "active" }).in("id", milestoneIdsToUpdate);
+      }
     }
   }
 

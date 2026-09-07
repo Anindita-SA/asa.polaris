@@ -39,6 +39,63 @@ serve(async (req) => {
     const groqApiKey = Deno.env.get('GROQ_API_KEY')
     if (!groqApiKey) throw new Error('GROQ_API_KEY is not set')
 
+    // Helper function to append previous highly recommended opportunities
+    const appendPreviousOpps = async (reason: string) => {
+      console.log(`No new opps (${reason}), fetching previous ones...`)
+      const { data: previousOpps } = await supabaseAdmin
+        .from('hardware_opportunities')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('status', 'new')
+        .order('created_at', { ascending: false })
+        .limit(3)
+
+      if (!previousOpps || previousOpps.length === 0) {
+        return new Response(JSON.stringify({ message: `${reason}, and no previous opportunities found` }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        })
+      }
+
+      const briefItems = previousOpps.map((o: any) => ({
+        title: o.title,
+        url: o.url,
+        source_name: 'Previous Scout',
+        summary: o.project_fit || 'Highly recommended from previous scout.',
+        type: 'opportunity'
+      }))
+
+      const { data: existingBrief } = await supabaseAdmin
+        .from('morning_briefs')
+        .select('id, items')
+        .eq('user_id', user.id)
+        .eq('date', today)
+        .maybeSingle()
+
+      let insertedCount = 0;
+      if (existingBrief) {
+        const existingItems = existingBrief.items || []
+        const existingUrls = new Set(existingItems.map((i: any) => i.url))
+        const itemsToAdd = briefItems.filter((item: any) => !existingUrls.has(item.url))
+
+        if (itemsToAdd.length > 0) {
+          const updatedItems = [...existingItems, ...itemsToAdd]
+          await supabaseAdmin.from('morning_briefs').update({ items: updatedItems }).eq('id', existingBrief.id)
+          insertedCount = itemsToAdd.length;
+        }
+      } else {
+        await supabaseAdmin.from('morning_briefs').insert({
+          user_id: user.id, date: today, items: briefItems, seen: false
+        })
+        insertedCount = briefItems.length;
+      }
+
+      return new Response(JSON.stringify({ success: true, message: `Appended ${insertedCount} previous opportunities (${reason})` }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      })
+    }
+
     // 1. Search Firecrawl
     const query = "fully funded international travel OR global field expeditions OR conservation tech OR robotics OR UN programs grants funding opportunities"
     const firecrawlRes = await fetch('https://api.firecrawl.dev/v1/search', {
@@ -63,10 +120,7 @@ serve(async (req) => {
     const searchResults = firecrawlData.data || []
     
     if (searchResults.length === 0) {
-      return new Response(JSON.stringify({ message: 'No results from Firecrawl' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      })
+      return await appendPreviousOpps('No results from Firecrawl')
     }
 
     // 2. Query Groq
@@ -101,10 +155,7 @@ serve(async (req) => {
     }
 
     if (parsedOpps.length === 0) {
-      return new Response(JSON.stringify({ message: 'Groq returned no opportunities' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      })
+      return await appendPreviousOpps('Groq returned no opportunities')
     }
 
     // 3. Idempotency Check
@@ -126,10 +177,7 @@ serve(async (req) => {
     const newOpps = parsedOpps.filter((o: any) => !existingUrls.has(o.url))
 
     if (newOpps.length === 0) {
-      return new Response(JSON.stringify({ message: 'All found opportunities already exist in the database' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      })
+      return await appendPreviousOpps('All found opportunities already exist in the database')
     }
 
     // 4. Insert into hardware_opportunities

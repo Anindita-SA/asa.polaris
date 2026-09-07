@@ -40,5 +40,6 @@ node "$ScriptDir\task_triage.js"
 if ($StartedByUs) {
     Write-Host "Cleaning up: Shutting down the headless Ollama server."
     Stop-Process -Name $OllamaProcessName -Force -ErrorAction SilentlyContinue
+    Stop-Process -Name "llama-server" -Force -ErrorAction SilentlyContinue
 }
 Write-Host "Done."
