@@ -628,6 +628,9 @@
 | `application_draft` | `text` | Nullable |
 | `status` | `text` | Default `'new'` |
 | `task_id` | `uuid` | Nullable, References `tasks` |
+| `profile_match` | `int4` | Nullable |
+| `acceptance_chance` | `int4` | Nullable |
+| `is_previous` | `bool` | Default `false` |
 | `created_at` | `timestamptz` | Default `now()` |
 
 ## Table `day_plan_blocks`
@@ -668,6 +671,7 @@
 | `status` | `text` | Not Null, Default `'inbox'` (inbox \| active \| scheduled \| done) |
 | `source_template_id` | `uuid` | Nullable, References `recurring_task_templates` |
 | `skip_count` | `int4` | Nullable, Default `0` |
+| `parent_task_id` | `uuid` | Nullable, References `tasks` |
 | `created_at` | `timestamptz` | Nullable, Default `now()` |
 
 ## Table `wins`
@@ -784,24 +788,6 @@
 | `active` | `bool` | Default `true` |
 | `created_at` | `timestamptz` | Nullable |
 
-## Table `hardware_opportunities`
-
-### Columns
-
-| Name | Type | Constraints |
-|------|------|-------------|
-| `id` | `uuid` | Primary, Default `gen_random_uuid()` |
-| `user_id` | `uuid` | Not Null, Default `auth.uid()` |
-| `title` | `text` | Not Null |
-| `url` | `text` | Nullable |
-| `deadline` | `date` | Nullable |
-| `what_offered` | `text` | Nullable |
-| `project_fit` | `text` | Nullable |
-| `effort` | `text` | Nullable (low \| med \| high) |
-| `status` | `text` | Not Null, Default `'drafting'` (new \| drafting \| applied \| rejected \| accepted) |
-| `application_draft` | `text` | Nullable |
-| `task_id` | `uuid` | Nullable |
-| `created_at` | `timestamptz` | Nullable, Default `now()` |
 
 ## Storage Buckets
 

@@ -1,11 +1,18 @@
 # Changelog
 ## [2026-09-07]
 ### Added
+- **Opportunity Scout V2**: Added percentage scoring (`profile_match` and `acceptance_chance`) for hardware opportunities.
+- **Subtask Generation**: Implemented a new Edge Function to generate specific application steps via Groq API.
+- **Matrix Canvas Subtasks**: Parent tasks in the Matrix Canvas now display a toggleable UI to show or hide their subtasks.
+- **Task Triage Upgrades**: Triage script now automatically scopes application parent tasks into the prompt with their opportunity match scores to properly place them into quadrants, and inherently skips triaging subtasks.
+
+### Changed
 - Created the 'Polaris Dev Pipeline' allowing AI-driven execution of app features directly from the Eisenhower Matrix.
 - Added #polaris hashtag detection to triage script to automatically flag dev tasks.
 - Added category column to 	asks table.
 - Implemented auto-generation of docs/_FEATURE_PROPOSALS.md for AI context sharing.
-- Added helper script g_review_flag.mjs for marking features ready for manual review.
+- Added helper script  g_review_flag.mjs for marking features ready for manual review.
+
 ## [2026-09-07]
 ### Fixed
 - **Scout Fallback**: Updated the `scout-opportunities` edge function to append up to 3 previously discovered highly-recommended opportunities to the morning brief if no new opportunities are found by Firecrawl or Groq today.
