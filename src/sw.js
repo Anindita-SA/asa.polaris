@@ -10,6 +10,10 @@ self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'UPDATE_NUDGES') {
     nudges = event.data.nudges;
   } else if (event.data && event.data.type === 'POMODORO_START') {
+    if (event.data.taskId && timers[event.data.taskId]) {
+      clearTimeout(timers[event.data.taskId]);
+      delete timers[event.data.taskId];
+    }
     if (timers['pomodoro']) clearTimeout(timers['pomodoro']);
     timers['pomodoro'] = setTimeout(() => {
       self.registration.showNotification('Pomodoro Finished!', {
@@ -46,7 +50,11 @@ function scheduleNudge(nudge) {
   if (!nudge.id || !nudge.intervalMs) return;
 
   timers[nudge.id] = setTimeout(() => {
-    self.registration.showNotification(nudge.title || 'Polaris Reminder', {
+    let title = nudge.title || 'Polaris Reminder';
+    if (nudge.isTask) {
+      title = `⚠️ OVERDUE: ${title}`;
+    }
+    self.registration.showNotification(title, {
       body: 'Time to check in!',
       icon: '/asa.polaris/pwa-192x192.png',
       badge: '/asa.polaris/pwa-192x192.png',

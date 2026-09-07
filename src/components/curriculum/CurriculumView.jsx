@@ -87,32 +87,46 @@ const IELTS_SCHEDULE = [
 
 const GRADED_MOCK_TESTS = [
   {
-    id: 'mock_2026_january',
-    title: 'IELTS Mock Test Collection - January 2026',
-    badge: 'Auto-Graded Mock',
-    desc: 'Auto-graded full-length Listening, Reading, Writing, Speaking tests with instant band score evaluation.',
-    url: 'https://ieltsonlinetests.com/collection/ielts-mock-test-2026-january',
+    id: 'cambridge_20',
+    title: 'Cambridge IELTS Book 20',
+    badge: 'Official Practice',
+    desc: 'Latest official Cambridge IELTS practice tests. Highly recommended for accuracy.',
+    url: 'https://practicepteonline.com/official-ielts-tests-book-20/',
   },
   {
-    id: 'mock_2025_december',
-    title: 'IELTS Mock Test Collection - December 2025',
-    badge: 'Auto-Graded Mock',
-    desc: 'Auto-graded timed test collection with complete answer explanations, audio scripts, and score breakdowns.',
-    url: 'https://ieltsonlinetests.com/collection/ielts-mock-test-2025-december',
+    id: 'cambridge_19',
+    title: 'Cambridge IELTS Book 19',
+    badge: 'Official Practice',
+    desc: 'Official Cambridge IELTS practice tests.',
+    url: 'https://practicepteonline.com/official-ielts-book-19/',
   },
   {
-    id: 'mock_2025_november',
-    title: 'IELTS Mock Test Collection - November 2025',
-    badge: 'Auto-Graded Mock',
-    desc: 'Auto-graded full practice tests to drill test-taking speed, accuracy, and section timing.',
-    url: 'https://ieltsonlinetests.com/collection/ielts-mock-test-2025-november',
+    id: 'cambridge_18',
+    title: 'Cambridge IELTS Book 18',
+    badge: 'Official Practice',
+    desc: 'Official Cambridge IELTS practice tests.',
+    url: 'https://practicepteonline.com/official-ielts-tests-book-18/',
   },
   {
-    id: 'mock_2025_october',
-    title: 'IELTS Mock Test Collection - October 2025',
-    badge: 'Auto-Graded Mock',
-    desc: 'Auto-graded mock exams for evaluating performance across all four test sections before test day.',
-    url: 'https://ieltsonlinetests.com/collection/ielts-mock-test-2025-october',
+    id: 'cambridge_17',
+    title: 'Cambridge IELTS Book 17',
+    badge: 'Official Practice',
+    desc: 'Official Cambridge IELTS practice tests.',
+    url: 'https://practicepteonline.com/official-ielts-tests-book-17/',
+  },
+  {
+    id: 'cambridge_16',
+    title: 'Cambridge IELTS Book 16',
+    badge: 'Official Practice',
+    desc: 'Official Cambridge IELTS practice tests.',
+    url: 'https://practicepteonline.com/official-ielts-tests-book-16/',
+  },
+  {
+    id: 'cambridge_11_15',
+    title: 'Cambridge IELTS Books 11-15',
+    badge: 'Official Practice Archive',
+    desc: 'Older official Cambridge IELTS practice tests for extra drills.',
+    url: 'https://practicepteonline.com/cambridge-ielts-1-13-tests/',
   },
 ]
 
@@ -131,10 +145,12 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
   const [resources, setResources] = useState([])
   const [addingTopic, setAddingTopic] = useState(false)
   const [addingResource, setAddingResource] = useState(false)
+  const [editingResource, setEditingResource] = useState(null)
   const [newTopic, setNewTopic] = useState({ title: '', estimated_hours: '' })
   const [newResource, setNewResource] = useState({ title: '', author: '', resource_type: 'book', url: '' })
   const [pomodoroMap, setPomodoroMap] = useState({})
   const [resourcesOpen, setResourcesOpen] = useState(false)
+  const [isScheduleOpen, setIsScheduleOpen] = useState(false)
   const [completedMocks, setCompletedMocks] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem('polaris_ielts_completed_mocks') || '{}')
@@ -265,6 +281,18 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
     fetchData()
   }
 
+  const saveEditResource = async () => {
+    if (!editingResource.title.trim()) return
+    await supabase.from('curriculum_resources').update({
+      title: editingResource.title,
+      author: editingResource.author,
+      url: editingResource.url,
+      resource_type: editingResource.resource_type
+    }).eq('id', editingResource.id)
+    setEditingResource(null)
+    fetchData()
+  }
+
   const deleteTopic = async (id) => {
     await supabase.from('curriculum_topics').delete().eq('id', id)
     fetchData()
@@ -342,6 +370,8 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
               </p>
             </div>
           </div>
+
+          <PracticeScoreTracker curriculumId={curriculum.id} />
 
           {/* 1. Verified 2026 Free Resources */}
           <div className="space-y-3">
@@ -453,9 +483,15 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
 
           {/* 3. 28-Day Writing De-Rusting & Computer Adaptation Schedule (Oct 3 Exam Target) */}
           <div className="space-y-4">
-            <h3 className="text-lg font-mono text-nova/60 flex items-center gap-2">
-              <BookOpen className="w-4 h-4 text-sky" /> 28-Day De-Rusting & Computer Adaptation Schedule (Oct 3 Exam Target)
-            </h3>
+            <button onClick={() => setIsScheduleOpen(!isScheduleOpen)} className="w-full flex items-center justify-between hover:opacity-80 transition-opacity text-left">
+              <h3 className="text-lg font-mono text-nova/60 flex items-center gap-2">
+                <BookOpen className="w-4 h-4 text-sky" /> 28-Day De-Rusting & Computer Adaptation Schedule
+              </h3>
+              {isScheduleOpen ? <ChevronDown className="w-5 h-5 text-nova/60 rotate-180" /> : <ChevronDown className="w-5 h-5 text-nova/60" />}
+            </button>
+
+            {isScheduleOpen && (
+              <div className="space-y-4 pt-2">
 
             {[1, 2, 3, 4, 5].map(weekNum => {
               const weekSessions = IELTS_SCHEDULE.filter(s => s.week === weekNum)
@@ -524,11 +560,13 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
                 </div>
               )
             })}
+            </div>
+            )} {/* end isScheduleOpen */}
           </div>
         </div>
       )}
 
-      <PracticeScoreTracker curriculumId={curriculum.id} />
+      
 
       {/* Syllabus */}
       <div className="space-y-3">
@@ -541,17 +579,17 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
         </div>
 
         {addingTopic && (
-          <div className="glass border border-dashed border-pulsar/40 rounded-xl p-3 space-y-2">
+          <div className="bg-stardust border border-cosmic rounded-xl p-3 space-y-2">
             <input type="text" placeholder="Topic title..." value={newTopic.title}
               onChange={e => setNewTopic(p => ({ ...p, title: e.target.value }))}
               onKeyDown={e => e.key === 'Enter' && addTopicHandler()}
-              className="w-full bg-transparent border-b border-pulsar/40 text-sm text-starlight outline-none focus:border-pulsar font-body pb-1" autoFocus />
+              className="w-full bg-void border border-cosmic rounded px-3 py-2 text-sm text-starlight outline-none focus:border-pulsar font-body" autoFocus />
             <div className="flex gap-2 items-center">
               <input type="number" placeholder="Hours" value={newTopic.estimated_hours}
                 onChange={e => setNewTopic(p => ({ ...p, estimated_hours: e.target.value }))}
-                className="w-20 bg-transparent border-b border-pulsar/40 text-xs text-nova/60 outline-none font-mono pb-1" />
-              <button onClick={addTopicHandler} className="px-3 py-1 text-xs font-mono uppercase tracking-wider rounded" style={{ background: `${accentColor}20`, color: accentColor, border: `1px solid ${accentColor}30` }}>Add</button>
-              <button onClick={() => setAddingTopic(false)} className="text-nova/60 text-xs">Cancel</button>
+                className="w-20 bg-void border border-cosmic rounded px-2 py-1 text-xs text-nova outline-none font-mono focus:border-pulsar" />
+              <button onClick={addTopicHandler} className="px-3 py-1.5 text-xs font-mono uppercase tracking-wider rounded" style={{ background: accentColor, color: '#fff' }}>Add</button>
+              <button onClick={() => setAddingTopic(false)} className="text-nova hover:text-starlight text-xs transition-colors">Cancel</button>
             </div>
           </div>
         )}
@@ -601,52 +639,84 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
             </div>
 
             {addingResource && (
-              <div className="glass border border-dashed border-pulsar/40 rounded-lg p-3 space-y-2">
+              <div className="bg-stardust border border-cosmic rounded-lg p-3 space-y-2">
                 <input type="text" placeholder="Title..." value={newResource.title}
                   onChange={e => setNewResource(p => ({ ...p, title: e.target.value }))}
-                  className="w-full bg-transparent border-b border-pulsar/40 text-xs text-starlight outline-none font-body pb-1" autoFocus />
-                <input type="text" placeholder="Author..." value={newResource.author}
+                  className="w-full bg-void border border-cosmic rounded px-2.5 py-1.5 text-xs text-starlight outline-none font-body focus:border-pulsar" autoFocus />
+                <input type="text" placeholder="Author/Description..." value={newResource.author}
                   onChange={e => setNewResource(p => ({ ...p, author: e.target.value }))}
-                  className="w-full bg-transparent border-b border-pulsar/30 text-xs text-nova/60 outline-none font-body pb-1" />
+                  className="w-full bg-void border border-cosmic rounded px-2.5 py-1.5 text-xs text-nova outline-none font-body focus:border-pulsar" />
+                <input type="text" placeholder="URL link (optional)..." value={newResource.url}
+                  onChange={e => setNewResource(p => ({ ...p, url: e.target.value }))}
+                  className="w-full bg-void border border-cosmic rounded px-2.5 py-1.5 text-xs text-nova outline-none font-body focus:border-pulsar font-mono" />
                 <div className="flex gap-2 items-center">
                   <select value={newResource.resource_type}
                     onChange={e => setNewResource(p => ({ ...p, resource_type: e.target.value }))}
-                    className="bg-stardust/40 text-xs text-starlight border border-blue-900/10 rounded px-2 py-1 outline-none font-body">
+                    className="bg-void text-xs text-starlight border border-cosmic rounded px-2 py-1 outline-none font-body focus:border-pulsar">
                     <option value="book">Book</option>
                     <option value="article">Article</option>
                     <option value="video">Video</option>
                     <option value="course">Course</option>
                     <option value="podcast">Podcast</option>
                   </select>
-                  <button onClick={addResourceHandler} className="px-3 py-1 text-xs font-mono uppercase tracking-wider rounded" style={{ background: `${accentColor}20`, color: accentColor }}>Add</button>
-                  <button onClick={() => setAddingResource(false)} className="text-nova/60 text-xs">✕</button>
+                  <button onClick={addResourceHandler} className="px-3 py-1.5 text-xs font-mono uppercase tracking-wider rounded" style={{ background: accentColor, color: '#fff' }}>Add</button>
+                  <button onClick={() => setAddingResource(false)} className="text-nova hover:text-starlight text-xs transition-colors">Cancel</button>
                 </div>
               </div>
             )}
 
             {resources.map(r => (
-              <div key={r.id} className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-white/[0.02] transition-all group/res">
-                <div className="flex items-center gap-3 min-w-0">
-                  <span className="text-[9px] font-mono px-1.5 py-0.5 rounded flex-shrink-0" style={{ background: `${accentColor}15`, color: `${accentColor}90` }}>
-                    {r.resource_type}
-                  </span>
-                  <div className="min-w-0">
-                    <span className="font-body text-xs text-starlight truncate block">{r.title}</span>
-                    {r.author && <span className="text-xs font-body text-nova/60">{r.author}</span>}
+              <div key={r.id} className="py-2 px-3 rounded-lg hover:bg-white/[0.02] transition-all group/res">
+                {editingResource?.id === r.id ? (
+                  <div className="bg-void border border-cosmic rounded-lg p-3 space-y-2">
+                    <input type="text" placeholder="Title..." value={editingResource.title}
+                      onChange={e => setEditingResource(p => ({ ...p, title: e.target.value }))}
+                      className="w-full bg-void border border-cosmic rounded px-2.5 py-1.5 text-xs text-starlight outline-none font-body focus:border-pulsar" autoFocus />
+                    <input type="text" placeholder="Author/Description..." value={editingResource.author || ''}
+                      onChange={e => setEditingResource(p => ({ ...p, author: e.target.value }))}
+                      className="w-full bg-void border border-cosmic rounded px-2.5 py-1.5 text-xs text-nova outline-none font-body focus:border-pulsar" />
+                    <input type="text" placeholder="URL link (optional)..." value={editingResource.url || ''}
+                      onChange={e => setEditingResource(p => ({ ...p, url: e.target.value }))}
+                      className="w-full bg-void border border-cosmic rounded px-2.5 py-1.5 text-xs text-nova outline-none font-body focus:border-pulsar font-mono" />
+                    <div className="flex gap-2 items-center">
+                      <select value={editingResource.resource_type}
+                        onChange={e => setEditingResource(p => ({ ...p, resource_type: e.target.value }))}
+                        className="bg-stardust text-xs text-starlight border border-cosmic rounded px-2 py-1 outline-none font-body focus:border-pulsar">
+                        <option value="book">Book</option>
+                        <option value="article">Article</option>
+                        <option value="video">Video</option>
+                        <option value="course">Course</option>
+                        <option value="podcast">Podcast</option>
+                      </select>
+                      <button onClick={saveEditResource} className="px-3 py-1.5 text-xs font-mono uppercase tracking-wider rounded" style={{ background: accentColor, color: '#fff' }}>Save</button>
+                      <button onClick={() => setEditingResource(null)} className="text-nova hover:text-starlight text-xs transition-colors">Cancel</button>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {r.url && (
-                    <a href={r.url} target="_blank" rel="noopener noreferrer"
-                      className="text-xs font-mono flex items-center gap-1 hover:underline" style={{ color: accentColor }}>
-                      <LinkIcon className="w-3 h-3" />
-                    </a>
-                  )}
-                  <button onClick={() => deleteResource(r.id)}
-                    className="text-nova/60 hover:text-danger opacity-0 group-hover/res:opacity-100 transition-all">
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
+                ) : (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 min-w-0" onClick={() => setEditingResource(r)} style={{ cursor: 'pointer' }}>
+                      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded flex-shrink-0" style={{ background: `${accentColor}15`, color: `${accentColor}90` }}>
+                        {r.resource_type}
+                      </span>
+                      <div className="min-w-0">
+                        <span className="font-body text-xs text-starlight truncate block group-hover/res:text-white transition-colors">{r.title}</span>
+                        {r.author && <span className="text-xs font-body text-nova/60">{r.author}</span>}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {r.url && (
+                        <a href={r.url} target="_blank" rel="noopener noreferrer"
+                          className="text-xs font-mono flex items-center gap-1 hover:underline" style={{ color: accentColor }}>
+                          <LinkIcon className="w-3 h-3" />
+                        </a>
+                      )}
+                      <button onClick={() => deleteResource(r.id)}
+                        className="text-nova/40 hover:text-danger opacity-50 group-hover/res:opacity-100 transition-all">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
 

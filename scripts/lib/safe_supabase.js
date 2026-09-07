@@ -80,8 +80,10 @@ export async function createSafeClient(scriptName, readMostly = false, isDryRun 
         }
         if (readMostly && tableName === 'tasks') {
            const keys = Object.keys(payload);
-           if (keys.length !== 1 || keys[0] !== 'quadrant') {
-              throw new Error(`SECURITY EXCEPTION: Read-mostly script can only update 'quadrant' on tasks.`);
+           const allowedKeys = ['quadrant', 'title', 'category'];
+           const hasInvalidKey = keys.some(k => !allowedKeys.includes(k));
+           if (hasInvalidKey) {
+              throw new Error(`SECURITY EXCEPTION: Read-mostly script can only update quadrant, title, and category on tasks. Attempted to update: ${keys.join(', ')}`);
            }
         }
         if (isDryRun) {

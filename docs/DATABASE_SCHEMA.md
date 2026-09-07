@@ -657,6 +657,7 @@
 | `id` | `uuid` | Primary, Default `gen_random_uuid()` |
 | `user_id` | `uuid` | Not Null, Default `auth.uid()` |
 | `title` | `text` | Not Null |
+| `category` | `text` | Nullable |
 | `notes` | `text` | Nullable |
 | `quadrant` | `text` | Nullable (urgent_important \| important_not_urgent \| urgent_not_important \| neither) |
 | canvas_x | loat8 |  Nullable |
@@ -666,6 +667,7 @@
 | `estimate_source` | `text` | Nullable (user \| ai) |
 | `status` | `text` | Not Null, Default `'inbox'` (inbox \| active \| scheduled \| done) |
 | `source_template_id` | `uuid` | Nullable, References `recurring_task_templates` |
+| `skip_count` | `int4` | Nullable, Default `0` |
 | `created_at` | `timestamptz` | Nullable, Default `now()` |
 
 ## Table `wins`

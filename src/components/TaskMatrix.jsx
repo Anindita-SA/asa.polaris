@@ -646,14 +646,6 @@ function TaskChip({
 
         {/* Task Badges & Metadata */}
         <div className="flex items-center gap-2 mt-1 flex-wrap text-[10px] font-mono text-[#8a91a3]">
-          {/* Deadline */}
-          {task.deadline && (
-            <span className="flex items-center gap-1 text-[#e8e6df]/80 bg-[#0c0f14] px-1.5 py-0.5 rounded border border-[#2a3142]">
-              <Calendar className="w-3 h-3 text-[#3ea8a0]" />
-              {task.deadline}
-            </span>
-          )}
-
           {/* Estimated Minutes */}
           {task.estimated_minutes ? (
             <span className="flex items-center gap-1 bg-[#0c0f14] px-1.5 py-0.5 rounded border border-[#2a3142]">
