@@ -44,18 +44,19 @@ async function run() {
       .from('tasks')
       .select('id, title')
       .eq('user_id', uid)
+      
       .ilike('title', '%#polaris%');
       
     if (polarisErr) throw polarisErr;
     
     if (polarisTasks && polarisTasks.length > 0) {
-      console.log(`Found ${polarisTasks.length} #polaris tasks. Moving to polaris_dev category...`);
+      console.log(`Found ${polarisTasks.length} #polaris tasks. Moving to polaris category...`);
       for (const pt of polarisTasks) {
         const cleanTitle = pt.title.replace(/#polaris/gi, '').trim();
         if (isDryRun) {
-           console.log(`[DRY RUN] Would update task ${pt.id} to title: "${cleanTitle}", category: "polaris_dev"`);
+           console.log(`[DRY RUN] Would update task ${pt.id} to title: "${cleanTitle}", category: "polaris"`);
         } else {
-           await supabase.from('tasks').update({ title: cleanTitle, category: 'polaris_dev' }).eq('id', pt.id);
+           await supabase.from('tasks').update({ title: cleanTitle, category: 'polaris' }).eq('id', pt.id);
         }
       }
     }
@@ -66,7 +67,7 @@ async function run() {
       .select('id, title, notes, deadline, estimated_minutes, skip_count')
       .eq('user_id', uid)
       .is('quadrant', null)
-      .is('parent_task_id', null)
+      
       .in('status', ['inbox', 'active']);
 
     if (taskErr) throw taskErr;
@@ -239,12 +240,13 @@ async function run() {
     const skipSuccessCount = skipResults.filter(Boolean).length;
     console.log(`Incremented skip_count for ${skipSuccessCount}/${unsortedTasks.length} triaged tasks.`);
 
-    // 6. Output polaris_dev tasks to docs/_FEATURE_PROPOSALS.md
+    // 6. Output polaris tasks to docs/_FEATURE_PROPOSALS.md
     const { data: devTasks, error: devErr } = await supabase
       .from('tasks')
       .select('id, title, notes, status')
       .eq('user_id', uid)
-      .eq('category', 'polaris_dev')
+      .eq('category', 'polaris')
+      
       .neq('status', 'done');
 
     if (devErr) throw devErr;

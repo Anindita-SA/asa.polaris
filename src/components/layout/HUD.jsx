@@ -70,10 +70,14 @@ const HUD = ({ activeView, setActiveView, rightPanelOpen, setRightPanelOpen }) =
         {/* ── Row 1: Logo + Clarity Anchor + Nav (desktop) + Bars + Logout ── */}
         <div className="flex items-center h-14 px-4 gap-3">
           {/* Logo */}
-          <div className="flex items-center gap-2 min-w-fit">
+          <button 
+            className="flex items-center gap-2 min-w-fit cursor-pointer hover:opacity-80 transition-opacity"
+            onClick={() => window.location.reload()}
+            title="Hard Refresh"
+          >
             <Star className="text-gold w-4 h-4" fill="currentColor" />
             <span className="font-display text-sm tracking-[0.2em] text-starlight">POLARIS</span>
-          </div>
+          </button>
 
           <div className="w-px h-6 bg-blue-900/40 hidden sm:block" />
 
