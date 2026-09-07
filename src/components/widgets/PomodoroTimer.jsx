@@ -268,6 +268,7 @@ const PomodoroTimer = ({ mobilePill = false }) => {
         supabase.from('tasks')
           .update({ skip_count: 0 })
           .eq('id', currentTask.id)
+          .eq('user_id', user.id)
           .then(({ error }) => {
             if (error) console.error('Failed to reset skip_count:', error)
             else console.log(`Reset skip_count for task ${currentTask.id}`)

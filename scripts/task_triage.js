@@ -63,9 +63,10 @@ async function run() {
     // 1. Fetch unsorted tasks
     const { data: unsortedTasks, error: taskErr } = await supabase
       .from('tasks')
-      .select('id, title, notes, deadline, estimated_minutes')
+      .select('id, title, notes, deadline, estimated_minutes, skip_count')
       .eq('user_id', uid)
       .is('quadrant', null)
+      .is('parent_task_id', null)
       .in('status', ['inbox', 'active']);
 
     if (taskErr) throw taskErr;
@@ -76,6 +77,25 @@ async function run() {
     }
 
     console.log(`Found ${unsortedTasks.length} unsorted tasks. Building context...`);
+
+    // 1b. Fetch opportunity scores for Application tasks
+    const applyTasks = unsortedTasks.filter(t => t.title.startsWith('Apply for:'));
+    if (applyTasks.length > 0) {
+      const { data: opps } = await supabase
+        .from('hardware_opportunities')
+        .select('task_id, profile_match, acceptance_chance')
+        .in('task_id', applyTasks.map(t => t.id));
+        
+      if (opps && opps.length > 0) {
+        const oppMap = new Map(opps.map(o => [o.task_id, o]));
+        unsortedTasks.forEach(t => {
+          if (oppMap.has(t.id)) {
+            const opp = oppMap.get(t.id);
+            t.context = `Application Opportunity. Profile Match: ${opp.profile_match}%, Acceptance Chance: ${opp.acceptance_chance}%`;
+          }
+        });
+      }
+    }
 
     // 2. Fetch context
     const [goalsRes, eulogyRes] = await Promise.all([
@@ -93,9 +113,9 @@ async function run() {
     CURRENT DATE: ${currentDate}. Evaluate deadlines relative to this.
     
     QUADRANTS:
-    - urgent_important: Due within 3 days OR blocking a critical goal.
-    - important_not_urgent: Advances long-term goals (TU Delft, portfolio, engineering skills).
-    - urgent_not_important: Quick admin/errands, < 15 min, no strategic value.
+    - urgent_important: Due within 3 days OR blocking a critical goal. For applications: High match + approaching deadline.
+    - important_not_urgent: Advances long-term goals (TU Delft, portfolio, engineering skills). For applications: High match + no immediate deadline.
+    - urgent_not_important: Quick admin/errands, < 15 min, no strategic value. For applications: Low match.
     - neither: Nice-to-have, no deadline, no goal alignment.
     
     USER CONTEXT:
@@ -196,6 +216,28 @@ async function run() {
     }
 
     console.log(`Triage complete. Successfully processed ${isDryRun ? parsed.length : successCount} tasks.`);
+
+    // 5b. Increment skip_count for all triaged tasks (surfaced without action = a skip)
+    const skipPromises = unsortedTasks.map(async (task) => {
+      if (isDryRun) {
+        console.log(`[DRY RUN] Would increment skip_count for task ${task.id}`);
+        return true;
+      }
+      const currentSkipCount = task.skip_count || 0;
+      const { error } = await supabase
+        .from('tasks')
+        .update({ skip_count: currentSkipCount + 1 })
+        .eq('id', task.id)
+        .eq('user_id', uid);
+      if (error) {
+        console.error(`Failed to increment skip_count for task ${task.id}:`, error);
+        return false;
+      }
+      return true;
+    });
+    const skipResults = await Promise.all(skipPromises);
+    const skipSuccessCount = skipResults.filter(Boolean).length;
+    console.log(`Incremented skip_count for ${skipSuccessCount}/${unsortedTasks.length} triaged tasks.`);
 
     // 6. Output polaris_dev tasks to docs/_FEATURE_PROPOSALS.md
     const { data: devTasks, error: devErr } = await supabase

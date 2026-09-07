@@ -110,6 +110,17 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
   const [newTitle, setNewTitle] = useState('');
   const [isAuditing, setIsAuditing] = useState(false);
   const [auditMessage, setAuditMessage] = useState(null);
+  const [expandedTasks, setExpandedTasks] = useState(new Set());
+
+  const toggleTaskExpand = (e, taskId) => {
+    e.stopPropagation();
+    setExpandedTasks(prev => {
+      const next = new Set(prev);
+      if (next.has(taskId)) next.delete(taskId);
+      else next.add(taskId);
+      return next;
+    });
+  };
 
   // Brain Dump Tab State ('backlog' | 'completed' | 'details')
   const [activeBrainDumpTab, setActiveBrainDumpTab] = useState('backlog');
@@ -447,7 +458,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
     const now = new Date();
     const oneWeekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
     return tasks.filter((t) => {
-      if (t.quadrant === null || t.status === 'done') return false;
+      if (t.parent_task_id || t.quadrant === null || t.status === 'done') return false;
       if (hideFarScheduled && t.status === 'scheduled' && t.deadline) {
         const deadlineDate = new Date(t.deadline);
         if (deadlineDate > oneWeekFromNow) return false;
@@ -458,7 +469,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
 
   // Unsorted Brain Dump tasks (`quadrant === null` and `status !== 'done'`)
   const brainDumpTasks = useMemo(() => {
-    let result = tasks.filter((t) => t.quadrant === null && t.status !== 'done');
+    let result = tasks.filter((t) => !t.parent_task_id && t.quadrant === null && t.status !== 'done');
     if (searchQuery.trim()) {
       result = result.filter(t => t.title.toLowerCase().includes(searchQuery.toLowerCase().trim()));
     }

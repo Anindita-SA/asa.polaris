@@ -78,6 +78,22 @@ const HardwareScoutPanel = () => {
       .update({ status: 'applied', task_id: newTaskId })
       .eq('id', opp.id)
 
+    if (newTaskId) {
+      supabase.functions.invoke('generate-application-subtasks', {
+        body: {
+          parent_task_id: newTaskId,
+          opportunity: {
+            title: opp.title,
+            url: opp.url,
+            deadline: opp.deadline,
+            effort: opp.effort,
+            project_fit: opp.project_fit,
+            what_offered: opp.what_offered
+          }
+        }
+      }).catch(err => console.error('Background subtask generation failed:', err));
+    }
+
     // Ensure state remains synchronized with backend
     fetchOpportunities()
   }
@@ -110,7 +126,9 @@ const HardwareScoutPanel = () => {
         what_offered: editForm.what_offered,
         project_fit: editForm.project_fit,
         effort: editForm.effort,
-        application_draft: editForm.application_draft
+        application_draft: editForm.application_draft,
+        profile_match: editForm.profile_match,
+        acceptance_chance: editForm.acceptance_chance
       })
       .eq('id', editingId)
     
@@ -192,6 +210,20 @@ const HardwareScoutPanel = () => {
                             placeholder="Project Fit"
                           />
                           <input 
+                            type="number"
+                            value={editForm.profile_match || ''}
+                            onChange={e => setEditForm({...editForm, profile_match: parseInt(e.target.value) || null})}
+                            className="bg-void/70 border border-pulsar/40 rounded px-2 py-1 text-starlight outline-none w-24"
+                            placeholder="Match %"
+                          />
+                          <input 
+                            type="number"
+                            value={editForm.acceptance_chance || ''}
+                            onChange={e => setEditForm({...editForm, acceptance_chance: parseInt(e.target.value) || null})}
+                            className="bg-void/70 border border-pulsar/40 rounded px-2 py-1 text-starlight outline-none w-24"
+                            placeholder="Chance %"
+                          />
+                          <input 
                             value={editForm.url || ''}
                             onChange={e => setEditForm({...editForm, url: e.target.value})}
                             className="bg-void/70 border border-pulsar/40 rounded px-2 py-1 text-starlight outline-none flex-1"
@@ -200,9 +232,22 @@ const HardwareScoutPanel = () => {
                         </>
                       ) : (
                         <>
-                          {opp.deadline && <span className="px-2 py-1 rounded bg-amber-500/10 text-amber-500/80">Deadline: {opp.deadline}</span>}
-                          {opp.effort && <span className="px-2 py-1 rounded bg-blue-500/10 text-blue-400">Effort: {opp.effort}</span>}
-                          {opp.project_fit && <span className="px-2 py-1 rounded bg-emerald-500/10 text-emerald-400">Fit: {opp.project_fit}</span>}
+                          {opp.deadline && <span className="px-2 py-1 rounded bg-amber-500/10 text-amber-500/80 border border-amber-500/20">Deadline: {opp.deadline}</span>}
+                          {opp.effort && <span className="px-2 py-1 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">Effort: {opp.effort}</span>}
+                          {opp.profile_match != null && (
+                            <span className={`px-2 py-1 rounded border ${
+                              opp.profile_match >= 80 ? 'border-emerald-500/30 text-emerald-400 bg-emerald-500/10' :
+                              opp.profile_match >= 50 ? 'border-pulsar/30 text-nova/70 bg-pulsar/10' :
+                              'border-red-500/30 text-red-400/70 bg-red-500/10'
+                            }`}>Match: {opp.profile_match}%</span>
+                          )}
+                          {opp.acceptance_chance != null && (
+                            <span className={`px-2 py-1 rounded border ${
+                              opp.acceptance_chance >= 60 ? 'border-blue-500/30 text-blue-400 bg-blue-500/10' :
+                              opp.acceptance_chance >= 30 ? 'border-pulsar/30 text-nova/70 bg-pulsar/10' :
+                              'border-red-500/30 text-red-400/70 bg-red-500/10'
+                            }`}>Chance: {opp.acceptance_chance}%</span>
+                          )}
                         </>
                       )}
                     </div>
