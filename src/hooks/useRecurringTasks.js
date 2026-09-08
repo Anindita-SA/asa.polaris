@@ -36,6 +36,19 @@ export function useRecurringTasks() {
           return
         }
 
+        // Fetch all active tasks once to prevent duplicate creation
+        const { data: allActiveTasks, error: activeTasksError } = await supabase
+          .from('tasks')
+          .select('id, title, source_template_id')
+          .eq('user_id', user.id)
+          .neq('status', 'done')
+          
+        if (activeTasksError) {
+          console.error('Error fetching active tasks:', activeTasksError)
+          setGenerated(0)
+          return
+        }
+
         let count = 0
 
         for (const template of templates) {
@@ -50,20 +63,12 @@ export function useRecurringTasks() {
             }
           }
 
-          // a. Duplicate check: tasks table for source_template_id and created today
-          const { data: existingTasks, error: dupError } = await supabase
-            .from('tasks')
-            .select('id')
-            .eq('user_id', user.id)
-            .eq('source_template_id', template.id)
-            .gte('created_at', todayStartISO)
+          // a. Duplicate check: ANY active task with the same title OR same source_template_id
+          const isDuplicate = allActiveTasks.some(t => 
+            t.title === template.title || t.source_template_id === template.id
+          );
 
-          if (dupError) {
-            console.error('Error checking duplicate task for template:', template.id, dupError)
-            continue
-          }
-
-          if (existingTasks && existingTasks.length > 0) {
+          if (isDuplicate) {
             continue
           }
 

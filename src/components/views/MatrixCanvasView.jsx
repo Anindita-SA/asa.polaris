@@ -139,6 +139,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
   const [hideFarScheduled, setHideFarScheduled] = useState(true);
   const [hideReminders, setHideReminders] = useState(false);
+  const [hidePolaris, setHidePolaris] = useState(false);
 
   const canvasRef = useRef(null);
   const innerRef = useRef(null);
@@ -466,19 +467,23 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
     return tasks.filter((t) => {
       if (t.parent_task_id || t.quadrant === null || t.status === 'done') return false;
       if (hideReminders && t.category === 'reminders') return false;
+      if (hidePolaris && (t.category === 'polaris' || t.title.toLowerCase().includes('polaris'))) return false;
       if (hideFarScheduled && t.status === 'scheduled' && t.deadline) {
         const deadlineDate = new Date(t.deadline);
         if (deadlineDate > oneWeekFromNow) return false;
       }
       return true;
     });
-  }, [tasks, hideFarScheduled, hideReminders]);
+  }, [tasks, hideFarScheduled, hideReminders, hidePolaris]);
 
   // Unsorted Brain Dump tasks (`quadrant === null` and `status !== 'done'`)
   const brainDumpTasks = useMemo(() => {
     let result = tasks.filter((t) => !t.parent_task_id && t.quadrant === null && t.status !== 'done');
     if (hideReminders) {
       result = result.filter(t => t.category !== 'reminders');
+    }
+    if (hidePolaris) {
+      result = result.filter(t => !(t.category === 'polaris' || t.title.toLowerCase().includes('polaris')));
     }
     if (searchQuery.trim()) {
       result = result.filter(t => t.title.toLowerCase().includes(searchQuery.toLowerCase().trim()));
@@ -490,7 +495,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
       return aCat - bCat;
     });
     return result;
-  }, [tasks, searchQuery, hideReminders]);
+  }, [tasks, searchQuery, hideReminders, hidePolaris]);
 
   // Completed Tasks list (`status === 'done'`)
   const completedTasks = useMemo(() => {
@@ -527,22 +532,31 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
         {/* Canvas Controls */}
         <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
           <button
+            onClick={() => setHidePolaris(!hidePolaris)}
+            className={`flex items-center justify-center w-[26px] h-[26px] rounded-lg transition-colors ${
+              hidePolaris ? 'bg-pulsar/20 text-pulsar border border-pulsar/40' : 'glass border border-pulsar/20 text-nova/60 hover:text-starlight'
+            }`}
+            title="Hide Polaris Edit Tasks"
+          >
+            <Bot className="w-3.5 h-3.5" />
+          </button>
+          <button
             onClick={() => setHideReminders(!hideReminders)}
-            className={`flex items-center justify-center w-8 h-8 rounded-lg transition-colors ${
+            className={`flex items-center justify-center w-[26px] h-[26px] rounded-lg transition-colors ${
               hideReminders ? 'bg-pulsar/20 text-pulsar border border-pulsar/40' : 'glass border border-pulsar/20 text-nova/60 hover:text-starlight'
             }`}
             title="Hide Reminders"
           >
-            {hideReminders ? <BellOff className="w-4 h-4" /> : <Bell className="w-4 h-4" />}
+            {hideReminders ? <BellOff className="w-3.5 h-3.5" /> : <Bell className="w-3.5 h-3.5" />}
           </button>
           <button
             onClick={() => setHideFarScheduled(!hideFarScheduled)}
-            className={`flex items-center justify-center w-8 h-8 rounded-lg transition-colors ${
+            className={`flex items-center justify-center w-[26px] h-[26px] rounded-lg transition-colors ${
               hideFarScheduled ? 'bg-pulsar/20 text-pulsar border border-pulsar/40' : 'glass border border-pulsar/20 text-nova/60 hover:text-starlight'
             }`}
             title="Hide Scheduled Tasks (> 1 week away)"
           >
-            {hideFarScheduled ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            {hideFarScheduled ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
           </button>
         </div>
         {/* 2D Canvas Surface */}
