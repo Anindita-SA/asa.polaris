@@ -1,4 +1,9 @@
 
+## [2026-09-08] Task Duplication & Reminders Fixes
+- **Duplicate Tasks Bug**: Fixed `useRecurringTasks.js` to correctly identify and prevent the creation of duplicate recurring tasks when an active task from a previous day is still pending.
+- **Task Reminders UI**: Updated `RemindersPanel.jsx` to explicitly show tasks tagged with the `reminders` category in a dedicated "Task Reminders" section.
+- **Matrix Polaris Filter**: Added a toggle to `MatrixCanvasView.jsx` to quickly hide "Polaris Edit / Building" tasks from the canvas view.
+
 ## [2026-09-07] Task Categories & Security Hotfixes
 - **Task Category Sorting**: Added a 'Category' dropdown to the Task Details modal with options for 'Polaris Edit / Building', 'Reminders', and 'Normal Task' (which saves as null to keep the DB clean). Backlog tasks are now sorted by these categories.
 - **Hide Reminders Toggle**: Added a toggle button in the Matrix Canvas to instantly hide all tasks categorized as 'reminders' from the board.

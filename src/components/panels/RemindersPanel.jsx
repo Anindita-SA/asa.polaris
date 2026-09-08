@@ -171,9 +171,13 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
     return `https://calendar.google.com/calendar/r/eventedit?text=${text}&details=${details}&recur=${recur}`
   }
 
+  // Filter tasks
+  const focusTasks = tasks.filter(t => t.category !== 'reminders');
+  const reminderTasks = tasks.filter(t => t.category === 'reminders');
+
   // Show ONLY 1 ongoing task + 1 next upcoming task to prevent user overload!
-  const ongoingTask = activeTask || tasks[0];
-  const nextTask = tasks.find(t => t.id !== ongoingTask?.id);
+  const ongoingTask = activeTask || focusTasks[0];
+  const nextTask = focusTasks.find(t => t.id !== ongoingTask?.id);
 
   return (
     <div className="relative w-full h-full flex flex-col">
@@ -366,6 +370,27 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
 
         <div className="h-px bg-blue-900/30" />
 
+        {/* Task Reminders */}
+        <div className="space-y-3">
+          <h4 className="text-xs uppercase tracking-wider font-mono text-nova/60 mb-2">Task Reminders</h4>
+          <div className="space-y-2">
+            {reminderTasks.map(task => (
+              <div key={task.id} className="glass glass-hover hover:-translate-y-1 transition-transform border border-pulsar/30 p-3 rounded-xl flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-starlight">{task.title}</p>
+                  {task.notes && <p className="text-xs mt-0.5 text-nova/60 truncate max-w-[200px]">{task.notes}</p>}
+                </div>
+                <button onClick={() => markTaskDone(task.id)} className="h-8 w-8 rounded-full bg-blue-900/20 flex items-center justify-center text-nova/60 hover:text-emerald hover:bg-emerald/20 hover:border-emerald/50 border border-transparent transition-all shrink-0">
+                  <Check className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+            {reminderTasks.length === 0 && <p className="text-xs text-nova/60 italic">No task reminders</p>}
+          </div>
+        </div>
+
+        <div className="h-px bg-blue-900/30" />
+
         {/* Section 3: Reach Out */}
         <div className="space-y-3">
           <h4 className="text-xs uppercase tracking-wider font-mono text-nova/60 mb-2">Reach Out</h4>
@@ -408,7 +433,7 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
       <SurpriseTaskModal 
         isOpen={showSurprise} 
         onClose={() => setShowSurprise(false)} 
-        tasks={tasks}
+        tasks={focusTasks}
         toggleComplete={markTaskDone} 
       />
     </div>
