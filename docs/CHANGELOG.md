@@ -1,6 +1,7 @@
 # Changelog
 
 ## [2026-09-12] Needs Attention Randomized Shimmer, Nudge Isolation & PWA v1.1.4
+- **Needs Attention Card Simplification**: Removed raw WSJF score badges from the Needs Attention item cards to maximize title readability and reduce visual noise, switching to single-letter category badges (`T` for Task, `R` for Reminder, `N` for Nudge, `H` for Habit, `C` for Reach Out).
 - **Randomized Shimmer Pulse Animation**: Added randomized duration (3.5s to 7.0s) and delay memoization to the Needs Attention red box in `RemindersPanel.jsx` to create an organic, subtle attention pulse without render jumping.
 - **System Habit Nudges vs Tasks Isolation**: Separated user-configurable system habit nudges (`nudges` table) from tasks in `useNudgeScheduler.js` and `RemindersPanel.jsx`. Tasks are no longer mistakenly listed in the Nudges collapsible list or "Manage Nudges" settings modal.
 - **Service Worker Notification Dispatch**: Background push notification scheduling retains full alerts for both system habit nudges and overdue tasks, while exposing strictly system nudges to UI management dialogs.

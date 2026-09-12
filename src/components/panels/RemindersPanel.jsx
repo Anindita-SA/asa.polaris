@@ -33,6 +33,11 @@ const TIER_COLORS = {
 }
 
 const TAG_BADGE_COLORS = {
+  T: 'text-[#f5a623] bg-[#f5a623]/10 border-[#f5a623]/30',
+  R: 'text-rose-400 bg-rose-400/10 border-rose-400/30',
+  N: 'text-amber-400 bg-amber-400/10 border-amber-400/30',
+  H: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/30',
+  C: 'text-sky-400 bg-sky-400/10 border-sky-400/30',
   NUDGE: 'text-amber-400 bg-amber-400/10 border-amber-400/30',
   REMINDER: 'text-rose-400 bg-rose-400/10 border-rose-400/30',
   TASK: 'text-[#f5a623] bg-[#f5a623]/10 border-[#f5a623]/30',
@@ -237,7 +242,8 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
           id: n.id,
           title: n.title,
           type: 'nudge',
-          tag: 'NUDGE',
+          tag: 'N',
+          tagFull: 'Nudge',
           score: 3.8,
           action: () => {
             dismissNudge(n.id)
@@ -259,7 +265,8 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
           id: t.id,
           title: t.title,
           type: 'task',
-          tag: t.category === 'reminders' ? 'REMINDER' : 'TASK',
+          tag: t.category === 'reminders' ? 'R' : 'T',
+          tagFull: t.category === 'reminders' ? 'Reminder' : 'Task',
           score: computeWSJFScore(t).score,
           action: () => markTaskDone(t.id)
         })
@@ -279,7 +286,8 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
           id: t.id,
           title: t.title,
           type: 'habit',
-          tag: 'HABIT',
+          tag: 'H',
+          tagFull: 'Habit',
           score: 3.5,
           action: () => completeHabitForToday(t)
         })
@@ -299,7 +307,8 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
           id: c.id,
           title: c.name,
           type: 'contact',
-          tag: 'REACH OUT',
+          tag: 'C',
+          tagFull: 'Contact',
           score,
           action: () => {
             markReachedOut(c.id)
@@ -500,7 +509,10 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
                   className="flex items-center justify-between bg-void/60 rounded-lg p-2 border border-red-500/20 hover:border-red-500/40 transition-colors"
                 >
                   <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
-                    <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded border shrink-0 ${TAG_BADGE_COLORS[item.tag] || 'text-nova/60 bg-nova/10 border-nova/30'}`}>
+                    <span 
+                      className={`w-5 h-5 flex items-center justify-center text-[10px] font-mono font-bold rounded border shrink-0 ${TAG_BADGE_COLORS[item.tag] || 'text-nova/60 bg-nova/10 border-nova/30'}`}
+                      title={item.tagFull || item.tag}
+                    >
                       {item.tag}
                     </span>
                     <span className="text-xs text-starlight truncate" title={item.title}>
@@ -508,9 +520,6 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
                     </span>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-[10px] font-mono text-nova/60 bg-stardust/40 px-1.5 py-0.5 rounded border border-pulsar/20">
-                      WSJF {item.score}
-                    </span>
                     <button
                       onClick={item.action}
                       aria-label={`Complete ${item.title}`}
