@@ -154,9 +154,12 @@ describe("RemindersPanel", () => {
     // Check helper badge for 4 total items - 2 visible = 2 remaining
     expect(within(needsAttentionSection).getByText("(+2 more in sections below)")).toBeDefined();
 
-    // Verify tag badges
-    expect(within(needsAttentionSection).getByText("REACH OUT")).toBeDefined();
-    expect(within(needsAttentionSection).getByText("NUDGE")).toBeDefined();
+    // Verify single-letter tag badges
+    expect(within(needsAttentionSection).getByText("C")).toBeDefined();
+    expect(within(needsAttentionSection).getByText("N")).toBeDefined();
+
+    // Verify WSJF score text is not displayed in the card
+    expect(within(needsAttentionSection).queryByText(/WSJF/)).toBeNull();
   });
 
   it("should sort Needs Attention items strictly by score descending", async () => {
@@ -295,6 +298,35 @@ describe("RemindersPanel", () => {
     expect(within(nudgesSection).queryByText("Write Documentation")).toBeNull();
     expect(within(nudgesSection).queryByText("Call Electrician")).toBeNull();
     expect(within(nudgesSection).getByText("System Nudge")).toBeDefined();
+  });
+
+  it("should display T for tasks and R for reminders as single-letter badges in Needs Attention", async () => {
+    const overdueTasks = [
+      { id: "t1", title: "Review Paper Draft", status: "active", category: "research", deadline: "2020-01-01", wsjfScore: 4.5 },
+      { id: "t2", title: "Doctor Appointment Reminder", status: "active", category: "reminders", deadline: "2020-01-01", wsjfScore: 4.2 }
+    ];
+
+    setupSupabaseMock(overdueTasks, []);
+
+    render(<RemindersPanel onOpenDayGuide={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Needs Attention/)).toBeDefined();
+    });
+
+    const needsAttentionHeading = screen.getByText(/Needs Attention/);
+    const needsAttentionSection = needsAttentionHeading.closest(".rounded-xl");
+
+    // Check items rendered
+    expect(within(needsAttentionSection).getByText("Review Paper Draft")).toBeDefined();
+    expect(within(needsAttentionSection).getByText("Doctor Appointment Reminder")).toBeDefined();
+
+    // Check single letter tags
+    expect(within(needsAttentionSection).getByText("T")).toBeDefined();
+    expect(within(needsAttentionSection).getByText("R")).toBeDefined();
+
+    // Verify no WSJF text
+    expect(within(needsAttentionSection).queryByText(/WSJF/)).toBeNull();
   });
 });
 
