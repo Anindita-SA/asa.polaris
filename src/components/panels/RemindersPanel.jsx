@@ -90,7 +90,7 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
     }).sort((a, b) => b.score - a.score);
 
     setTasks(scored);
-  }, [user]);
+  }, [user?.id]);
 
   const fetchHabitTasks = useCallback(async () => {
     if (!user) return
@@ -102,7 +102,7 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
       .eq('category', 'habits')
       .in('status', ['active', 'inbox'])
     setHabitTasks(data || [])
-  }, [user])
+  }, [user?.id])
 
   useEffect(() => {
     fetchTasks()
@@ -510,7 +510,7 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
         <div className="h-px bg-blue-900/30" />
         
         {/* Section 2: Nudges */}
-        <CollapsibleSection title="Nudges" count={nudges.filter(n => n.active).length} sectionKey="nudges">
+        <CollapsibleSection title="Nudges" count={nudges.filter(n => !n.isTask && n.active).length} sectionKey="nudges">
           <div className="flex justify-end items-center -mt-1">
             <button 
               onClick={() => setShowNudgeSettings(!showNudgeSettings)} 
@@ -540,7 +540,7 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
                 )}
               </div>
               <div className="space-y-1">
-                {nudges.map(n => (
+                {nudges.filter(n => !n.isTask).map(n => (
                   <div key={n.id} className="flex items-center justify-between text-xs text-nova/60 bg-void/60 border border-blue-900/10 p-1.5 rounded">
                     <span>{n.title} ({n.interval_minutes}m)</span>
                     <div className="flex items-center gap-2">
@@ -550,13 +550,13 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
                     </div>
                   </div>
                 ))}
-                {nudges.length === 0 && <p className="text-xs italic text-nova/60">No nudges created yet.</p>}
+                {nudges.filter(n => !n.isTask).length === 0 && <p className="text-xs italic text-nova/60">No nudges created yet.</p>}
               </div>
             </div>
           )}
 
           <div className="space-y-2">
-            {nudges.filter(n => n.active).sort((a, b) => {
+            {nudges.filter(n => !n.isTask && n.active).sort((a, b) => {
               if (a.isDue && !b.isDue) return -1
               if (!a.isDue && b.isDue) return 1
               return a.nextFireAt - b.nextFireAt
@@ -571,7 +571,7 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
                 </button>
               </div>
             ))}
-            {nudges.filter(n => n.active).length === 0 && <p className="text-xs text-nova/60 italic">No active nudges</p>}
+            {nudges.filter(n => !n.isTask && n.active).length === 0 && <p className="text-xs text-nova/60 italic">No active nudges</p>}
           </div>
         </CollapsibleSection>
 

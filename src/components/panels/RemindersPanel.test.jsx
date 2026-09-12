@@ -6,9 +6,10 @@ import { supabase } from "../../lib/supabase";
 import { useNudgeScheduler } from "../../hooks/useNudgeScheduler";
 import { useContactReminders } from "../../hooks/useContactReminders";
 
+const mockUser = { id: "test-user" };
 // Mock the hooks
 vi.mock("../../hooks/useAuth", () => ({
-  useAuth: () => ({ user: { id: "test-user" } })
+  useAuth: () => ({ user: mockUser })
 }));
 
 vi.mock("../../hooks/useNudgeScheduler", () => ({
@@ -218,6 +219,84 @@ describe("RemindersPanel", () => {
 
     expect(mockDismissNudge).toHaveBeenCalledWith("n1");
   });
+
+  it("should never render task items inside Manage Nudges modal or Nudges section", async () => {
+    // Return only system nudges from useNudgeScheduler (or even if a task-like nudge was present)
+    useNudgeScheduler.mockReturnValue({
+      nudges: [
+        { id: "n1", title: "Drink Water", interval_minutes: 60, active: true, isDue: false, isTask: false },
+        { id: "t-alert", title: "Overdue Task Nudge", interval_minutes: 60, active: true, isDue: false, isTask: true }
+      ],
+      dismissNudge: vi.fn(),
+      fetchNudges: vi.fn()
+    });
+
+    const tasks = [
+      { id: "t1", title: "Regular Focus Task", status: "active", category: "work", wsjfScore: 3.0 },
+      { id: "t2", title: "Nagging Task Reminder", status: "active", category: "reminders", wsjfScore: 2.5 }
+    ];
+
+    setupSupabaseMock(tasks, []);
+
+    render(<RemindersPanel onOpenDayGuide={vi.fn()} />);
+
+    // Open Manage Nudges settings modal
+    const settingsButton = screen.getByTitle("Manage Nudges");
+    fireEvent.click(settingsButton);
+
+    // Verify Manage Nudges modal only lists system nudge
+    expect(screen.getByText("Drink Water (60m)")).toBeDefined();
+    expect(screen.queryByText(/Overdue Task Nudge/)).toBeNull();
+    expect(screen.queryByText(/Regular Focus Task/)).toBeNull();
+    expect(screen.queryByText(/Nagging Task Reminder/)).toBeNull();
+
+    // Verify Nudges collapsible section count and items
+    // Nudges count should only be 1 (system nudge), not 2
+    const nudgesSection = screen.getByText("Nudges").closest(".space-y-3");
+    expect(within(nudgesSection).getByText("1")).toBeDefined();
+
+    // Verify Nudges section only has "Drink Water"
+    expect(within(nudgesSection).getByText("Drink Water")).toBeDefined();
+    expect(within(nudgesSection).queryByText("Overdue Task Nudge")).toBeNull();
+    expect(within(nudgesSection).queryByText("Regular Focus Task")).toBeNull();
+  });
+
+  it("should render tasks in Focus Task and Task Reminders sections, not in Nudges section", async () => {
+    useNudgeScheduler.mockReturnValue({
+      nudges: [
+        { id: "n1", title: "System Nudge", interval_minutes: 60, active: true, isDue: false, isTask: false }
+      ],
+      dismissNudge: vi.fn(),
+      fetchNudges: vi.fn()
+    });
+
+    const tasks = [
+      { id: "t1", title: "Write Documentation", status: "active", category: "general", wsjfScore: 3.0 },
+      { id: "t2", title: "Call Electrician", status: "active", category: "reminders", wsjfScore: 2.0 }
+    ];
+
+    setupSupabaseMock(tasks, []);
+
+    render(<RemindersPanel onOpenDayGuide={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Write Documentation")).toBeDefined();
+    });
+
+    // Write Documentation is in Focus Task
+    expect(screen.getByText("Write Documentation")).toBeDefined();
+
+    // Call Electrician is in Task Reminders
+    const taskRemindersSection = screen.getByText("Task Reminders").closest(".space-y-3");
+    expect(within(taskRemindersSection).getByText("Call Electrician")).toBeDefined();
+
+    // Neither task should be in Nudges section
+    const nudgesSection = screen.getByText("Nudges").closest(".space-y-3");
+    expect(within(nudgesSection).queryByText("Write Documentation")).toBeNull();
+    expect(within(nudgesSection).queryByText("Call Electrician")).toBeNull();
+    expect(within(nudgesSection).getByText("System Nudge")).toBeDefined();
+  });
 });
+
 
 
