@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { Camera, Plus, Check, X, Flame, ChevronLeft, ChevronRight, Calendar } from 'lucide-react'
@@ -31,8 +31,7 @@ const Journal = () => {
   const [highlightText, setHighlightText] = useState('')
   const [mood, setMood] = useState(null)
   
-  const [habits, setHabits] = useState([])
-  const [habitLogs, setHabitLogs] = useState([])
+  const [habitTemplates, setHabitTemplates] = useState([])
   const [uploading, setUploading] = useState(false)
   const [addingHabit, setAddingHabit] = useState(false)
   const [newHabitTitle, setNewHabitTitle] = useState('')
@@ -43,7 +42,6 @@ const Journal = () => {
   useEffect(() => {
     fetchHighlight()
     fetchHabits()
-    fetchHabitLogs()
     fetchMood()
   }, [dateStr])
 
@@ -72,13 +70,13 @@ const Journal = () => {
   }
 
   const fetchHabits = async () => {
-    const { data } = await supabase.from('habits').select('*').eq('user_id', user.id)
-    setHabits(data || [])
-  }
-
-  const fetchHabitLogs = async () => {
-    const { data } = await supabase.from('habit_logs').select('*').eq('user_id', user.id).eq('date', dateStr)
-    setHabitLogs(data || [])
+    const { data } = await supabase
+      .from('recurring_task_templates')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('is_habit', true)
+      .eq('is_active', true)
+    setHabitTemplates(data || [])
   }
 
   const saveHighlight = async () => {
@@ -134,30 +132,22 @@ const Journal = () => {
     setUploading(false)
   }
 
-  const toggleHabit = async (habit) => {
-    const logged = habitLogs.find(l => l.habit_id === habit.id)
-    const wasLogged = !!logged
-    if (logged) {
-      await supabase.from('habit_logs').delete().eq('id', logged.id)
-      setHabitLogs(prev => prev.filter(l => l.id !== logged.id))
-    } else {
-      const { data } = await supabase.from('habit_logs').insert({ user_id: user.id, habit_id: habit.id, date: dateStr }).select().single()
-      setHabitLogs(prev => [...prev, data])
-    }
-    if (!wasLogged) celebrate()
-    trackXP(wasLogged, !wasLogged, habit.xp_reward || XP.HABIT_CHECK)
-  }
-
   const addHabit = async () => {
     if (!newHabitTitle) return
-    await supabase.from('habits').insert({ user_id: user.id, title: newHabitTitle, xp_reward: 10 })
+    await supabase.from('recurring_task_templates').insert({
+      user_id: user.id,
+      title: newHabitTitle,
+      is_habit: true,
+      frequency: 'daily',
+      quadrant: 'important_not_urgent',
+      estimated_minutes: 15,
+      is_active: true
+    })
     setNewHabitTitle(''); setAddingHabit(false); fetchHabits()
   }
 
   const deleteHabit = async (id) => {
-    await supabase.from('habit_logs').delete().eq('habit_id', id)
-    const { error } = await supabase.from('habits').delete().eq('id', id)
-    if (error) console.error("Error deleting habit:", error)
+    await supabase.from('recurring_task_templates').update({ is_active: false }).eq('id', id).eq('user_id', user.id)
     fetchHabits()
   }
 
@@ -299,7 +289,7 @@ const Journal = () => {
 
               {/* Month grid */}
               <MonthlyHabitGrid 
-                habits={habits} 
+                habitTemplates={habitTemplates} 
                 userId={user.id} 
                 selectedDate={selectedDate} 
                 addXP={addXP}
@@ -307,7 +297,7 @@ const Journal = () => {
                 onDelete={deleteHabit}
                 onRefetch={fetchHabits}
               />
-              {!habits.length && <p className="text-xs text-nova/60 italic font-body text-center py-4">No habits defined yet.</p>}
+              {!habitTemplates.length && <p className="text-xs text-nova/60 italic font-body text-center py-4">No habits defined yet.</p>}
             </div>
           )}
         </div>

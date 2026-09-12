@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { offlineSelect, offlineInsert } from '../../lib/offlineApi'
 import { useAuth } from '../../hooks/useAuth'
 import { ChevronLeft, ChevronRight, Edit2, History } from 'lucide-react'
 
@@ -17,11 +18,8 @@ const AnchorPanel = ({ collapsed, onToggle, mobile = false }) => {
 
   const fetchEulogies = async () => {
     if (!user) return
-    const { data } = await supabase
-      .from('eulogies')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
+    const { data: dbData } = await offlineSelect('eulogies')
+    const data = (dbData || []).filter(e => e.user_id === user.id).sort((a,b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
     setHistory(data || [])
     setLatest(data?.[0] || null)
   }
@@ -32,7 +30,8 @@ const AnchorPanel = ({ collapsed, onToggle, mobile = false }) => {
 
   const saveEulogy = async () => {
     if (!eulogyText.trim()) return
-    await supabase.from('eulogies').insert({
+    await offlineInsert('eulogies', {
+      id: crypto.randomUUID(),
       user_id: user.id,
       content: eulogyText.trim(),
       version_label: versionLabel || `Updated ${new Date().toLocaleDateString('en-GB')}`,

@@ -6,15 +6,16 @@ Polaris is built as a modern, client-side rendered single-page application with 
 - **Build Tool**: Vite
 - **Styling**: Tailwind CSS + Custom CSS (`global.css`)
 - **Backend & Database**: Supabase (PostgreSQL, Auth, RLS, pg_cron)
+- **Local Data & Offline Sync**: Dexie.js (IndexedDB) with custom sync queue
 - **Edge Functions**: Deno (News Scout, Opportunity Scout via Firecrawl)
 - **Local Automation**: Local LLMs (qwen2.5:3b) for Task Triage, PowerShell tasks
 - **Icons**: Lucide React
 - **Visualizations**: D3.js (Constellation Graph), Recharts (Stats/XP)
 
 ## State Management
-State is largely managed via custom React hooks that interface with Supabase:
+State is managed via custom React hooks that interface with the local IndexedDB layer (`offlineApi`), which syncs with Supabase:
 - `useAuth`: Manages the user session and the XP/Leveling system.
-- `useTodaysTasks`: Unifies daily tasks, scheduled items, and daily goals into a single interface.
+- `useTodaysTasks`: Unifies daily tasks, scheduled items, and daily goals via the local cache.
 - `useMorningSequence` & `useMorningBrief`: Wires up the Morning Brief and SparkPopup.
 - `useNudgeScheduler`: Handles background timers and service worker push notifications.
 - `useContactReminders`: Manages relationship tiers and calculates overdue communication.

@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, lazy, Suspense } from 'react'
 import { ChevronLeft, ChevronRight, Anchor, Bell } from 'lucide-react'
 import { useRecurringTasks } from '../hooks/useRecurringTasks'
 import { useMorningBrief } from '../hooks/useMorningBrief'
@@ -9,22 +9,31 @@ import HUD from '../components/layout/HUD'
 import Starfield from '../components/layout/Starfield'
 import ConstellationGraph from '../components/graph/ConstellationGraph'
 import NodePanel from '../components/panels/NodePanel'
-import FocusBoard from '../components/panels/FocusBoard'
-import GoalsPanel from '../components/widgets/GoalsPanel'
-import Timeline from '../components/panels/Timeline'
-import Journal from '../components/journal/Journal'
-import FitnessBridge from '../components/panels/FitnessBridge'
 import AnchorPanel from '../components/anchor/AnchorPanel'
 import ProgressDashboard from '../components/widgets/ProgressDashboard'
 import PomodoroTimer from '../components/widgets/PomodoroTimer'
-import CalendarView from '../components/panels/CalendarView'
-import Curriculum from '../components/panels/Curriculum'
 import RemindersPanel from '../components/panels/RemindersPanel'
-import HardwareScoutPanel from '../components/panels/HardwareScoutPanel'
-import DayGuideView from '../components/views/DayGuideView'
 import BottomNav from '../components/layout/BottomNav'
 import BottomSheet from '../components/layout/BottomSheet'
 import SparkPopup from '../components/widgets/SparkPopup'
+
+const DayGuideView = lazy(() => import('../components/views/DayGuideView'))
+const FocusBoard = lazy(() => import('../components/panels/FocusBoard'))
+const GoalsPanel = lazy(() => import('../components/widgets/GoalsPanel'))
+const Timeline = lazy(() => import('../components/panels/Timeline'))
+const Journal = lazy(() => import('../components/journal/Journal'))
+const CalendarView = lazy(() => import('../components/panels/CalendarView'))
+const Curriculum = lazy(() => import('../components/panels/Curriculum'))
+const FitnessBridge = lazy(() => import('../components/panels/FitnessBridge'))
+
+const ViewFallback = () => (
+  <div className="flex items-center justify-center h-full w-full">
+    <div className="text-center space-y-2">
+      <div className="w-2 h-2 rounded-full bg-pulsar mx-auto animate-ping" />
+      <p className="font-display text-nova/60 text-xs tracking-wider">Loading view...</p>
+    </div>
+  </div>
+)
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -48,17 +57,23 @@ const Dashboard = () => {
   }
 
   const renderView = () => {
+    let content = null
     switch (activeView) {
-      case 'day_guide': return <DayGuideView />
-      case 'focus': return <FocusBoard />
-      case 'goals': return <GoalsPanel filterNodeId={selectedNode?.id} onJumpToNode={jumpToNode} />
-      case 'timeline': return <Timeline filterNodeId={selectedNode?.id} onJumpToNode={jumpToNode} />
-      case 'journal': return <Journal />
-      case 'calendar': return <CalendarView />
-      case 'curriculum': return <Curriculum />
-      case 'fitness': return <FitnessBridge />
-      default: return null
+      case 'day_guide': content = <DayGuideView />; break
+      case 'focus': content = <FocusBoard />; break
+      case 'goals': content = <GoalsPanel filterNodeId={selectedNode?.id} onJumpToNode={jumpToNode} />; break
+      case 'timeline': content = <Timeline filterNodeId={selectedNode?.id} onJumpToNode={jumpToNode} />; break
+      case 'journal': content = <Journal />; break
+      case 'calendar': content = <CalendarView />; break
+      case 'curriculum': content = <Curriculum />; break
+      case 'fitness': content = <FitnessBridge />; break
+      default: content = null
     }
+    return content ? (
+      <Suspense fallback={<ViewFallback />}>
+        {content}
+      </Suspense>
+    ) : null
   }
 
   return (
@@ -80,7 +95,7 @@ const Dashboard = () => {
         {/* Center column (Canvas / Views) */}
         <div className="flex-1 relative overflow-hidden pb-16 md:pb-0">
           <div className={`absolute inset-0 transition-opacity duration-300 ${activeView === 'graph' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
-            <ConstellationGraph ref={graphRef} onNodeSelect={setSelectedNode} />
+            <ConstellationGraph ref={graphRef} onNodeSelect={setSelectedNode} isActive={activeView === 'graph'} />
           </div>
 
           {activeView !== 'graph' && (

@@ -134,6 +134,7 @@ serve(async (req) => {
         messages: [{ role: 'user', content: prompt }],
         response_format: { type: 'json_object' },
         reasoning_effort: 'none',
+        reasoning_format: 'hidden',
         max_tokens: 1024
       })
     })

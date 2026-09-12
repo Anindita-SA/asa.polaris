@@ -3,8 +3,10 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
 import { useTodaysTasks } from '../../hooks/useTodaysTasks';
 import { useMorningBrief } from '../../hooks/useMorningBrief';
-import { Flame, Check, Target, ChevronRight, Zap, Sparkles, RefreshCw, Rocket } from 'lucide-react';
+import { Flame, Check, Target, ChevronRight, Zap, Sparkles, RefreshCw, Rocket, X, Bookmark } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import DismissFeedbackModal from '../modals/DismissFeedbackModal';
+import { safeExternalUrl } from '../../lib/urlUtils';
 
 export default function DayBriefView() {
   const { user } = useAuth();
@@ -17,6 +19,8 @@ export default function DayBriefView() {
   const [showFire, setShowFire] = useState(false);
   const [briefAttempted, setBriefAttempted] = useState(false);
   const [applyingIds, setApplyingIds] = useState(new Set()); // For "Flag to Apply" loading state
+  const [savingNewsIds, setSavingNewsIds] = useState(new Set());
+  const [dismissTargetOpp, setDismissTargetOpp] = useState(null);
   const [noNewOpp, setNoNewOpp] = useState(false);
 
   const fetchedRef = React.useRef(false);
@@ -30,7 +34,7 @@ export default function DayBriefView() {
   const fetchExtras = async () => {
     const today = new Date().toLocaleDateString('en-CA');
     const [briefRes, goalRes] = await Promise.all([
-      supabase.from('morning_briefs').select('items').eq('user_id', user.id).eq('date', today).maybeSingle(),
+      supabase.from('morning_briefs').select('id, items').eq('user_id', user.id).eq('date', today).maybeSingle(),
       supabase.from('goals').select('title').eq('user_id', user.id).eq('scope', 'weekly').eq('completed', false).order('created_at', { ascending: true }).limit(1).maybeSingle()
     ]);
     
@@ -44,7 +48,7 @@ export default function DayBriefView() {
         .from('hardware_opportunities')
         .select('*')
         .eq('user_id', user.id)
-        .in('status', ['new', 'drafting'])
+        .eq('status', 'new')
         .order('created_at', { ascending: false })
         .limit(3);
       
@@ -52,7 +56,7 @@ export default function DayBriefView() {
         noNewOpp = true;
         const mappedOpps = pastOpps.map(o => ({
           title: o.title,
-          summary: o.what_offered || 'No description available',
+          summary: o.what_offered || o.project_fit || 'No description available',
           url: o.url,
           deadline: o.deadline,
           effort: o.effort,
@@ -70,14 +74,25 @@ export default function DayBriefView() {
     const hwIds = items.filter(i => i.hardware_opportunity_id).map(i => i.hardware_opportunity_id);
     
     let appliedIds = new Set();
+    let rejectedIds = new Set();
     if (hwIds.length > 0) {
-      const { data: hwData } = await supabase.from('hardware_opportunities').select('id, status').in('id', hwIds);
+      const { data: hwData } = await supabase
+        .from('hardware_opportunities')
+        .select('id, status')
+        .in('id', hwIds)
+        .eq('user_id', user.id);
       if (hwData) {
-        hwData.filter(h => h.status === 'applied').forEach(h => appliedIds.add(h.id));
+        hwData.forEach(h => {
+          if (h.status === 'applied') appliedIds.add(h.id);
+          if (h.status === 'rejected') rejectedIds.add(h.id);
+        });
       }
     }
 
-    const enhancedItems = items.map(item => {
+    // Filter out any opportunities that are marked rejected
+    const activeItems = items.filter(item => !item.hardware_opportunity_id || !rejectedIds.has(item.hardware_opportunity_id));
+
+    const enhancedItems = activeItems.map(item => {
       if (item.hardware_opportunity_id && appliedIds.has(item.hardware_opportunity_id)) {
         return { ...item, isApplied: true };
       }
@@ -93,6 +108,56 @@ export default function DayBriefView() {
   const handleManualGenerate = async (force = false) => {
     await generateBrief(force);
     setBriefAttempted(true);
+    await fetchExtras();
+  };
+
+  const handleDismissOpportunity = async (opp, reason) => {
+    const oppId = opp.hardware_opportunity_id || opp.id;
+    const oppUrl = opp.url;
+
+    // 1. Mark in hardware_opportunities if ID exists
+    if (oppId) {
+      await supabase
+        .from('hardware_opportunities')
+        .update({
+          status: 'rejected',
+          rejection_reason: reason || 'Dismissed by user',
+          rejected_at: new Date().toISOString()
+        })
+        .eq('id', oppId)
+        .eq('user_id', user.id);
+    } else if (oppUrl) {
+      await supabase
+        .from('hardware_opportunities')
+        .update({
+          status: 'rejected',
+          rejection_reason: reason || 'Dismissed by user',
+          rejected_at: new Date().toISOString()
+        })
+        .eq('url', oppUrl)
+        .eq('user_id', user.id);
+    }
+
+    // 2. Remove from today's morning_briefs
+    const today = new Date().toLocaleDateString('en-CA');
+    const { data: currentBrief } = await supabase
+      .from('morning_briefs')
+      .select('id, items')
+      .eq('user_id', user.id)
+      .eq('date', today)
+      .maybeSingle();
+
+    if (currentBrief && Array.isArray(currentBrief.items)) {
+      const filtered = currentBrief.items.filter(i => 
+        (oppId && i.hardware_opportunity_id === oppId) || (oppUrl && i.url === oppUrl) ? false : true
+      );
+      await supabase
+        .from('morning_briefs')
+        .update({ items: filtered })
+        .eq('id', currentBrief.id)
+        .eq('user_id', user.id);
+    }
+
     await fetchExtras();
   };
 
@@ -115,7 +180,8 @@ export default function DayBriefView() {
     if (newTaskId) {
       await supabase.from('hardware_opportunities')
         .update({ status: 'applied', task_id: newTaskId })
-        .eq('id', item.hardware_opportunity_id);
+        .eq('id', item.hardware_opportunity_id)
+        .eq('user_id', user.id);
         
       // Fire-and-forget subtask generation
       supabase.functions.invoke('generate-application-subtasks', {
@@ -139,6 +205,59 @@ export default function DayBriefView() {
       next.delete(index);
       return next;
     });
+  };
+
+  const handleSaveNewsItem = async (item, index) => {
+    if (!user?.id || item.isSaved) return;
+    setSavingNewsIds(prev => new Set(prev).add(index));
+
+    try {
+      await supabase.from('tasks').insert({
+        title: `Read: ${item.title}`,
+        notes: `Source: ${item.source_name || ''}\nURL: ${item.url || ''}\n\nSummary: ${item.summary || ''}`,
+        status: 'active',
+        quadrant: 'important_not_urgent',
+        user_id: user.id
+      });
+
+      const updatedBriefItems = briefItems.map((bi, i) => {
+        if (i === index || (bi.title === item.title && (bi.url === item.url || bi.source_name === item.source_name))) {
+          return { ...bi, isSaved: true };
+        }
+        return bi;
+      });
+      setBriefItems(updatedBriefItems);
+
+      const today = new Date().toLocaleDateString('en-CA');
+      const { data: currentBrief } = await supabase
+        .from('morning_briefs')
+        .select('id, items')
+        .eq('user_id', user.id)
+        .eq('date', today)
+        .maybeSingle();
+
+      if (currentBrief && Array.isArray(currentBrief.items)) {
+        const briefUpdatedItems = currentBrief.items.map(bi => {
+          if (bi.title === item.title && (bi.url === item.url || bi.source_name === item.source_name)) {
+            return { ...bi, isSaved: true };
+          }
+          return bi;
+        });
+        await supabase
+          .from('morning_briefs')
+          .update({ items: briefUpdatedItems })
+          .eq('id', currentBrief.id)
+          .eq('user_id', user.id);
+      }
+    } catch (err) {
+      console.error('Error saving news item to tasks:', err);
+    } finally {
+      setSavingNewsIds(prev => {
+        const next = new Set(prev);
+        next.delete(index);
+        return next;
+      });
+    }
   };
 
   const affirmations = ["I am an engineer capable of solving any problem.", "My focus is a laser; distractions burn away.", "Fear is just fuel for my ambition."];
@@ -211,22 +330,30 @@ export default function DayBriefView() {
                         )}
                       </div>
                     </div>
-                    {item.hardware_opportunity_id && (
+                    <div className="shrink-0 flex items-center gap-2">
                       <button
-                        onClick={() => flagToApply(item, originalIndex)}
-                        disabled={item.isApplied || isApplying}
-                        className={`shrink-0 flex items-center gap-2 px-3 py-1.5 text-xs font-display rounded-lg transition-colors border ${
-                          item.isApplied 
-                            ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30 opacity-70'
-                            : 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 border-amber-500/40'
-                        }`}
+                        onClick={() => setDismissTargetOpp(item)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-display rounded-lg transition-colors border border-pulsar/30 text-nova/60 hover:text-red-400 hover:border-red-500/30 hover:bg-red-500/10"
                       >
-                        {item.isApplied ? <><Check className="w-3.5 h-3.5" /> Added to Tasks</> : <><Target className="w-3.5 h-3.5" /> Flag to Apply</>}
+                        <X className="w-3.5 h-3.5" /> Dismiss
                       </button>
-                    )}
+                      {item.hardware_opportunity_id && (
+                        <button
+                          onClick={() => flagToApply(item, originalIndex)}
+                          disabled={item.isApplied || isApplying}
+                          className={`flex items-center gap-2 px-3 py-1.5 text-xs font-display rounded-lg transition-colors border ${
+                            item.isApplied 
+                              ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30 opacity-70'
+                              : 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 border-amber-500/40'
+                          }`}
+                        >
+                          {item.isApplied ? <><Check className="w-3.5 h-3.5" /> Added to Tasks</> : <><Target className="w-3.5 h-3.5" /> Flag to Apply</>}
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <p className="font-body text-nova/70 text-sm leading-relaxed">{item.summary}</p>
-                  {item.url && <a href={item.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 mt-3 text-xs font-mono text-amber-400/90 hover:text-amber-300 hover:underline">Read more &rarr;</a>}
+                  {safeExternalUrl(item.url) && <a href={safeExternalUrl(item.url)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 mt-3 text-xs font-mono text-amber-400/90 hover:text-amber-300 hover:underline">Read more &rarr;</a>}
                 </div>
               );
             })}
@@ -240,16 +367,33 @@ export default function DayBriefView() {
             <Sparkles className="w-5 h-5" /> News & Tech Breakthroughs
           </h3>
           <div className="space-y-4">
-            {newsItems.map((item, i) => (
-              <div key={i} className="glass bg-void/70 border border-pulsar/20 p-4 rounded-xl">
-                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-2">
-                  <h4 className="text-lg font-display text-starlight leading-tight">{item.title}</h4>
-                  <span className="text-xs font-mono text-pulsar/80 shrink-0 border border-pulsar/20 bg-pulsar/10 px-2 py-1 rounded">{item.source_name}</span>
+            {newsItems.map((item, i) => {
+              const originalIndex = briefItems.indexOf(item);
+              const isSaving = savingNewsIds.has(originalIndex);
+              return (
+                <div key={i} className="glass bg-void/70 border border-pulsar/20 p-4 rounded-xl">
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-2">
+                    <h4 className="text-lg font-display text-starlight leading-tight">{item.title}</h4>
+                    <div className="shrink-0 flex items-center gap-2">
+                      <span className="text-xs font-mono text-pulsar/80 border border-pulsar/20 bg-pulsar/10 px-2 py-1 rounded">{item.source_name}</span>
+                      <button
+                        onClick={() => handleSaveNewsItem(item, originalIndex)}
+                        disabled={item.isSaved || isSaving}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-display rounded-lg transition-colors border ${
+                          item.isSaved
+                            ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30 opacity-70'
+                            : 'bg-pulsar/20 text-pulsar hover:bg-pulsar/30 border-pulsar/40'
+                        }`}
+                      >
+                        {item.isSaved ? <><Check className="w-3.5 h-3.5" /> Saved</> : <><Bookmark className="w-3.5 h-3.5" /> Save to Tasks</>}
+                      </button>
+                    </div>
+                  </div>
+                  <p className="font-body text-nova/60 text-sm leading-relaxed">{item.summary}</p>
+                  {safeExternalUrl(item.url) && <a href={safeExternalUrl(item.url)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 mt-2.5 text-xs font-mono text-pulsar hover:text-blue-300 hover:underline">Read more &rarr;</a>}
                 </div>
-                <p className="font-body text-nova/60 text-sm leading-relaxed">{item.summary}</p>
-                {item.url && <a href={item.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 mt-2.5 text-xs font-mono text-pulsar hover:text-blue-300 hover:underline">Read more &rarr;</a>}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -281,6 +425,13 @@ export default function DayBriefView() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <DismissFeedbackModal
+        isOpen={!!dismissTargetOpp}
+        onClose={() => setDismissTargetOpp(null)}
+        opportunity={dismissTargetOpp}
+        onConfirmDismiss={handleDismissOpportunity}
+      />
     </div>
   );
 }

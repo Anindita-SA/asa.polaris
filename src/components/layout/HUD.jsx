@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { getLevelInfo } from '../../data/defaults'
-import { Star, LogOut, Edit2, Check, Menu, X, PanelRightClose, PanelRightOpen } from 'lucide-react'
+import { Star, LogOut, Edit2, Check, Menu, X, PanelRightClose, PanelRightOpen, WifiOff } from 'lucide-react'
 import IOBalanceBar from '../widgets/IOBalanceBar'
 import StatsModal from '../modals/StatsModal'
+import { useOnlineStatus } from '../../hooks/useOnlineStatus'
 
 const HUD = ({ activeView, setActiveView, rightPanelOpen, setRightPanelOpen }) => {
   const { profile, updateProfile, signOut } = useAuth()
+  const { isOnline, pendingSyncCount } = useOnlineStatus()
   const [editingAnchor, setEditingAnchor] = useState(false)
   const [editingChapter, setEditingChapter] = useState(false)
   const [anchorText, setAnchorText] = useState('')

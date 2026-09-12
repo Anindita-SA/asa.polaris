@@ -1,9 +1,8 @@
 import { getGroqKey } from '../../lib/llm';
-import React, { useState, useCallback, useEffect } from 'react';
-import TodaysTasksShuffle from '../TodaysTasksShuffle';
-import MatrixCanvasView from './MatrixCanvasView';
-import DayBriefView from './DayBriefView';
+import React, { useState, useCallback, useEffect, lazy, Suspense } from 'react';
+import { useAuth } from '../../hooks/useAuth';
 import { supabase } from '../../lib/supabase';
+import { offlineSelect, offlineInsert, offlineUpdate, offlineDelete, offlineUpsert } from '../../lib/offlineApi';
 import { computeWSJFScore } from '../../hooks/useWSJFScore';
 import {
   Sparkles, Star, Network, Bot, CheckCircle2, Clock, AlertTriangle,
@@ -11,7 +10,20 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// ── Quadrant colour map ──────────────────────────────────────────────────────
+const TodaysTasksShuffle = lazy(() => import('../TodaysTasksShuffle'));
+const MatrixCanvasView = lazy(() => import('./MatrixCanvasView'));
+const DayBriefView = lazy(() => import('./DayBriefView'));
+
+const TabFallback = () => (
+  <div className="flex items-center justify-center h-full w-full p-8">
+    <div className="text-center space-y-2">
+      <div className="w-2 h-2 rounded-full bg-gold mx-auto animate-ping" />
+      <p className="font-display text-nova/60 text-xs tracking-wider">Loading...</p>
+    </div>
+  </div>
+);
+
+// Quadrant colour map
 const Q_COLOR = {
   urgent_important:     '#f59e0b',
   important_not_urgent: '#3b82f6',
@@ -38,8 +50,9 @@ function formatDur(mins) {
   return m === 0 ? `${h}h` : `${h}h ${m}m`;
 }
 
-// ── Standalone Auditor Panel ─────────────────────────────────────────────────
+// Standalone Auditor Panel
 function AuditorPanel() {
+  const { user } = useAuth();
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isAuditing, setIsAuditing] = useState(false);
@@ -48,10 +61,16 @@ function AuditorPanel() {
   const [pickedIds, setPickedIds] = useState([]);
 
   const fetchTasks = useCallback(async () => {
+    if (!user?.id) return;
     console.log('[AuditorPanel] fetchTasks called (Data loading triggered)');
     try {
       setLoading(true);
-      const { data, error } = await supabase.from('tasks').select('*').order('created_at', { ascending: false });
+      const { data, error } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(100);
       if (error) throw error;
       setTasks(data || []);
     } catch (err) {
@@ -59,7 +78,7 @@ function AuditorPanel() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => { fetchTasks(); }, [fetchTasks]);
 
@@ -67,6 +86,7 @@ function AuditorPanel() {
     setAuditLog(prev => [...prev, { msg, type, ts: Date.now() }]);
 
   const runAudit = async () => {
+    if (!user?.id) return;
     setIsAuditing(true);
     setAuditDone(false);
     setAuditLog([]);
@@ -79,7 +99,7 @@ function AuditorPanel() {
       } else {
         const unestimated = tasks.filter(t => !t.estimated_minutes && t.status !== 'done');
         if (unestimated.length > 0) {
-          pushLog(`Estimating duration for ${unestimated.length} unestimated tasks via AI…`, 'info');
+          pushLog(`Estimating duration for ${unestimated.length} unestimated tasks via AI...`, 'info');
           for (const task of unestimated) {
             const prompt = `Analyze task: "${task.title}". Return ONLY valid JSON with duration in minutes and task_type as "input" (reading, research, studying, learning, absorbing) or "output" (writing, coding, creating, building, designing, submitting, producing). Example: {"minutes": 35, "task_type": "output"}`;
             try {
@@ -95,10 +115,10 @@ function AuditorPanel() {
               const data = await res.json();
               const parsed = JSON.parse(data.choices[0].message.content);
               const mins = parsed?.minutes ? Math.max(5, Math.round(parsed.minutes)) : 30;
-              await supabase.from('tasks').update({ estimated_minutes: mins, estimate_source: 'ai' }).eq('id', task.id);
-              pushLog(`  ✦ "${task.title}" → ${mins}m`, 'success');
+              await offlineUpdate('tasks', { id: task.id }, { estimated_minutes: mins, estimate_source: 'ai' });
+              pushLog(`  + "${task.title}" -> ${mins}m`, 'success');
             } catch (e) {
-              pushLog(`  ✗ Failed to estimate "${task.title}"`, 'error');
+              pushLog(`  x Failed to estimate "${task.title}"`, 'error');
             }
           }
         } else {
@@ -106,8 +126,12 @@ function AuditorPanel() {
         }
       }
 
-      pushLog('Scoring all tasks with WSJF algorithm…', 'info');
-      const { data: updatedData } = await supabase.from('tasks').select('*');
+      pushLog('Scoring all tasks with WSJF algorithm...', 'info');
+      const { data: updatedData } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('user_id', user.id)
+        .limit(100);
       const scored = (updatedData || [])
         .map(t => ({ ...t, score: computeWSJFScore(t).score }))
         .sort((a, b) => b.score - a.score);
@@ -126,7 +150,7 @@ function AuditorPanel() {
       for (const id of todayPickIds) {
         const task = scored.find(t => t.id === id);
         if (task && task.status !== 'in_progress' && task.status !== 'active') {
-          await supabase.from('tasks').update({ status: 'active' }).eq('id', id);
+          await offlineUpdate('tasks', { id: id }, { status: 'active' });
         }
       }
 
@@ -194,7 +218,7 @@ function AuditorPanel() {
           className="flex items-center gap-2 bg-gold hover:bg-gold/90 disabled:opacity-50 text-void font-display text-xs px-5 py-2.5 rounded-xl transition-all active:scale-95 cursor-pointer"
         >
           <Bot className={`w-4 h-4 ${isAuditing ? 'animate-spin' : ''}`} />
-          {isAuditing ? 'AUDITING…' : 'RUN AI AUDIT'}
+          {isAuditing ? 'AUDITING...' : 'RUN AI AUDIT'}
         </button>
       </div>
 
@@ -226,7 +250,7 @@ function AuditorPanel() {
             const color = Q_COLOR[quad];
             return (
               <div key={quad} className="flex items-center gap-3 glass border border-pulsar/30 rounded-xl p-3">
-                <div className="-full flex items-center justify-center shrink-0"
+                <div className="rounded-full flex items-center justify-center shrink-0 w-8 h-8"
                   style={{ backgroundColor: `${color}18`, border: `1px solid ${color}40` }}>
                   <Icon className="w-4 h-4" style={{ color }} />
                 </div>
@@ -275,7 +299,7 @@ function AuditorPanel() {
               return (
                 <div key={t.id} className="flex items-center gap-3 glass border border-pulsar/30 rounded-xl px-3 py-2">
                   <span className="font-mono text-xs text-nova/60 w-4 shrink-0">{i + 1}</span>
-                  <div className="-full shrink-0" style={{ backgroundColor: color }} />
+                  <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
                   <span className="text-xs font-body text-starlight flex-1 truncate">{t.title}</span>
                   <span className="font-mono text-[9px] shrink-0" style={{ color }}>{label}</span>
                   {t.estimated_minutes && (
@@ -303,7 +327,7 @@ function AuditorPanel() {
   );
 }
 
-// ── Day Guide View ───────────────────────────────────────────────────────────
+// Day Guide View
 export default function DayGuideView() {
   const [activeSubTab, setActiveSubTab] = useState('spatial');
 
@@ -369,9 +393,9 @@ export default function DayGuideView() {
     <div className="w-full h-full text-starlight font-body flex flex-col overflow-hidden relative">
       {/* Compact Sub-Header */}
       <div className="glass border-b border-pulsar/30 pl-4 sm:pl-12 pr-4 sm:pr-14 py-2.5 backdrop-blur-md sticky top-0 z-20 flex items-center justify-between gap-3 shadow-xl shrink-0">
-        {/* Title - collapses gracefully */}
+        {/* Title */}
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="-full bg-gold/15 border border-gold/40 flex items-center justify-center text-gold  shrink-0">
+          <div className="w-7 h-7 rounded-full bg-gold/15 border border-gold/40 flex items-center justify-center text-gold shrink-0">
             <Star className="w-3.5 h-3.5 fill-current" />
           </div>
           <div className="min-w-0">
@@ -379,13 +403,13 @@ export default function DayGuideView() {
               Day Guide
             </h1>
             <p className="text-xs text-nova/60 font-body italic truncate hidden sm:block">
-              Constellation matrix · WSJF picks · AI auditor
+              Constellation matrix * WSJF picks * AI auditor
             </p>
           </div>
         </div>
 
-        {/* Pill Sub-Navigation - compact, never wraps */}
-        <div className="glass border border-pulsar/40 p-0.5 rounded-xl flex items-center gap-0.5  shrink-0">
+        {/* Pill Sub-Navigation */}
+        <div className="glass border border-pulsar/40 p-0.5 rounded-xl flex items-center gap-0.5 shrink-0">
           {tabs.map(tab => {
             const Icon = tab.icon;
             const isActive = activeSubTab === tab.id;
@@ -410,44 +434,46 @@ export default function DayGuideView() {
 
       {/* Main View Area */}
       <div className="flex-1 min-h-0 overflow-hidden relative">
-        <AnimatePresence mode="wait">
-          {activeSubTab === 'spatial' && (
-            <motion.div key="spatial"
-              initial={{ opacity: 0, scale: 0.99 }} animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.99 }} transition={{ duration: 0.15 }}
-              className="w-full h-full min-h-0 overflow-hidden"
-            >
-              <MatrixCanvasView refreshTrigger={refreshKey} onTasksChanged={triggerRefresh} />
-            </motion.div>
-          )}
-          {activeSubTab === 'picks' && (
-            <motion.div key="picks"
-              initial={{ opacity: 0, scale: 0.99 }} animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.99 }} transition={{ duration: 0.15 }}
-              className="w-full h-full min-h-0 overflow-y-auto scrollbar-hide"
-            >
-              <TodaysTasksShuffle key={`picks-${refreshKey}`} />
-            </motion.div>
-          )}
-          {activeSubTab === 'auditor' && (
-            <motion.div key="auditor"
-              initial={{ opacity: 0, scale: 0.99 }} animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.99 }} transition={{ duration: 0.15 }}
-              className="w-full h-full min-h-0 overflow-y-auto scrollbar-hide"
-            >
-              <AuditorPanel key={`auditor-${refreshKey}`} onAuditDone={triggerRefresh} />
-            </motion.div>
-          )}
-          {activeSubTab === 'brief' && (
-            <motion.div key="brief"
-              initial={{ opacity: 0, scale: 0.99 }} animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.99 }} transition={{ duration: 0.15 }}
-              className="w-full h-full min-h-0 overflow-y-auto scrollbar-hide"
-            >
-              <DayBriefView />
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <Suspense fallback={<TabFallback />}>
+          <AnimatePresence mode="wait">
+            {activeSubTab === 'spatial' && (
+              <motion.div key="spatial"
+                initial={{ opacity: 0, scale: 0.99 }} animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.99 }} transition={{ duration: 0.15 }}
+                className="w-full h-full min-h-0 overflow-hidden"
+              >
+                <MatrixCanvasView refreshTrigger={refreshKey} onTasksChanged={triggerRefresh} />
+              </motion.div>
+            )}
+            {activeSubTab === 'picks' && (
+              <motion.div key="picks"
+                initial={{ opacity: 0, scale: 0.99 }} animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.99 }} transition={{ duration: 0.15 }}
+                className="w-full h-full min-h-0 overflow-y-auto scrollbar-hide"
+              >
+                <TodaysTasksShuffle key={`picks-${refreshKey}`} />
+              </motion.div>
+            )}
+            {activeSubTab === 'auditor' && (
+              <motion.div key="auditor"
+                initial={{ opacity: 0, scale: 0.99 }} animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.99 }} transition={{ duration: 0.15 }}
+                className="w-full h-full min-h-0 overflow-y-auto scrollbar-hide"
+              >
+                <AuditorPanel key={`auditor-${refreshKey}`} onAuditDone={triggerRefresh} />
+              </motion.div>
+            )}
+            {activeSubTab === 'brief' && (
+              <motion.div key="brief"
+                initial={{ opacity: 0, scale: 0.99 }} animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.99 }} transition={{ duration: 0.15 }}
+                className="w-full h-full min-h-0 overflow-y-auto scrollbar-hide"
+              >
+                <DayBriefView />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </Suspense>
       </div>
     </div>
   );

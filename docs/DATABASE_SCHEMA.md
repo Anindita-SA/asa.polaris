@@ -630,6 +630,8 @@
 | `task_id` | `uuid` | Nullable, References `tasks` |
 | `profile_match` | `int4` | Nullable |
 | `acceptance_chance` | `int4` | Nullable |
+| `rejection_reason` | `text` | Nullable |
+| `rejected_at` | `timestamptz` | Nullable |
 | `is_previous` | `bool` | Default `false` |
 | `created_at` | `timestamptz` | Default `now()` |
 
@@ -663,14 +665,16 @@
 | `category` | `text` | Nullable |
 | `notes` | `text` | Nullable |
 | `quadrant` | `text` | Nullable (urgent_important \| important_not_urgent \| urgent_not_important \| neither) |
-| canvas_x | loat8 |  Nullable |
-| canvas_y | loat8 |  Nullable |
+| canvas_x | float8 |  Nullable |
+| canvas_y | float8 |  Nullable |
 | `deadline` | `date` | Nullable |
 | `estimated_minutes` | `int4` | Nullable |
 | `estimate_source` | `text` | Nullable (user \| ai) |
 | `status` | `text` | Not Null, Default `'inbox'` (inbox \| active \| scheduled \| done) |
 | `source_template_id` | `uuid` | Nullable, References `recurring_task_templates` |
 | `skip_count` | `int4` | Nullable, Default `0` |
+| `completion_count` | `int4` | Nullable, Default `0` |
+| `completion_dates` | `jsonb` | Nullable |
 | `parent_task_id` | `uuid` | Nullable, References `tasks` |
 | `created_at` | `timestamptz` | Nullable, Default `now()` |
 
@@ -808,6 +812,7 @@
 | `quadrant` | `text` | Nullable, Default `'important_not_urgent'` |
 | `estimated_minutes` | `int4` | Nullable, Default `30` |
 | `frequency` | `text` | Nullable, Default `'daily'` |
+| `is_habit` | `bool` | Nullable, Default `false` |
 | `last_generated_date` | `date` | Nullable |
 | `is_active` | `bool` | Nullable, Default `true` |
 | `created_at` | `timestamptz` | Not Null, Default `now()` |
@@ -825,3 +830,22 @@
 | `items` | `jsonb` | Nullable |
 | `seen` | `bool` | Default `false` |
 | `created_at` | `timestamptz` | Default `now()` |
+
+## Table `outreach_targets`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `id` | `uuid` | Primary, Default `gen_random_uuid()` |
+| `user_id` | `uuid` | Not Null |
+| `name` | `text` | Not Null |
+| `institution` | `text` | Not Null |
+| `email` | `text` | Nullable |
+| `status` | `text` | Not Null, Default `'researching'` |
+| `fit_brief` | `text` | Nullable |
+| `draft_text` | `text` | Nullable |
+| `source_papers` | `text` | Nullable |
+| `sent_date` | `date` | Nullable |
+| `follow_up_due` | `date` | Nullable |
+| `created_at` | `timestamptz` | Nullable, Default `now()` |

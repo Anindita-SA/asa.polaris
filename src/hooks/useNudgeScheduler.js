@@ -50,18 +50,25 @@ export const useNudgeScheduler = () => {
     const today = new Date().toISOString().split('T')[0];
     const { data: overdueData, error: overdueError } = await supabase
       .from('tasks')
-      .select('id, title, deadline, skip_count')
+      .select('id, title, deadline, skip_count, category')
       .eq('user_id', user.id)
       .neq('status', 'done')
-      .or(`deadline.lt.${today},skip_count.gte.3`);
+      .or(`deadline.lt.${today},skip_count.gte.3,category.eq.reminders`);
 
     if (overdueError) {
       console.error('Error fetching overdue tasks:', overdueError);
     }
 
-    const taskNudges = (overdueData || []).map(task => {
+    const taskNudges = (overdueData || []).filter(task => {
+      if (task.category === 'reminders') {
+        return !task.deadline || task.deadline <= today;
+      }
+      return task.deadline < today || task.skip_count >= 3;
+    }).map(task => {
       let interval_minutes = 240; // Day 0-1 overdue or skip_count trigger (every 4 hr)
-      if (task.deadline && task.deadline < today) {
+      if (task.category === 'reminders') {
+        interval_minutes = 60; // Reminders nag every 1 hr
+      } else if (task.deadline && task.deadline < today) {
         const daysOverdue = Math.floor((new Date(today) - new Date(task.deadline)) / (1000 * 60 * 60 * 24));
         if (daysOverdue >= 4) {
           interval_minutes = 60; // every 1 hr
@@ -74,7 +81,8 @@ export const useNudgeScheduler = () => {
         title: task.title,
         interval_minutes,
         active: true,
-        isTask: true
+        isTask: true,
+        isReminder: task.category === 'reminders'
       };
     });
 
@@ -104,6 +112,20 @@ export const useNudgeScheduler = () => {
     });
 
     setNudges(processedNudges);
+
+    // Update App Badge for mobile
+    if ('setAppBadge' in navigator) {
+      try {
+        const activeCount = processedNudges.filter(n => n.isTask).length;
+        if (activeCount > 0) {
+          navigator.setAppBadge(activeCount);
+        } else {
+          navigator.clearAppBadge();
+        }
+      } catch (e) {
+        console.error('App badge error:', e);
+      }
+    }
 
     // Setup scheduling
     if ('serviceWorker' in navigator) {

@@ -13,7 +13,7 @@
 - **RPG Leveling System**: Earn XP for logging habits, completing focus sessions, and hitting milestones. Rank up from *Stargazer* to *Da Vinci Inheritor*.
 - **Focus Board & Backburner**: A dedicated workspace to drag-and-drop your top 3 active priorities. Park the rest safely in the Backburner.
 - **Google Integrations**: Seamlessly pulls in your real-time Google Calendar events and Google Tasks into a translucent, unified view.
-- **PWA Ready**: Installable as a Progressive Web App (PWA) on your devices, featuring background auto-updating and native offline support.
+- **PWA & Offline-First**: Installable as a Progressive Web App (PWA). Features a robust offline-first architecture using Dexie.js (IndexedDB) to cache core data and queue offline edits, automatically syncing to Supabase when connectivity returns.
 
 ## 🛠 Tech Stack
 

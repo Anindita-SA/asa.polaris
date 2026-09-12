@@ -144,7 +144,23 @@ export function parseAITasks(aiText) {
 export async function insertTasks(supabase, userId, newTasks) {
   if (!newTasks || newTasks.length === 0) return 0;
 
-  const insertData = newTasks.map(t => ({
+  const { data: existingTasks, error: fetchErr } = await supabase
+    .from('tasks')
+    .select('title')
+    .eq('user_id', userId)
+    .neq('status', 'done');
+
+  if (fetchErr) throw fetchErr;
+
+  const existingTitles = new Set(
+    (existingTasks || []).map(t => t.title?.trim().toLowerCase())
+  );
+
+  const filteredTasks = newTasks.filter(t => t.title && !existingTitles.has(t.title.trim().toLowerCase()));
+
+  if (filteredTasks.length === 0) return 0;
+
+  const insertData = filteredTasks.map(t => ({
     user_id: userId,
     title: t.title,
     notes: t.notes,

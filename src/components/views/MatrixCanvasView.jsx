@@ -107,6 +107,7 @@ function getDefaultCoords(quadrantId) {
 }
 
 export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
+  const { user } = useAuth();
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [newTitle, setNewTitle] = useState('');
@@ -150,11 +151,9 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
     console.log('[MatrixCanvasView] fetchTasks called (Data loading triggered)');
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('tasks')
-        .select('*')
-        .eq('user_id', (await supabase.auth.getUser()).data?.user?.id)
-        .order('created_at', { ascending: false });
+      const userId = user?.id || (await supabase.auth.getSession()).data?.session?.user?.id;
+      const userFilter = userId ? { user_id: userId } : {};
+      let { data, error } = await offlineSelect('tasks', userFilter);
 
       if (error) throw error;
       
@@ -190,22 +189,11 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
     if (!title) return;
 
     try {
-      const { data: userData } = await supabase.auth.getUser();
-      const userId = userData?.user?.id;
+      const userId = user?.id || (await supabase.auth.getSession()).data?.session?.user?.id;
       if (!userId) return;
-
-      const newTask = {
-        title,
-        status: 'inbox',
-        quadrant: null,
-        user_id: userId
-      };
-
-      const { data, error } = await supabase
-        .from('tasks')
-        .insert([newTask])
-        .select()
-        .single();
+      const newTask = { title, status: 'inbox', quadrant: null, user_id: userId, id: crypto.randomUUID(), created_at: new Date().toISOString() };
+      const { error } = await offlineInsert('tasks', newTask);
+      const data = newTask;
 
       if (error) throw error;
 
@@ -265,7 +253,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
     
     try {
       saveLocalCoords(task.id, null, null);
-      const { error } = await supabase.from('tasks').update({ quadrant: targetQuadrant }).eq('id', task.id).eq('user_id', (await supabase.auth.getUser()).data?.user?.id);
+      const { error } = await offlineUpdate('tasks', { id: task.id }, { quadrant: targetQuadrant });
       if (error) throw error;
       if (onTasksChanged) onTasksChanged();
     } catch (err) {
@@ -281,7 +269,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
     saveLocalCoords(taskId, null, null);
 
     try {
-      const { error } = await supabase.from('tasks').update({ quadrant: null }).eq('id', taskId).eq('user_id', (await supabase.auth.getUser()).data?.user?.id);
+      const { error } = await offlineUpdate('tasks', { id: taskId }, { quadrant: null });
       if (error) throw error;
       if (onTasksChanged) onTasksChanged();
     } catch (err) {
@@ -324,7 +312,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
     );
 
     try {
-      await supabase.from('tasks').update({ status: newStatus }).eq('id', task.id).eq('user_id', (await supabase.auth.getUser()).data?.user?.id);
+      await offlineUpdate('tasks', { id: task.id }, { status: newStatus });
       if (onTasksChanged) onTasksChanged();
     } catch (err) {
       console.error('Error toggling done:', err);
@@ -336,7 +324,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
   const deleteTask = async (taskId) => {
     setTasks((prev) => prev.filter((t) => t.id !== taskId));
     try {
-      await supabase.from('tasks').delete().eq('id', taskId).eq('user_id', (await supabase.auth.getUser()).data?.user?.id);
+      await offlineDelete('tasks', { id: taskId });
       if (onTasksChanged) onTasksChanged();
     } catch (err) {
       console.error('Error deleting task:', err);
@@ -388,7 +376,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
       }
 
       setAuditMessage("Scoring tasks with WSJF algorithm and picking Today's Tasks...");
-      const { data: updatedData } = await supabase.from('tasks').select('*').eq('user_id', (await supabase.auth.getUser()).data?.user?.id);
+      const { data: updatedData } = offlineSelect('tasks', (user?.id || (await supabase.auth.getSession()).data?.session?.user?.id) ? { user_id: (user?.id || (await supabase.auth.getSession()).data?.session?.user?.id) } : {});
       const scored = (updatedData || []).map(t => ({
         ...t,
         score: computeWSJFScore(t).score
@@ -408,7 +396,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
       for (const id of todayPickIds) {
         const task = scored.find(t => t.id === id);
         if (task && task.status !== 'in_progress' && task.status !== 'active') {
-          await supabase.from('tasks').update({ status: 'active' }).eq('id', id).eq('user_id', (await supabase.auth.getUser()).data?.user?.id);
+          await offlineUpdate('tasks', { id: id }, { status: 'active' });
         }
       }
 
@@ -667,7 +655,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                                   if (targetQuadrant && targetQuadrant !== task.quadrant) {
                                     setTasks(prev => prev.map(t => t.id === task.id ? { ...t, quadrant: targetQuadrant } : t));
                                     try {
-                                      await supabase.from('tasks').update({ quadrant: targetQuadrant }).eq('id', task.id).eq('user_id', (await supabase.auth.getUser()).data?.user?.id);
+                                      await offlineUpdate('tasks', { id: task.id }, { quadrant: targetQuadrant });
                                       if (onTasksChanged) onTasksChanged();
                                     } catch (err) {
                                       console.error('Error updating task quadrant on drag drop:', err);

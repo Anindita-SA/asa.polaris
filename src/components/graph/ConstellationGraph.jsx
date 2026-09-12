@@ -1,5 +1,5 @@
-﻿import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from 'react'
-import * as d3 from 'd3'
+import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from 'react'
+import { select, forceSimulation, forceLink, forceManyBody, forceCenter, forceCollide, drag, zoom } from 'd3'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { Plus, X } from 'lucide-react'
@@ -16,7 +16,7 @@ const RADIUS = { root: 10, career: 6, academic: 6, self: 6, subnode: 4, topic: 2
 const col = t => COLORS[t] || '#64748b'
 const rad = t => RADIUS[t] || 5
 
-const ConstellationGraph = forwardRef(({ onNodeSelect }, ref) => {
+const ConstellationGraph = forwardRef(({ onNodeSelect, isActive = true }, ref) => {
   const svgRef       = useRef(null)
   const containerRef = useRef(null)
   const simRef       = useRef(null)
@@ -59,6 +59,16 @@ const ConstellationGraph = forwardRef(({ onNodeSelect }, ref) => {
     return () => window.removeEventListener('resize', onResize)
   }, [])
 
+  // ── pause / resume simulation based on isActive ───────────────────────────
+  useEffect(() => {
+    if (!simRef.current) return
+    if (!isActive) {
+      simRef.current.stop()
+    } else {
+      simRef.current.alpha(0.1).restart()
+    }
+  }, [isActive])
+
   // ── draw ───────────────────────────────────────────────────────────────────
   // Reads container size SYNCHRONOUSLY at effect time - no race with state.
   useEffect(() => {
@@ -97,7 +107,7 @@ const ConstellationGraph = forwardRef(({ onNodeSelect }, ref) => {
       if (pid) links.push({ source: pid, target: n.id })
     })
 
-    const svg = d3.select(svgRef.current)
+    const svg = select(svgRef.current)
     svg.selectAll('*').remove()
     svg.attr('width', w).attr('height', h)
 
@@ -131,39 +141,29 @@ const ConstellationGraph = forwardRef(({ onNodeSelect }, ref) => {
 
     nodeSel
       .on('mouseenter', function (_, d) {
-        d3.select(this).select('circle').attr('r', rad(d.type) * 1.6)
-        d3.select(this).select('text').attr('fill', '#fff')
+        select(this).select('circle').attr('r', rad(d.type) * 1.6)
+        select(this).select('text').attr('fill', '#fff')
       })
       .on('mouseleave', function (_, d) {
-        d3.select(this).select('circle').attr('r', rad(d.type))
-        d3.select(this).select('text').attr('fill', '#94a3b8')
+        select(this).select('circle').attr('r', rad(d.type))
+        select(this).select('text').attr('fill', '#94a3b8')
       })
 
     const safeW = isFinite(w) && w > 0 ? w : 800;
     const safeH = isFinite(h) && h > 0 ? h : 600;
 
-    const sim = d3.forceSimulation(nodeData)
+    const sim = forceSimulation(nodeData)
       .alphaDecay(0.005)
       .alphaMin(0.001)
       .force('link',
-        d3.forceLink(links).id(d => d.id)
+        forceLink(links).id(d => d.id)
           .distance(d => d.source.type === 'root' ? 100 : d.source.type === 'subnode' ? 30 : 55)
           .strength(1)
       )
-      .force('charge', d3.forceManyBody().strength(-80))
-      .force('center',  d3.forceCenter(safeW / 2, safeH / 2))
-      .force('collide', d3.forceCollide(d => rad(d.type) + 8))
+      .force('charge', forceManyBody().strength(-80))
+      .force('center',  forceCenter(safeW / 2, safeH / 2))
+      .force('collide', forceCollide(d => rad(d.type) + 8))
       .on('tick', () => {
-        // Apply continuous slight drifting force for perpetual floating
-        nodeData.forEach(d => {
-          if (!d.fx && !d.fy && d.type !== 'root') {
-            d.vx = (d.vx || 0) + (Math.random() - 0.5) * 0.05
-            d.vy = (d.vy || 0) + (Math.random() - 0.5) * 0.05
-          }
-        })
-        // Keep alpha bumped slightly to never fully stop
-        if (sim.alpha() < 0.05) sim.alphaTarget(0.02)
-        
         linkSel
           .attr('x1', d => d.source.x).attr('y1', d => d.source.y)
           .attr('x2', d => d.target.x).attr('y2', d => d.target.y)
@@ -173,18 +173,18 @@ const ConstellationGraph = forwardRef(({ onNodeSelect }, ref) => {
       })
 
     nodeSel.call(
-      d3.drag()
+      drag()
         .on('start', (e, d) => { if (!e.active) sim.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y })
         .on('drag',  (e, d) => { d.fx = e.x; d.fy = e.y })
         .on('end',   async (e, d) => {
           if (!e.active) sim.alphaTarget(0)
           d.fx = null; d.fy = null
-          if (isFinite(d.x) && isFinite(d.y))
-            await supabase.from('nodes').update({ x_pos: d.x / w, y_pos: d.y / h }).eq('id', d.id)
+          if (isFinite(d.x) && isFinite(d.y) && user?.id)
+            await supabase.from('nodes').update({ x_pos: d.x / w, y_pos: d.y / h }).eq('id', d.id).eq('user_id', user.id)
         })
     )
 
-    svg.call(d3.zoom().scaleExtent([0.1, 6]).on('zoom', e => g.attr('transform', e.transform)))
+    svg.call(zoom().scaleExtent([0.1, 6]).on('zoom', e => g.attr('transform', e.transform)))
 
     simRef.current = sim
 
@@ -199,7 +199,7 @@ const ConstellationGraph = forwardRef(({ onNodeSelect }, ref) => {
       svg.attr('width', w).attr('height', h)
       const safeRW = isFinite(w) && w > 0 ? w : 800;
       const safeRH = isFinite(h) && h > 0 ? h : 600;
-      sim.force('center', d3.forceCenter(safeRW / 2, safeRH / 2))
+      sim.force('center', forceCenter(safeRW / 2, safeRH / 2))
       sim.alpha(0.1).restart()
     }
     window.addEventListener('resize', handleResize)

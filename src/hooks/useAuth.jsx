@@ -1,5 +1,7 @@
-import { createContext, useContext, useEffect, useState, useRef } from 'react'
+import { createContext, useContext, useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
+import { initSyncManager } from '../lib/syncManager'
+import { offlineSelect, offlineInsert, offlineUpdate, offlineDelete, offlineUpsert } from '../lib/offlineApi'
 import { 
   DEFAULT_MILESTONES, DEFAULT_NODES, DEFAULT_SUBNODES,
   DEFAULT_GOALS, DEFAULT_HABITS, DEFAULT_FOCUS_ITEMS, DEFAULT_BACKBURNER, DEFAULT_EULOGY,
@@ -165,13 +167,9 @@ export const AuthProvider = ({ children }) => {
     fetchingFor.current = userId
 
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single()
+      const { data, error } = await offlineSelect('profiles', { id: userId })
 
-      if (error?.code === 'PGRST116') {
+      if (!data || data.length === 0) {
         const { data: newProfile, error: insertError } = await supabase
           .from('profiles')
           .insert({ 
@@ -190,13 +188,7 @@ export const AuthProvider = ({ children }) => {
 
       if (error) { console.error('Profile fetch error:', error); return }
 
-      // Always call seedUserData. It internally checks if tables are empty and is idempotent.
-      await seedUserData(userId)
-
-      const { data: freshProfile } = await supabase
-        .from('profiles').select('*').eq('id', userId).single()
-
-      setProfile(freshProfile || data)
+      setProfile(data?.[0])
     } finally {
       fetchingFor.current = null
     }
@@ -218,7 +210,7 @@ export const AuthProvider = ({ children }) => {
       }
       setProviderToken(pToken)
       
-      if (u) fetchProfile(u.id)
+      if (u) { fetchProfile(u.id); initSyncManager(u.id); }
       setLoading(false)
     })
 
@@ -235,7 +227,7 @@ export const AuthProvider = ({ children }) => {
       }
       setProviderToken(pToken)
 
-      if (u) fetchProfile(u.id)
+      if (u) { fetchProfile(u.id); initSyncManager(u.id); }
       else { 
         setProfile(null)
         fetchingFor.current = null 
@@ -249,13 +241,15 @@ export const AuthProvider = ({ children }) => {
     }
   }, [])
 
-  const updateProfile = async (updates) => {
+  const updateProfile = useCallback(async (updates) => {
+    if (!user?.id) return
     const { data } = await supabase
       .from('profiles').update(updates).eq('id', user.id).select().single()
     setProfile(data)
-  }
+  }, [user?.id])
 
-  const addXP = async (amount) => {
+  const addXP = useCallback(async (amount) => {
+    if (!user?.id) return
     const amt = parseInt(amount, 10)
     if (isNaN(amt) || amt === 0) return
 
@@ -275,7 +269,7 @@ export const AuthProvider = ({ children }) => {
         return { ...prev, xp: Math.max(0, (prev.xp || 0) - amt) }
       })
     }
-  }
+  }, [user?.id])
 
   /**
    * trackXP - centralized toggle-safe XP helper.
@@ -284,19 +278,14 @@ export const AuthProvider = ({ children }) => {
    * @param {boolean} wasActive - was the item completed/checked BEFORE this action?
    * @param {boolean} isNowActive - is the item completed/checked AFTER this action?
    * @param {number}  amount - the absolute XP reward (always positive)
-   *
-   * Examples:
-   *   trackXP(false, true,  10)  →  addXP(+10)  [checking a habit]
-   *   trackXP(true,  false, 10)  →  addXP(-10)  [unchecking a habit]
-   *   trackXP(true,  true,  10)  →  no-op       [no state change]
    */
-  const trackXP = (wasActive, isNowActive, amount) => {
+  const trackXP = useCallback((wasActive, isNowActive, amount) => {
     const abs = Math.abs(parseInt(amount, 10) || 0)
     if (!abs || wasActive === isNowActive) return
     return addXP(isNowActive ? abs : -abs)
-  }
+  }, [addXP])
 
-  const signInWithGoogle = () =>
+  const signInWithGoogle = useCallback(() =>
     supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { 
@@ -304,9 +293,9 @@ export const AuthProvider = ({ children }) => {
         scopes: 'https://www.googleapis.com/auth/calendar.events',
         queryParams: { access_type: 'offline', prompt: 'consent' },
       },
-    })
+    }), [])
 
-  const signInAsGuest = async () => {
+  const signInAsGuest = useCallback(async () => {
     setLoading(true)
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -333,16 +322,29 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
-  const signOut = () => {
+  const signOut = useCallback(() => {
     fetchingFor.current = null
     seeding = false
     return supabase.auth.signOut()
-  }
+  }, [])
+
+  const contextValue = useMemo(() => ({
+    user,
+    profile,
+    loading,
+    providerToken,
+    signInWithGoogle,
+    signInAsGuest,
+    signOut,
+    updateProfile,
+    addXP,
+    trackXP
+  }), [user, profile, loading, providerToken, signInWithGoogle, signInAsGuest, signOut, updateProfile, addXP, trackXP])
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, providerToken, signInWithGoogle, signInAsGuest, signOut, updateProfile, addXP, trackXP }}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   )

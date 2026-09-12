@@ -35,3 +35,4 @@ scripts/.last_run_date
 supabase/functions/_shared/personal_prompts.ts
 docs/_FEATURE_PROPOSALS.md
 docs/_IMPLEMENTATION_PLAN.md
+docs/task_audit_report.md
