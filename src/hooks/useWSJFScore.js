@@ -120,7 +120,7 @@ export function useWSJFScore() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
     fetchAndScoreTasks();

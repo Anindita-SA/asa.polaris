@@ -3,6 +3,8 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import * as d3 from 'd3';
 import { supabase } from '../../lib/supabase';
 import { computeWSJFScore } from '../../hooks/useWSJFScore';
+import { useAuth } from '../../hooks/useAuth';
+import { offlineSelect, offlineInsert, offlineUpdate, offlineDelete } from '../../lib/offlineApi';
 import { 
   Plus, 
   Sparkles, 
@@ -178,6 +180,14 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
     }
   }, []);
 
+  const saveLocalCoords = (taskId, x, y) => {
+    try {
+      offlineUpdate('tasks', { id: taskId }, { canvas_x: x, canvas_y: y });
+    } catch (e) {
+      console.warn('saveLocalCoords error:', e);
+    }
+  };
+
   useEffect(() => {
     fetchTasks();
   }, [fetchTasks, refreshTrigger]);
@@ -214,10 +224,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
     );
 
     try {
-      const { error } = await supabase
-        .from('tasks')
-        .update({ quadrant: targetQuadrant })
-        .eq('id', task.id).eq('user_id', (await supabase.auth.getUser()).data?.user?.id);
+      const { error } = await offlineUpdate('tasks', { id: task.id }, { quadrant: targetQuadrant });
 
       if (error) throw error;
       if (onTasksChanged) onTasksChanged();
@@ -291,10 +298,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
 
     try {
       saveLocalCoords(taskId, null, null);
-      const { error } = await supabase
-        .from('tasks')
-        .update({ quadrant: newQuadrant })
-        .eq('id', taskId).eq('user_id', (await supabase.auth.getUser()).data?.user?.id);
+      const { error } = await offlineUpdate('tasks', { id: taskId }, { quadrant: newQuadrant });
 
       if (error) throw error;
       if (onTasksChanged) onTasksChanged();
@@ -365,10 +369,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
             const parsed = JSON.parse(data.choices[0].message.content);
             const mins = parsed?.minutes ? Math.max(5, Math.round(parsed.minutes)) : 30;
 
-            await supabase
-              .from('tasks')
-              .update({ estimated_minutes: mins, estimate_source: 'ai' })
-              .eq('id', task.id).eq('user_id', (await supabase.auth.getUser()).data?.user?.id);
+            await offlineUpdate('tasks', { id: task.id }, { estimated_minutes: mins, estimate_source: 'ai' });
           } catch (e) {
             console.error('Estimate error for task:', task.title, e);
           }
@@ -376,7 +377,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
       }
 
       setAuditMessage("Scoring tasks with WSJF algorithm and picking Today's Tasks...");
-      const { data: updatedData } = offlineSelect('tasks', (user?.id || (await supabase.auth.getSession()).data?.session?.user?.id) ? { user_id: (user?.id || (await supabase.auth.getSession()).data?.session?.user?.id) } : {});
+      const { data: updatedData } = await offlineSelect('tasks', (user?.id || (await supabase.auth.getSession()).data?.session?.user?.id) ? { user_id: (user?.id || (await supabase.auth.getSession()).data?.session?.user?.id) } : {});
       const scored = (updatedData || []).map(t => ({
         ...t,
         score: computeWSJFScore(t).score
@@ -495,10 +496,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
       prev.map((t) => (t.id === taskId ? { ...t, [field]: value } : t))
     );
     try {
-      const { error } = await supabase
-        .from('tasks')
-        .update({ [field]: value })
-        .eq('id', taskId).eq('user_id', (await supabase.auth.getUser()).data?.user?.id);
+      const { error } = await offlineUpdate('tasks', { id: taskId }, { [field]: value });
       if (error) throw error;
       if (onTasksChanged) onTasksChanged();
     } catch (err) {
