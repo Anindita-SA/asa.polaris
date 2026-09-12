@@ -5,6 +5,7 @@ import { useAuth } from './useAuth';
 export const useNudgeScheduler = () => {
   const { user } = useAuth();
   const [nudges, setNudges] = useState([]);
+  const [allNudges, setAllNudges] = useState([]);
   const fallbackIntervals = useRef({});
   const lastScheduledRef = useRef({});
 
@@ -31,10 +32,10 @@ export const useNudgeScheduler = () => {
     };
     
     seedNudges();
-  }, [user]);
+  }, [user?.id]);
 
   const fetchNudges = useCallback(async () => {
-    if (!user) return;
+    if (!user?.id) return;
     
     const { data, error } = await supabase
       .from('nudges')
@@ -111,7 +112,8 @@ export const useNudgeScheduler = () => {
       };
     });
 
-    setNudges(processedNudges);
+    setNudges(processedNudges.filter(n => !n.isTask));
+    setAllNudges(processedNudges);
 
     // Update App Badge for mobile
     if ('setAppBadge' in navigator) {
@@ -173,7 +175,7 @@ export const useNudgeScheduler = () => {
         }
       }
     }
-  }, [user]);
+  }, [user?.id]);
 
   useEffect(() => {
     fetchNudges();
@@ -200,7 +202,7 @@ export const useNudgeScheduler = () => {
     localStorage.setItem(`nudge_last_dismissed_${id}`, Date.now().toString());
 
     // For task-type nudges, increment skip_count in Supabase
-    const nudge = nudges.find(n => n.id === id);
+    const nudge = allNudges.find(n => n.id === id) || nudges.find(n => n.id === id);
     if (nudge?.isTask && user?.id) {
       try {
         const { data: taskData, error: fetchErr } = await supabase
@@ -226,8 +228,9 @@ export const useNudgeScheduler = () => {
     }
 
     setNudges(prev => prev.map(n => n.id === id ? { ...n, isDue: false } : n));
+    setAllNudges(prev => prev.map(n => n.id === id ? { ...n, isDue: false } : n));
     await fetchNudges();
   };
 
-  return { nudges, dismissNudge, fetchNudges };
+  return { nudges, allNudges, dismissNudge, fetchNudges };
 };
