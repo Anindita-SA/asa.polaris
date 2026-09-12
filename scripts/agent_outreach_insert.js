@@ -18,6 +18,11 @@ async function run() {
   const uid = supabase._uid;
 
   try {
+    if (process.stdin.isTTY) {
+      console.log('Usage: echo \'[{"name": "...", "institution": "...", "email": "...", "profile_url": "..."}]\' | node scripts/agent_outreach_insert.js [--dry-run]');
+      return;
+    }
+
     const input = fs.readFileSync(0, 'utf-8');
     const cleanInput = input.charCodeAt(0) === 0xFEFF ? input.slice(1) : input;
 
@@ -55,6 +60,7 @@ async function run() {
         name: item.name,
         institution: item.institution,
         email: item.email || null,
+        profile_url: item.profile_url || null,
         status: item.status || 'researching',
         fit_brief: item.fit_brief || null,
         draft_text: item.draft_text || null,
@@ -64,6 +70,7 @@ async function run() {
         user_id: uid,
       };
     });
+
 
     const { error } = await supabase.from('outreach_targets').insert(targetsToInsert);
     if (error && !isDryRun) throw error;

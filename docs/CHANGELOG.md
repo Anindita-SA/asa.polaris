@@ -1,6 +1,49 @@
 # Changelog
 
-## [2026-09-12] Needs Attention Randomized Shimmer, Nudge Isolation & PWA v1.1.4
+## [2026-09-12] In-App Notification Settings Panel & Eisenhower Matrix Filter Memory
+- **In-App Notification Settings Panel**: Created `NotificationSettingsModal.jsx` and `useNotificationSettings.js`, providing an intuitive configuration panel accessible from the Reminders panel header.
+- **Configurable Task Notification Modes**: Added 4 distinct reminder modes:
+  - `focus_only`: Alerts only for the primary active/ongoing focus task, stopping notification spam from backlog tasks.
+  - `consolidated`: Combines overdue tasks into a single summary notification.
+  - `all`: Alerts for all overdue tasks and reminders.
+  - `off`: Keeps all tasks visual-only in the UI with zero push/sound notifications.
+- **Granular Toggles & Frequency**: Added toggles for System Habit Nudges (Water, Posture, Break), Pomodoro timer completion alerts, Master Mute (Do Not Disturb), and a task reminder interval selector (30m, 60m, 120m, 240m).
+- **Dynamic Scheduler Integration**: Updated `useNudgeScheduler.js` and `src/sw.js` to dynamically filter task and habit notifications in real time based on active user preferences.
+- **Eisenhower Matrix Filter Preference Memory**: Added automatic `localStorage` persistence in `MatrixCanvasView.jsx` for all canvas filter toggles (`Hide Polaris Edit`, `Hide Reminders`, `Hide Scheduled Tasks`) so user preferences are remembered across navigation and sessions.
+- **Test Suite Expansion**: Added unit tests in `useNudgeScheduler.test.js` and `RemindersPanel.test.jsx` (all 71 tests passing).
+
+## [2026-09-12] Focus Board Bugfix, Ghost Item Purge & Backburner Restoration
+- **Root Cause Resolution**: Resolved an accidental paste error from commit `c5b7ea4` where `addFocus` replaced the body of `fetchBackburner`, causing `addFocus` to be undefined, wiping out `backburner` state, and triggering blank focus item insertions on every mount.
+- **Ghost Record Cleanup**: Added automatic detection and deletion of empty/blank focus records (`offlineDelete`) during `fetchFocus` to clean up corrupted Dexie/Supabase entries.
+- **Resilient Seeding**: Added auto-seeding of `DEFAULT_FOCUS_ITEMS` if zero focus records exist for the user, ensuring active slots are immediately populated.
+- **Full Action Restoration**: Restored `addFocus`, `fetchBackburner`, `completeFocus`, `sendToBackburner`, `promoteToFocus`, and `deleteBackburner`.
+- **Focus Item Direct Delete**: Added `deleteFocus` function and a `Trash2` icon button to focus item cards.
+- **Cross-View Synchronization**: Connected `FocusBoard.jsx` to the `polaris-tasks-changed` window event listener for seamless background synchronization.
+- **Comprehensive Test Suite**: Added `src/components/panels/FocusBoard.test.jsx` (8 unit tests covering rendering, seeding, ghost cleanup, adding, backburner flows, and event listeners).
+- **App Version Bump (v1.1.6)**: Bumped version in `package.json`.
+
+## [2026-09-12] Reminders Panel Live Synchronization & Focus Neglect Illumination
+- **Live Cross-View Reactivity**: Added local `polaris-tasks-changed` window event dispatching across all `offlineApi.js` mutations (`offlineInsert`, `offlineUpdate`, `offlineUpsert`, `offlineDelete`) and connected `RemindersPanel.jsx` to both local window events and Supabase Postgres Realtime. Crossing off or modifying tasks in the Matrix, Brain Dump, or Day Guide now immediately reflects in the Reminders Panel.
+- **Focus Task Direct Illumination & Shimmer**: Neglected or overdue focus tasks (`deadline <= today` or `skip_count >= 3`) are illuminated directly within their Focus Task cards with red accent styling, randomized shimmer pulse animation (`shimmerDuration`, `shimmerDelay`), and status badges (`OVERDUE`, `DUE TODAY`, `NEGLECTED`), preventing visual habituation.
+- **Zero Duplication in Needs Attention**: Strictly excluded `ongoingTask` and `nextTask` from the Needs Attention candidate pool, eliminating redundant multi-card display.
+- **Needs Attention Curation**: Prioritized non-focus quick-win tasks (`estimated_minutes <= 15` or same-day deadline), due system nudges, incomplete daily habits, and overdue contacts, capped at the top 2 visible items with a remaining count indicator.
+- **Security Hardening**: Enforced explicit `user_id` query scoping across all nudge update and delete operations in `RemindersPanel.jsx`.
+- **App Version Bump (v1.1.5)**: Bumped version in `package.json` to trigger PWA service worker refresh.
+
+## [2026-09-12] Master's Strategy & Tracker Deadlines Synchronization
+- **Comprehensive Master's Strategy Update**: Updated `MASTERS_APP_STRATEGY.md` with verified hard deadlines, scholarship windows, and exhaustive required documents checklists across Dutch, Italian, Scandinavian, Irish, and Erasmus Mundus programs.
+- **Excel Tracker Refresh**: Synchronized `Aloka_Masters_Tracker.xlsx` across all 5 sheets (Application Tracker, Scholarships, Timeline & Milestones, Portfolio Checklist, Cold Mail Pipeline) with zero em dashes and up-to-date admission and funding details.
+- **IELTS Retake & Admin Status**: Formally reflected IELTS Academic booking for October 3, 2026, confirmed official CGPA percentage conversion certificate (78.1%) from NIT Trichy registrar, and updated working time allocations.
+- **Research Placements Attribution**: Solidified canonical truth for power conversion research: Dual Active Bridge converter under Dr. Vignesh Kumar at NIT Trichy (weekdays) vs 12-pulse converter hardware under Dr. Tanmoy Bhattacharya at IIT Kharagpur (undergraduate summer internship).
+
+## [2026-09-12] Reach Out: In-App Mail Editing, Profile Links, Dual Mail Client & Test Suite
+- **In-App Email & Brief Editor**: Added direct in-card editing for draft emails and strategic fit briefs with live textareas, immediate Supabase saves, and cancel controls.
+- **Institution Profile Quick Links**: Added `profile_url` column migration and live links on target cards to lab profiles (with Google Scholar search fallback).
+- **Dual Mail Launching Fix**: Solved mailto protocol issues by stripping `target="_blank"`, providing dedicated "Open in Gmail" web compose links (`https://mail.google.com/mail/?view=cm...`) and direct OS mail client triggers.
+- **Automated Test Suite**: Added `src/lib/urlUtils.test.js` with 13 unit tests verifying `safeExternalUrl`, `createMailtoUrl`, `createGmailComposeUrl`, and `createAcademicSearchUrl`.
+- **Background Script Guard**: Patched `scripts/agent_outreach_insert.js` to prevent TTY blocking and killed orphan tasks.
+
+
 - **Needs Attention Card Simplification**: Removed raw WSJF score badges from the Needs Attention item cards to maximize title readability and reduce visual noise, switching to single-letter category badges (`T` for Task, `R` for Reminder, `N` for Nudge, `H` for Habit, `C` for Reach Out).
 - **Randomized Shimmer Pulse Animation**: Added randomized duration (3.5s to 7.0s) and delay memoization to the Needs Attention red box in `RemindersPanel.jsx` to create an organic, subtle attention pulse without render jumping.
 - **System Habit Nudges vs Tasks Isolation**: Separated user-configurable system habit nudges (`nudges` table) from tasks in `useNudgeScheduler.js` and `RemindersPanel.jsx`. Tasks are no longer mistakenly listed in the Nudges collapsible list or "Manage Nudges" settings modal.

@@ -22,6 +22,7 @@ const ALLOWED_TABLES = [
   'outreach_targets'
 ];
 
+
 function logAudit(entry) {
   const line = JSON.stringify({ ts: new Date().toISOString(), ...entry }) + '\n';
   fs.appendFileSync(AUDIT_LOG_PATH, line, 'utf8');

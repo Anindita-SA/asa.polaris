@@ -3,7 +3,8 @@ import { supabase } from '../../lib/supabase'
 import { offlineSelect, offlineInsert, offlineUpdate, offlineDelete } from '../../lib/offlineApi'
 import { useAuth } from '../../hooks/useAuth'
 import { XP } from '../../data/xpRewards'
-import { Flame, Archive, Plus, X, ArrowUp, Check, Zap, Dices } from 'lucide-react'
+import { DEFAULT_FOCUS_ITEMS } from '../../data/defaults'
+import { Flame, Archive, Plus, X, ArrowUp, Check, Zap, Dices, Trash2 } from 'lucide-react'
 import PomodoroTimer from '../widgets/PomodoroTimer'
 import { useTodaysTasks } from '../../hooks/useTodaysTasks'
 import SurpriseTaskModal from '../modals/SurpriseTaskModal'
@@ -32,25 +33,78 @@ const FocusBoard = () => {
     }
   }, [user])
 
+  useEffect(() => {
+    if (!user) return
+    const handleTasksChanged = () => {
+      fetchFocus()
+      fetchBackburner()
+      fetchMilestones()
+    }
+    if (typeof window !== 'undefined') {
+      window.addEventListener('polaris-tasks-changed', handleTasksChanged)
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('polaris-tasks-changed', handleTasksChanged)
+      }
+    }
+  }, [user])
+
   const fetchMilestones = async () => {
     if (!user) return
-    const { data: mData } = await offlineSelect('milestones');
+    const { data: mData } = await offlineSelect('milestones')
     const data = (mData || []).filter(m => m.user_id === user.id && m.status !== 'done')
     setMilestones(data || [])
   }
 
   const fetchFocus = async () => {
     if (!user) return
-    const { data: fData } = await offlineSelect('focus_items');
-    const data = (fData || []).filter(f => f.user_id === user.id && f.status === 'active').sort((a,b) => {
-      if (a.position !== b.position) return a.position - b.position;
-      return new Date(a.created_at || 0) - new Date(b.created_at || 0);
-    })
-    setFocusItems(data || [])
-    const targetIds = (data || []).map(item => item.id)
+    const { data: fData } = await offlineSelect('focus_items')
+    const userItems = (fData || []).filter(f => f.user_id === user.id)
+
+    // Clean up any ghost/blank records
+    const blankItems = userItems.filter(f => !f.title || !f.title.trim())
+    for (const item of blankItems) {
+      await offlineDelete('focus_items', { id: item.id })
+    }
+
+    let validUserItems = userItems.filter(f => f.title && f.title.trim())
+
+    // If the user has 0 focus items in the database (no active, done, or backburned items), seed DEFAULT_FOCUS_ITEMS for the user
+    if (validUserItems.length === 0) {
+      for (let i = 0; i < DEFAULT_FOCUS_ITEMS.length; i++) {
+        const item = DEFAULT_FOCUS_ITEMS[i]
+        await offlineInsert('focus_items', {
+          id: crypto.randomUUID(),
+          created_at: new Date().toISOString(),
+          status: 'active',
+          title: item.title.trim(),
+          category: item.category,
+          why_now: item.why_now ? item.why_now.trim() : '',
+          position: i,
+          user_id: user.id
+        })
+      }
+      const { data: refetched } = await offlineSelect('focus_items')
+      validUserItems = (refetched || []).filter(f => f.user_id === user.id && f.title && f.title.trim())
+    }
+
+    // Filter active items with non-empty titles and sort by position ascending then created_at ascending
+    const activeItems = validUserItems
+      .filter(f => f.status === 'active')
+      .sort((a, b) => {
+        if (a.position !== b.position) return (a.position ?? 0) - (b.position ?? 0)
+        return new Date(a.created_at || 0) - new Date(b.created_at || 0)
+      })
+
+    setFocusItems(activeItems)
+
+    const targetIds = activeItems.map(item => item.id)
     if (targetIds.length) {
-      const { data: allSubtasks } = await offlineSelect('subtasks');
-      const subtasksRows = (allSubtasks || []).filter(s => s.user_id === user.id && s.parent_type === 'focus' && targetIds.includes(s.parent_id)).sort((a,b) => a.position - b.position)
+      const { data: allSubtasks } = await offlineSelect('subtasks')
+      const subtasksRows = (allSubtasks || [])
+        .filter(s => s.user_id === user.id && s.parent_type === 'focus' && targetIds.includes(s.parent_id))
+        .sort((a, b) => a.position - b.position)
       const grouped = {}
       ;(subtasksRows || []).forEach(row => {
         grouped[row.parent_id] = grouped[row.parent_id] || []
@@ -64,9 +118,27 @@ const FocusBoard = () => {
 
   const fetchBackburner = async () => {
     if (!user) return
-    const { data: bData } = await offlineSelect('backburner');
-    const finalWhyNow = form.linkedMilestone ? `Milestone: ${form.linkedMilestone}` : form.why_now
-    await offlineInsert('focus_items', { id: crypto.randomUUID(), created_at: new Date().toISOString(), status: 'active', title: form.title, category: form.category, why_now: finalWhyNow, position: focusItems.length, user_id: user.id })
+    const { data: bData } = await offlineSelect('backburner')
+    const data = (bData || [])
+      .filter(b => b.user_id === user.id)
+      .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
+    setBackburner(data || [])
+  }
+
+  const addFocus = async () => {
+    const trimmedTitle = form.title.trim()
+    if (focusItems.length >= 3 || !trimmedTitle) return
+    const finalWhyNow = form.linkedMilestone ? `Milestone: ${form.linkedMilestone}` : form.why_now.trim()
+    await offlineInsert('focus_items', {
+      id: crypto.randomUUID(),
+      created_at: new Date().toISOString(),
+      status: 'active',
+      title: trimmedTitle,
+      category: form.category,
+      why_now: finalWhyNow,
+      position: focusItems.length,
+      user_id: user.id
+    })
     setForm(f => ({ ...f, title: '', why_now: '', linkedMilestone: '' }))
     setShowModal(null)
     fetchFocus()
@@ -79,30 +151,65 @@ const FocusBoard = () => {
   }
 
   const sendToBackburner = async (item) => {
+    if (!item?.title?.trim()) return
     await offlineUpdate('focus_items', { id: item.id }, { status: 'backburned' })
-    await offlineInsert('backburner', { id: crypto.randomUUID(), created_at: new Date().toISOString(), title: item.title, user_id: user.id, why_deferred: 'From active focus', context_snapshot: item.why_now })
+    await offlineInsert('backburner', {
+      id: crypto.randomUUID(),
+      created_at: new Date().toISOString(),
+      title: item.title.trim(),
+      user_id: user.id,
+      why_deferred: 'From active focus',
+      context_snapshot: item.why_now ? item.why_now.trim() : ''
+    })
     fetchFocus()
     fetchBackburner()
   }
 
   const addBackburner = async () => {
-    if (!form.title) return
-    await offlineInsert('backburner', { id: crypto.randomUUID(), created_at: new Date().toISOString(), title: form.title, why_deferred: form.why_deferred, context_snapshot: form.context_snapshot, revisit_after: form.revisit_after || null, user_id: user.id })
+    const trimmedTitle = form.title.trim()
+    if (!trimmedTitle) return
+    await offlineInsert('backburner', {
+      id: crypto.randomUUID(),
+      created_at: new Date().toISOString(),
+      title: trimmedTitle,
+      why_deferred: form.why_deferred ? form.why_deferred.trim() : '',
+      context_snapshot: form.context_snapshot ? form.context_snapshot.trim() : '',
+      revisit_after: form.revisit_after || null,
+      user_id: user.id
+    })
     setForm(f => ({ ...f, title: '', why_deferred: '', context_snapshot: '', revisit_after: '' }))
     setShowModal(null)
     fetchBackburner()
   }
 
   const promoteToFocus = async (item) => {
-    if (focusItems.length >= 3) { alert('Max 3 active focus items. Complete or backburner one first.'); return }
-    await offlineInsert('focus_items', { id: crypto.randomUUID(), created_at: new Date().toISOString(), status: 'active', position: focusItems.length, title: item.title, category: 'academic', why_now: item.context_snapshot, user_id: user.id })
+    if (focusItems.length >= 3) {
+      alert('Max 3 active focus items. Complete or backburner one first.')
+      return
+    }
+    if (!item?.title?.trim()) return
+    await offlineInsert('focus_items', {
+      id: crypto.randomUUID(),
+      created_at: new Date().toISOString(),
+      status: 'active',
+      position: focusItems.length,
+      title: item.title.trim(),
+      category: 'academic',
+      why_now: item.context_snapshot ? item.context_snapshot.trim() : '',
+      user_id: user.id
+    })
     await offlineDelete('backburner', { id: item.id })
     fetchFocus()
     fetchBackburner()
   }
 
+  const deleteFocus = async (id) => {
+    await offlineDelete('focus_items', { id })
+    fetchFocus()
+  }
+
   const deleteBackburner = async (id) => {
-    await offlineDelete('backburner', { id: id })
+    await offlineDelete('backburner', { id })
     fetchBackburner()
   }
 
@@ -120,7 +227,7 @@ const FocusBoard = () => {
         model: 'claude-sonnet-4-20250514',
         max_tokens: 1000,
         system: 'You are a task breakdown assistant. Given a project or task, return ONLY a JSON array of 5-10 short, specific, actionable steps. No markdown, no preamble, just the JSON array of strings.',
-        messages: [{ role: 'user', content: taskDescription }],
+        messages: [{ role: 'user', content: taskDescription.trim() }],
       }),
     })
     const data = await response.json()
@@ -130,7 +237,9 @@ const FocusBoard = () => {
 
   const saveSubtasks = async () => {
     if (!generatedSteps.length || !breakdownTarget) return
-    const insertPromises = generatedSteps.map((title, idx) => offlineInsert('subtasks', {
+    const validSteps = generatedSteps.map(s => typeof s === 'string' ? s.trim() : '').filter(Boolean)
+    if (!validSteps.length) return
+    const insertPromises = validSteps.map((title, idx) => offlineInsert('subtasks', {
       id: crypto.randomUUID(),
       created_at: new Date().toISOString(),
       user_id: user.id,
@@ -186,8 +295,6 @@ const FocusBoard = () => {
           <PomodoroTimer />
         </div>
 
-
-
         {/* Active Focus */}
         <div>
           <div className="flex items-center justify-between mb-4">
@@ -234,6 +341,7 @@ const FocusBoard = () => {
                     <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button onClick={() => completeFocus(item)} title="Complete" className="text-nova/60 hover:text-emerald transition-colors p-1"><Check className="w-3.5 h-3.5" /></button>
                       <button onClick={() => sendToBackburner(item)} title="Backburner" className="text-nova/60 hover:text-gold transition-colors p-1"><Archive className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => deleteFocus(item.id)} title="Delete" className="text-nova/60 hover:text-danger transition-colors p-1"><Trash2 className="w-3.5 h-3.5" /></button>
                     </div>
                   </div>
                 </div>
@@ -289,7 +397,7 @@ const FocusBoard = () => {
       {/* Modals */}
       {showModal && (
         <div className="modal-overlay fixed inset-0 bg-void/80 z-50 flex items-end md:items-center justify-center p-0 md:p-4" onClick={e => e.target === e.currentTarget && setShowModal(null)}>
-          <div className="modal-content glass border border-pulsar/40 rounded-t-2xl rounded-b-none md:rounded-xl p-6 w-full w-full max-w-full md:max-w-md space-y-4">
+          <div className="modal-content glass border border-pulsar/40 rounded-t-2xl rounded-b-none md:rounded-xl p-6 w-full max-w-full md:max-w-md space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-display text-starlight">{showModal === 'focus' ? 'New Focus Item' : 'Add to Backburner'}</h3>
               <button onClick={() => setShowModal(null)}><X className="w-4 h-4 text-nova/60 hover:text-starlight" /></button>
@@ -313,7 +421,7 @@ const FocusBoard = () => {
                   <input placeholder="Why now? (optional)" className="w-full bg-stardust/50 text-sm text-starlight border border-pulsar/30 rounded-lg px-3 py-2 outline-none focus:border-pulsar/40 font-body"
                     value={form.why_now} onChange={e => setForm(f => ({ ...f, why_now: e.target.value }))} />
                 )}
-                <button onClick={addFocus} disabled={focusItems.length >= 3} className="w-full py-2 bg-pulsar/20 border border-pulsar/30 text-pulsar text-lg font-display rounded-lg hover:bg-pulsar/30 transition-colors disabled:opacity-40">
+                <button onClick={addFocus} disabled={focusItems.length >= 3 || !form.title.trim()} className="w-full py-2 bg-pulsar/20 border border-pulsar/30 text-pulsar text-lg font-display rounded-lg hover:bg-pulsar/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
                   {focusItems.length >= 3 ? 'FOCUS FULL (max 3)' : 'ADD TO FOCUS'}
                 </button>
               </>
@@ -325,7 +433,7 @@ const FocusBoard = () => {
                   value={form.context_snapshot} onChange={e => setForm(f => ({ ...f, context_snapshot: e.target.value }))} />
                 <input type="date" className="w-full bg-stardust/50 text-sm text-nova/60 border border-pulsar/30 rounded-lg px-3 py-2 outline-none"
                   value={form.revisit_after} onChange={e => setForm(f => ({ ...f, revisit_after: e.target.value }))} />
-                <button onClick={addBackburner} className="w-full py-2 bg-gold-dim/20 border border-gold/50 text-gold text-lg font-display rounded-lg hover:bg-gold-dim/30 transition-colors">
+                <button onClick={addBackburner} disabled={!form.title.trim()} className="w-full py-2 bg-gold-dim/20 border border-gold/50 text-gold text-lg font-display rounded-lg hover:bg-gold-dim/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
                   Defer To Backburner
                 </button>
               </>
@@ -335,7 +443,7 @@ const FocusBoard = () => {
       )}
       {breakdownTarget && (
         <div className="modal-overlay fixed inset-0 bg-void/80 z-50 flex items-end md:items-center justify-center p-0 md:p-4" onClick={e => e.target === e.currentTarget && setBreakdownTarget(null)}>
-          <div className="modal-content glass border border-pulsar/40 rounded-t-2xl rounded-b-none md:rounded-xl p-6 w-full w-full max-w-full md:max-w-lg space-y-3">
+          <div className="modal-content glass border border-pulsar/40 rounded-t-2xl rounded-b-none md:rounded-xl p-6 w-full max-w-full md:max-w-lg space-y-3">
             <h3 className="text-lg font-display text-starlight">Break down: {breakdownTarget.title}</h3>
             <textarea rows={4} value={taskDescription} onChange={e => setTaskDescription(e.target.value)}
               className="w-full bg-stardust/50 text-sm text-starlight border border-pulsar/30 rounded-lg px-3 py-2 outline-none resize-none" />
