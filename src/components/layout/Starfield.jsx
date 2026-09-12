@@ -17,8 +17,6 @@ const Starfield = () => {
     { x: 15, y: 20, size: 400, color: '#3b82f6' },
     { x: 75, y: 15, size: 350, color: '#8b5cf6' },
     { x: 50, y: 70, size: 500, color: '#1e40af' },
-    { x: 85, y: 65, size: 300, color: '#5b21b6' },
-    { x: 10, y: 75, size: 280, color: '#1d4ed8' },
   ], [])
 
   return (

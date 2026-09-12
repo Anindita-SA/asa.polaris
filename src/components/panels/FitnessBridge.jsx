@@ -7,6 +7,7 @@ import { format, subDays } from 'date-fns'
 import RelationshipsView from './RelationshipsView'
 import PlayView from '../orbit/PlayView'
 import HardwareScoutPanel from './HardwareScoutPanel'
+import ReachOutView from './ReachOutView'
 
 const FitnessBridge = () => {
   const { user, addXP } = useAuth()
@@ -128,7 +129,7 @@ const FitnessBridge = () => {
       <div className="max-w-2xl mx-auto space-y-6">
         
         {/* Navigation Pills */}
-        <div className="flex bg-void/70 p-1 rounded-lg border border-pulsar/30 max-w-md mx-auto">
+        <div className="flex bg-void/70 p-1 rounded-lg border border-pulsar/30 max-w-lg mx-auto">
           <button 
             onClick={() => setActiveSubTab('fitness')}
             className={`flex-1 py-1.5 text-xs font-mono uppercase tracking-wider rounded transition-colors ${activeSubTab === 'fitness' ? 'bg-stardust/80 text-starlight' : 'text-nova/60 hover:text-nova/80'}`}
@@ -153,6 +154,12 @@ const FitnessBridge = () => {
           >
             Scout
           </button>
+          <button 
+            onClick={() => setActiveSubTab('reach_out')}
+            className={`flex-1 py-1.5 text-xs font-mono uppercase tracking-wider rounded transition-colors ${activeSubTab === 'reach_out' ? 'bg-stardust/80 text-starlight' : 'text-nova/60 hover:text-nova/80'}`}
+          >
+            Reach Out
+          </button>
         </div>
 
         {activeSubTab === 'relationships' ? (
@@ -161,6 +168,8 @@ const FitnessBridge = () => {
           <PlayView />
         ) : activeSubTab === 'scout' ? (
           <HardwareScoutPanel />
+        ) : activeSubTab === 'reach_out' ? (
+          <ReachOutView />
         ) : (
           <>
             <p className="text-xs font-mono text-nova/60 mt-2">Aloka-Fit Bridge - last 14 days</p>

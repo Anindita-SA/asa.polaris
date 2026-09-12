@@ -1,5 +1,6 @@
 ﻿import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
+import { offlineSelect, offlineInsert, offlineUpdate, offlineDelete } from '../lib/offlineApi';;
 import { 
   Clock, 
   Plus, 
@@ -81,11 +82,7 @@ export default function DayChunker({ tasks = [], selectedDay = 'today', onRefres
   const fetchBlocks = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('day_plan_blocks')
-        .select('*')
-        .eq('log_date', logDateStr)
-        .order('start_time', { ascending: true });
+      const { data, error } = await offlineSelect('day_plan_blocks', { log_date: logDateStr });
 
       if (error) throw error;
 
@@ -99,9 +96,7 @@ export default function DayChunker({ tasks = [], selectedDay = 'today', onRefres
           ...(userId ? { user_id: userId } : {})
         }));
 
-        const { data: inserted } = await supabase
-          .from('day_plan_blocks')
-          .insert(defaultRows)
+        const { data: inserted } = await offlineInsert('day_plan_blocks', defaultRows)
           .select();
 
         setBlocks(inserted || []);
@@ -137,9 +132,7 @@ export default function DayChunker({ tasks = [], selectedDay = 'today', onRefres
         ...(userId ? { user_id: userId } : {})
       };
 
-      const { data, error } = await supabase
-        .from('day_plan_blocks')
-        .insert([newBlock])
+      const { data, error } = await offlineInsert('day_plan_blocks', [newBlock])
         .select()
         .single();
 
@@ -184,7 +177,7 @@ export default function DayChunker({ tasks = [], selectedDay = 'today', onRefres
     setBlocks(prev => prev.map(b => b.id === block.id ? { ...b, done: newDone } : b));
 
     try {
-      await supabase.from('day_plan_blocks').update({ done: newDone }).eq('id', block.id);
+      await offlineUpdate('day_plan_blocks', { id: block.id }, { done: newDone });
     } catch (err) {
       console.error('Error toggling block done:', err);
       fetchBlocks();
@@ -194,7 +187,7 @@ export default function DayChunker({ tasks = [], selectedDay = 'today', onRefres
   const deleteBlock = async (blockId) => {
     setBlocks(prev => prev.filter(b => b.id !== blockId));
     try {
-      await supabase.from('day_plan_blocks').delete().eq('id', blockId);
+      await offlineDelete('day_plan_blocks', { id: blockId });
     } catch (err) {
       console.error('Error deleting block:', err);
       fetchBlocks();

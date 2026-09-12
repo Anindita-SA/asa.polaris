@@ -64,6 +64,8 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
   const [newNudgeTitle, setNewNudgeTitle] = useState('')
   const [newNudgeInterval, setNewNudgeInterval] = useState('60')
   const [expandedContactId, setExpandedContactId] = useState(null)
+  const [habitTasks, setHabitTasks] = useState([])
+  const [collapsedSections, setCollapsedSections] = useState({})
 
   // Fetch tasks sorted by WSJF score
   const fetchTasks = useCallback(async () => {
@@ -71,6 +73,7 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
     const { data } = await supabase
       .from('tasks')
       .select('*')
+      .eq('user_id', user.id)
       .in('status', ['active', 'inbox'])
 
     const scored = (data || []).map(t => {
@@ -81,9 +84,22 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
     setTasks(scored);
   }, [user]);
 
+  const fetchHabitTasks = useCallback(async () => {
+    if (!user) return
+    const todayStr = new Date().toLocaleDateString('en-CA')
+    const { data } = await supabase
+      .from('tasks')
+      .select('id, title, source_template_id, status, completion_dates, completion_count')
+      .eq('user_id', user.id)
+      .eq('category', 'habits')
+      .in('status', ['active', 'inbox'])
+    setHabitTasks(data || [])
+  }, [user])
+
   useEffect(() => {
     fetchTasks()
-  }, [fetchTasks])
+    fetchHabitTasks()
+  }, [fetchTasks, fetchHabitTasks])
 
   // Timer interval
   useEffect(() => {
@@ -104,13 +120,28 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
   }
 
   const markTaskDone = async (taskId) => {
-    await supabase.from('tasks').update({ status: 'done' }).eq('id', taskId)
+    await supabase.from('tasks').update({ status: 'done' }).eq('id', taskId).eq('user_id', user.id)
     if (activeTask?.id === taskId) {
       setActiveTask(null)
       setIsTimerRunning(false)
     }
     celebrate()
     fetchTasks()
+  }
+
+  const completeHabitForToday = async (task) => {
+    const todayStr = new Date().toLocaleDateString('en-CA')
+    const dates = Array.isArray(task.completion_dates) ? [...task.completion_dates] : []
+    if (dates.includes(todayStr)) return
+    dates.push(todayStr)
+    dates.sort()
+    await supabase.from('tasks').update({
+      completion_dates: dates,
+      completion_count: (task.completion_count || 0) + 1,
+      status: 'done'
+    }).eq('id', task.id).eq('user_id', user.id)
+    celebrate()
+    fetchHabitTasks()
   }
 
   const handleAddTask = async (e) => {
@@ -172,15 +203,53 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
   }
 
   // Filter tasks
-  const focusTasks = tasks.filter(t => t.category !== 'reminders');
+  const focusTasks = tasks.filter(t => t.category !== 'reminders' && t.category !== 'habits');
   const reminderTasks = tasks.filter(t => t.category === 'reminders');
 
   // Show ONLY 1 ongoing task + 1 next upcoming task to prevent user overload!
   const ongoingTask = activeTask || focusTasks[0];
   const nextTask = focusTasks.find(t => t.id !== ongoingTask?.id);
 
+  const todayStr = new Date().toLocaleDateString('en-CA')
+
+  // Overdue items aggregation
+  const overdueNudges = nudges.filter(n => n.active && n.isDue)
+  const overdueReminders = reminderTasks.filter(t => t.deadline && t.deadline <= todayStr)
+  const overdueContacts = contacts.filter(c => c.isOverdue)
+  const incompleteHabits = habitTasks.filter(t => {
+    const dates = Array.isArray(t.completion_dates) ? t.completion_dates : []
+    return !dates.includes(todayStr)
+  })
+  const hasOverdue = overdueNudges.length + overdueReminders.length + overdueContacts.length + incompleteHabits.length > 0
+
+  const toggleSection = (key) => setCollapsedSections(prev => ({ ...prev, [key]: !prev[key] }))
+
+  const CollapsibleSection = ({ title, count, sectionKey, children }) => {
+    const isCollapsed = collapsedSections[sectionKey]
+    if (count === 0 && isCollapsed) return null
+    return (
+      <div className="space-y-3">
+        <button onClick={() => toggleSection(sectionKey)} className="flex items-center justify-between w-full group">
+          <h4 className="text-xs uppercase tracking-wider font-mono text-nova/60">{title}</h4>
+          <div className="flex items-center gap-2">
+            {count > 0 && <span className="text-xs font-mono text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded">{count}</span>}
+            <ChevronRight className={`w-3 h-3 text-nova/60 transition-transform ${isCollapsed ? '' : 'rotate-90'}`} />
+          </div>
+        </button>
+        {!isCollapsed && children}
+      </div>
+    )
+  }
+
   return (
     <div className="relative w-full h-full flex flex-col">
+      <style>{`
+        @keyframes shimmer {
+          0%, 100% { box-shadow: 0 0 8px rgba(239, 68, 68, 0.2); }
+          50% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.5), 0 0 40px rgba(239, 68, 68, 0.1); }
+        }
+      `}</style>
+
       {/* Reminders Header */}
       <div className="p-4 pr-14 flex items-center justify-between border-b border-pulsar/30">
         <h3 className="text-lg font-display text-starlight">Reminders</h3>
@@ -304,14 +373,73 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
 
         </div>
 
+        {/* Overdue Zone */}
+        {hasOverdue && (
+          <div className="relative overflow-hidden border border-red-500/40 rounded-xl p-3 bg-red-900/20 space-y-2" style={{ animation: `shimmer ${3 + Math.random() * 4}s ease-in-out infinite` }}>
+            <h4 className="text-xs uppercase tracking-wider font-mono text-red-400 font-bold flex items-center gap-2">
+              <Zap className="w-3 h-3" /> Needs Attention
+            </h4>
+            <div className="space-y-1.5">
+              {overdueNudges.map(n => (
+                <div key={`nudge-${n.id}`} className="flex items-center justify-between bg-void/40 rounded-lg p-2 border border-red-500/20">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded">NUDGE</span>
+                    <span className="text-xs text-starlight">{n.title}</span>
+                  </div>
+                  <button onClick={() => { dismissNudge(n.id); celebrate() }} className="h-6 w-6 rounded-full bg-blue-900/20 flex items-center justify-center text-nova/60 hover:text-emerald shrink-0">
+                    <Check className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+              {overdueReminders.map(t => (
+                <div key={`rem-${t.id}`} className="flex items-center justify-between bg-void/40 rounded-lg p-2 border border-red-500/20">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono text-rose-400 bg-rose-400/10 px-1.5 py-0.5 rounded">REMINDER</span>
+                    <span className="text-xs text-starlight truncate max-w-[160px]">{t.title}</span>
+                  </div>
+                  <button onClick={() => markTaskDone(t.id)} className="h-6 w-6 rounded-full bg-blue-900/20 flex items-center justify-center text-nova/60 hover:text-emerald shrink-0">
+                    <Check className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+              {incompleteHabits.map(t => (
+                <div key={`habit-${t.id}`} className="flex items-center justify-between bg-void/40 rounded-lg p-2 border border-red-500/20">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded">HABIT</span>
+                    <span className="text-xs text-starlight truncate max-w-[160px]">{t.title}</span>
+                  </div>
+                  <button onClick={() => completeHabitForToday(t)} className="h-6 w-6 rounded-full bg-blue-900/20 flex items-center justify-center text-nova/60 hover:text-emerald shrink-0">
+                    <Check className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+              {overdueContacts.map(c => (
+                <div key={`contact-${c.id}`} className="flex items-center justify-between bg-void/40 rounded-lg p-2 border border-red-500/20">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono text-sky-400 bg-sky-400/10 px-1.5 py-0.5 rounded">REACH OUT</span>
+                    <span className="text-xs text-starlight">{c.name}</span>
+                  </div>
+                  <button onClick={() => { markReachedOut(c.id); celebrate() }} className="h-6 w-6 rounded-full bg-blue-900/20 flex items-center justify-center text-nova/60 hover:text-emerald shrink-0">
+                    <Check className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="h-px bg-blue-900/30" />
         
         {/* Section 2: Nudges */}
-        <div className="space-y-3">
-          <div className="flex justify-between items-center">
-            <h4 className="text-xs uppercase tracking-wider font-mono text-nova/60 mb-2">Nudges</h4>
-            <button onClick={() => setShowNudgeSettings(!showNudgeSettings)} className="text-nova/60 hover:text-nova">
+        <CollapsibleSection title="Nudges" count={nudges.filter(n => n.active).length} sectionKey="nudges">
+          <div className="flex justify-end items-center -mt-1">
+            <button 
+              onClick={() => setShowNudgeSettings(!showNudgeSettings)} 
+              className="text-nova/60 hover:text-nova flex items-center gap-1 text-[11px] font-mono transition-colors"
+              title="Manage Nudges"
+            >
               <Settings className="w-3 h-3" />
+              <span>{showNudgeSettings ? 'Close' : 'Settings'}</span>
             </button>
           </div>
 
@@ -366,13 +494,12 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
             ))}
             {nudges.filter(n => n.active).length === 0 && <p className="text-xs text-nova/60 italic">No active nudges</p>}
           </div>
-        </div>
+        </CollapsibleSection>
 
         <div className="h-px bg-blue-900/30" />
 
         {/* Task Reminders */}
-        <div className="space-y-3">
-          <h4 className="text-xs uppercase tracking-wider font-mono text-nova/60 mb-2">Task Reminders</h4>
+        <CollapsibleSection title="Task Reminders" count={reminderTasks.length} sectionKey="reminders">
           <div className="space-y-2">
             {reminderTasks.map(task => (
               <div key={task.id} className="glass glass-hover hover:-translate-y-1 transition-transform border border-pulsar/30 p-3 rounded-xl flex items-center justify-between">
@@ -387,15 +514,41 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
             ))}
             {reminderTasks.length === 0 && <p className="text-xs text-nova/60 italic">No task reminders</p>}
           </div>
-        </div>
+        </CollapsibleSection>
+
+        <div className="h-px bg-blue-900/30" />
+
+        {/* Habits */}
+        <CollapsibleSection title="Habits" count={incompleteHabits.length} sectionKey="habits">
+          <div className="space-y-2">
+            {habitTasks.map(task => {
+              const dates = Array.isArray(task.completion_dates) ? task.completion_dates : []
+              const doneToday = dates.includes(todayStr)
+              return (
+                <div key={task.id} className={`glass border border-pulsar/30 p-3 rounded-xl flex items-center justify-between ${doneToday ? 'opacity-50' : ''}`}>
+                  <div>
+                    <p className="text-sm text-starlight">{task.title}</p>
+                    <p className="text-xs text-nova/60 mt-0.5">Completed {task.completion_count || 0} times total</p>
+                  </div>
+                  <button onClick={() => doneToday ? null : completeHabitForToday(task)} disabled={doneToday}
+                    className={`h-8 w-8 rounded-full flex items-center justify-center shrink-0 transition-all ${
+                      doneToday ? 'bg-emerald/20 text-emerald border border-emerald/50' : 'bg-blue-900/20 text-nova/60 hover:text-emerald hover:bg-emerald/20 border border-transparent hover:border-emerald/50'
+                    }`}>
+                    <Check className="w-4 h-4" />
+                  </button>
+                </div>
+              )
+            })}
+            {habitTasks.length === 0 && <p className="text-xs text-nova/60 italic">No habits configured yet.</p>}
+          </div>
+        </CollapsibleSection>
 
         <div className="h-px bg-blue-900/30" />
 
         {/* Section 3: Reach Out */}
-        <div className="space-y-3">
-          <h4 className="text-xs uppercase tracking-wider font-mono text-nova/60 mb-2">Reach Out</h4>
+        <CollapsibleSection title="Reach Out" count={contacts.filter(c => c.isOverdue).length} sectionKey="reachout">
           <div className="space-y-2">
-            {contacts.map(contact => (
+            {contacts.filter(c => c.isOverdue).map(contact => (
               <div key={contact.id} className="glass glass-hover hover:-translate-y-1 transition-transform border border-pulsar/30 p-3 rounded-xl">
                 <div className="flex items-center justify-between cursor-pointer" onClick={() => setExpandedContactId(expandedContactId === contact.id ? null : contact.id)}>
                   <div>
@@ -425,9 +578,9 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
                 )}
               </div>
             ))}
-            {contacts.length === 0 && <p className="text-xs text-nova/60 italic">No contacts synced</p>}
+            {contacts.filter(c => c.isOverdue).length === 0 && <p className="text-xs text-nova/60 italic">No one due for reach out today.</p>}
           </div>
-        </div>
+        </CollapsibleSection>
       </div>
 
       <SurpriseTaskModal 

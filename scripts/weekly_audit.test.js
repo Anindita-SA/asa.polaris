@@ -33,3 +33,35 @@ it('parseAITasks strips markdown and parses JSON correctly', () => {
   // Test invalid JSON throws
   expect(() => parseAITasks("Hello world")).toThrow(/Failed to parse/);
 });
+
+it('insertTasks filters out existing active tasks with the same title', async () => {
+  const { insertTasks } = await import('./weekly_audit.js');
+
+  let insertedRows = [];
+  const mockSupabase = {
+    from: (table) => ({
+      select: () => ({
+        eq: () => ({
+          neq: async () => ({
+            data: [{ title: 'Existing Task' }, { title: 'Other Task' }],
+            error: null
+          })
+        })
+      }),
+      insert: async (data) => {
+        insertedRows = data;
+        return { error: null };
+      }
+    })
+  };
+
+  const tasksToInsert = [
+    { title: 'existing task', notes: 'duplicate' },
+    { title: 'New Unique Task', notes: 'new' }
+  ];
+
+  const count = await insertTasks(mockSupabase, 'user-123', tasksToInsert);
+  expect(count).toBe(1);
+  expect(insertedRows.length).toBe(1);
+  expect(insertedRows[0].title).toBe('New Unique Task');
+});

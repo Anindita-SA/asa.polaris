@@ -4,6 +4,7 @@ import { useAuth } from './useAuth'
 import { useGoalCompletion } from './useGoalCompletion'
 import { XP } from '../data/xpRewards'
 import { playChime } from '../lib/sound'
+import { offlineSelect, offlineUpdate, offlineInsert } from '../lib/offlineApi'
 
 export function useTodaysTasks() {
   const { user, trackXP } = useAuth()
@@ -25,20 +26,16 @@ export function useTodaysTasks() {
       let finalDailyTasks = []
       try {
         // Carry forward unfinished tasks
-        await supabase
-          .from('daily_tasks')
-          .update({ date: todayStr })
-          .eq('user_id', user.id)
-          .eq('recurring', true)
-          .eq('completed', false)
-          .lt('date', todayStr)
+        const { data: unfTasks } = await offlineSelect('daily_tasks', { user_id: user.id, recurring: true, completed: false })
+        if (unfTasks) {
+          for (const t of unfTasks) {
+            if (t.date < todayStr) {
+              await offlineUpdate('daily_tasks', { id: t.id }, { date: todayStr })
+            }
+          }
+        }
 
-        const { data: dailyData } = await supabase
-          .from('daily_tasks')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('date', todayStr)
-
+        const { data: dailyData } = await offlineSelect('daily_tasks', { user_id: user.id, date: todayStr })
         finalDailyTasks = dailyData || []
       } catch (e1) {
         console.warn('Error fetching daily_tasks:', e1)
@@ -47,12 +44,7 @@ export function useTodaysTasks() {
       // 2. Fetch goals with scope = 'daily'
       let activeGoals = []
       try {
-        const { data: goalsData } = await supabase
-          .from('goals')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('scope', 'daily')
-
+        const { data: goalsData } = await offlineSelect('goals', { user_id: user.id, scope: 'daily' })
         activeGoals = (goalsData || []).filter(g => !g.completed || g.deadline === todayStr)
       } catch (e2) {
         console.warn('Error fetching goals:', e2)
@@ -61,13 +53,9 @@ export function useTodaysTasks() {
       // 3. Fetch active tasks from main tasks table
       let activeMatrixTasks = []
       try {
-        const { data: matrixTasksData } = await supabase
-          .from('tasks')
-          .select('*')
-          .eq('user_id', user.id)
-          .in('status', ['active', 'scheduled'])
-
-        activeMatrixTasks = matrixTasksData || []
+        // Since we can only equality match, we'll fetch all tasks for user and filter in memory
+        const { data: allTasks } = await offlineSelect('tasks', { user_id: user.id })
+        activeMatrixTasks = (allTasks || []).filter(t => t.status === 'active' || t.status === 'scheduled')
       } catch (e3) {
         console.warn('Error fetching matrix tasks:', e3)
       }
@@ -159,18 +147,16 @@ export function useTodaysTasks() {
       const isCompleting = !item.completed
 
       try {
-        await supabase
-          .from('daily_tasks')
-          .update({ completed: isCompleting })
-          .eq('user_id', user.id)
-          .eq('title', item.title)
+        await offlineUpdate('daily_tasks', 
+          { user_id: user.id, title: item.title }, 
+          { completed: isCompleting }
+        )
 
         const newStatus = isCompleting ? 'done' : 'active'
-        await supabase
-          .from('tasks')
-          .update({ status: newStatus })
-          .eq('user_id', user.id)
-          .eq('title', item.title)
+        await offlineUpdate('tasks',
+          { user_id: user.id, title: item.title },
+          { status: newStatus }
+        )
       } catch (err) {
         console.warn('Sync toggle error:', err)
       }
@@ -188,13 +174,13 @@ export function useTodaysTasks() {
   const addTask = async (title) => {
     if (!user) return
     const todayStr = new Date().toLocaleDateString('en-CA')
-    const { data } = await supabase.from('daily_tasks').insert({
+    const { data } = await offlineInsert('daily_tasks', {
       user_id: user.id,
       title: title.trim(),
       date: todayStr,
       recurring: false,
       completed: false
-    }).select().single()
+    })
 
     if (data) fetchTasks()
   }

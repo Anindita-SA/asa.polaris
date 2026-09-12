@@ -18,7 +18,8 @@ const ALLOWED_TABLES = [
   'tasks',
   'goals',
   'eulogies',
-  'milestones'
+  'milestones',
+  'outreach_targets'
 ];
 
 function logAudit(entry) {
@@ -80,10 +81,10 @@ export async function createSafeClient(scriptName, readMostly = false, isDryRun 
         }
         if (readMostly && tableName === 'tasks') {
            const keys = Object.keys(payload);
-           const allowedKeys = ['quadrant', 'title', 'category'];
+           const allowedKeys = ['quadrant', 'title', 'category', 'skip_count', 'status', 'completion_count', 'completion_dates', 'source_template_id'];
            const hasInvalidKey = keys.some(k => !allowedKeys.includes(k));
            if (hasInvalidKey) {
-              throw new Error(`SECURITY EXCEPTION: Read-mostly script can only update quadrant, title, and category on tasks. Attempted to update: ${keys.join(', ')}`);
+              throw new Error(`SECURITY EXCEPTION: Read-mostly script can only update allowed fields (${allowedKeys.join(', ')}) on tasks. Attempted to update: ${keys.join(', ')}`);
            }
         }
         if (isDryRun) {

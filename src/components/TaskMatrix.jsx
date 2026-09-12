@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { offlineSelect, offlineInsert, offlineUpdate, offlineDelete } from '../lib/offlineApi';
 import { getGroqKey } from '../lib/llm';
 import { 
   Plus, 
@@ -108,10 +109,8 @@ export default function TaskMatrix() {
   const fetchTasks = useCallback(async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('tasks')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const { data, error } = await offlineSelect('tasks');
+      if (data) data.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
 
       if (error) throw error;
       setTasks(data || []);
@@ -143,16 +142,14 @@ export default function TaskMatrix() {
         quadrant: null,
         ...(userId ? { user_id: userId } : {})
       };
+      newTask.id = crypto.randomUUID();
+      newTask.created_at = new Date().toISOString();
 
-      const { data, error } = await supabase
-        .from('tasks')
-        .insert([newTask])
-        .select()
-        .single();
+      const { error } = await offlineInsert('tasks', newTask);
 
       if (error) throw error;
 
-      setTasks((prev) => [data, ...prev]);
+      setTasks((prev) => [newTask, ...prev]);
       setNewTitle('');
     } catch (err) {
       console.error('Error adding task:', err);
@@ -169,10 +166,7 @@ export default function TaskMatrix() {
     );
 
     try {
-      const { error } = await supabase
-        .from('tasks')
-        .update({ quadrant: targetQuadrant })
-        .eq('id', taskId);
+      const { error } = await offlineUpdate('tasks', { id: taskId }, { quadrant: targetQuadrant });
 
       if (error) {
         console.error('Error updating quadrant:', error);
@@ -192,10 +186,7 @@ export default function TaskMatrix() {
     );
 
     try {
-      const { error } = await supabase
-        .from('tasks')
-        .update({ status: newStatus })
-        .eq('id', task.id);
+      const { error } = await offlineUpdate('tasks', { id: task.id }, { status: newStatus });
 
       if (error) throw error;
     } catch (err) {
@@ -208,7 +199,7 @@ export default function TaskMatrix() {
   const deleteTask = async (taskId) => {
     setTasks((prev) => prev.filter((t) => t.id !== taskId));
     try {
-      const { error } = await supabase.from('tasks').delete().eq('id', taskId);
+      const { error } = await offlineDelete('tasks', { id: taskId });
       if (error) throw error;
     } catch (err) {
       console.error('Error deleting task:', err);
@@ -227,10 +218,7 @@ export default function TaskMatrix() {
     setEditingTask(null);
 
     try {
-      const { error } = await supabase
-        .from('tasks')
-        .update(updatedFields)
-        .eq('id', taskId);
+      const { error } = await offlineUpdate('tasks', { id: taskId }, updatedFields);
 
       if (error) throw error;
     } catch (err) {
@@ -282,10 +270,7 @@ Return ONLY a single valid JSON object in this exact format: {"minutes": 45}. Do
       }
 
       // Save to Supabase
-      const { error } = await supabase
-        .from('tasks')
-        .update({ estimated_minutes: mins, estimate_source: 'ai' })
-        .eq('id', task.id);
+      const { error } = await offlineUpdate('tasks', { id: task.id }, { estimated_minutes: mins, estimate_source: 'ai' });
 
       if (error) throw error;
 

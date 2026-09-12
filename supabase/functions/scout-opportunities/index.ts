@@ -63,6 +63,7 @@ serve(async (req) => {
         source_name: 'Previous Scout',
         summary: o.project_fit || 'Highly recommended from previous scout.',
         type: 'opportunity',
+        hardware_opportunity_id: o.id,
         is_previous: true,
         profile_match: o.profile_match,
         acceptance_chance: o.acceptance_chance
@@ -126,13 +127,30 @@ serve(async (req) => {
       return await appendPreviousOpps('No results from Firecrawl')
     }
 
-    // 2. Query Groq
+    // 2. Query Groq with Learned Rejection Feedback
+    const { data: rejectedFeedback } = await supabaseAdmin
+      .from('hardware_opportunities')
+      .select('title, rejection_reason')
+      .eq('user_id', user.id)
+      .eq('status', 'rejected')
+      .not('rejection_reason', 'is', null)
+      .order('rejected_at', { ascending: false, nullsFirst: false })
+      .limit(6)
+
+    let learnedFeedback = ''
+    if (rejectedFeedback && rejectedFeedback.length > 0) {
+      learnedFeedback = rejectedFeedback
+        .filter(rf => rf.rejection_reason && rf.rejection_reason.trim())
+        .map(rf => `- ${rf.title}: ${rf.rejection_reason.trim()}`)
+        .join('\n')
+    }
+
     const minifiedPool = searchResults.slice(0, 5).map((r: any) => ({
       title: r.title, url: r.url, 
-      content: r.markdown ? r.markdown.substring(0, 2000) : r.description
+      content: r.markdown ? r.markdown.substring(0, 1500) : r.description
     }))
 
-    const prompt = opportunitiesPrompt(JSON.stringify(minifiedPool));
+    const prompt = opportunitiesPrompt(JSON.stringify(minifiedPool), learnedFeedback);
 
     const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
@@ -142,6 +160,7 @@ serve(async (req) => {
         messages: [{ role: 'user', content: prompt }],
         response_format: { type: 'json_object' },
         reasoning_effort: 'none',
+        reasoning_format: 'hidden',
         max_tokens: 800
       })
     })
@@ -197,19 +216,21 @@ serve(async (req) => {
       status: 'new'
     }))
 
-    const { error: insertErr } = await supabaseAdmin
+    const { data: insertedRows, error: insertErr } = await supabaseAdmin
       .from('hardware_opportunities')
       .insert(opsToInsert)
+      .select('id, title, url, project_fit, profile_match, acceptance_chance')
 
     if (insertErr) throw insertErr
 
     // 5. Append to morning_briefs
-    const briefItems = newOpps.map((o: any) => ({
+    const briefItems = (insertedRows || []).map((o: any) => ({
       title: o.title,
       url: o.url,
       source_name: 'Firecrawl Scout',
       summary: o.project_fit,
       type: 'opportunity',
+      hardware_opportunity_id: o.id,
       profile_match: o.profile_match,
       acceptance_chance: o.acceptance_chance
     }))
@@ -231,7 +252,7 @@ serve(async (req) => {
       })
     }
 
-    return new Response(JSON.stringify({ success: true, inserted: newOpps.length }), {
+    return new Response(JSON.stringify({ success: true, inserted: insertedRows?.length || 0 }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })

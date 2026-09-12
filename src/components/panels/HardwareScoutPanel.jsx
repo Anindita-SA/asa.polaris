@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { Cpu, ExternalLink, Plus, Check, Edit2, X, Save } from 'lucide-react'
+import DismissFeedbackModal from '../modals/DismissFeedbackModal'
+import { safeExternalUrl } from '../../lib/urlUtils'
 
 const HardwareScoutPanel = () => {
   const { user } = useAuth()
@@ -10,10 +12,13 @@ const HardwareScoutPanel = () => {
   const [editingId, setEditingId] = useState(null)
   const [editForm, setEditForm] = useState({})
   const [isScouting, setIsScouting] = useState(false)
+  const [dismissTargetOpp, setDismissTargetOpp] = useState(null)
 
   useEffect(() => {
-    fetchOpportunities()
-  }, [])
+    if (user?.id) {
+      fetchOpportunities()
+    }
+  }, [user?.id])
 
   const invokeScout = async () => {
     setIsScouting(true)
@@ -30,6 +35,7 @@ const HardwareScoutPanel = () => {
   }
 
   const fetchOpportunities = async () => {
+    if (!user?.id) return
     const { data } = await supabase
       .from('hardware_opportunities')
       .select(`
@@ -39,12 +45,14 @@ const HardwareScoutPanel = () => {
       .eq('user_id', user.id)
       .neq('status', 'rejected')
       .order('created_at', { ascending: false })
+      .limit(50)
     
     setOpportunities(data || [])
     setLoading(false)
   }
 
   const approveAndActivate = async (opp) => {
+    if (!user?.id) return
     // Optimistic update
     setOpportunities(prev => prev.filter(o => o.id !== opp.id))
 
@@ -55,6 +63,7 @@ const HardwareScoutPanel = () => {
         .from('tasks')
         .update({ status: 'active', quadrant: 'important_not_urgent' })
         .eq('id', opp.task_id)
+        .eq('user_id', user.id)
     } else {
       const { data: taskData } = await supabase
         .from('tasks')
@@ -77,6 +86,7 @@ const HardwareScoutPanel = () => {
       .from('hardware_opportunities')
       .update({ status: 'applied', task_id: newTaskId })
       .eq('id', opp.id)
+      .eq('user_id', user.id)
 
     if (newTaskId) {
       supabase.functions.invoke('generate-application-subtasks', {
@@ -98,14 +108,19 @@ const HardwareScoutPanel = () => {
     fetchOpportunities()
   }
 
-  const rejectOpportunity = async (oppId) => {
+  const rejectOpportunityWithFeedback = async (opp, reason) => {
     // Optimistic update
-    setOpportunities(prev => prev.filter(o => o.id !== oppId))
+    setOpportunities(prev => prev.filter(o => o.id !== opp.id))
 
     await supabase
       .from('hardware_opportunities')
-      .update({ status: 'rejected' })
-      .eq('id', oppId)
+      .update({ 
+        status: 'rejected',
+        rejection_reason: reason || 'Dismissed by user',
+        rejected_at: new Date().toISOString()
+      })
+      .eq('id', opp.id)
+      .eq('user_id', user.id)
     
     // Ensure state remains synchronized with backend
     fetchOpportunities()
@@ -117,6 +132,7 @@ const HardwareScoutPanel = () => {
   }
 
   const saveEdit = async () => {
+    if (!user?.id) return
     await supabase
       .from('hardware_opportunities')
       .update({
@@ -131,6 +147,7 @@ const HardwareScoutPanel = () => {
         acceptance_chance: editForm.acceptance_chance
       })
       .eq('id', editingId)
+      .eq('user_id', user.id)
     
     setEditingId(null)
     fetchOpportunities()
@@ -162,6 +179,7 @@ const HardwareScoutPanel = () => {
         <div className="grid gap-4 w-full">
           {opportunities.map((opp) => {
             const isEditing = editingId === opp.id
+            const validUrl = safeExternalUrl(opp.url)
             return (
               <div key={opp.id} className="glass p-5 rounded-xl border border-pulsar/40 flex flex-col gap-4">
                 <div className="flex justify-between items-start">
@@ -176,8 +194,8 @@ const HardwareScoutPanel = () => {
                     ) : (
                       <h3 className="text-xl font-display font-bold text-starlight flex items-center gap-2">
                         {opp.title}
-                        {opp.url && (
-                          <a href={opp.url} target="_blank" rel="noreferrer" className="text-nova/60 hover:text-pulsar">
+                        {validUrl && (
+                          <a href={validUrl} target="_blank" rel="noreferrer" className="text-nova/60 hover:text-pulsar">
                             <ExternalLink className="w-4 h-4" />
                           </a>
                         )}
@@ -315,7 +333,7 @@ const HardwareScoutPanel = () => {
                   ) : (
                     <>
                       <button
-                        onClick={() => rejectOpportunity(opp.id)}
+                        onClick={() => setDismissTargetOpp(opp)}
                         className="px-4 py-2 rounded-lg text-sm text-nova/60 hover:text-red-400 hover:bg-red-400/10 transition-colors"
                       >
                         Dismiss
@@ -339,6 +357,13 @@ const HardwareScoutPanel = () => {
           })}
         </div>
       )}
+
+      <DismissFeedbackModal 
+        isOpen={!!dismissTargetOpp}
+        onClose={() => setDismissTargetOpp(null)}
+        opportunity={dismissTargetOpp}
+        onConfirmDismiss={rejectOpportunityWithFeedback}
+      />
     </div>
   )
 }

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { offlineSelect, offlineInsert, offlineUpdate, offlineDelete } from '../../lib/offlineApi'
 import { useAuth } from '../../hooks/useAuth'
 import { XP } from '../../data/xpRewards'
 import { Flame, Archive, Plus, X, ArrowUp, Check, Zap, Dices } from 'lucide-react'
@@ -24,22 +25,32 @@ const FocusBoard = () => {
   const [generatedSteps, setGeneratedSteps] = useState([])
 
   useEffect(() => {
-    fetchFocus()
-    fetchBackburner()
-    fetchMilestones()
-  }, [])
+    if (user) {
+      fetchFocus()
+      fetchBackburner()
+      fetchMilestones()
+    }
+  }, [user])
 
   const fetchMilestones = async () => {
-    const { data } = await supabase.from('milestones').select('id, title').eq('user_id', user.id).neq('status', 'done')
+    if (!user) return
+    const { data: mData } = await offlineSelect('milestones');
+    const data = (mData || []).filter(m => m.user_id === user.id && m.status !== 'done')
     setMilestones(data || [])
   }
 
   const fetchFocus = async () => {
-    const { data } = await supabase.from('focus_items').select('*').eq('user_id', user.id).eq('status', 'active').order('position', { ascending: true }).order('created_at')
+    if (!user) return
+    const { data: fData } = await offlineSelect('focus_items');
+    const data = (fData || []).filter(f => f.user_id === user.id && f.status === 'active').sort((a,b) => {
+      if (a.position !== b.position) return a.position - b.position;
+      return new Date(a.created_at || 0) - new Date(b.created_at || 0);
+    })
     setFocusItems(data || [])
     const targetIds = (data || []).map(item => item.id)
     if (targetIds.length) {
-      const { data: subtasksRows } = await supabase.from('subtasks').select('*').eq('user_id', user.id).eq('parent_type', 'focus').in('parent_id', targetIds).order('position')
+      const { data: allSubtasks } = await offlineSelect('subtasks');
+      const subtasksRows = (allSubtasks || []).filter(s => s.user_id === user.id && s.parent_type === 'focus' && targetIds.includes(s.parent_id)).sort((a,b) => a.position - b.position)
       const grouped = {}
       ;(subtasksRows || []).forEach(row => {
         grouped[row.parent_id] = grouped[row.parent_id] || []
@@ -52,36 +63,31 @@ const FocusBoard = () => {
   }
 
   const fetchBackburner = async () => {
-    const { data } = await supabase.from('backburner').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
-    setBackburner(data || [])
-  }
-
-  const addFocus = async () => {
-    if (focusItems.length >= 3) return
-    if (!form.title) return
+    if (!user) return
+    const { data: bData } = await offlineSelect('backburner');
     const finalWhyNow = form.linkedMilestone ? `Milestone: ${form.linkedMilestone}` : form.why_now
-    await supabase.from('focus_items').insert({ title: form.title, category: form.category, why_now: finalWhyNow, position: focusItems.length, user_id: user.id })
+    await offlineInsert('focus_items', { id: crypto.randomUUID(), created_at: new Date().toISOString(), status: 'active', title: form.title, category: form.category, why_now: finalWhyNow, position: focusItems.length, user_id: user.id })
     setForm(f => ({ ...f, title: '', why_now: '', linkedMilestone: '' }))
     setShowModal(null)
     fetchFocus()
   }
 
   const completeFocus = async (item) => {
-    await supabase.from('focus_items').update({ status: 'done' }).eq('id', item.id)
+    await offlineUpdate('focus_items', { id: item.id }, { status: 'done' })
     await addXP(XP.FOCUS_COMPLETE)
     fetchFocus()
   }
 
   const sendToBackburner = async (item) => {
-    await supabase.from('focus_items').update({ status: 'backburned' }).eq('id', item.id)
-    await supabase.from('backburner').insert({ title: item.title, user_id: user.id, why_deferred: 'From active focus', context_snapshot: item.why_now })
+    await offlineUpdate('focus_items', { id: item.id }, { status: 'backburned' })
+    await offlineInsert('backburner', { id: crypto.randomUUID(), created_at: new Date().toISOString(), title: item.title, user_id: user.id, why_deferred: 'From active focus', context_snapshot: item.why_now })
     fetchFocus()
     fetchBackburner()
   }
 
   const addBackburner = async () => {
     if (!form.title) return
-    await supabase.from('backburner').insert({ title: form.title, why_deferred: form.why_deferred, context_snapshot: form.context_snapshot, revisit_after: form.revisit_after || null, user_id: user.id })
+    await offlineInsert('backburner', { id: crypto.randomUUID(), created_at: new Date().toISOString(), title: form.title, why_deferred: form.why_deferred, context_snapshot: form.context_snapshot, revisit_after: form.revisit_after || null, user_id: user.id })
     setForm(f => ({ ...f, title: '', why_deferred: '', context_snapshot: '', revisit_after: '' }))
     setShowModal(null)
     fetchBackburner()
@@ -89,14 +95,14 @@ const FocusBoard = () => {
 
   const promoteToFocus = async (item) => {
     if (focusItems.length >= 3) { alert('Max 3 active focus items. Complete or backburner one first.'); return }
-    await supabase.from('focus_items').insert({ title: item.title, category: 'academic', why_now: item.context_snapshot, user_id: user.id })
-    await supabase.from('backburner').delete().eq('id', item.id)
+    await offlineInsert('focus_items', { id: crypto.randomUUID(), created_at: new Date().toISOString(), status: 'active', position: focusItems.length, title: item.title, category: 'academic', why_now: item.context_snapshot, user_id: user.id })
+    await offlineDelete('backburner', { id: item.id })
     fetchFocus()
     fetchBackburner()
   }
 
   const deleteBackburner = async (id) => {
-    await supabase.from('backburner').delete().eq('id', id)
+    await offlineDelete('backburner', { id: id })
     fetchBackburner()
   }
 
@@ -124,13 +130,17 @@ const FocusBoard = () => {
 
   const saveSubtasks = async () => {
     if (!generatedSteps.length || !breakdownTarget) return
-    await supabase.from('subtasks').insert(generatedSteps.map((title, idx) => ({
+    const insertPromises = generatedSteps.map((title, idx) => offlineInsert('subtasks', {
+      id: crypto.randomUUID(),
+      created_at: new Date().toISOString(),
       user_id: user.id,
       parent_id: breakdownTarget.id,
       parent_type: 'focus',
       title,
       position: idx,
-    })))
+      completed: false
+    }))
+    await Promise.all(insertPromises)
     setBreakdownTarget(null)
     setTaskDescription('')
     setGeneratedSteps([])
@@ -138,7 +148,7 @@ const FocusBoard = () => {
   }
 
   const toggleSubtask = async (task) => {
-    await supabase.from('subtasks').update({ completed: !task.completed }).eq('id', task.id).eq('user_id', user.id)
+    await offlineUpdate('subtasks', { id: task.id }, { completed: !task.completed })
     fetchFocus()
   }
 
@@ -161,7 +171,7 @@ const FocusBoard = () => {
     
     // Update all positions
     for (let i = 0; i < newItems.length; i++) {
-      await supabase.from('focus_items').update({ position: i }).eq('id', newItems[i].id)
+      await offlineUpdate('focus_items', { id: newItems[i].id }, { position: i })
     }
   }
 

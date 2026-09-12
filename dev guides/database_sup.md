@@ -628,6 +628,11 @@
 | `application_draft` | `text` | Nullable |
 | `status` | `text` | Default `'new'` |
 | `task_id` | `uuid` | Nullable, References `tasks` |
+| `profile_match` | `int4` | Nullable |
+| `acceptance_chance` | `int4` | Nullable |
+| `rejection_reason` | `text` | Nullable |
+| `rejected_at` | `timestamptz` | Nullable |
+| `is_previous` | `bool` | Default `false` |
 | `created_at` | `timestamptz` | Default `now()` |
 
 ## Table `day_plan_blocks`
@@ -837,3 +842,22 @@
 | `items` | `jsonb` | Nullable |
 | `seen` | `bool` | Default `false` |
 | `created_at` | `timestamptz` | Default `now()` |
+
+## Table `outreach_targets`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `id` | `uuid` | Primary, Default `gen_random_uuid()` |
+| `user_id` | `uuid` | Not Null |
+| `name` | `text` | Not Null |
+| `institution` | `text` | Not Null |
+| `email` | `text` | Nullable |
+| `status` | `text` | Not Null, Default `'researching'` |
+| `fit_brief` | `text` | Nullable |
+| `draft_text` | `text` | Nullable |
+| `source_papers` | `text` | Nullable |
+| `sent_date` | `date` | Nullable |
+| `follow_up_due` | `date` | Nullable |
+| `created_at` | `timestamptz` | Nullable, Default `now()` |

@@ -1,5 +1,50 @@
+# Changelog
 
-## [2026-09-08] Task Duplication & Reminders Fixes
+## [2026-09-12] Recurrent Task Lifecycle, Triage Stability & PWA v1.1.0
+- **App Version Bump (v1.1.0)**: Bumped version in `package.json` to trigger PWA service worker refresh for installed applications.
+- **Recurrent Task Recycling**: Refactored `useRecurringTasks.js` to recycle completed task rows (`status === 'done'`) back to `active`, increment `completion_count`, append `completion_dates`, and reset `skip_count: 0`.
+- **Offline Dexie Store Integration**: Integrated `useRecurringTasks.js` with Dexie IndexedDB via `offlineSelect`, `offlineInsert`, and `offlineUpdate` with full table scope.
+- **Safe Client Whitelist**: Expanded `safe_supabase.js` read-mostly allowed update keys for `tasks` to permit `skip_count`, `status`, `completion_count`, `completion_dates`, and `source_template_id`.
+- **Triage Crash Prevention**: Replaced `.delete()` calls in `task_triage.js` with safe status archiving (`status = 'done'`) when removing duplicate inbox items.
+- **Database Cleanup**: Executed `scripts/cleanup_duplicates.js` to merge existing duplicate IELTS and routine tasks in the database into single canonical rows with merged completion histories.
+- **Triage Vitest Suite**: Added `scripts/task_triage.test.js` covering duplicate detection, inbox unique item resolution, skip count incrementation, and duplicate merging.
+- **Ingestion Deduplication**: Added pre-insert active task duplicate filtering in `side_quests.js` and `weekly_audit.js`.
+
+## [2026-09-12] Phase 2: Task Triage Ecosystem Offline Migration
+- **Dexie v2 Schema Expansion**: Upgraded local IndexedDB schema to version 2, adding `focus_items`, `backburner`, `subtasks`, `recurring_task_templates`, `hardware_opportunities`, and `eulogies`.
+- **Sync Manager Orchestration**: Added all 6 triage tables to `syncManager.js` background pull and online queue replaying.
+- **Task Matrix & Spatial Canvas**: Migrated `TaskMatrix.jsx` and `MatrixCanvasView.jsx` from direct Supabase network calls to `offlineApi` (offline drag & drop, task creation, quadrant assignment, deletion, and WSJF duration persistence).
+- **Focus Board & Backburner**: Migrated `FocusBoard.jsx` to `offlineApi` for active focus slots, subtasks, backburner deferrals, and local drag-and-drop position management with auth state null guards.
+- **Recurring Task Generation**: Converted `useRecurringTasks.js` to run against local IndexedDB templates, enabling task generation and recycling while offline.
+- **Anchor & Eulogies**: Migrated `AnchorPanel.jsx` eulogy queries and inserts to `offlineApi`.
+- **Pre-Flight Workspace Cleanliness**: Moved untracked scratch scripts and payload backups to `private_backups/`.
+
+- **Reach Out Panel**: Added a new "Reach Out" subtab inside the existing Orbit panel (`FitnessBridge.jsx`), complete with status-ordered list view, color-coded solid status badges, follow-up date tracking, and add/edit target modal.
+- **Batch JSON Importer**: Built a collapsible batch import tool at the top of the Reach Out panel with JSON validation, importing outreach candidates with `status = 'drafted'`.
+- **Database Schema & RLS**: Created `outreach_targets` table with RLS enabled via migration `20260911130000_create_outreach_targets.sql`, updated `docs/DATABASE_SCHEMA.md` and `dev guides/database_sup.md`.
+- **Automation & Scripts**: Added `'outreach_targets'` to `ALLOWED_TABLES` in `safe_supabase.js` and built `scripts/agent_outreach_insert.js` for automated ingestion during weekly cold email cron routines.
+
+- **D3 Physics Optimization**: Removed infinite alphaTarget loop in `ConstellationGraph.jsx` to allow the force simulation to naturally settle; added `isActive` prop so physics simulation is completely paused when navigating to other views (eliminating background 60fps CPU churn).
+- **Code Splitting & Bundling**: Implemented `React.lazy` and `Suspense` across root routes (`App.jsx`), all 8 dashboard panel views (`Dashboard.jsx`), and day guide subtabs (`DayGuideView.jsx`). Added Vite `manualChunks` splitting large vendor libraries (`vendor-react`, `vendor-supabase`, `vendor-d3`, `vendor-motion`, `vendor-icons`).
+- **Brief News Flagging**: Added a "Save to Tasks" bookmark action for news items in `DayBriefView.jsx`, saving them to the Strategic quadrant and marking them as saved in `morning_briefs`.
+- **Query & Network Optimization**: Removed 2-second background polling loop in `useMorningSequence.js`. Added missing `user_id` filters and enforced `.limit()` bounds across `DayGuideView.jsx`, `HardwareScoutPanel.jsx`, and `useRecurringTasks.js`.
+- **Auth & State Optimization**: Memoized `useAuth` context value and callbacks to prevent cascading re-renders. Disabled redundant `seedUserData` DB checks for existing authenticated users. Reduced `Starfield.jsx` GPU blur compositing nebulae from 5 to 3.
+- **Security Hardening**: Created `safeExternalUrl` sanitizer for all outgoing links and ensured 100% `user_id` query scoping across all client mutations.
+
+## [2026-09-10] Self-Correcting Opportunity Scout & Dismiss with Feedback
+- **Scout Precision**: Updated `opportunitiesPrompt` in `_shared/personal_prompts.ts` with strict positive/negative whitelist checks on nationality and regional eligibility (specifically verifying Bangladesh is explicitly on targeted region lists).
+- **Adaptive Feedback Engine**: Scout edge function now queries the user's latest rejection feedback from `hardware_opportunities` and injects learned negative constraints into the prompt to prevent recurring bad suggestions.
+- **Dismiss with Feedback UI**: Created `DismissFeedbackModal.jsx` and integrated it across both `HardwareScoutPanel.jsx` and `DayBriefView.jsx`, enabling one-click dismiss reasons with optional custom notes.
+- **Database Schema**: Added `rejection_reason` and `rejected_at` columns to `hardware_opportunities` table via migration `20260910141500_add_rejection_feedback.sql`.
+
+## [2026-09-10] Morning Brief Crash Fix & Daily Cron Setup
+- **Bugfix**: Added `reasoning_format: 'hidden'` to all three Groq API calls (`generate-morning-brief`, `scout-opportunities`, `generate-application-subtasks`). Groq now requires this parameter when using `json_object` response mode with Qwen 3.6, otherwise the API returns a 400 error.
+- **Cron**: Created `pg_cron` migration (`20260910073000_add_daily_cron_jobs.sql`) to schedule daily automated runs: morning brief at 06:00 IST and opportunity scout at 06:15 IST. Previously, neither function had any automated trigger.
+
+## [2026-09-09] Offline-First Architecture & Timeline Tidying
+- **Architecture**: Designed Phase 1 of Offline-First architecture using Dexie.js (IndexedDB). Will cache the 6 critical daily-driver tables (tasks, daily_tasks, goals, milestones, day_plan_blocks, profiles) locally, with a sync queue for offline mutations and last-write-wins conflict resolution.
+- **Timeline Management**: Tidied up the timeline context. Archived the REEF Marine Conservation Internship task (doesn't fit P0 Master's strategy) and rolled forward deadlines for overdue P0/P1 tasks (Agri Solar Survey Paper phases and CHAARG PCB documentation) to appropriate dates in September.
+
 - **Duplicate Tasks Bug**: Fixed `useRecurringTasks.js` to correctly identify and prevent the creation of duplicate recurring tasks when an active task from a previous day is still pending.
 - **Task Reminders UI**: Updated `RemindersPanel.jsx` to explicitly show tasks tagged with the `reminders` category in a dedicated "Task Reminders" section.
 - **Matrix Polaris Filter**: Added a toggle to `MatrixCanvasView.jsx` to quickly hide "Polaris Edit / Building" tasks from the canvas view.

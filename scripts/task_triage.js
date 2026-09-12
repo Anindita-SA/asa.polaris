@@ -1,7 +1,94 @@
 import 'dotenv/config';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { createSafeClient } from './lib/safe_supabase.js';
+
+/**
+ * Deduplicates unsorted tasks against active tasks and within the unsorted batch.
+ *
+ * @param {Array} unsortedTasks - List of unsorted tasks to triage
+ * @param {Array} allActiveTasks - List of active/scheduled/inbox tasks from DB
+ * @returns {{ uniqueTasks: Array, duplicateTaskIds: Array }}
+ */
+export function deduplicateTasks(unsortedTasks = [], allActiveTasks = []) {
+  const unsortedIdSet = new Set(unsortedTasks.map(u => u.id));
+  const existingTitles = new Set(
+    (allActiveTasks || [])
+      .filter(t => !unsortedIdSet.has(t.id))
+      .map(t => (t.title || '').trim().toLowerCase())
+      .filter(Boolean)
+  );
+
+  const seenTitles = new Set(existingTitles);
+  const duplicateTaskIds = [];
+  const uniqueTasks = [];
+
+  for (const t of unsortedTasks) {
+    const cleanTitle = (t.title || '').trim().toLowerCase();
+    if (seenTitles.has(cleanTitle)) {
+      duplicateTaskIds.push(t.id);
+    } else {
+      seenTitles.add(cleanTitle);
+      uniqueTasks.push(t);
+    }
+  }
+
+  return { uniqueTasks, duplicateTaskIds };
+}
+
+/**
+ * Marks duplicate task IDs with status 'done'.
+ *
+ * @param {Object} supabase - Supabase client
+ * @param {string} uid - User ID
+ * @param {Array<string>} duplicateIds - IDs of duplicate tasks to resolve
+ * @param {boolean} isDryRun - Whether this is a dry run
+ * @returns {Promise<{ updatedCount: number }>}
+ */
+export async function resolveDuplicates(supabase, uid, duplicateIds = [], isDryRun = false) {
+  if (!duplicateIds || duplicateIds.length === 0) return { updatedCount: 0 };
+  console.log(`Found ${duplicateIds.length} duplicate tasks in inbox. Marking duplicates as done...`);
+  if (!isDryRun) {
+    const { error } = await supabase.from('tasks').update({ status: 'done' }).in('id', duplicateIds).eq('user_id', uid);
+    if (error) throw error;
+  }
+  return { updatedCount: duplicateIds.length };
+}
+
+/**
+ * Increments skip_count for triaged tasks.
+ *
+ * @param {Object} supabase - Supabase client
+ * @param {string} uid - User ID
+ * @param {Array} tasks - Triaged tasks
+ * @param {boolean} isDryRun - Whether this is a dry run
+ * @returns {Promise<number>}
+ */
+export async function incrementSkipCounts(supabase, uid, tasks = [], isDryRun = false) {
+  if (!tasks || tasks.length === 0) return 0;
+  const skipPromises = tasks.map(async (task) => {
+    if (isDryRun) {
+      console.log(`[DRY RUN] Would increment skip_count for task ${task.id}`);
+      return true;
+    }
+    const currentSkipCount = task.skip_count || 0;
+    const { error } = await supabase
+      .from('tasks')
+      .update({ skip_count: currentSkipCount + 1 })
+      .eq('id', task.id)
+      .eq('user_id', uid);
+    if (error) {
+      console.error(`Failed to increment skip_count for task ${task.id}:`, error);
+      return false;
+    }
+    return true;
+  });
+  const skipResults = await Promise.all(skipPromises);
+  const skipSuccessCount = skipResults.filter(Boolean).length;
+  console.log(`Incremented skip_count for ${skipSuccessCount}/${tasks.length} triaged tasks.`);
+  return skipSuccessCount;
+}
 
 const OLLAMA_URL = 'http://127.0.0.1:11434/api/generate';
 const MODEL = 'qwen2.5:1.5b';
@@ -17,6 +104,17 @@ async function checkOllama() {
 }
 
 async function run() {
+  try {
+    const res = await fetch(process.env.VITE_SUPABASE_URL, { method: 'HEAD' });
+    if (!res.ok && res.status !== 405 && res.status !== 404 && res.status !== 200) {
+      console.warn("No internet or Supabase unreachable - skipping triage. Will retry next scheduled run.");
+      process.exit(0);
+    }
+  } catch (err) {
+    console.warn("No internet or Supabase unreachable - skipping triage. Will retry next scheduled run.");
+    process.exit(0);
+  }
+
   const isDryRun = process.argv.includes('--dry-run');
   console.log(`Starting Local LLM Task Triage... (Dry Run: ${isDryRun})`);
 
@@ -44,7 +142,6 @@ async function run() {
       .from('tasks')
       .select('id, title')
       .eq('user_id', uid)
-      
       .ilike('title', '%#polaris%');
       
     if (polarisErr) throw polarisErr;
@@ -56,24 +153,44 @@ async function run() {
         if (isDryRun) {
            console.log(`[DRY RUN] Would update task ${pt.id} to title: "${cleanTitle}", category: "polaris"`);
         } else {
-           await supabase.from('tasks').update({ title: cleanTitle, category: 'polaris' }).eq('id', pt.id);
+           await supabase.from('tasks').update({ title: cleanTitle, category: 'polaris' }).eq('id', pt.id).eq('user_id', uid);
         }
       }
     }
 
     // 1. Fetch unsorted tasks
-    const { data: unsortedTasks, error: taskErr } = await supabase
+    let { data: unsortedTasks, error: taskErr } = await supabase
       .from('tasks')
-      .select('id, title, notes, deadline, estimated_minutes, skip_count')
+      .select('id, title, notes, deadline, estimated_minutes, skip_count, category')
       .eq('user_id', uid)
       .is('quadrant', null)
-      
       .in('status', ['inbox', 'active']);
 
     if (taskErr) throw taskErr;
 
     if (!unsortedTasks || unsortedTasks.length === 0) {
       console.log('No unsorted tasks found. Exiting.');
+      return;
+    }
+
+    // 1a. Deduplicate tasks (prevent duplicates of existing active/scheduled/inbox tasks)
+    const { data: allActiveTasks } = await supabase
+      .from('tasks')
+      .select('id, title')
+      .eq('user_id', uid)
+      .neq('status', 'done');
+      
+    const { uniqueTasks, duplicateTaskIds } = deduplicateTasks(unsortedTasks, allActiveTasks);
+
+    if (duplicateTaskIds.length > 0) {
+      await resolveDuplicates(supabase, uid, duplicateTaskIds, isDryRun);
+    }
+
+    unsortedTasks = uniqueTasks;
+    unsortedTasks = unsortedTasks.filter(t => t.category !== 'habits');
+
+    if (unsortedTasks.length === 0) {
+      console.log('All unsorted tasks were duplicates or habits. Exiting.');
       return;
     }
 
@@ -198,7 +315,7 @@ async function run() {
         updateChain.eq('id', item.id);
         return true;
       } else {
-        const { error } = await updateChain.eq('id', item.id);
+        const { error } = await updateChain.eq('id', item.id).eq('user_id', uid);
         if (error) {
           console.error(`Error updating task ${item.id}:`, error);
           return false;
@@ -219,26 +336,7 @@ async function run() {
     console.log(`Triage complete. Successfully processed ${isDryRun ? parsed.length : successCount} tasks.`);
 
     // 5b. Increment skip_count for all triaged tasks (surfaced without action = a skip)
-    const skipPromises = unsortedTasks.map(async (task) => {
-      if (isDryRun) {
-        console.log(`[DRY RUN] Would increment skip_count for task ${task.id}`);
-        return true;
-      }
-      const currentSkipCount = task.skip_count || 0;
-      const { error } = await supabase
-        .from('tasks')
-        .update({ skip_count: currentSkipCount + 1 })
-        .eq('id', task.id)
-        .eq('user_id', uid);
-      if (error) {
-        console.error(`Failed to increment skip_count for task ${task.id}:`, error);
-        return false;
-      }
-      return true;
-    });
-    const skipResults = await Promise.all(skipPromises);
-    const skipSuccessCount = skipResults.filter(Boolean).length;
-    console.log(`Incremented skip_count for ${skipSuccessCount}/${unsortedTasks.length} triaged tasks.`);
+    await incrementSkipCounts(supabase, uid, unsortedTasks, isDryRun);
 
     // 6. Output polaris tasks to docs/_FEATURE_PROPOSALS.md
     const { data: devTasks, error: devErr } = await supabase
@@ -246,7 +344,6 @@ async function run() {
       .select('id, title, notes, status')
       .eq('user_id', uid)
       .eq('category', 'polaris')
-      
       .neq('status', 'done');
 
     if (devErr) throw devErr;
@@ -273,4 +370,14 @@ async function run() {
     process.exit(1);
   }
 }
-run();
+
+export { run };
+
+const isDirectExecution = process.argv[1] && (
+  process.argv[1] === fileURLToPath(import.meta.url) ||
+  path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url))
+);
+
+if (isDirectExecution) {
+  run();
+}

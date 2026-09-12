@@ -30,4 +30,17 @@ export default defineConfig({
     })
   ],
   base: '/asa.polaris/',
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-supabase': ['@supabase/supabase-js'],
+          'vendor-d3': ['d3'],
+          'vendor-motion': ['framer-motion'],
+          'vendor-icons': ['lucide-react']
+        }
+      }
+    }
+  }
 })

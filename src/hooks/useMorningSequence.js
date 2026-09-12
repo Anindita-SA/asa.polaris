@@ -56,28 +56,16 @@ export function useMorningSequence() {
 
   useEffect(() => {
     checkSequence()
-    
-    // Optional: set up an interval to poll if we are stuck in 'loading' 
-    // because useMorningBrief might finish fetching after this mounts.
-    const interval = setInterval(() => {
-      setStage((currentStage) => {
-        if (currentStage === 'loading') {
-          checkSequence()
-        }
-        return currentStage
-      })
-    }, 2000)
-
-    return () => clearInterval(interval)
   }, [checkSequence])
 
   const markSparkSeen = async () => {
-    if (!briefId) return
+    if (!user?.id || !briefId) return
     
     const { error } = await supabase
       .from('morning_briefs')
       .update({ seen: true })
       .eq('id', briefId)
+      .eq('user_id', user.id)
       
     if (!error) {
       setStage('brief')
