@@ -1,10 +1,10 @@
 # Changelog
 
-## [2026-09-12] Day Guide Crash Fixes, Recurrent Task Lifecycle & PWA v1.1.1
-- **Day Guide View Crash Fix**: Resolved fatal ReferenceError in `MatrixCanvasView.jsx` caused by missing `useAuth` import and missing `saveLocalCoords` definition.
-- **Offline API Compatibility in DayChunker**: Removed chained `.select()` / `.single()` calls on `offlineInsert`, ensured unique UUID generation on preset blocks, and migrated delete/toggle handlers to `offlineDelete` and `offlineUpdate`.
-- **WSJF Scoring Auth Dependency**: Added `user?.id` to `useWSJFScore` dependency array to eliminate race conditions on initial authentication.
-- **App Version Bump (v1.1.1)**: Bumped version in `package.json` to trigger PWA service worker refresh for installed applications.
+## [2026-09-12] Needs Attention WSJF Prioritization, Day Guide Fixes & PWA v1.1.2
+- **Unified Needs Attention WSJF Prioritization**: Refactored `RemindersPanel.jsx` to unify overdue candidates across all categories (system nudges, overdue tasks/reminders, incomplete habits, and overdue contacts) into a single WSJF-ranked queue.
+- **Cognitive Load & Max-2 Rule**: Strictly capped the visible Needs Attention container to the top 2 highest-priority items with a subtle remaining items indicator (`(+X more in sections below)`), eliminating task initiation paralysis.
+- **Refined Dark Academia Styling**: Replaced aggressive full-container red pulsing with clean glassmorphic cards and dedicated category badge indicators (`NUDGE`, `REMINDER`, `TASK`, `HABIT`, `REACH OUT`).
+- **App Version Bump (v1.1.2)**: Bumped version in `package.json` to trigger PWA service worker refresh for installed applications.
 - **Recurrent Task Recycling**: Refactored `useRecurringTasks.js` to recycle completed task rows (`status === 'done'`) back to `active`, increment `completion_count`, append `completion_dates`, and reset `skip_count: 0`.
 - **Offline Dexie Store Integration**: Integrated `useRecurringTasks.js` with Dexie IndexedDB via `offlineSelect`, `offlineInsert`, and `offlineUpdate` with full table scope.
 - **Safe Client Whitelist**: Expanded `safe_supabase.js` read-mostly allowed update keys for `tasks` to permit `skip_count`, `status`, `completion_count`, `completion_dates`, and `source_template_id`.

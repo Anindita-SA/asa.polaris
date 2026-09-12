@@ -32,6 +32,14 @@ const TIER_COLORS = {
   yard: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/30',
 }
 
+const TAG_BADGE_COLORS = {
+  NUDGE: 'text-amber-400 bg-amber-400/10 border-amber-400/30',
+  REMINDER: 'text-rose-400 bg-rose-400/10 border-rose-400/30',
+  TASK: 'text-[#f5a623] bg-[#f5a623]/10 border-[#f5a623]/30',
+  HABIT: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/30',
+  'REACH OUT': 'text-sky-400 bg-sky-400/10 border-sky-400/30',
+}
+
 const TINY_CUES = [
   "Open the file and read the title out loud.",
   "Put your hands on the keyboard. Don't type yet.",
@@ -212,15 +220,103 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
 
   const todayStr = new Date().toLocaleDateString('en-CA')
 
-  // Overdue items aggregation
-  const overdueNudges = nudges.filter(n => n.active && n.isDue)
-  const overdueReminders = reminderTasks.filter(t => t.deadline && t.deadline <= todayStr)
-  const overdueContacts = contacts.filter(c => c.isOverdue)
+  // Unified Needs Attention Items
+  const needsAttentionItems = []
+  const seenAttentionIds = new Set()
+
+  // 1. Active due system nudges (!n.isTask && n.active && n.isDue)
+  nudges.forEach(n => {
+    if (!n.isTask && n.active && n.isDue) {
+      const key = `nudge-${n.id}`
+      if (!seenAttentionIds.has(key)) {
+        seenAttentionIds.add(key)
+        needsAttentionItems.push({
+          id: n.id,
+          title: n.title,
+          type: 'nudge',
+          tag: 'NUDGE',
+          score: 3.8,
+          action: () => {
+            dismissNudge(n.id)
+            celebrate()
+          }
+        })
+      }
+    }
+  })
+
+  // 2. Overdue tasks/reminders (t.deadline && t.deadline <= todayStr or (t.skip_count || 0) >= 3)
+  tasks.forEach(t => {
+    if (t.category !== 'habits' && ((t.deadline && t.deadline <= todayStr) || (t.skip_count || 0) >= 3)) {
+      const key = `task-${t.id}`
+      if (!seenAttentionIds.has(key) && !seenAttentionIds.has(t.id)) {
+        seenAttentionIds.add(key)
+        seenAttentionIds.add(t.id)
+        needsAttentionItems.push({
+          id: t.id,
+          title: t.title,
+          type: 'task',
+          tag: t.category === 'reminders' ? 'REMINDER' : 'TASK',
+          score: computeWSJFScore(t).score,
+          action: () => markTaskDone(t.id)
+        })
+      }
+    }
+  })
+
+  // 3. Incomplete habits (category === 'habits' and today not in completion_dates)
+  habitTasks.forEach(t => {
+    const dates = Array.isArray(t.completion_dates) ? t.completion_dates : []
+    if (!dates.includes(todayStr)) {
+      const key = `habit-${t.id}`
+      if (!seenAttentionIds.has(key) && !seenAttentionIds.has(t.id)) {
+        seenAttentionIds.add(key)
+        seenAttentionIds.add(t.id)
+        needsAttentionItems.push({
+          id: t.id,
+          title: t.title,
+          type: 'habit',
+          tag: 'HABIT',
+          score: 3.5,
+          action: () => completeHabitForToday(t)
+        })
+      }
+    }
+  })
+
+  // 4. Overdue contacts (c.isOverdue)
+  contacts.forEach(c => {
+    if (c.isOverdue) {
+      const key = `contact-${c.id}`
+      if (!seenAttentionIds.has(key) && !seenAttentionIds.has(c.id)) {
+        seenAttentionIds.add(key)
+        seenAttentionIds.add(c.id)
+        const score = c.tier === 'hearth' ? 4.0 : c.tier === 'parlour' ? 3.6 : c.tier === 'porch' ? 3.2 : 2.8
+        needsAttentionItems.push({
+          id: c.id,
+          title: c.name,
+          type: 'contact',
+          tag: 'REACH OUT',
+          score,
+          action: () => {
+            markReachedOut(c.id)
+            celebrate()
+          }
+        })
+      }
+    }
+  })
+
+  // Sort strictly by score descending
+  needsAttentionItems.sort((a, b) => b.score - a.score)
+
+  // Slice to max 2 items
+  const visibleAttention = needsAttentionItems.slice(0, 2)
+
   const incompleteHabits = habitTasks.filter(t => {
     const dates = Array.isArray(t.completion_dates) ? t.completion_dates : []
     return !dates.includes(todayStr)
   })
-  const hasOverdue = overdueNudges.length + overdueReminders.length + overdueContacts.length + incompleteHabits.length > 0
 
   const toggleSection = (key) => setCollapsedSections(prev => ({ ...prev, [key]: !prev[key] }))
 
@@ -243,13 +339,6 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
 
   return (
     <div className="relative w-full h-full flex flex-col">
-      <style>{`
-        @keyframes shimmer {
-          0%, 100% { box-shadow: 0 0 8px rgba(239, 68, 68, 0.2); }
-          50% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.5), 0 0 40px rgba(239, 68, 68, 0.1); }
-        }
-      `}</style>
-
       {/* Reminders Header */}
       <div className="p-4 pr-14 flex items-center justify-between border-b border-pulsar/30">
         <h3 className="text-lg font-display text-starlight">Reminders</h3>
@@ -373,55 +462,45 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
 
         </div>
 
-        {/* Overdue Zone */}
-        {hasOverdue && (
-          <div className="relative overflow-hidden border border-red-500/40 rounded-xl p-3 bg-red-900/20 space-y-2" style={{ animation: `shimmer ${3 + Math.random() * 4}s ease-in-out infinite` }}>
-            <h4 className="text-xs uppercase tracking-wider font-mono text-red-400 font-bold flex items-center gap-2">
-              <Zap className="w-3 h-3" /> Needs Attention
-            </h4>
+        {/* Needs Attention Section */}
+        {needsAttentionItems.length > 0 && (
+          <div className="glass border border-pulsar/40 rounded-xl p-3 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs uppercase tracking-wider font-mono text-rose-400 font-bold flex items-center gap-2">
+                <Zap className="w-3 h-3" /> Needs Attention
+              </h4>
+              {needsAttentionItems.length > 2 && (
+                <span className="text-[11px] font-mono text-nova/60">
+                  (+{needsAttentionItems.length - 2} more in sections below)
+                </span>
+              )}
+            </div>
             <div className="space-y-1.5">
-              {overdueNudges.map(n => (
-                <div key={`nudge-${n.id}`} className="flex items-center justify-between bg-void/40 rounded-lg p-2 border border-red-500/20">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-mono text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded">NUDGE</span>
-                    <span className="text-xs text-starlight">{n.title}</span>
+              {visibleAttention.map(item => (
+                <div
+                  key={`${item.type}-${item.id}`}
+                  className="flex items-center justify-between bg-void/40 rounded-lg p-2 border border-pulsar/20 hover:border-pulsar/40 transition-colors"
+                >
+                  <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
+                    <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded border shrink-0 ${TAG_BADGE_COLORS[item.tag] || 'text-nova/60 bg-nova/10 border-nova/30'}`}>
+                      {item.tag}
+                    </span>
+                    <span className="text-xs text-starlight truncate" title={item.title}>
+                      {item.title}
+                    </span>
                   </div>
-                  <button onClick={() => { dismissNudge(n.id); celebrate() }} className="h-6 w-6 rounded-full bg-blue-900/20 flex items-center justify-center text-nova/60 hover:text-emerald shrink-0">
-                    <Check className="w-3 h-3" />
-                  </button>
-                </div>
-              ))}
-              {overdueReminders.map(t => (
-                <div key={`rem-${t.id}`} className="flex items-center justify-between bg-void/40 rounded-lg p-2 border border-red-500/20">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-mono text-rose-400 bg-rose-400/10 px-1.5 py-0.5 rounded">REMINDER</span>
-                    <span className="text-xs text-starlight truncate max-w-[160px]">{t.title}</span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-[10px] font-mono text-nova/60 bg-stardust/40 px-1.5 py-0.5 rounded border border-pulsar/20">
+                      WSJF {item.score}
+                    </span>
+                    <button
+                      onClick={item.action}
+                      aria-label={`Complete ${item.title}`}
+                      className="h-6 w-6 rounded-full bg-blue-900/20 flex items-center justify-center text-nova/60 hover:text-emerald hover:bg-emerald/20 hover:border-emerald/40 border border-transparent transition-all shrink-0"
+                    >
+                      <Check className="w-3 h-3" />
+                    </button>
                   </div>
-                  <button onClick={() => markTaskDone(t.id)} className="h-6 w-6 rounded-full bg-blue-900/20 flex items-center justify-center text-nova/60 hover:text-emerald shrink-0">
-                    <Check className="w-3 h-3" />
-                  </button>
-                </div>
-              ))}
-              {incompleteHabits.map(t => (
-                <div key={`habit-${t.id}`} className="flex items-center justify-between bg-void/40 rounded-lg p-2 border border-red-500/20">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-mono text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded">HABIT</span>
-                    <span className="text-xs text-starlight truncate max-w-[160px]">{t.title}</span>
-                  </div>
-                  <button onClick={() => completeHabitForToday(t)} className="h-6 w-6 rounded-full bg-blue-900/20 flex items-center justify-center text-nova/60 hover:text-emerald shrink-0">
-                    <Check className="w-3 h-3" />
-                  </button>
-                </div>
-              ))}
-              {overdueContacts.map(c => (
-                <div key={`contact-${c.id}`} className="flex items-center justify-between bg-void/40 rounded-lg p-2 border border-red-500/20">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-mono text-sky-400 bg-sky-400/10 px-1.5 py-0.5 rounded">REACH OUT</span>
-                    <span className="text-xs text-starlight">{c.name}</span>
-                  </div>
-                  <button onClick={() => { markReachedOut(c.id); celebrate() }} className="h-6 w-6 rounded-full bg-blue-900/20 flex items-center justify-center text-nova/60 hover:text-emerald shrink-0">
-                    <Check className="w-3 h-3" />
-                  </button>
                 </div>
               ))}
             </div>
