@@ -51,7 +51,7 @@ function formatDur(mins) {
 }
 
 // Standalone Auditor Panel
-function AuditorPanel() {
+function AuditorPanel({ onAuditDone }) {
   const { user } = useAuth();
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -178,6 +178,7 @@ function AuditorPanel() {
       pushLog(`Audit complete - ${todayPickIds.length} priority tasks curated (${formatDur(capacityMins)} total).`, 'success');
       await fetchTasks();
       setAuditDone(true);
+      if (onAuditDone) onAuditDone();
     } catch (err) {
       console.error('Auditor error:', err);
       pushLog('Audit failed - check console for details.', 'error');

@@ -1,6 +1,6 @@
-﻿import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
-import { offlineSelect, offlineInsert, offlineUpdate, offlineDelete } from '../lib/offlineApi';;
+import { offlineSelect, offlineInsert, offlineUpdate, offlineDelete } from '../lib/offlineApi';
 import { 
   Clock, 
   Plus, 
@@ -92,14 +92,18 @@ export default function DayChunker({ tasks = [], selectedDay = 'today', onRefres
 
         const defaultRows = PRESET_TIME_BLOCKS.map(b => ({
           ...b,
+          id: crypto.randomUUID(),
+          created_at: new Date().toISOString(),
           log_date: logDateStr,
+          done: false,
           ...(userId ? { user_id: userId } : {})
         }));
 
-        const { data: inserted } = await offlineInsert('day_plan_blocks', defaultRows)
-          .select();
+        for (const row of defaultRows) {
+          await offlineInsert('day_plan_blocks', row);
+        }
 
-        setBlocks(inserted || []);
+        setBlocks(defaultRows);
       } else {
         setBlocks(data);
       }
@@ -123,6 +127,8 @@ export default function DayChunker({ tasks = [], selectedDay = 'today', onRefres
       const userId = userData?.user?.id;
 
       const newBlock = {
+        id: crypto.randomUUID(),
+        created_at: new Date().toISOString(),
         title: newTitle.trim(),
         start_time: newStartTime,
         duration_minutes: parseInt(newDuration, 10),
@@ -132,19 +138,18 @@ export default function DayChunker({ tasks = [], selectedDay = 'today', onRefres
         ...(userId ? { user_id: userId } : {})
       };
 
-      const { data, error } = await offlineInsert('day_plan_blocks', [newBlock])
-        .select()
-        .single();
+      const { error } = await offlineInsert('day_plan_blocks', newBlock);
 
       if (error) throw error;
 
-      setBlocks(prev => [...prev, data].sort((a, b) => a.start_time.localeCompare(b.start_time)));
+      setBlocks(prev => [...prev, newBlock].sort((a, b) => a.start_time.localeCompare(b.start_time)));
       setNewTitle('');
       setShowAddModal(false);
     } catch (err) {
       console.error('Error creating block:', err);
     }
   };
+  const handleAddBlock = handleCreateBlock;
 
   const openForGap = (gapStart, gapDuration) => {
     setNewStartTime(gapStart);
@@ -155,15 +160,12 @@ export default function DayChunker({ tasks = [], selectedDay = 'today', onRefres
 
   const assignTaskToBlock = async (blockId, task) => {
     try {
-      const { error } = await supabase
-        .from('day_plan_blocks')
-        .update({
-          title: task.title,
-          source_type: 'task',
-          source_id: task.id,
-          duration_minutes: task.estimated_minutes || 60
-        })
-        .eq('id', blockId);
+      const { error } = await offlineUpdate('day_plan_blocks', { id: blockId }, {
+        title: task.title,
+        source_type: 'task',
+        source_id: task.id,
+        duration_minutes: task.estimated_minutes || 60
+      });
 
       if (error) throw error;
       fetchBlocks();
@@ -183,6 +185,7 @@ export default function DayChunker({ tasks = [], selectedDay = 'today', onRefres
       fetchBlocks();
     }
   };
+  const handleToggleBlockDone = toggleBlockDone;
 
   const deleteBlock = async (blockId) => {
     setBlocks(prev => prev.filter(b => b.id !== blockId));
@@ -193,6 +196,7 @@ export default function DayChunker({ tasks = [], selectedDay = 'today', onRefres
       fetchBlocks();
     }
   };
+  const handleDeleteBlock = deleteBlock;
 
   // Timeline Items & Gap Detection
   const timelineItems = useMemo(() => {
