@@ -134,12 +134,12 @@ describe("RemindersPanel", () => {
 
     await waitFor(() => {
       const needsAttentionHeading = screen.getByText(/Needs Attention/);
-      const needsAttentionSection = needsAttentionHeading.closest(".glass");
+      const needsAttentionSection = needsAttentionHeading.closest(".rounded-xl");
       expect(within(needsAttentionSection).getByText("Alice Smith")).toBeDefined();
     });
 
     const needsAttentionHeading = screen.getByText(/Needs Attention/);
-    const needsAttentionSection = needsAttentionHeading.closest(".glass");
+    const needsAttentionSection = needsAttentionHeading.closest(".rounded-xl");
 
     // Top 2 items by score:
     // 1. Alice Smith (Score 4.0)
@@ -184,7 +184,7 @@ describe("RemindersPanel", () => {
     });
 
     const needsAttentionHeading = screen.getByText(/Needs Attention/);
-    const needsAttentionSection = needsAttentionHeading.closest(".glass");
+    const needsAttentionSection = needsAttentionHeading.closest(".rounded-xl");
 
     const itemTitles = within(needsAttentionSection).getAllByText(/Hearth Friend|Active Nudge/).map((el) => el.textContent);
     // Hearth Friend (score 4.0) should precede Active Nudge (score 3.8)
@@ -212,7 +212,7 @@ describe("RemindersPanel", () => {
     });
 
     const needsAttentionHeading = screen.getByText(/Needs Attention/);
-    const needsAttentionSection = needsAttentionHeading.closest(".glass");
+    const needsAttentionSection = needsAttentionHeading.closest(".rounded-xl");
 
     const checkButton = within(needsAttentionSection).getByRole("button", { name: /Complete Drink Water/i });
     fireEvent.click(checkButton);

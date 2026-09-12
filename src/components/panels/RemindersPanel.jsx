@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { 
   ChevronRight, 
   ChevronLeft, 
@@ -54,6 +54,9 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
   const { celebrate } = useCelebration()
   const { nudges, dismissNudge, fetchNudges } = useNudgeScheduler()
   const { contacts, markReachedOut } = useContactReminders()
+
+  const shimmerDuration = useMemo(() => `${(3.5 + Math.random() * 3.5).toFixed(2)}s`, [])
+  const shimmerDelay = useMemo(() => `${(Math.random() * 1.5).toFixed(2)}s`, [])
 
   // Task Queue State
   const [tasks, setTasks] = useState([])
@@ -339,6 +342,18 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
 
   return (
     <div className="relative w-full h-full flex flex-col">
+      <style>{`
+        @keyframes shimmer {
+          0%, 100% {
+            box-shadow: 0 0 8px rgba(239, 68, 68, 0.25);
+            border-color: rgba(239, 68, 68, 0.35);
+          }
+          50% {
+            box-shadow: 0 0 22px rgba(239, 68, 68, 0.55), 0 0 44px rgba(239, 68, 68, 0.15);
+            border-color: rgba(239, 68, 68, 0.65);
+          }
+        }
+      `}</style>
       {/* Reminders Header */}
       <div className="p-4 pr-14 flex items-center justify-between border-b border-pulsar/30">
         <h3 className="text-lg font-display text-starlight">Reminders</h3>
@@ -464,10 +479,13 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
 
         {/* Needs Attention Section */}
         {needsAttentionItems.length > 0 && (
-          <div className="glass border border-pulsar/40 rounded-xl p-3 space-y-2.5">
+          <div 
+            className="relative overflow-hidden border border-red-500/40 rounded-xl p-3 bg-red-950/25 space-y-2.5"
+            style={{ animation: `shimmer ${shimmerDuration} ease-in-out infinite ${shimmerDelay}` }}
+          >
             <div className="flex items-center justify-between">
-              <h4 className="text-xs uppercase tracking-wider font-mono text-rose-400 font-bold flex items-center gap-2">
-                <Zap className="w-3 h-3" /> Needs Attention
+              <h4 className="text-xs uppercase tracking-wider font-mono text-red-400 font-bold flex items-center gap-2">
+                <Zap className="w-3 h-3 text-red-400" /> Needs Attention
               </h4>
               {needsAttentionItems.length > 2 && (
                 <span className="text-[11px] font-mono text-nova/60">
@@ -479,7 +497,7 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
               {visibleAttention.map(item => (
                 <div
                   key={`${item.type}-${item.id}`}
-                  className="flex items-center justify-between bg-void/40 rounded-lg p-2 border border-pulsar/20 hover:border-pulsar/40 transition-colors"
+                  className="flex items-center justify-between bg-void/60 rounded-lg p-2 border border-red-500/20 hover:border-red-500/40 transition-colors"
                 >
                   <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
                     <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded border shrink-0 ${TAG_BADGE_COLORS[item.tag] || 'text-nova/60 bg-nova/10 border-nova/30'}`}>
