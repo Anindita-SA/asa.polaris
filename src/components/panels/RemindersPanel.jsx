@@ -15,7 +15,8 @@ import {
   CheckCircle2, 
   Clock, 
   Zap,
-  Dices
+  Dices,
+  Sliders
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useNudgeScheduler } from '../../hooks/useNudgeScheduler'
@@ -24,6 +25,7 @@ import { useCelebration } from '../../hooks/useCelebration'
 import { supabase } from '../../lib/supabase'
 import { computeWSJFScore } from '../../hooks/useWSJFScore'
 import SurpriseTaskModal from '../modals/SurpriseTaskModal'
+import NotificationSettingsModal from '../modals/NotificationSettingsModal'
 
 const TIER_COLORS = {
   hearth: 'text-rose-500 bg-rose-500/10 border-rose-500/30',
@@ -76,6 +78,7 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
 
   // Nudge settings state
   const [showNudgeSettings, setShowNudgeSettings] = useState(false)
+  const [showNotificationSettings, setShowNotificationSettings] = useState(false)
   const [editingNudge, setEditingNudge] = useState(null)
   const [newNudgeTitle, setNewNudgeTitle] = useState('')
   const [newNudgeInterval, setNewNudgeInterval] = useState('60')
@@ -116,6 +119,36 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
     fetchTasks()
     fetchHabitTasks()
   }, [fetchTasks, fetchHabitTasks])
+
+  // Realtime subscription and local event listener for tasks synchronization
+  useEffect(() => {
+    if (!user) return
+
+    const handleTasksChanged = () => {
+      fetchTasks()
+      fetchHabitTasks()
+      fetchNudges()
+    }
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('polaris-tasks-changed', handleTasksChanged)
+    }
+
+    const channelName = `reminders-tasks-${Math.random().toString(36).slice(2, 9)}`
+    const channel = supabase
+      .channel(channelName)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => {
+        handleTasksChanged()
+      })
+      .subscribe()
+
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('polaris-tasks-changed', handleTasksChanged)
+      }
+      supabase.removeChannel(channel)
+    }
+  }, [user, fetchTasks, fetchHabitTasks, fetchNudges])
 
   // Timer interval
   useEffect(() => {
@@ -161,6 +194,7 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
   }
 
   const handleAddTask = async (e) => {
+    if (!user?.id) return
     if (e.key === 'Enter' && newTaskTitle.trim()) {
       await supabase.from('tasks').insert({
         user_id: user.id,
@@ -174,11 +208,11 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
 
   // Nudge Settings handlers
   const saveNudge = async () => {
-    if (!newNudgeTitle.trim()) return
+    if (!user?.id || !newNudgeTitle.trim()) return
     const interval = parseInt(newNudgeInterval) || 60
     
     if (editingNudge) {
-      await supabase.from('nudges').update({ title: newNudgeTitle, interval_minutes: interval }).eq('id', editingNudge.id)
+      await supabase.from('nudges').update({ title: newNudgeTitle, interval_minutes: interval }).eq('id', editingNudge.id).eq('user_id', user.id)
     } else {
       await supabase.from('nudges').insert({ user_id: user.id, title: newNudgeTitle, interval_minutes: interval })
     }
@@ -190,12 +224,14 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
   }
 
   const toggleNudgeActive = async (nudge) => {
-    await supabase.from('nudges').update({ active: !nudge.active }).eq('id', nudge.id)
+    if (!user?.id) return
+    await supabase.from('nudges').update({ active: !nudge.active }).eq('id', nudge.id).eq('user_id', user.id)
     fetchNudges()
   }
 
   const deleteNudge = async (id) => {
-    await supabase.from('nudges').delete().eq('id', id)
+    if (!user?.id) return
+    await supabase.from('nudges').delete().eq('id', id).eq('user_id', user.id)
     fetchNudges()
   }
 
@@ -225,8 +261,19 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
   // Show ONLY 1 ongoing task + 1 next upcoming task to prevent user overload!
   const ongoingTask = activeTask || focusTasks[0];
   const nextTask = focusTasks.find(t => t.id !== ongoingTask?.id);
+  const focusTaskIds = new Set([ongoingTask?.id, nextTask?.id].filter(Boolean));
 
-  const todayStr = new Date().toLocaleDateString('en-CA')
+  const todayStr = new Date().toLocaleDateString('en-CA');
+
+  const getNeglectedBadge = (t) => {
+    if (!t) return null;
+    if (t.deadline && t.deadline < todayStr) return 'OVERDUE';
+    if (t.deadline && t.deadline === todayStr) return 'DUE TODAY';
+    if ((t.skip_count || 0) >= 3) return 'NEGLECTED';
+    return null;
+  };
+
+  const ongoingNeglectedBadge = getNeglectedBadge(ongoingTask);
 
   // Unified Needs Attention Items
   const needsAttentionItems = []
@@ -254,9 +301,16 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
     }
   })
 
-  // 2. Overdue tasks/reminders (t.deadline && t.deadline <= todayStr or (t.skip_count || 0) >= 3)
+  // 2. Non-focus tasks: quick wins (<= 15 min), same-day deadline, overdue, neglected
   tasks.forEach(t => {
-    if (t.category !== 'habits' && ((t.deadline && t.deadline <= todayStr) || (t.skip_count || 0) >= 3)) {
+    if (t.category === 'habits') return
+    if (focusTaskIds.has(t.id)) return
+
+    const isOverdueOrDueToday = Boolean(t.deadline && t.deadline <= todayStr)
+    const isNeglected = (t.skip_count || 0) >= 3
+    const isQuickWin = Boolean(t.estimated_minutes && t.estimated_minutes <= 15)
+
+    if (isOverdueOrDueToday || isNeglected || isQuickWin) {
       const key = `task-${t.id}`
       if (!seenAttentionIds.has(key) && !seenAttentionIds.has(t.id)) {
         seenAttentionIds.add(key)
@@ -267,7 +321,7 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
           type: 'task',
           tag: t.category === 'reminders' ? 'R' : 'T',
           tagFull: t.category === 'reminders' ? 'Reminder' : 'Task',
-          score: computeWSJFScore(t).score,
+          score: t.score ?? computeWSJFScore(t).score,
           action: () => markTaskDone(t.id)
         })
       }
@@ -365,8 +419,17 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
       `}</style>
       {/* Reminders Header */}
       <div className="p-4 pr-14 flex items-center justify-between border-b border-pulsar/30">
-        <h3 className="text-lg font-display text-starlight">Reminders</h3>
-
+        <div className="flex items-center gap-2">
+          <h3 className="text-lg font-display text-starlight">Reminders</h3>
+          <button
+            onClick={() => setShowNotificationSettings(true)}
+            className="p-1 rounded text-nova/60 hover:text-starlight hover:bg-pulsar/20 transition-colors"
+            title="Notification Settings"
+            aria-label="Notification Settings"
+          >
+            <Sliders className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto scrollbar-hide p-4 space-y-6 pb-20">
@@ -402,9 +465,19 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
 
           {/* Ongoing Task Card (Do Now) */}
           {activeTask ? (
-            <div className="glass border-2 border-[#f5a623] bg-[#f5a623]/10 rounded-xl p-3 space-y-2 shadow-lg">
+            <div 
+              className={`glass border-2 ${ongoingNeglectedBadge ? 'border-red-500/60 bg-red-950/20' : 'border-[#f5a623] bg-[#f5a623]/10'} rounded-xl p-3 space-y-2 shadow-lg`}
+              style={ongoingNeglectedBadge ? { animation: `shimmer ${shimmerDuration} ease-in-out infinite ${shimmerDelay}` } : undefined}
+            >
               <div className="flex items-center justify-between">
-                <span className="text-xs font-mono text-[#f5a623] font-bold ">Ongoing Now</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-mono text-[#f5a623] font-bold ">Ongoing Now</span>
+                  {ongoingNeglectedBadge && (
+                    <span className="text-[10px] font-mono font-bold text-red-400 bg-red-500/20 border border-red-500/30 px-1.5 py-0.5 rounded">
+                      {ongoingNeglectedBadge}
+                    </span>
+                  )}
+                </div>
                 <span className="text-xs font-mono font-bold text-[#f5a623]">
                   {Math.floor(timerSeconds / 60).toString().padStart(2, '0')}:{(timerSeconds % 60).toString().padStart(2, '0')}
                 </span>
@@ -434,11 +507,21 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
               </div>
             </div>
           ) : ongoingTask ? (
-            <div className="glass border border-[#f5a623]/30 bg-[#f5a623]/5 rounded-xl p-3 space-y-2">
+            <div 
+              className={`glass border ${ongoingNeglectedBadge ? 'border-red-500/50 bg-red-950/20' : 'border-[#f5a623]/30 bg-[#f5a623]/5'} rounded-xl p-3 space-y-2`}
+              style={ongoingNeglectedBadge ? { animation: `shimmer ${shimmerDuration} ease-in-out infinite ${shimmerDelay}` } : undefined}
+            >
               <div className="flex items-center justify-between">
-                <span className="text-[13px] font-body text-starlight truncate max-w-[180px]">
-                  {ongoingTask.title}
-                </span>
+                <div className="flex items-center gap-2 max-w-[180px]">
+                  <span className="text-[13px] font-body text-starlight truncate">
+                    {ongoingTask.title}
+                  </span>
+                  {ongoingNeglectedBadge && (
+                    <span className="text-[10px] font-mono font-bold text-red-400 bg-red-500/20 border border-red-500/30 px-1.5 py-0.5 rounded shrink-0">
+                      {ongoingNeglectedBadge}
+                    </span>
+                  )}
+                </div>
                 <span className="text-xs font-mono text-[#f5a623] bg-[#f5a623]/20 px-1.5 py-0.5 rounded">
                   WSJF {ongoingTask.score}
                 </span>
@@ -469,19 +552,32 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
           )}
 
           {/* ONLY 1 Next Upcoming Task */}
-          {nextTask && (
-            <div className="pt-1">
-              <div className="glass border border-pulsar/30 p-2.5 rounded-xl flex items-center justify-between">
-                <span className="text-[13px] font-body text-starlight/90 truncate">{nextTask.title}</span>
-                <div className="flex items-center gap-2 text-xs font-mono text-nova/60">
-                  <span>{nextTask.estimated_minutes || 30}m</span>
-                  <button onClick={() => startTaskLaunch(nextTask)} className="text-[#f5a623] hover:text-white">
-                    <Play className="w-3 h-3" />
-                  </button>
+          {nextTask && (() => {
+            const nextNeglectedBadge = getNeglectedBadge(nextTask);
+            return (
+              <div className="pt-1">
+                <div 
+                  className={`glass border ${nextNeglectedBadge ? 'border-red-500/50 bg-red-950/20' : 'border-pulsar/30'} p-2.5 rounded-xl flex items-center justify-between`}
+                  style={nextNeglectedBadge ? { animation: `shimmer ${shimmerDuration} ease-in-out infinite ${shimmerDelay}` } : undefined}
+                >
+                  <div className="flex items-center gap-2 truncate mr-2">
+                    <span className="text-[13px] font-body text-starlight/90 truncate">{nextTask.title}</span>
+                    {nextNeglectedBadge && (
+                      <span className="text-[10px] font-mono font-bold text-red-400 bg-red-500/20 border border-red-500/30 px-1.5 py-0.5 rounded shrink-0">
+                        {nextNeglectedBadge}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 text-xs font-mono text-nova/60 shrink-0">
+                    <span>{nextTask.estimated_minutes || 30}m</span>
+                    <button onClick={() => startTaskLaunch(nextTask)} className="text-[#f5a623] hover:text-white">
+                      <Play className="w-3 h-3" />
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
 
         </div>
@@ -694,6 +790,11 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
         onClose={() => setShowSurprise(false)} 
         tasks={focusTasks}
         toggleComplete={markTaskDone} 
+      />
+
+      <NotificationSettingsModal
+        isOpen={showNotificationSettings}
+        onClose={() => setShowNotificationSettings(false)}
       />
     </div>
   )

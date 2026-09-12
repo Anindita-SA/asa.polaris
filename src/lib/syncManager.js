@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import db from './offlineStore';
 import { getPending, markSynced, clearSynced } from './syncQueue';
+import { validateRowPayload, TABLES_REQUIRING_TITLE } from './offlineApi';
 
 export async function pullData(table, userId) {
   if (!navigator.onLine) return;
@@ -10,13 +11,21 @@ export async function pullData(table, userId) {
     const { data, error } = await supabase.from(table).select('*').eq('user_id', userId);
     if (error) throw error;
 
+    if (!db[table]) return;
+
     await db.transaction('rw', db[table], async () => {
       // Assuming local db is specific to the current user, or we clear only this user's data
       const existing = await db[table].where('user_id').equals(userId).primaryKeys();
       await db[table].bulkDelete(existing);
       
       if (data && data.length > 0) {
-        await db[table].bulkAdd(data);
+        const validRecords = data.filter(item => {
+          const { valid } = validateRowPayload(table, item);
+          return valid;
+        });
+        if (validRecords.length > 0) {
+          await db[table].bulkAdd(validRecords);
+        }
       }
     });
   } catch (err) {
@@ -32,7 +41,7 @@ export async function pullProfile(userId) {
     const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single();
     if (error) throw error;
 
-    if (data) {
+    if (data && db.profiles) {
       await db.profiles.put(data);
     }
   } catch (err) {
@@ -49,12 +58,58 @@ export async function flushQueue() {
   for (const item of pending) {
     try {
       if (item.operation === 'insert' || item.operation === 'upsert') {
-        const { error } = await supabase.from(item.table).upsert(item.payload);
+        const validation = validateRowPayload(item.table, item.payload);
+        if (!validation.valid) {
+          console.warn(`Dropping corrupted ${item.operation} payload in sync queue for ${item.table}:`, validation.error);
+          await markSynced(item.localId);
+          continue;
+        }
+
+        const { error } = await supabase.from(item.table).upsert(validation.row || item.payload);
         if (error) throw error;
       } else if (item.operation === 'update') {
+        if (TABLES_REQUIRING_TITLE.includes(item.table)) {
+          if (item.payload?.data?.title !== undefined && (typeof item.payload.data.title !== 'string' || item.payload.data.title.trim().length === 0)) {
+            console.warn(`Dropping corrupted update payload in sync queue for ${item.table}: empty title`);
+            await markSynced(item.localId);
+            continue;
+          }
+        }
+
+        if (item.table === 'daily_tasks') {
+          const title = item.payload?.data?.title;
+          const taskName = item.payload?.data?.task_name;
+          if (title !== undefined && (typeof title !== 'string' || title.trim().length === 0)) {
+            if (taskName === undefined || typeof taskName !== 'string' || taskName.trim().length === 0) {
+              console.warn("Dropping corrupted update payload in sync queue for daily_tasks: empty title or task_name");
+              await markSynced(item.localId);
+              continue;
+            }
+          }
+          if (taskName !== undefined && (typeof taskName !== 'string' || taskName.trim().length === 0)) {
+            if (title === undefined || typeof title !== 'string' || title.trim().length === 0) {
+              console.warn("Dropping corrupted update payload in sync queue for daily_tasks: empty title or task_name");
+              await markSynced(item.localId);
+              continue;
+            }
+          }
+        }
+
+        if (!item.payload?.match || typeof item.payload.match !== 'object' || Object.keys(item.payload.match).length === 0) {
+          console.warn(`Dropping corrupted update payload without match criteria for ${item.table}`);
+          await markSynced(item.localId);
+          continue;
+        }
+
         const { error } = await supabase.from(item.table).update(item.payload.data).match(item.payload.match);
         if (error) throw error;
       } else if (item.operation === 'delete') {
+        if (!item.payload?.match || typeof item.payload.match !== 'object' || Object.keys(item.payload.match).length === 0) {
+          console.warn(`Dropping corrupted delete payload without match criteria for ${item.table}`);
+          await markSynced(item.localId);
+          continue;
+        }
+
         const { error } = await supabase.from(item.table).delete().match(item.payload.match);
         if (error) throw error;
       }

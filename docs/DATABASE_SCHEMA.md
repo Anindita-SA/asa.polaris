@@ -848,4 +848,5 @@
 | `source_papers` | `text` | Nullable |
 | `sent_date` | `date` | Nullable |
 | `follow_up_due` | `date` | Nullable |
+| `profile_url` | `text` | Nullable |
 | `created_at` | `timestamptz` | Nullable, Default `now()` |

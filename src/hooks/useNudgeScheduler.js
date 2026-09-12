@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './useAuth';
+import { getNotificationSettings, NOTIFICATION_SETTINGS_EVENT } from './useNotificationSettings';
 
 export const useNudgeScheduler = () => {
   const { user } = useAuth();
@@ -37,6 +38,34 @@ export const useNudgeScheduler = () => {
   const fetchNudges = useCallback(async () => {
     if (!user?.id) return;
     
+    const settings = getNotificationSettings();
+
+    // Master Mute Check: clear all scheduling and timers immediately
+    if (settings.masterMuted) {
+      Object.values(fallbackIntervals.current).forEach(clearTimeout);
+      fallbackIntervals.current = {};
+      lastScheduledRef.current = {};
+
+      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({
+          type: 'UPDATE_NUDGES',
+          nudges: []
+        });
+      }
+
+      if ('clearAppBadge' in navigator) {
+        try {
+          navigator.clearAppBadge();
+        } catch (e) {
+          // ignore badge clear error
+        }
+      }
+
+      setNudges([]);
+      setAllNudges([]);
+      return;
+    }
+
     const { data, error } = await supabase
       .from('nudges')
       .select('*')
@@ -47,6 +76,9 @@ export const useNudgeScheduler = () => {
       console.error('Error fetching nudges:', error);
       return;
     }
+
+    // Filter system habit nudges based on settings
+    const systemNudges = settings.habitNudgesEnabled ? (data || []) : [];
 
     const today = new Date().toISOString().split('T')[0];
     const { data: overdueData, error: overdueError } = await supabase
@@ -60,34 +92,82 @@ export const useNudgeScheduler = () => {
       console.error('Error fetching overdue tasks:', overdueError);
     }
 
-    const taskNudges = (overdueData || []).filter(task => {
+    const rawOverdueTasks = (overdueData || []).filter(task => {
       if (task.category === 'reminders') {
         return !task.deadline || task.deadline <= today;
       }
       return task.deadline < today || task.skip_count >= 3;
-    }).map(task => {
-      let interval_minutes = 240; // Day 0-1 overdue or skip_count trigger (every 4 hr)
-      if (task.category === 'reminders') {
-        interval_minutes = 60; // Reminders nag every 1 hr
-      } else if (task.deadline && task.deadline < today) {
-        const daysOverdue = Math.floor((new Date(today) - new Date(task.deadline)) / (1000 * 60 * 60 * 24));
-        if (daysOverdue >= 4) {
-          interval_minutes = 60; // every 1 hr
-        } else if (daysOverdue >= 2) {
-          interval_minutes = 120; // every 2 hr
-        }
-      }
-      return {
-        id: task.id,
-        title: task.title,
-        interval_minutes,
-        active: true,
-        isTask: true,
-        isReminder: task.category === 'reminders'
-      };
     });
 
-    const combinedNudges = [...data, ...taskNudges];
+    // Sort overdue tasks: earliest deadline first, then highest skip_count
+    const sortedOverdueTasks = [...rawOverdueTasks].sort((a, b) => {
+      if (a.deadline && b.deadline) {
+        return a.deadline.localeCompare(b.deadline);
+      }
+      if (a.deadline) return -1;
+      if (b.deadline) return 1;
+      return (b.skip_count || 0) - (a.skip_count || 0);
+    });
+
+    const taskInterval = settings.taskIntervalMinutes || 120;
+    let taskNudges = [];
+
+    if (settings.taskMode === 'off') {
+      taskNudges = [];
+    } else if (settings.taskMode === 'focus_only') {
+      if (sortedOverdueTasks.length > 0) {
+        const topTask = sortedOverdueTasks[0];
+        taskNudges = [{
+          id: topTask.id,
+          title: topTask.title,
+          interval_minutes: taskInterval,
+          active: true,
+          isTask: true,
+          isReminder: topTask.category === 'reminders'
+        }];
+      }
+    } else if (settings.taskMode === 'consolidated') {
+      if (sortedOverdueTasks.length > 0) {
+        const topTask = sortedOverdueTasks[0];
+        const extraCount = sortedOverdueTasks.length - 1;
+        const summaryTitle = extraCount > 0
+          ? `Polaris Focus: ${topTask.title} (+${extraCount} more)`
+          : `Polaris Focus: ${topTask.title}`;
+        taskNudges = [{
+          id: topTask.id || 'consolidated-focus-task',
+          title: summaryTitle,
+          interval_minutes: taskInterval,
+          active: true,
+          isTask: true,
+          isReminder: false
+        }];
+      }
+    } else {
+      // 'all'
+      taskNudges = sortedOverdueTasks.map(task => {
+        let interval_minutes = taskInterval;
+        if (task.category === 'reminders') {
+          interval_minutes = Math.min(taskInterval, 60);
+        } else if (task.deadline && task.deadline < today) {
+          const daysOverdue = Math.floor((new Date(today) - new Date(task.deadline)) / (1000 * 60 * 60 * 24));
+          if (daysOverdue >= 4) {
+            interval_minutes = Math.min(taskInterval, 60);
+          } else if (daysOverdue >= 2) {
+            interval_minutes = Math.min(taskInterval, 120);
+          }
+        }
+        return {
+          id: task.id,
+          title: task.title,
+          interval_minutes,
+          active: true,
+          isTask: true,
+          isReminder: task.category === 'reminders'
+        };
+      });
+    }
+
+    const combinedNudges = [...systemNudges, ...taskNudges];
 
     const now = Date.now();
     const processedNudges = combinedNudges.map((nudge) => {
@@ -149,7 +229,7 @@ export const useNudgeScheduler = () => {
         lastScheduledRef.current = {};
       } else {
         // SW controller is null, use main thread fallback
-        if (Notification.permission === 'granted') {
+        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
           processedNudges.forEach(nudge => {
             // Only schedule if we haven't scheduled this exact nextFireAt yet
             if (lastScheduledRef.current[nudge.id] !== nudge.nextFireAt) {
@@ -183,9 +263,17 @@ export const useNudgeScheduler = () => {
     const handleControllerChange = () => {
       fetchNudges(); // Re-run to hand off to SW once it takes control
     };
+
+    const handleSettingsChanged = () => {
+      fetchNudges();
+    };
     
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
+    }
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener(NOTIFICATION_SETTINGS_EVENT, handleSettingsChanged);
     }
     
     const interval = setInterval(fetchNudges, 60000);
@@ -193,6 +281,9 @@ export const useNudgeScheduler = () => {
       clearInterval(interval);
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
+      }
+      if (typeof window !== 'undefined') {
+        window.removeEventListener(NOTIFICATION_SETTINGS_EVENT, handleSettingsChanged);
       }
       Object.values(fallbackIntervals.current).forEach(clearTimeout);
     };

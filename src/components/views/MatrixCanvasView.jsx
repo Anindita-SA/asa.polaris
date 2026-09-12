@@ -139,10 +139,48 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [showCompleted, setShowCompleted] = useState(false);
-  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
-  const [hideFarScheduled, setHideFarScheduled] = useState(true);
-  const [hideReminders, setHideReminders] = useState(false);
-  const [hidePolaris, setHidePolaris] = useState(false);
+  const [hideFarScheduled, setHideFarScheduled] = useState(() => {
+    try {
+      const saved = localStorage.getItem('polaris_matrix_hide_far_scheduled');
+      return saved !== null ? saved === 'true' : true;
+    } catch (e) {
+      return true;
+    }
+  });
+  const [hideReminders, setHideReminders] = useState(() => {
+    try {
+      const saved = localStorage.getItem('polaris_matrix_hide_reminders');
+      return saved !== null ? saved === 'true' : false;
+    } catch (e) {
+      return false;
+    }
+  });
+  const [hidePolaris, setHidePolaris] = useState(() => {
+    try {
+      const saved = localStorage.getItem('polaris_matrix_hide_polaris');
+      return saved !== null ? saved === 'true' : false;
+    } catch (e) {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('polaris_matrix_hide_far_scheduled', hideFarScheduled.toString());
+    } catch (e) {}
+  }, [hideFarScheduled]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('polaris_matrix_hide_reminders', hideReminders.toString());
+    } catch (e) {}
+  }, [hideReminders]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('polaris_matrix_hide_polaris', hidePolaris.toString());
+    } catch (e) {}
+  }, [hidePolaris]);
 
   const canvasRef = useRef(null);
   const innerRef = useRef(null);
