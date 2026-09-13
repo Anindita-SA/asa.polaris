@@ -379,13 +379,14 @@ export default function DayBriefView() {
                       <button
                         onClick={() => handleSaveNewsItem(item, originalIndex)}
                         disabled={item.isSaved || isSaving}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-display rounded-lg transition-colors border ${
+                        title={item.isSaved ? "Saved to Tasks" : "Save to Tasks"}
+                        className={`flex items-center justify-center p-1.5 rounded-lg transition-colors border ${
                           item.isSaved
                             ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30 opacity-70'
                             : 'bg-pulsar/20 text-pulsar hover:bg-pulsar/30 border-pulsar/40'
                         }`}
                       >
-                        {item.isSaved ? <><Check className="w-3.5 h-3.5" /> Saved</> : <><Bookmark className="w-3.5 h-3.5" /> Save to Tasks</>}
+                        {item.isSaved ? <Check className="w-3.5 h-3.5" /> : <Bookmark className="w-3.5 h-3.5" />}
                       </button>
                     </div>
                   </div>
