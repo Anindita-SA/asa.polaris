@@ -76,7 +76,26 @@ const Login = () => {
           </button>
         </div>
 
-        <p className="text-xs text-nova/60/40 font-mono">private · encrypted · yours</p>
+        {/* Legal Agreements Footer */}
+        <div className="space-y-2 pt-2 max-w-sm mx-auto">
+          <p className="text-xs text-nova/70 font-body leading-relaxed">
+            By signing in, you agree to our{' '}
+            <a
+              href="#/terms"
+              className="text-gold underline hover:text-gold-dim transition-colors"
+            >
+              Terms of Service
+            </a>{' '}
+            and{' '}
+            <a
+              href="#/privacy"
+              className="text-gold underline hover:text-gold-dim transition-colors"
+            >
+              Privacy Policy
+            </a>
+          </p>
+          <p className="text-xs text-nova/40 font-mono">private · encrypted · yours</p>
+        </div>
       </div>
     </div>
   )
