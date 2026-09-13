@@ -203,10 +203,15 @@ export const AuthProvider = ({ children }) => {
       setUser(u)
       
       let pToken = session?.provider_token ?? null
+      let pRefreshToken = session?.provider_refresh_token ?? null
       if (pToken) {
         localStorage.setItem('polaris_provider_token', pToken)
+        localStorage.setItem('polaris_provider_token_saved_at', Date.now().toString())
       } else {
         pToken = localStorage.getItem('polaris_provider_token')
+      }
+      if (pRefreshToken) {
+        localStorage.setItem('polaris_provider_refresh_token', pRefreshToken)
       }
       setProviderToken(pToken)
       
@@ -220,10 +225,15 @@ export const AuthProvider = ({ children }) => {
       setUser(u)
       
       let pToken = session?.provider_token ?? null
+      let pRefreshToken = session?.provider_refresh_token ?? null
       if (pToken) {
         localStorage.setItem('polaris_provider_token', pToken)
+        localStorage.setItem('polaris_provider_token_saved_at', Date.now().toString())
       } else if (u) {
         pToken = localStorage.getItem('polaris_provider_token')
+      }
+      if (pRefreshToken) {
+        localStorage.setItem('polaris_provider_refresh_token', pRefreshToken)
       }
       setProviderToken(pToken)
 
@@ -232,6 +242,8 @@ export const AuthProvider = ({ children }) => {
         setProfile(null)
         fetchingFor.current = null 
         localStorage.removeItem('polaris_provider_token')
+        localStorage.removeItem('polaris_provider_refresh_token')
+        localStorage.removeItem('polaris_provider_token_saved_at')
       }
     })
 
@@ -285,13 +297,16 @@ export const AuthProvider = ({ children }) => {
     return addXP(isNowActive ? abs : -abs)
   }, [addXP])
 
-  const signInWithGoogle = useCallback(() =>
+  const signInWithGoogle = useCallback((forceConsent = false) =>
     supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { 
         redirectTo: window.location.origin + '/asa.polaris/',
         scopes: 'https://www.googleapis.com/auth/calendar.events',
-        queryParams: { access_type: 'offline', prompt: 'consent' },
+        queryParams: { 
+          access_type: 'offline', 
+          prompt: forceConsent ? 'consent' : 'select_account' 
+        },
       },
     }), [])
 
