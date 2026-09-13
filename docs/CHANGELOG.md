@@ -1,5 +1,14 @@
 # Changelog
 
+## [2026-09-13] Google OAuth Compliant Privacy Policy, Terms of Service & Legal Infrastructure (v1.1.8)
+- **Standalone Static Legal Pages**: Created `public/privacy.html` and `public/terms.html` with Polaris dark void theme (#030712), glass card surfaces (#0f172a / rgba(15,23,42,0.7)), and gold/amber accents (#f59e0b, #d97706), with zero gradients.
+- **Google Limited Use Disclosure**: Explicitly stated adherence to the Google API Services User Data Policy and Limited Use requirements, confirming zero advertising, no market research, human access restrictions, and strict non-transferability of Google user data.
+- **In-App React Legal Components**: Implemented `src/pages/PrivacyPolicy.jsx` and `src/pages/TermsOfService.jsx` with full glassmorphic styling and back navigation.
+- **Unauthenticated Legal Routing**: Updated `src/App.jsx` to dynamically route pathnames (`/privacy`, `/privacy.html`, `/terms`, `/terms.html`) and URL hashes (`#/privacy`, `#/terms`) directly to legal documentation without requiring active user authentication.
+- **Login & Settings Legal Access**: Added Terms of Service and Privacy Policy consent links to `Login.jsx` footer and integrated a dedicated "Legal & Privacy Policies" section into `SettingsPanel.jsx` with Google API disclosures and data backup references.
+- **Automated Test Suite**: Added `src/pages/LegalPages.test.jsx` (9 tests covering Privacy Policy headers, mandatory Google Limited Use text, data restrictions, Terms of Service sections, and hash routing in App). All 87 tests passing.
+- **App Version Bump (v1.1.8)**: Bumped version in `package.json` to v1.1.8.
+
 ## [2026-09-13] Task Card Selection Crash Fix & App-Wide Stability Hardening
 - **Task Card Click Crash Resolution**: Fixed a fatal runtime `ReferenceError: statusDropdownOpen is not defined` in `MatrixCanvasView.jsx`. Declared `statusDropdownOpen` state with `useState(false)` and attached automatic cleanup effects on tab transitions and task deletions.
 - **Defensive Null-Safety & Fallbacks**: Added fallback guards across all task attribute inputs in the Matrix Details drawer (`title`, `notes`, `quadrant`, `estimated_minutes`, `status`, `deadline`, `category`).
