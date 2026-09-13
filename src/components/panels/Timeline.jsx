@@ -1,4 +1,4 @@
-﻿import { getGroqKey } from '../../lib/llm';
+import { getGroqKey } from '../../lib/llm';
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
@@ -27,9 +27,12 @@ const Timeline = ({ filterNodeId, onJumpToNode }) => {
   const [generatedSteps, setGeneratedSteps] = useState([])
   const [newSubtask, setNewSubtask] = useState('')
 
-  useEffect(() => { fetchMilestones() }, [])
+  useEffect(() => { 
+    if (user?.id) fetchMilestones(); 
+  }, [user?.id, filterNodeId]);
 
   const fetchMilestones = async () => {
+    if (!user?.id) return;
     const { data } = await supabase.from('milestones').select('*').eq('user_id', user.id).order('deadline')
     
     let processed = data || []
@@ -75,7 +78,7 @@ const Timeline = ({ filterNodeId, onJumpToNode }) => {
   }
 
   const saveMilestone = async () => {
-    if (!addForm.title || !addForm.deadline) return
+    if (!user?.id || !addForm.title || !addForm.deadline) return;
     const note = addForm.linkedNode ? `[Node: ${addForm.linkedNode}]` : ''
     
     if (editingMilestone) {
@@ -83,7 +86,7 @@ const Timeline = ({ filterNodeId, onJumpToNode }) => {
         title: addForm.title,
         deadline: addForm.deadline,
         note: note || editingMilestone.note?.replace(/\[Node: .*?\]/, '') || ''
-      }).eq('id', editingMilestone.id)
+      }).eq('id', editingMilestone.id).eq('user_id', user.id)
     } else {
       await supabase.from('milestones').insert({
         user_id: user.id,
@@ -103,19 +106,19 @@ const Timeline = ({ filterNodeId, onJumpToNode }) => {
 
   const deleteMilestone = async (id) => {
     if (window.confirm("Are you sure you want to delete this milestone?")) {
-      await supabase.from('milestones').delete().eq('id', id)
+      await supabase.from('milestones').delete().eq('id', id).eq('user_id', user.id)
       fetchMilestones()
     }
   }
 
   const updateStatus = async (ms, status) => {
-    await supabase.from('milestones').update({ status }).eq('id', ms.id)
+    await supabase.from('milestones').update({ status }).eq('id', ms.id).eq('user_id', user.id)
     trackXP(ms.status === 'done', status === 'done', ms.xp_reward || XP.MILESTONE_COMPLETE)
     fetchMilestones()
   }
 
   const updateNote = async (id, note) => {
-    await supabase.from('milestones').update({ note }).eq('id', id)
+    await supabase.from('milestones').update({ note }).eq('id', id).eq('user_id', user.id)
   }
 
   const getDaysUntil = (deadline) => {

@@ -1,6 +1,12 @@
 # Changelog
 
-## [2026-09-12] In-App Notification Settings Panel & Eisenhower Matrix Filter Memory
+## [2026-09-13] Task Card Selection Crash Fix & App-Wide Stability Hardening
+- **Task Card Click Crash Resolution**: Fixed a fatal runtime `ReferenceError: statusDropdownOpen is not defined` in `MatrixCanvasView.jsx`. Declared `statusDropdownOpen` state with `useState(false)` and attached automatic cleanup effects on tab transitions and task deletions.
+- **Defensive Null-Safety & Fallbacks**: Added fallback guards across all task attribute inputs in the Matrix Details drawer (`title`, `notes`, `quadrant`, `estimated_minutes`, `status`, `deadline`, `category`).
+- **Security Hardening on Timeline**: Enforced explicit `user_id` query scoping across all `milestones` and `subtasks` updates and deletions in `Timeline.jsx`, and guarded `fetchMilestones` against initial null `user` states.
+- **MatrixCanvasView Unit Test Suite**: Created `src/components/views/MatrixCanvasView.test.jsx` (6 tests covering canvas card clicks, backlog clicks, status dropdown opening and updates, field edits, and task deletion). All 78 tests across 9 test suites passing.
+- **App Version Bump (v1.1.7)**: Bumped version in `package.json` to trigger PWA service worker refresh.
+
 - **In-App Notification Settings Panel**: Created `NotificationSettingsModal.jsx` and `useNotificationSettings.js`, providing an intuitive configuration panel accessible from the Reminders panel header.
 - **Configurable Task Notification Modes**: Added 4 distinct reminder modes:
   - `focus_only`: Alerts only for the primary active/ongoing focus task, stopping notification spam from backlog tasks.
