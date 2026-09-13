@@ -130,6 +130,13 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
   // Brain Dump Tab State ('backlog' | 'completed' | 'details')
   const [activeBrainDumpTab, setActiveBrainDumpTab] = useState('backlog');
   const [selectedTaskId, setSelectedTaskId] = useState(null);
+  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    if (activeBrainDumpTab !== 'details' || !selectedTaskId) {
+      setStatusDropdownOpen(false);
+    }
+  }, [activeBrainDumpTab, selectedTaskId]);
 
   // Brain Dump Search & Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -192,8 +199,12 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
     try {
       setLoading(true);
       const userId = user?.id || (await supabase.auth.getSession()).data?.session?.user?.id;
-      const userFilter = userId ? { user_id: userId } : {};
-      let { data, error } = await offlineSelect('tasks', userFilter);
+      if (!userId) {
+        setTasks([]);
+        setLoading(false);
+        return;
+      }
+      let { data, error } = await offlineSelect('tasks', { user_id: userId });
 
       if (error) throw error;
       
@@ -216,7 +227,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user?.id]);
 
   const saveLocalCoords = (taskId, x, y) => {
     try {
@@ -365,6 +376,10 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
   // Delete task
   const deleteTask = async (taskId) => {
     setTasks((prev) => prev.filter((t) => t.id !== taskId));
+    if (selectedTaskId === taskId) {
+      setSelectedTaskId(null);
+      setStatusDropdownOpen(false);
+    }
     try {
       await offlineDelete('tasks', { id: taskId });
       if (onTasksChanged) onTasksChanged();
@@ -415,7 +430,12 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
       }
 
       setAuditMessage("Scoring tasks with WSJF algorithm and picking Today's Tasks...");
-      const { data: updatedData } = await offlineSelect('tasks', (user?.id || (await supabase.auth.getSession()).data?.session?.user?.id) ? { user_id: (user?.id || (await supabase.auth.getSession()).data?.session?.user?.id) } : {});
+      const auditUserId = user?.id || (await supabase.auth.getSession()).data?.session?.user?.id;
+      if (!auditUserId) {
+        setIsAuditing(false);
+        return;
+      }
+      const { data: updatedData } = await offlineSelect('tasks', { user_id: auditUserId });
       const scored = (updatedData || []).map(t => ({
         ...t,
         score: computeWSJFScore(t).score
@@ -938,7 +958,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
               <Inbox className="w-4 h-4 text-gold shrink-0 hidden sm:block" />
               <div className="glass border border-pulsar/40 p-1 rounded-xl flex items-center gap-1 overflow-x-auto scrollbar-hide min-w-0 w-full">
                 <button
-                  onClick={() => setActiveBrainDumpTab('backlog')}
+                  onClick={() => { setActiveBrainDumpTab('backlog'); setStatusDropdownOpen(false); }}
                   className={`flex-1 justify-center px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 shrink-0 ${
                     activeBrainDumpTab === 'backlog'
                       ? 'bg-cosmic text-gold border border-gold/40 '
@@ -950,7 +970,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                   <span className="text-xs font-mono font-bold ">{brainDumpTasks.length}</span>
                 </button>
                 <button
-                  onClick={() => setActiveBrainDumpTab('completed')}
+                  onClick={() => { setActiveBrainDumpTab('completed'); setStatusDropdownOpen(false); }}
                   className={`flex-1 justify-center px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 shrink-0 ${
                     activeBrainDumpTab === 'completed'
                       ? 'bg-cosmic text-emerald border border-emerald/40 '
@@ -1121,7 +1141,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                       <h4 className="text-xs uppercase tracking-wider font-bold text-nova/60 mb-1 font-mono ">Title</h4>
                       <input 
                         type="text" 
-                        defaultValue={selectedTask.title} 
+                        defaultValue={selectedTask.title || ''} 
                         onBlur={(e) => updateTaskField(selectedTask.id, 'title', e.target.value)}
                         className="w-full bg-void/40 border border-pulsar/40 rounded-lg p-3 text-sm font-['Inter'] leading-relaxed outline-none focus:border-pulsar/50 transition-colors"
                       />
@@ -1163,8 +1183,8 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                           <input
                             type="number"
                             min="0"
-                            defaultValue={selectedTask.estimated_minutes || ''}
-                            onBlur={(e) => updateTaskField(selectedTask.id, 'estimated_minutes', e.target.value ? parseInt(e.target.value) : null)}
+                            defaultValue={selectedTask.estimated_minutes != null ? selectedTask.estimated_minutes : ''}
+                            onBlur={(e) => updateTaskField(selectedTask.id, 'estimated_minutes', e.target.value ? parseInt(e.target.value, 10) : null)}
                             className="bg-transparent w-full outline-none font-mono text-starlight"
                             placeholder="-"
                           />
@@ -1175,6 +1195,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                       <div className="col-span-1 relative">
                         <h4 className="text-[10px] uppercase tracking-wider font-bold text-nova/60 mb-1 font-mono">Status</h4>
                         <button
+                          type="button"
                           onClick={() => setStatusDropdownOpen(!statusDropdownOpen)}
                           className={`w-full bg-void/40 border ${statusDropdownOpen ? 'border-pulsar/50' : 'border-pulsar/40'} rounded-lg px-2 py-1.5 text-[11px] flex items-center justify-between transition-colors outline-none cursor-pointer`}
                         >
@@ -1220,6 +1241,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                                 ].map(option => (
                                   <button
                                     key={option.value}
+                                    type="button"
                                     onClick={() => {
                                       updateTaskField(selectedTask.id, 'status', option.value);
                                       setStatusDropdownOpen(false);
@@ -1269,11 +1291,13 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                     {/* Delete Task Button */}
                     <div className="pt-4 mt-2 border-t border-pulsar/30 flex justify-end">
                       <button
+                        type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           if (window.confirm('Are you sure you want to delete this task?')) {
                             deleteTask(selectedTask.id);
                             setSelectedTaskId(null);
+                            setStatusDropdownOpen(false);
                             setActiveBrainDumpTab('backlog');
                           }
                         }}
