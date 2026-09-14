@@ -109,6 +109,22 @@ export function useRecurringTasks() {
             const { error: updateTaskErr } = await offlineUpdate('tasks', { id: canonicalTask.id }, updatePayload)
             if (updateTaskErr) console.error('Error recycling recurring task:', updateTaskErr)
 
+            // Reset all child subtasks for this canonical task while preserving their completion history
+            const childSubtasks = allTasks.filter(t => t.parent_task_id === canonicalTask.id)
+            for (const sub of childSubtasks) {
+              const subPastDates = Array.isArray(sub.completion_dates) ? sub.completion_dates : []
+              const subPayload = {
+                status: 'active',
+                deadline: today
+              }
+              if (sub.status === 'done') {
+                subPayload.completion_count = (sub.completion_count || 0) + 1
+                subPayload.completion_dates = subPastDates.includes(dateCompleted) ? subPastDates : [...subPastDates, dateCompleted]
+              }
+              const { error: subErr } = await offlineUpdate('tasks', { id: sub.id }, subPayload)
+              if (subErr) console.error('Error resetting child subtask:', sub.id, subErr)
+            }
+
             // Update template last_generated_date to today
             const { error: updateError } = await offlineUpdate('recurring_task_templates', { id: template.id }, { last_generated_date: today })
             if (updateError) {

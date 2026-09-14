@@ -21,6 +21,7 @@ local_tasks_archive.json
 
 # Ignored personal and temporary files
 *.sql
+!supabase/migrations/*.sql
 *.ics
 supabase/.temp/
 application_milestones_sync.md

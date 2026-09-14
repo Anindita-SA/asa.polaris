@@ -40,7 +40,20 @@ const Dashboard = () => {
   useRecurringTasks()
   useMorningBrief()
   const { stage, briefItems, markSparkSeen } = useMorningSequence()
-  const [activeView, setActiveView] = useState('graph')
+  const [activeView, setActiveViewState] = useState(() => {
+    try {
+      return localStorage.getItem('polaris_active_view') || 'graph'
+    } catch {
+      return 'graph'
+    }
+  })
+
+  const setActiveView = (view) => {
+    setActiveViewState(view)
+    try {
+      localStorage.setItem('polaris_active_view', view)
+    } catch (e) {}
+  }
   const [rightPanelOpen, setRightPanelOpen] = useState(true)
   const [selectedNode, setSelectedNode] = useState(null)
   const [anchorCollapsed, setAnchorCollapsed] = useState(true)

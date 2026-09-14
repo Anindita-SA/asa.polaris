@@ -16,7 +16,20 @@ const TABS = [
 
 const CurriculumShelf = () => {
   const { user } = useAuth()
-  const [activeTab, setActiveTab] = useState('Career')
+  const [activeTab, setActiveTabState] = useState(() => {
+    try {
+      return localStorage.getItem('polaris_curriculum_tab') || 'Career'
+    } catch {
+      return 'Career'
+    }
+  })
+
+  const setActiveTab = (tab) => {
+    setActiveTabState(tab)
+    try {
+      localStorage.setItem('polaris_curriculum_tab', tab)
+    } catch (e) {}
+  }
   const [categories, setCategories] = useState([])
   const [curricula, setCurricula] = useState([])
   const [selectedCurriculum, setSelectedCurriculum] = useState(null)

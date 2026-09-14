@@ -186,15 +186,66 @@ export default function TaskMatrix() {
 
   // Toggle task completed status
   const toggleTaskDone = async (task) => {
-    const newStatus = task.status === 'done' ? 'inbox' : 'done';
+    const isSubtask = !!task.parent_task_id;
+    const isCompleting = task.status !== 'done';
+    const newStatus = isCompleting ? 'done' : (isSubtask ? 'active' : 'inbox');
+
+    let shouldUpdateParent = false;
+    let parentNewStatus = null;
+    let childIdsToComplete = [];
+
+    if (isSubtask) {
+      if (isCompleting) {
+        const siblingSubtasks = tasks.filter(t => t.parent_task_id === task.parent_task_id && t.id !== task.id);
+        const allSiblingsDone = siblingSubtasks.every(t => t.status === 'done');
+        if (allSiblingsDone) {
+          shouldUpdateParent = true;
+          parentNewStatus = 'done';
+        }
+      } else {
+        const parentTask = tasks.find(t => t.id === task.parent_task_id);
+        if (parentTask && parentTask.status === 'done') {
+          shouldUpdateParent = true;
+          parentNewStatus = 'active';
+        }
+      }
+    } else {
+      if (isCompleting) {
+        const childSubtasks = tasks.filter(t => t.parent_task_id === task.id);
+        childIdsToComplete = childSubtasks.map(c => c.id);
+      }
+    }
+
     setTasks((prev) =>
-      prev.map((t) => (t.id === task.id ? { ...t, status: newStatus } : t))
+      prev.map((t) => {
+        if (t.id === task.id) {
+          return { ...t, status: newStatus };
+        }
+        if (shouldUpdateParent && t.id === task.parent_task_id) {
+          return { ...t, status: parentNewStatus };
+        }
+        if (childIdsToComplete.includes(t.id)) {
+          return { ...t, status: 'done' };
+        }
+        return t;
+      })
     );
 
     try {
       const { error } = await offlineUpdate('tasks', { id: task.id }, { status: newStatus });
-
       if (error) throw error;
+
+      if (shouldUpdateParent && task.parent_task_id && parentNewStatus) {
+        const { error: parentErr } = await offlineUpdate('tasks', { id: task.parent_task_id }, { status: parentNewStatus });
+        if (parentErr) console.error('Error updating parent task status:', parentErr);
+      }
+
+      if (childIdsToComplete.length > 0) {
+        for (const childId of childIdsToComplete) {
+          const { error: childErr } = await offlineUpdate('tasks', { id: childId }, { status: 'done' });
+          if (childErr) console.error('Error updating child subtask status:', childErr);
+        }
+      }
     } catch (err) {
       console.error('Error toggling done status:', err);
       fetchTasks();

@@ -888,3 +888,20 @@
 | `contact_reminders_enabled` | `boolean` | `true` | Enables reach out reminder prompts for relationship tiers |
 | `celebration_sounds` | `boolean` | `true` | Enables audio sound effects and confetti animations on task/milestone completion |
 | `ambient_audio_default` | `text` | `'lofi'` | Default background soundscape preset (lofi, rain, brown_noise, synth) |
+
+## Table `practice_scores`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `id` | `uuid` | Primary, Default `gen_random_uuid()` |
+| `user_id` | `uuid` | Not Null, References `auth.users(id)` on delete cascade |
+| `curriculum_id` | `uuid` | Nullable, References `curricula(id)` on delete cascade |
+| `title` | `text` | Not Null |
+| `category` | `text` | Not Null |
+| `score` | `numeric` | Not Null |
+| `total` | `numeric` | Nullable |
+| `band` | `numeric` | Nullable |
+| `date` | `timestamptz` | Not Null, Default `now()` |
+| `created_at` | `timestamptz` | Not Null, Default `now()` |

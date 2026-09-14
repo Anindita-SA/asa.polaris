@@ -427,4 +427,83 @@ describe('useRecurringTasks hook', () => {
     // The old done task should NOT be recycled because an open task exists
     expect(offlineUpdate).not.toHaveBeenCalledWith('tasks', { id: 'task-done-old' }, expect.anything());
   });
+
+  it('resets all child subtasks to active and updates their deadline when recycling a completed canonical task', async () => {
+    const today = new Date().toLocaleDateString('en-CA');
+    const templates = [
+      {
+        id: 'tpl-daily-routine',
+        user_id: 'test-user-123',
+        title: 'Morning Launch Sequence',
+        is_active: true,
+        last_generated_date: '2026-09-01',
+        frequency: 'daily'
+      }
+    ];
+
+    const tasks = [
+      {
+        id: 'task-root-completed',
+        user_id: 'test-user-123',
+        title: 'Morning Launch Sequence',
+        status: 'done',
+        parent_task_id: null,
+        source_template_id: 'tpl-daily-routine',
+        created_at: '2026-09-01T06:00:00Z',
+        completion_count: 3,
+        completion_dates: ['2026-09-01']
+      },
+      {
+        id: 'subtask-1',
+        user_id: 'test-user-123',
+        title: 'Hydrate 500ml',
+        status: 'done',
+        parent_task_id: 'task-root-completed',
+        deadline: '2026-09-01'
+      },
+      {
+        id: 'subtask-2',
+        user_id: 'test-user-123',
+        title: '10 min Stretching',
+        status: 'done',
+        parent_task_id: 'task-root-completed',
+        deadline: '2026-09-01'
+      }
+    ];
+
+    offlineSelect.mockImplementation(async (table) => {
+      if (table === 'recurring_task_templates') return { data: templates, error: null };
+      if (table === 'tasks') return { data: tasks, error: null };
+      return { data: [], error: null };
+    });
+
+    const { result } = renderHook(() => useRecurringTasks());
+
+    await waitFor(() => {
+      expect(result.current.generated).toBe(1);
+    });
+
+    // Root completed task must be recycled
+    expect(offlineUpdate).toHaveBeenCalledWith(
+      'tasks',
+      { id: 'task-root-completed' },
+      expect.objectContaining({
+        status: 'active',
+        deadline: today,
+        source_template_id: 'tpl-daily-routine'
+      })
+    );
+
+    // All child subtasks must be reset to active with deadline today and completion history recorded
+    expect(offlineUpdate).toHaveBeenCalledWith(
+      'tasks',
+      { id: 'subtask-1' },
+      { status: 'active', deadline: today, completion_count: 1, completion_dates: ['2026-09-01'] }
+    );
+    expect(offlineUpdate).toHaveBeenCalledWith(
+      'tasks',
+      { id: 'subtask-2' },
+      { status: 'active', deadline: today, completion_count: 1, completion_dates: ['2026-09-01'] }
+    );
+  });
 });
