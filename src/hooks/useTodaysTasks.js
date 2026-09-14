@@ -147,16 +147,28 @@ export function useTodaysTasks() {
       const isCompleting = !item.completed
 
       try {
-        await offlineUpdate('daily_tasks', 
-          { user_id: user.id, title: item.title }, 
-          { completed: isCompleting }
-        )
-
-        const newStatus = isCompleting ? 'done' : 'active'
-        await offlineUpdate('tasks',
-          { user_id: user.id, title: item.title },
-          { status: newStatus }
-        )
+        if (item.__type === 'daily_task') {
+          await offlineUpdate('daily_tasks', 
+            { id: item.id }, 
+            { completed: isCompleting }
+          )
+        } else if (item.__type === 'matrix_task') {
+          const newStatus = isCompleting ? 'done' : 'active'
+          await offlineUpdate('tasks',
+            { id: item.id },
+            { status: newStatus }
+          )
+        } else if (item.id) {
+          await offlineUpdate('daily_tasks', 
+            { id: item.id }, 
+            { completed: isCompleting }
+          )
+          const newStatus = isCompleting ? 'done' : 'active'
+          await offlineUpdate('tasks',
+            { id: item.id },
+            { status: newStatus }
+          )
+        }
       } catch (err) {
         console.warn('Sync toggle error:', err)
       }

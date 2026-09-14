@@ -1,5 +1,47 @@
 # Changelog
 
+## [2026-09-14] Subtask Matrix Reflection, Recurring Task Subtask Reset & Impeccable UI Redesign (v1.2.8)
+- **Recurring Task Daily Subtask Reset**: Fixed recurring routine state machine in `useRecurringTasks.js` so that when a recurring parent task is recycled on a new day, all associated child subtasks are automatically reset to `status: 'active'` and `deadline: today`, waking up each morning with a fresh checklist instead of carrying over completed subtasks from yesterday.
+- **Subtask Completion Cascades & Matrix Reflection**:
+  - In `MatrixCanvasView.jsx` and `TaskMatrix.jsx`: when all subtasks of a parent task are completed, the parent task is automatically marked `status: 'done'`.
+  - When unchecking a subtask from `done`, it correctly reverts to `status: 'active'` and restores any completed parent task back to `status: 'active'`.
+  - When completing a parent task directly on the Matrix canvas, `status: 'done'` automatically cascades to all open child subtasks.
+- **Cross-Component Real-Time Event Sync**: Added window event listener for `polaris-tasks-changed` in `MatrixCanvasView.jsx` to automatically refresh task nodes when tasks or subtasks are updated anywhere in Polaris.
+- **Strict ID Matching in Today's Tasks**: Updated `useTodaysTasks.js` to match task toggles strictly by `id: item.id`.
+- **Impeccable Subtasks Drawer & Canvas UI Redesign**:
+  - **Full Title Readability**: Removed aggressive truncation from subtask titles in the Details drawer, allowing natural text wrapping with high clarity.
+  - **Legible Completed Items**: Replaced dim, low-contrast text with crisp `text-slate-400 line-through` styling and clear `✓` markers.
+  - **Hover-Revealed Action Controls**: Reordering arrows (`ChevronUp`, `ChevronDown`) and delete actions (`Trash2`) now smoothly reveal on card hover (`opacity-0 group-hover:opacity-100`), reclaiming 50% horizontal card space for text.
+  - **Sleek Single-Row Next Action**: Eliminated the bulky 2nd row and oversized yellow banner. Replaced with an amber accent card border, an inline `Next Action` badge, and a direct `Play` focus launch button.
+  - **Expanded Canvas Pill Breathing Room**: Increased max width of active subtask pills on the 2D canvas to `500px`.
+- **Test Suite Verification**: Added unit tests in `useRecurringTasks.test.js` and `MatrixCanvasView.test.jsx`. All 18 test files passing (181 / 181 tests).
+
+## [2026-09-14] IELTS Module Average Bands, Sub-3-Test Floors & Supabase Persistence (v1.2.7)
+- **Supabase Canonical Persistence & Local Fallback**: Created `practice_scores` database table with RLS policies, multi-tenant `user_id` scoping, and cascading curriculum delete. Integrated into `PracticeScoreTracker.jsx` with automatic migration of legacy `localStorage` entries and offline cache fallbacks.
+- **Official IELTS Raw-to-Band Matrix**: Implemented exact Liz conversion matrices for Listening (out of 40) and Academic Reading (out of 40), with direct band inputs for Writing, Speaking, and custom modules.
+- **Official IELTS Overall Band Rounding**: Implemented official arithmetic mean calculations with rounding (.25 -> .5, .75 -> next whole band), active module count indicators, and 7.5+ target comparisons.
+- **Sub-3-Test Floor Trend Logic**: Implemented deterministic trend badge states preventing misleading 0.0 or premature delta indicators:
+  - 0 tests: `No data yet` (neutral)
+  - 1 test: `Baseline (1 test)` (neutral)
+  - 2 tests: Direct comparison (`+X.X vs Test 1`, `-X.X vs Test 1`, or `Stable (2 tests)`)
+  - 3+ tests: Rolling recent 3 tests average vs baseline average (`+X.X vs baseline`, `-X.X vs baseline`, or `Stable (±0.0)`).
+- **Module Filter Tabs & Chronological Progression Strip**: Added interactive skill filter tabs (`All`, `Listening`, `Reading`, `Writing`, `Speaking`) and a horizontal progression timeline strip tracking chronological band improvements.
+- **Matrix Canvas UI Decluttering**: Removed the written duration chip (`~min left`) on parent task cards leaving only the clean subtask counter button (`0/5`). Replaced the standard bullet dot (`●`) directly with the amber `Sparkles` star icon (`✨`) when an urgent subtask is due within 48h, eliminating visual redundancy and duplicate markers.
+- **Database Schema & Safe Client Registry**: Updated `docs/DATABASE_SCHEMA.md` and added `practice_scores` to `ALLOWED_TABLES` in `scripts/lib/safe_supabase.js`.
+- **Test Suite Verification**: Added comprehensive unit and component test suite in `PracticeScoreTracker.test.jsx` with 15 tests covering band calculation, rounding, trend floors, filtering, migration, and CRUD persistence.
+
+## [2026-09-14] Media & Lit Auto-Fetch Link Metadata, Research Paper Citations & Page View State Persistence (v1.2.7)
+- **Universal Link Metadata Fetcher**: Built `src/lib/linkMetadataFetcher.js` with multi-tier automatic extraction for dropped URLs:
+  - **Academic Papers & Preprints**: Direct CORS-friendly querying of OpenAlex and Crossref APIs for ResearchGate URLs (via title slug), DOIs (`10.xxxx/...`), and arXiv preprints (`arxiv.org/abs/...`), pulling exact paper titles, full author lists, journal/venue citations, publication dates, and abstracts without API keys or CORS issues.
+  - **General Web Articles & Media**: Automated OpenGraph and metadata extraction via Microlink API for Substack, Medium, news, tech blogs, YouTube, and podcasts with graceful rate-limit handling and resilient URL slug fallbacks.
+- **Top Quick-Drop Link Bar**: Added a fast URL paste bar directly at the top of `MediaLog.jsx` (`[ 🔗 Paste link... ] [ ⚡ Auto-Fetch & Add ]`) and in `AddMediaModal.jsx`, allowing 1-click auto-population and saving.
+- **Dedicated Sub-View Category Filters**: Added clean category sub-views inside `MediaLog.jsx` (`All Items`, `📄 Research Papers`, `📰 Articles & News`, `📚 Books`, `🎙️ Audio & Video`) keeping Media & Lit unified on the shelf while offering dedicated academic reading focus.
+- **First-Class Research Paper Styling**: Added `'paper'` to canonical `MEDIA_TYPES` with distinct sky/cyan accent badges, full citation metadata (authors, venue, year), expandable abstract drawers, and direct `Read Paper ->` external links.
+- **Page View & Tab State Persistence on Refresh**:
+  - `Dashboard.jsx`: Initialized `activeView` from `localStorage` (`polaris_active_view`) so that hard browser reloads and POLARIS logo clicks restore the user's exact active view instead of resetting to Constellation.
+  - `CurriculumShelf.jsx`: Initialized `activeTab` from `localStorage` (`polaris_curriculum_tab`) preserving the selected curriculum shelf tab.
+- **Security & Quality Verification**: Enforced multi-tenant `user_id` query scoping, safe external URL sanitization, zero CSS gradients, zero em/en dashes, and 100% test coverage across 17 test suites (161 tests passing).
+
 ## [2026-09-14] Settings Consolidation, Task System Overhaul & UI Decluttering (v1.2.6)
 - **Task Hierarchy Unification & Split-Brain Resolution**: Unified task hierarchy strictly under `tasks.parent_task_id`, deprecating the legacy polymorphic `subtasks` table. Migrated legacy subtasks to `tasks` and established canonical parent sprints for IELTS and core portfolio/research projects.
 - **Single-Row Recurring State Machine**: Hardened `useRecurringTasks.js` to strictly target root tasks, enforce open-task guards (never clone active tasks), and recycle only completed canonical rows on scheduled days.

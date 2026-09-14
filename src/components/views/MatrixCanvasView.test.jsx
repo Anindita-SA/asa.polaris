@@ -440,10 +440,10 @@ describe('MatrixCanvasView', () => {
     // Task without subtasks: renders estimate badge 45m
     expect(screen.getByText('45m')).toBeDefined();
 
-    // Task with subtasks: does NOT render estimate badge 120m, but renders subtask count and remaining time
+    // Task with subtasks: does NOT render estimate badge or written time left, only subtask count button
     expect(within(chaargCard).queryByText('120m')).toBeNull();
+    expect(within(chaargCard).queryByText(/min left/)).toBeNull();
     expect(within(chaargCard).getByText(/0\/1/)).toBeDefined();
-    expect(within(chaargCard).getByText(/~30 min left/)).toBeDefined();
   });
 
   it('renders subtle RefreshCw recurring indicator on canvas card pill when task has source_template_id', async () => {
@@ -773,7 +773,7 @@ describe('MatrixCanvasView', () => {
 
       await waitFor(() => {
         expect(screen.getByText('Subtasks (0/2)')).toBeDefined();
-        expect(screen.getByText('ACTIVE NEXT ACTION')).toBeDefined();
+        expect(screen.getByText('Next Action')).toBeDefined();
       });
 
       // Subtask 2 should have a 'Set as Next Action' button
@@ -861,6 +861,199 @@ describe('MatrixCanvasView', () => {
           { id: 'parent-demote-task' },
           { quadrant: 'important_not_urgent' }
         );
+      });
+    });
+  });
+
+  describe('Subtask Matrix Reflection, Cascade and polaris-tasks-changed Event', () => {
+    it('auto-completes parent task when all sibling subtasks become done', async () => {
+      dbTasks.push({
+        id: 'parent-cascade-task',
+        user_id: mockUser.id,
+        title: 'Complete Project Alpha',
+        status: 'active',
+        quadrant: 'urgent_important'
+      });
+      dbTasks.push({
+        id: 'child-sub-1',
+        parent_task_id: 'parent-cascade-task',
+        user_id: mockUser.id,
+        title: 'Alpha Part 1',
+        status: 'done',
+        position: 0
+      });
+      dbTasks.push({
+        id: 'child-sub-2',
+        parent_task_id: 'parent-cascade-task',
+        user_id: mockUser.id,
+        title: 'Alpha Part 2',
+        status: 'active',
+        position: 1
+      });
+
+      render(<MatrixCanvasView />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Complete Project Alpha')).toBeDefined();
+      });
+
+      // Select parent task to open Details drawer
+      fireEvent.click(screen.getByText('Complete Project Alpha'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Alpha Part 2')).toBeDefined();
+      });
+
+      // Click toggle check on Alpha Part 2
+      const part2Card = screen.getByText('Alpha Part 2').closest('.group');
+      const toggleCheckBtn = within(part2Card).getByRole('button', { name: /Mark complete/i });
+      fireEvent.click(toggleCheckBtn);
+
+      await waitFor(() => {
+        expect(offlineApi.offlineUpdate).toHaveBeenCalledWith(
+          'tasks',
+          { id: 'child-sub-2' },
+          { status: 'done' }
+        );
+        expect(offlineApi.offlineUpdate).toHaveBeenCalledWith(
+          'tasks',
+          { id: 'parent-cascade-task' },
+          { status: 'done' }
+        );
+      });
+    });
+
+    it('reverts parent task from done to active when an unchecked subtask changes from done to active', async () => {
+      dbTasks.push({
+        id: 'parent-done-task',
+        user_id: mockUser.id,
+        title: 'Completed Parent Task',
+        status: 'done',
+        quadrant: 'urgent_important'
+      });
+      dbTasks.push({
+        id: 'done-sub-1',
+        parent_task_id: 'parent-done-task',
+        user_id: mockUser.id,
+        title: 'Finished Subtask 1',
+        status: 'done',
+        position: 0
+      });
+
+      render(<MatrixCanvasView />);
+
+      // Switch to completed tab in brain dump to see completed task details
+      const completedTabBtn = screen.getByTitle(/Completed/i);
+      fireEvent.click(completedTabBtn);
+
+      await waitFor(() => {
+        expect(screen.getByText('Completed Parent Task')).toBeDefined();
+      });
+
+      // Click to view details
+      fireEvent.click(screen.getByText('Completed Parent Task'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Finished Subtask 1')).toBeDefined();
+      });
+
+      // Uncheck Finished Subtask 1
+      const subCard = screen.getByText('Finished Subtask 1').closest('.group');
+      const uncheckBtn = within(subCard).getByRole('button', { name: /Mark incomplete/i });
+      fireEvent.click(uncheckBtn);
+
+      await waitFor(() => {
+        expect(offlineApi.offlineUpdate).toHaveBeenCalledWith(
+          'tasks',
+          { id: 'done-sub-1' },
+          { status: 'active' }
+        );
+        expect(offlineApi.offlineUpdate).toHaveBeenCalledWith(
+          'tasks',
+          { id: 'parent-done-task' },
+          { status: 'active' }
+        );
+      });
+    });
+
+    it('cascades done status to all child subtasks when root parent task is marked done directly', async () => {
+      dbTasks.push({
+        id: 'root-parent-direct',
+        user_id: mockUser.id,
+        title: 'Direct Root Task',
+        status: 'active',
+        quadrant: 'urgent_important'
+      });
+      dbTasks.push({
+        id: 'root-child-1',
+        parent_task_id: 'root-parent-direct',
+        user_id: mockUser.id,
+        title: 'Child Subtask A',
+        status: 'active',
+        position: 0
+      });
+      dbTasks.push({
+        id: 'root-child-2',
+        parent_task_id: 'root-parent-direct',
+        user_id: mockUser.id,
+        title: 'Child Subtask B',
+        status: 'active',
+        position: 1
+      });
+
+      render(<MatrixCanvasView />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Direct Root Task')).toBeDefined();
+      });
+
+      // Mark parent task done on canvas
+      const parentCard = screen.getByText('Direct Root Task').closest('.group');
+      const markDoneBtn = within(parentCard).getByTitle('Mark Done');
+      fireEvent.click(markDoneBtn);
+
+      await waitFor(() => {
+        expect(offlineApi.offlineUpdate).toHaveBeenCalledWith(
+          'tasks',
+          { id: 'root-parent-direct' },
+          { status: 'done' }
+        );
+        expect(offlineApi.offlineUpdate).toHaveBeenCalledWith(
+          'tasks',
+          { id: 'root-child-1' },
+          { status: 'done' }
+        );
+        expect(offlineApi.offlineUpdate).toHaveBeenCalledWith(
+          'tasks',
+          { id: 'root-child-2' },
+          { status: 'done' }
+        );
+      });
+    });
+
+    it('automatically refreshes task list when polaris-tasks-changed window event fires', async () => {
+      render(<MatrixCanvasView />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Deploy Polaris Alpha')).toBeDefined();
+      });
+
+      // Add task to dbTasks in background
+      dbTasks.push({
+        id: 'task-external-event',
+        user_id: mockUser.id,
+        title: 'External Focus Task Added',
+        status: 'active',
+        quadrant: 'urgent_important'
+      });
+
+      // Dispatch event
+      window.dispatchEvent(new CustomEvent('polaris-tasks-changed', {
+        detail: { table: 'tasks', operation: 'insert' }
+      }));
+
+      await waitFor(() => {
+        expect(screen.getByText('External Focus Task Added')).toBeDefined();
       });
     });
   });

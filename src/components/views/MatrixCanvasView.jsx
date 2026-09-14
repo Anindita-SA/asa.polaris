@@ -358,6 +358,17 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
     fetchTasks();
   }, [fetchTasks, refreshTrigger]);
 
+  useEffect(() => {
+    const handleTasksChanged = () => {
+      fetchTasks();
+    };
+
+    window.addEventListener('polaris-tasks-changed', handleTasksChanged);
+    return () => {
+      window.removeEventListener('polaris-tasks-changed', handleTasksChanged);
+    };
+  }, [fetchTasks]);
+
   // Quick Dump Task into Brain Dump (Zero-Friction Capture)
   const handleDumpTask = async (e) => {
     if (e) e.preventDefault();
@@ -578,13 +589,64 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
 
   // Toggle done status (Finished tasks are removed from 2D plane and appear in Brain Dump's Completed list)
   const toggleDone = async (task) => {
-    const newStatus = task.status === 'done' ? 'inbox' : 'done';
+    const isSubtask = !!task.parent_task_id;
+    const isCompleting = task.status !== 'done';
+    const newStatus = isCompleting ? 'done' : (isSubtask ? 'active' : 'inbox');
+
+    let shouldUpdateParent = false;
+    let parentNewStatus = null;
+    let childIdsToComplete = [];
+
+    if (isSubtask) {
+      if (isCompleting) {
+        const siblingSubtasks = tasks.filter(t => t.parent_task_id === task.parent_task_id && t.id !== task.id);
+        const allSiblingsDone = siblingSubtasks.every(t => t.status === 'done');
+        if (allSiblingsDone) {
+          shouldUpdateParent = true;
+          parentNewStatus = 'done';
+        }
+      } else {
+        const parentTask = tasks.find(t => t.id === task.parent_task_id);
+        if (parentTask && parentTask.status === 'done') {
+          shouldUpdateParent = true;
+          parentNewStatus = 'active';
+        }
+      }
+    } else {
+      if (isCompleting) {
+        const childSubtasks = tasks.filter(t => t.parent_task_id === task.id);
+        childIdsToComplete = childSubtasks.map(c => c.id);
+      }
+    }
+
     setTasks((prev) =>
-      prev.map((t) => (t.id === task.id ? { ...t, status: newStatus } : t))
+      prev.map((t) => {
+        if (t.id === task.id) {
+          return { ...t, status: newStatus };
+        }
+        if (shouldUpdateParent && t.id === task.parent_task_id) {
+          return { ...t, status: parentNewStatus };
+        }
+        if (childIdsToComplete.includes(t.id)) {
+          return { ...t, status: 'done' };
+        }
+        return t;
+      })
     );
 
     try {
       await offlineUpdate('tasks', { id: task.id }, { status: newStatus });
+
+      if (shouldUpdateParent && task.parent_task_id && parentNewStatus) {
+        await offlineUpdate('tasks', { id: task.parent_task_id }, { status: parentNewStatus });
+      }
+
+      if (childIdsToComplete.length > 0) {
+        for (const childId of childIdsToComplete) {
+          await offlineUpdate('tasks', { id: childId }, { status: 'done' });
+        }
+      }
+
       if (onTasksChanged) onTasksChanged();
     } catch (err) {
       console.error('Error toggling done:', err);
@@ -1093,15 +1155,13 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                                 boxShadow: `0 0 10px ${q.color}33` 
                               }}
                             >
-                              {/* Left Bullet & Urgent Subtask Indicator */}
-                              {task.status === 'in_progress' ? (
+                              {/* Left Bullet / Urgent Subtask Indicator */}
+                              {hasUrgentSubtask ? (
+                                <Sparkles data-testid="urgent-subtask-indicator" className="w-3 h-3 text-amber-400 shrink-0 pointer-events-none" title="Urgent Subtask Due within 48h" />
+                              ) : task.status === 'in_progress' ? (
                                 <Zap className="w-3 h-3 shrink-0 pointer-events-none" style={{ color: q.color }} fill="currentColor" />
                               ) : (
                                 <span className="w-2.5 h-2.5 rounded-full shrink-0 pointer-events-none" style={{ backgroundColor: q.color }} />
-                              )}
-
-                              {hasUrgentSubtask && (
-                                <Sparkles data-testid="urgent-subtask-indicator" className="w-3 h-3 text-amber-400 shrink-0 pointer-events-none" title="Urgent Subtask Due within 48h" />
                               )}
                               
                               {/* Title */}
@@ -1179,20 +1239,13 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                                 )}
 
                                 {totalSubtasksCount > 0 && (
-                                  <div className="flex items-center gap-1">
-                                    <button
-                                      onClick={(e) => toggleTaskExpand(e, task.id)}
-                                      className="ml-1 bg-pulsar/20 text-nova/80 hover:text-starlight hover:bg-pulsar/40 px-1.5 py-0.5 rounded flex items-center gap-1 border border-pulsar/30 transition-colors pointer-events-auto"
-                                      title="Toggle Subtasks"
-                                    >
-                                      {isExpanded ? <ChevronDown className="w-3 h-3" /> : <><List className="w-3 h-3" /> {doneSubtasksCount}/{totalSubtasksCount}</>}
-                                    </button>
-                                    {remainingMinutes > 0 && (
-                                      <span className="text-amber-400 border border-amber-500/30 bg-amber-950/40 px-1.5 py-0.5 rounded text-[10px] font-mono pointer-events-none">
-                                        ~{remainingMinutes} min left
-                                      </span>
-                                    )}
-                                  </div>
+                                  <button
+                                    onClick={(e) => toggleTaskExpand(e, task.id)}
+                                    className="ml-1 bg-pulsar/20 text-nova/80 hover:text-starlight hover:bg-pulsar/40 px-1.5 py-0.5 rounded flex items-center gap-1 border border-pulsar/30 transition-colors pointer-events-auto"
+                                    title="Toggle Subtasks"
+                                  >
+                                    {isExpanded ? <ChevronDown className="w-3 h-3" /> : <><List className="w-3 h-3" /> {doneSubtasksCount}/{totalSubtasksCount}</>}
+                                  </button>
                                 )}
 
                                 {/* Quick Hover Controls */}
@@ -1239,7 +1292,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                                   setActiveBrainDumpTab('details');
                                   setBrainDumpCollapsed(false);
                                 }}
-                                className="group flex items-center gap-2 px-3 py-1.5 rounded-lg bg-void/50 border border-amber-500/40 ml-6 w-fit max-w-[400px] select-none cursor-pointer hover:border-amber-500/70 transition-colors shadow-sm"
+                                className="group flex items-center gap-2 px-3 py-1.5 rounded-lg bg-void/50 border border-amber-500/40 ml-6 w-fit max-w-[500px] select-none cursor-pointer hover:border-amber-500/70 transition-colors shadow-sm"
                               >
                                 <Zap className="w-3 h-3 text-amber-400 shrink-0" />
                                 <h4 className="text-[12px] text-starlight truncate pointer-events-none">
@@ -1361,9 +1414,10 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                   }}
                   className="group inline-flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-[#0a0f1e]/95 border-2 cursor-grab active:cursor-grabbing w-fit max-w-[450px] select-none"
                 >
-                  <span className="w-2.5 h-2.5 rounded-full shrink-0 animate-pulse pointer-events-none" style={{ backgroundColor: qColor }} />
-                  {hasUrgentSubtask && (
+                  {hasUrgentSubtask ? (
                     <Sparkles data-testid="urgent-subtask-indicator" className="w-3 h-3 text-amber-400 shrink-0 pointer-events-none" title="Urgent Subtask Due within 48h" />
+                  ) : (
+                    <span className="w-2.5 h-2.5 rounded-full shrink-0 animate-pulse pointer-events-none" style={{ backgroundColor: qColor }} />
                   )}
                   <h4 className="text-[13px] font-body text-starlight truncate leading-none pointer-events-none">
                     {task.title}
@@ -1437,16 +1491,9 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                       </span>
                     )}
                     {totalSubtasksCount > 0 && (
-                      <div className="flex items-center gap-1">
-                        <span className="bg-pulsar/20 text-nova/80 px-1.5 py-0.5 rounded flex items-center gap-1 border border-pulsar/30 text-[9px]">
-                          <List className="w-2.5 h-2.5" /> {doneSubtasksCount}/{totalSubtasksCount}
-                        </span>
-                        {remainingMinutes > 0 && (
-                          <span className="text-amber-400 border border-amber-500/30 bg-amber-950/40 px-1.5 py-0.5 rounded text-[9px] font-mono pointer-events-none">
-                            {remainingMinutes}m
-                          </span>
-                        )}
-                      </div>
+                      <span className="bg-pulsar/20 text-nova/80 px-1.5 py-0.5 rounded flex items-center gap-1 border border-pulsar/30 text-[9px]">
+                        <List className="w-2.5 h-2.5" /> {doneSubtasksCount}/{totalSubtasksCount}
+                      </span>
                     )}
 
                     {/* Retether & Hover Controls */}
@@ -2032,25 +2079,67 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                             return (
                               <div
                                 key={st.id}
-                                className={`p-2.5 rounded-lg border text-xs flex flex-col gap-1.5 transition-colors ${
+                                className={`group p-2.5 rounded-lg border text-xs transition-all ${
                                   isActive
-                                    ? 'bg-amber-500/10 border-amber-500/40 shadow-sm'
-                                    : 'bg-void/30 border-pulsar/20'
+                                    ? 'border-amber-500/50 bg-amber-500/10 shadow-[0_0_12px_rgba(245,158,11,0.15)]'
+                                    : isSubDone
+                                      ? 'bg-void/20 border-pulsar/15'
+                                      : 'bg-void/30 border-pulsar/20 hover:border-pulsar/40'
                                 }`}
                               >
-                                <div className="flex items-center justify-between gap-2">
-                                  <button
-                                    type="button"
-                                    onClick={() => toggleDone(st)}
-                                    className="flex items-center gap-2 text-left flex-1 min-w-0"
-                                  >
-                                    <span className={`font-mono font-bold ${isSubDone ? 'text-emerald' : 'text-nova/60'}`}>
-                                      {isSubDone ? '✓' : '○'}
-                                    </span>
-                                    <span className={`truncate ${isSubDone ? 'line-through text-nova/60' : 'text-starlight font-medium'}`}>
-                                      {st.title}
-                                    </span>
-                                  </button>
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="flex items-start gap-2 flex-1 min-w-0">
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleDone(st)}
+                                      className="mt-0.5 shrink-0 text-left cursor-pointer"
+                                      aria-label={isSubDone ? 'Mark incomplete' : 'Mark complete'}
+                                    >
+                                      <span className={`font-mono font-bold ${isSubDone ? 'text-emerald' : 'text-nova/60'}`}>
+                                        {isSubDone ? '✓' : '○'}
+                                      </span>
+                                    </button>
+
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex flex-wrap items-center gap-1.5">
+                                        <span className={`break-words text-xs leading-snug ${isSubDone ? 'text-slate-400 line-through' : 'text-starlight font-medium'}`}>
+                                          {st.title}
+                                        </span>
+
+                                        {isActive && (
+                                          <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 font-mono text-[9px] font-semibold tracking-wide shrink-0">
+                                            Next Action
+                                          </span>
+                                        )}
+
+                                        {!isSubDone && !isActive && (
+                                          <button
+                                            type="button"
+                                            onClick={() => handleSetNextAction(st)}
+                                            className="opacity-0 group-hover:opacity-100 px-1.5 py-0.2 rounded bg-pulsar/20 hover:bg-pulsar hover:text-void text-pulsar border border-pulsar/30 font-mono text-[9px] font-medium transition-all cursor-pointer shrink-0"
+                                          >
+                                            Set as Next Action
+                                          </button>
+                                        )}
+
+                                        {st.mental_load && !isSubDone && (
+                                          <span className={`px-1.5 py-0.2 rounded font-mono text-[9px] font-bold uppercase shrink-0 ${
+                                            st.mental_load === 'low' ? 'bg-emerald-950/80 text-emerald-300 border border-emerald-500/40' :
+                                            st.mental_load === 'high' ? 'bg-purple-950/80 text-purple-300 border border-purple-500/40' :
+                                            'bg-amber-950/80 text-amber-300 border border-amber-500/40'
+                                          }`}>
+                                            {st.mental_load}
+                                          </span>
+                                        )}
+
+                                        {stEstimate && !isSubDone && (
+                                          <span className="px-1.5 py-0.2 rounded font-mono text-[9px] text-nova/70 bg-void/40 border border-pulsar/30 shrink-0">
+                                            {stEstimate}m
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
 
                                   <div className="flex items-center gap-1 shrink-0">
                                     {!isSubDone && (
@@ -2060,76 +2149,43 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                                           await handleSetNextAction(st);
                                           window.dispatchEvent(new CustomEvent('polaris-start-task', { detail: { task: st } }));
                                         }}
-                                        className="text-amber-400 hover:text-amber-300 hover:bg-amber-500/20 p-0.5 rounded transition-colors"
+                                        className="text-amber-400 hover:text-amber-300 hover:bg-amber-500/20 p-1 rounded transition-colors"
                                         title="Start Focus on Subtask"
                                         aria-label="Start Focus on Subtask"
                                       >
                                         <Play className="w-3.5 h-3.5 fill-current" />
                                       </button>
                                     )}
-                                    <button
-                                      type="button"
-                                      disabled={idx === 0}
-                                      onClick={() => handleMoveSubtask(st.id, 'up')}
-                                      className="text-nova/50 hover:text-starlight disabled:opacity-20 p-0.5"
-                                      title="Move Up"
-                                    >
-                                      <ChevronUp className="w-3.5 h-3.5" />
-                                    </button>
-                                    <button
-                                      type="button"
-                                      disabled={idx === selectedSubtasks.length - 1}
-                                      onClick={() => handleMoveSubtask(st.id, 'down')}
-                                      className="text-nova/50 hover:text-starlight disabled:opacity-20 p-0.5"
-                                      title="Move Down"
-                                    >
-                                      <ChevronDown className="w-3.5 h-3.5" />
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => deleteTask(st.id)}
-                                      className="text-nova/60 hover:text-red-400 p-0.5 ml-1"
-                                      title="Delete Subtask"
-                                    >
-                                      <Trash2 className="w-3.5 h-3.5" />
-                                    </button>
+                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+                                      <button
+                                        type="button"
+                                        disabled={idx === 0}
+                                        onClick={() => handleMoveSubtask(st.id, 'up')}
+                                        className="text-nova/50 hover:text-starlight disabled:opacity-20 p-0.5"
+                                        title="Move Up"
+                                      >
+                                        <ChevronUp className="w-3.5 h-3.5" />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        disabled={idx === selectedSubtasks.length - 1}
+                                        onClick={() => handleMoveSubtask(st.id, 'down')}
+                                        className="text-nova/50 hover:text-starlight disabled:opacity-20 p-0.5"
+                                        title="Move Down"
+                                      >
+                                        <ChevronDown className="w-3.5 h-3.5" />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => deleteTask(st.id)}
+                                        className="text-nova/60 hover:text-red-400 p-0.5 ml-0.5"
+                                        title="Delete Subtask"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
                                   </div>
                                 </div>
-
-                                {!isSubDone && (
-                                  <div className="flex items-center justify-between gap-2 pt-1 border-t border-pulsar/15 text-[10px] font-mono">
-                                    <div className="flex items-center gap-1.5 flex-wrap">
-                                      {isActive ? (
-                                        <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/40 font-bold tracking-wider">
-                                          ACTIVE NEXT ACTION
-                                        </span>
-                                      ) : (
-                                        <button
-                                          type="button"
-                                          onClick={() => handleSetNextAction(st)}
-                                          className="px-1.5 py-0.5 rounded bg-pulsar/20 text-pulsar hover:bg-pulsar hover:text-void border border-pulsar/40 font-bold transition-colors cursor-pointer"
-                                        >
-                                          Set as Next Action
-                                        </button>
-                                      )}
-                                      {st.mental_load && (
-                                        <span className={`px-1 py-0.2 rounded font-bold uppercase ${
-                                          st.mental_load === 'low' ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/40' :
-                                          st.mental_load === 'high' ? 'bg-purple-950 text-purple-300 border border-purple-500/40' :
-                                          'bg-amber-950 text-amber-300 border border-amber-500/40'
-                                        }`}>
-                                          {st.mental_load}
-                                        </span>
-                                      )}
-                                    </div>
-
-                                    {stEstimate && (
-                                      <span className="text-nova/60">
-                                        {stEstimate}m
-                                      </span>
-                                    )}
-                                  </div>
-                                )}
                               </div>
                             );
                           })}

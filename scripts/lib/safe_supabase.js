@@ -23,7 +23,8 @@ const ALLOWED_TABLES = [
   'recurring_task_templates',
   'task_estimate_calibration',
   'user_settings',
-  'media_log'
+  'media_log',
+  'practice_scores'
 ];
 
 
