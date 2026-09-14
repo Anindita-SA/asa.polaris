@@ -2,19 +2,21 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { getLevelInfo } from '../../data/defaults'
-import { Star, LogOut, Edit2, Check, Menu, X, PanelRightClose, PanelRightOpen, WifiOff } from 'lucide-react'
+import { Star, Edit2, Check, Menu, X, PanelRightClose, PanelRightOpen, WifiOff, Settings } from 'lucide-react'
 import IOBalanceBar from '../widgets/IOBalanceBar'
 import StatsModal from '../modals/StatsModal'
+import SettingsPanel from '../panels/SettingsPanel'
 import { useOnlineStatus } from '../../hooks/useOnlineStatus'
 
 const HUD = ({ activeView, setActiveView, rightPanelOpen, setRightPanelOpen }) => {
-  const { profile, updateProfile, signOut } = useAuth()
+  const { profile, updateProfile } = useAuth()
   const { isOnline, pendingSyncCount } = useOnlineStatus()
   const [editingAnchor, setEditingAnchor] = useState(false)
   const [editingChapter, setEditingChapter] = useState(false)
   const [anchorText, setAnchorText] = useState('')
   const [chapterText, setChapterText] = useState('')
   const [isStatsOpen, setIsStatsOpen] = useState(false)
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [systemAlerts, setSystemAlerts] = useState([])
 
   useEffect(() => {
@@ -162,14 +164,19 @@ const HUD = ({ activeView, setActiveView, rightPanelOpen, setRightPanelOpen }) =
             </div>
           </div>
 
-          {/* Logout */}
-          <button onClick={signOut} className="text-nova/60 hover:text-danger transition-colors ml-1" title="Sign Out">
-            <LogOut className="w-4 h-4" />
+          {/* Settings */}
+          <button 
+            onClick={() => setIsSettingsOpen(true)} 
+            className="text-nova/60 hover:text-gold transition-colors ml-1 p-1 rounded hover:bg-pulsar/10 cursor-pointer" 
+            title="Settings & Preferences"
+          >
+            <Settings className="w-4 h-4" />
           </button>
         </div>
       </div>
 
       {isStatsOpen && <StatsModal onClose={() => setIsStatsOpen(false)} systemAlerts={systemAlerts} />}
+      <SettingsPanel open={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
     </>
   )
 }

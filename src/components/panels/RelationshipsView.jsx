@@ -80,7 +80,7 @@ export default function RelationshipsView() {
   }
 
   const saveContact = async () => {
-    if (!formData.name) return
+    if (!formData.name || !user?.id) return
     const payload = {
       user_id: user.id,
       ...formData,
@@ -88,7 +88,7 @@ export default function RelationshipsView() {
       category: formData.category.trim() || null
     }
     if (editingContact) {
-      await supabase.from('contacts').update(payload).eq('id', editingContact.id)
+      await supabase.from('contacts').update(payload).eq('id', editingContact.id).eq('user_id', user.id)
     } else {
       await supabase.from('contacts').insert(payload)
     }
@@ -97,20 +97,22 @@ export default function RelationshipsView() {
   }
 
   const deleteContact = async (id) => {
+    if (!user?.id) return
     if (window.confirm("Delete this contact?")) {
-      await supabase.from('contacts').delete().eq('id', id)
+      await supabase.from('contacts').delete().eq('id', id).eq('user_id', user.id)
       fetchContacts()
     }
   }
 
   const renameCategory = async (oldCat, newCat) => {
+    if (!user?.id) return
     const cleanNew = newCat.trim()
     if (!cleanNew && !window.confirm(`Remove category "${oldCat}" from all contacts?`)) return
     
     // update all contacts with oldCat
     const toUpdate = contacts.filter(c => c.category === oldCat)
     for (const c of toUpdate) {
-      await supabase.from('contacts').update({ category: cleanNew || null }).eq('id', c.id)
+      await supabase.from('contacts').update({ category: cleanNew || null }).eq('id', c.id).eq('user_id', user.id)
     }
     fetchContacts()
     if (activeCategory === oldCat) setActiveCategory(cleanNew || 'All')

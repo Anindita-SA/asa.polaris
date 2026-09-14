@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
-import { Sparkles, Dices, X } from 'lucide-react'
+import { Sparkles, Dices, X, Play } from 'lucide-react'
 import { playChime } from '../../lib/sound'
 import { motion, AnimatePresence } from 'framer-motion'
 
-const SurpriseTaskModal = ({ isOpen, onClose, tasks = [], toggleComplete }) => {
+const SurpriseTaskModal = ({ isOpen, onClose, tasks = [], toggleComplete, onStartFocus }) => {
   const [selectedTask, setSelectedTask] = useState(null)
   const [isRolling, setIsRolling] = useState(false)
 
@@ -14,6 +14,7 @@ const SurpriseTaskModal = ({ isOpen, onClose, tasks = [], toggleComplete }) => {
       return
     }
     
+    setSelectedTask(incomplete[Math.floor(Math.random() * incomplete.length)])
     setIsRolling(true)
     try {
       playChime('neutral')
@@ -98,20 +99,34 @@ const SurpriseTaskModal = ({ isOpen, onClose, tasks = [], toggleComplete }) => {
               </div>
             )}
 
-            <div className="pt-4 space-y-3">
+            <div className="pt-4 space-y-2.5">
               {selectedTask && (
-                <button 
-                  onClick={handleComplete}
-                  disabled={isRolling}
-                  className="w-full py-3 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-xl hover:bg-amber-500/30 transition-colors font-display disabled:opacity-50 font-bold"
-                >
-                  Let'S Go (Mark Done)
-                </button>
+                <>
+                  {onStartFocus && (
+                    <button 
+                      onClick={() => {
+                        onStartFocus(selectedTask);
+                        onClose();
+                      }}
+                      disabled={isRolling}
+                      className="w-full py-2.5 bg-[#f5a623] text-[#0c0f14] hover:bg-[#f5a623]/90 border border-[#f5a623]/40 rounded-xl transition-colors font-display disabled:opacity-50 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-md"
+                    >
+                      <Play className="w-3.5 h-3.5 fill-current" /> Start Focus
+                    </button>
+                  )}
+                  <button 
+                    onClick={handleComplete}
+                    disabled={isRolling}
+                    className="w-full py-2.5 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-xl hover:bg-amber-500/30 transition-colors font-display disabled:opacity-50 font-bold text-xs cursor-pointer"
+                  >
+                    Let&apos;s Go (Mark Done)
+                  </button>
+                </>
               )}
               <button 
                 onClick={selectedTask ? pickRandom : onClose}
                 disabled={isRolling}
-                className="w-full py-2.5 bg-pulsar/10 text-starlight border border-nova/20 rounded-xl hover:bg-white/10 transition-colors text-sm font-body disabled:opacity-50"
+                className="w-full py-2 bg-pulsar/10 text-starlight border border-nova/20 rounded-xl hover:bg-white/10 transition-colors text-xs font-body disabled:opacity-50 cursor-pointer"
               >
                 {selectedTask ? 'SHUFFLE AGAIN' : 'CLOSE'}
               </button>

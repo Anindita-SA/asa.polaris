@@ -669,6 +669,8 @@
 | canvas_y | float8 |  Nullable |
 | `deadline` | `date` | Nullable |
 | `estimated_minutes` | `int4` | Nullable |
+| `time_estimate_minutes` | `int4` | Nullable |
+| `mental_load` | `text` | Nullable (low \| medium \| high) |
 | `estimate_source` | `text` | Nullable (user \| ai) |
 | `status` | `text` | Not Null, Default `'inbox'` (inbox \| active \| scheduled \| done) |
 | `source_template_id` | `uuid` | Nullable, References `recurring_task_templates` |
@@ -676,6 +678,7 @@
 | `completion_count` | `int4` | Nullable, Default `0` |
 | `completion_dates` | `jsonb` | Nullable |
 | `parent_task_id` | `uuid` | Nullable, References `tasks` |
+| `milestone_id` | `uuid` | Nullable, References `milestones` |
 | `created_at` | `timestamptz` | Nullable, Default `now()` |
 
 ## Table `wins`
@@ -850,3 +853,38 @@
 | `follow_up_due` | `date` | Nullable |
 | `profile_url` | `text` | Nullable |
 | `created_at` | `timestamptz` | Nullable, Default `now()` |
+
+## Table `task_estimate_calibration`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `id` | `uuid` | Primary, Default `gen_random_uuid()` |
+| `user_id` | `uuid` | Not Null, Default `auth.uid()` |
+| `task_id` | `uuid` | Nullable, References `tasks(id)` on delete cascade |
+| `estimated_minutes` | `int4` | Not Null |
+| `actual_minutes` | `int4` | Nullable |
+| `created_at` | `timestamptz` | Nullable, Default `now()` |
+
+## Table `user_settings`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `id` | `uuid` | Primary, Default `gen_random_uuid()` |
+| `user_id` | `uuid` | Not Null, Unique, References `auth.users(id)` on delete cascade |
+| `feature_flags` | `jsonb` | Not Null, Default `{"auto_quadrant_suggest": false, "nudges_enabled": true, "nudge_intervals": {}, "contact_reminders_enabled": true, "celebration_sounds": true, "ambient_audio_default": "lofi"}` |
+| `updated_at` | `timestamptz` | Nullable, Default `now()` |
+
+### Feature Flags JSONB Schema
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `auto_quadrant_suggest` | `boolean` | `false` | Enables smart quadrant suggestion chips on task cards based on mental load and deadline proximity |
+| `nudges_enabled` | `boolean` | `true` | Master toggle for system habit and routine prompt nudges |
+| `nudge_intervals` | `jsonb` | `{}` | Custom per-nudge frequency override mappings |
+| `contact_reminders_enabled` | `boolean` | `true` | Enables reach out reminder prompts for relationship tiers |
+| `celebration_sounds` | `boolean` | `true` | Enables audio sound effects and confetti animations on task/milestone completion |
+| `ambient_audio_default` | `text` | `'lofi'` | Default background soundscape preset (lofi, rain, brown_noise, synth) |

@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
-import { Plus, Star, ChevronDown, X, BookOpen } from 'lucide-react'
+import { Plus, Star, ChevronDown, X, BookOpen, ExternalLink, Tag } from 'lucide-react'
 import { XP } from '../../data/xpRewards'
+import { safeExternalUrl } from '../../lib/urlUtils'
 import AddMediaModal from './AddMediaModal'
 
 const TYPE_FILTERS = ['All', 'book', 'film', 'documentary', 'podcast', 'article', 'course', 'manga', 'anime']
@@ -11,12 +12,19 @@ const STATUS_LABELS = { want_to: 'Want to', in_progress: 'In Progress', done: 'D
 const STATUS_COLORS = { want_to: 'text-nova/60 border-dim/30', in_progress: 'text-pulsar border-pulsar/30', done: 'text-emerald border-emerald/30' }
 const SORT_OPTIONS = ['date_added', 'rating', 'date_finished', 'title']
 
+function extractUrl(text) {
+  if (!text || typeof text !== 'string') return null
+  const match = text.match(/https?:\/\/[^\s\n)]+/i)
+  return match ? safeExternalUrl(match[0]) : null
+}
+
 const MediaLog = () => {
   const { user, addXP } = useAuth()
   const [media, setMedia] = useState([])
   const [showModal, setShowModal] = useState(false)
   const [typeFilter, setTypeFilter] = useState('All')
   const [statusFilter, setStatusFilter] = useState('All')
+  const [tagFilter, setTagFilter] = useState('All')
   const [sortBy, setSortBy] = useState('date_added')
   const [expandedId, setExpandedId] = useState(null)
 
@@ -42,27 +50,44 @@ const MediaLog = () => {
   }
 
   const updateRating = async (id, rating) => {
-    await supabase.from('media_log').update({ rating }).eq('id', id)
+    if (!user?.id) return
+    await supabase.from('media_log').update({ rating }).eq('id', id).eq('user_id', user.id)
     setMedia(prev => prev.map(m => m.id === id ? { ...m, rating } : m))
   }
 
   const updateStatus = async (id, status) => {
+    if (!user?.id) return
     const updates = { status }
     if (status === 'in_progress') updates.date_started = new Date().toISOString().slice(0, 10)
     if (status === 'done') updates.date_finished = new Date().toISOString().slice(0, 10)
-    await supabase.from('media_log').update(updates).eq('id', id)
+    await supabase.from('media_log').update(updates).eq('id', id).eq('user_id', user.id)
     fetchMedia()
   }
 
   const deleteMedia = async (id) => {
-    await supabase.from('media_log').delete().eq('id', id)
+    if (!user?.id) return
+    await supabase.from('media_log').delete().eq('id', id).eq('user_id', user.id)
     fetchMedia()
   }
+
+  // Available unique tags
+  const allTags = useMemo(() => {
+    const set = new Set()
+    media.forEach(m => {
+      if (Array.isArray(m.tags)) {
+        m.tags.forEach(t => {
+          if (t && typeof t === 'string') set.add(t.trim())
+        })
+      }
+    })
+    return Array.from(set).sort()
+  }, [media])
 
   // Filter + sort
   let filtered = media
   if (typeFilter !== 'All') filtered = filtered.filter(m => m.media_type === typeFilter)
   if (statusFilter !== 'All') filtered = filtered.filter(m => m.status === statusFilter)
+  if (tagFilter !== 'All') filtered = filtered.filter(m => Array.isArray(m.tags) && m.tags.includes(tagFilter))
 
   filtered = [...filtered].sort((a, b) => {
     if (sortBy === 'rating') return (b.rating || 0) - (a.rating || 0)
@@ -105,6 +130,35 @@ const MediaLog = () => {
           ))}
         </div>
 
+        {/* Tag filter dropdown if tags exist */}
+        {allTags.length > 0 && (
+          <div className="flex items-center gap-1.5">
+            <div className="w-px h-5 bg-blue-900/30 hidden sm:block" />
+            <div className="flex items-center gap-1">
+              <Tag className="w-3 h-3 text-nova/60" />
+              <select
+                value={tagFilter}
+                onChange={e => setTagFilter(e.target.value)}
+                className="bg-stardust/40 text-xs text-nova/60 border border-pulsar/30 rounded-lg px-2 py-1 outline-none font-mono"
+              >
+                <option value="All">All Tags</option>
+                {allTags.map(tag => (
+                  <option key={tag} value={tag}>#{tag}</option>
+                ))}
+              </select>
+            </div>
+            {tagFilter !== 'All' && (
+              <button
+                onClick={() => setTagFilter('All')}
+                className="text-[10px] font-mono text-amber-400/80 hover:text-amber-300 flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20"
+                title="Clear tag filter"
+              >
+                #{tagFilter} <X className="w-2.5 h-2.5" />
+              </button>
+            )}
+          </div>
+        )}
+
         <div className="flex-1" />
 
         {/* Sort */}
@@ -124,13 +178,16 @@ const MediaLog = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {filtered.map(m => {
           const expanded = expandedId === m.id
+          const articleUrl = extractUrl(m.full_review) || extractUrl(m.one_line_takeaway)
+          const hasCustomReviewText = m.full_review && (!m.full_review.startsWith('URL:') || m.full_review.replace(/^URL:\s*https?:\/\/[^\s\n]+/i, '').trim().length > 0)
+
           return (
             <div key={m.id} className="glass glass-hover hover:-translate-y-1 border border-amber-500/10 rounded-xl p-4 group relative transition-all hover:bg-white/[0.03]">
               <div className="flex gap-3">
                 {/* Cover placeholder */}
                 <div className="w-12 h-16 rounded-lg flex-shrink-0 flex items-center justify-center"
                   style={{
-                    background: m.cover_url ? `url(${m.cover_url}) center/cover` : 'linear-gradient(135deg, #F59E0B15, #F59E0B08, rgba(10,15,30,0.8))',
+                    background: m.cover_url ? `url(${m.cover_url}) center/cover` : '#0d1117',
                     border: '1px solid rgba(245,158,11,0.15)',
                   }}>
                   {!m.cover_url && <BookOpen className="w-4 h-4 text-amber-500/40" />}
@@ -178,15 +235,29 @@ const MediaLog = () => {
                 </button>
               </div>
 
-              {/* One-liner */}
+              {/* One-liner / Summary */}
               {m.one_line_takeaway && (
-                <div className="mt-2.5 pl-3 border-l-2 border-amber-500/30 text-[11px] font-body text-starlight/60 italic">
+                <div className="mt-2.5 pl-3 border-l-2 border-amber-500/30 text-[11px] font-body text-starlight/70 leading-relaxed">
                   {m.one_line_takeaway}
                 </div>
               )}
 
-              {/* Expand for full review */}
-              {m.full_review && (
+              {/* Direct Article URL link if present */}
+              {articleUrl && (
+                <div className="mt-2.5">
+                  <a
+                    href={articleUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-xs font-mono text-amber-400 hover:text-amber-300 hover:underline"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" /> Read Article &rarr;
+                  </a>
+                </div>
+              )}
+
+              {/* Expand for full review if there is extended text */}
+              {hasCustomReviewText && (
                 <>
                   <button onClick={() => setExpandedId(expanded ? null : m.id)}
                     className="text-xs font-mono text-amber-500/60 mt-2 flex items-center gap-1 hover:text-amber-400 transition-colors">
@@ -201,13 +272,22 @@ const MediaLog = () => {
                 </>
               )}
 
-              {/* Tags */}
+              {/* Tags with clickable filter toggle */}
               {m.tags?.length > 0 && (
-                <div className="flex gap-1 mt-2 flex-wrap">
+                <div className="flex gap-1 mt-2.5 flex-wrap">
                   {m.tags.map((tag, i) => (
-                    <span key={i} className="text-[8px] font-mono px-1.5 py-0.5 rounded-full bg-stardust/50 text-nova/60 border border-blue-900/15">
-                      {tag}
-                    </span>
+                    <button
+                      key={i}
+                      onClick={() => setTagFilter(tagFilter === tag ? 'All' : tag)}
+                      title={`Filter by #${tag}`}
+                      className={`text-[8px] font-mono px-1.5 py-0.5 rounded-full transition-all border ${
+                        tagFilter === tag
+                          ? 'bg-amber-500/25 text-amber-300 border-amber-500/50'
+                          : 'bg-stardust/50 text-nova/60 border-blue-900/15 hover:text-amber-300 hover:border-amber-500/30'
+                      }`}
+                    >
+                      #{tag}
+                    </button>
                   ))}
                 </div>
               )}

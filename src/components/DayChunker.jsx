@@ -39,7 +39,7 @@ const TYPE_COLORS = {
 
 function timeToMins(timeStr) {
   if (!timeStr) return 0;
-  const [h, m] = timeStr.split(':').map(Number);
+  const [h, m] = (timeStr || '00:00').split(':').map(Number);
   return (h || 0) * 60 + (m || 0);
 }
 
@@ -82,14 +82,18 @@ export default function DayChunker({ tasks = [], selectedDay = 'today', onRefres
   const fetchBlocks = async () => {
     try {
       setLoading(true);
-      const { data, error } = await offlineSelect('day_plan_blocks', { log_date: logDateStr });
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData?.user?.id;
+      if (!userId) {
+        setBlocks([]);
+        setLoading(false);
+        return;
+      }
+      const { data, error } = await offlineSelect('day_plan_blocks', { log_date: logDateStr, user_id: userId });
 
       if (error) throw error;
 
       if (!data || data.length === 0) {
-        const { data: userData } = await supabase.auth.getUser();
-        const userId = userData?.user?.id;
-
         const defaultRows = PRESET_TIME_BLOCKS.map(b => ({
           ...b,
           id: crypto.randomUUID(),
@@ -142,7 +146,7 @@ export default function DayChunker({ tasks = [], selectedDay = 'today', onRefres
 
       if (error) throw error;
 
-      setBlocks(prev => [...prev, newBlock].sort((a, b) => a.start_time.localeCompare(b.start_time)));
+      setBlocks(prev => [...prev, newBlock].sort((a, b) => (a.start_time || '00:00').localeCompare(b.start_time || '00:00')));
       setNewTitle('');
       setShowAddModal(false);
     } catch (err) {

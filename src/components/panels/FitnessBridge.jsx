@@ -21,9 +21,10 @@ const FitnessBridge = () => {
     try { return JSON.parse(localStorage.getItem('polaris_fitness_verdict')) } catch { return null }
   })
 
-  useEffect(() => { fetchAll() }, [])
+  useEffect(() => { if (user?.id) fetchAll() }, [user?.id])
 
   const fetchAll = async () => {
+    if (!user?.id) return
     try {
       const since = format(subDays(new Date(), 14), 'yyyy-MM-dd')
       const [w, m, wt] = await Promise.all([
@@ -236,7 +237,7 @@ const FitnessBridge = () => {
                   <p className="text-xs text-nova/60">{w.exercise_count} exercises</p>
                 </div>
                 <span className="text-xs font-mono text-nova/60">
-                  {format(new Date(w.log_date), 'd MMM')}
+                  {w.log_date ? format(new Date(w.log_date), 'd MMM') : 'N/A'}
                 </span>
               </div>
             ))}
@@ -260,7 +261,7 @@ const FitnessBridge = () => {
                   </div>
                 </div>
                 <span className="text-xs font-mono text-nova/60 flex-shrink-0 ml-3">
-                  {format(new Date(m.log_date), 'd MMM')}
+                  {m.log_date ? format(new Date(m.log_date), 'd MMM') : 'N/A'}
                 </span>
               </div>
             ))}
@@ -276,7 +277,7 @@ const FitnessBridge = () => {
           <div className="space-y-1">
             {weights.slice(0, 10).map((w, i) => (
               <div key={w.id || i} className="flex items-center justify-between py-1.5 border-b border-blue-900/10 last:border-0">
-                <span className="text-xs font-mono text-nova/60">{format(new Date(w.log_date), 'd MMM yyyy')}</span>
+                <span className="text-xs font-mono text-nova/60">{w.log_date ? format(new Date(w.log_date), 'd MMM yyyy') : 'N/A'}</span>
                 <span className="text-sm font-mono text-starlight">{w.weight_kg} kg</span>
               </div>
             ))}

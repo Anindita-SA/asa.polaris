@@ -28,7 +28,7 @@ const appTrackerHeaders = [
 const appTrackerRows = [
   // Dream & Primary
   ["1", "TU Delft", "Netherlands", "MSc Integrated Product Design", "Dream: fight for it", "Dec 1, 2026 (Scholarship) / Jan 15, 2027", "~€17,310", "Justus & Louise van Effen / NL Scholarship", "Full Ride (~€30k/yr) / €5,000", "Yes", "Not Started", "Council-confirmed dream. Best product-design culture for a hardware founder, YES!Delft incubator. Admission ~45-55% coin flip, unmatched discovery-culture fit. Contact made with Tilman. Portfolio max 30 pgs / 20MB. Apply with max effort."],
-  ["1b", "TU Delft", "Netherlands", "MSc Electrical Engineering (Power Track)", "Dream: fight for it", "Dec 1, 2026 (Scholarship) / Jan 15, 2027", "~€17,310", "Justus & Louise van Effen / NL Scholarship", "Full Ride (~€30k/yr) / €5,000", "No", "Not Started", "EE track application running parallel to IPD. Direct fit for SiC converter research with Vignesh. Ranked batch admission for non-EU."],
+  ["1b", "TU Delft", "Netherlands", "MSc Electrical Engineering (Power Track)", "Dream: fight for it", "Dec 1, 2026 (Scholarship) / Jan 15, 2027", "~€17,310", "Justus & Louise van Effen / NL Scholarship", "Full Ride (~€30k/yr) / €5,000", "No", "Not Started", "EE track application running parallel to IPD. Direct fit for DAB converter research with Vignesh. Ranked batch admission for non-EU."],
   ["2", "TU/e Eindhoven", "Netherlands", "MSc Industrial Design", "Primary: revised", "Feb 1, 2027 (ALSP Scholarship) / May 1, 2027", "~€17,000", "ALSP / NL Scholarship", "€15,000/yr + Full Tuition / €5,000", "Yes", "Not Started", "Council-confirmed primary target. Eindhoven Brainport / High Tech Campus (ASML/NXP/Philips) powerhouse. ~70% admission odds. Similar studio fit to IPD with higher admission certainty. ALSP deadline Feb 1."],
   ["3", "Aalto University", "Finland", "Collaborative & Industrial Design (CoID)", "Tier 1: Reach", "Jan 2, 2027 (15:00 UTC+2)", "~€15,000", "Aalto Excellence / Finland Scholarship", "Full Tuition + €5k relocation", "Yes", "Not Started", "Single unified application window (Nov 30, 2026 - Jan 2, 2027). Highly ranked design ecosystem. Auto-evaluated for 100% tuition waiver and Finland Scholarship."],
   ["4", "Lund University", "Sweden", "MSc Industrial Design", "Tier 1: Reach", "Jan 15, 2027 (Sweden Portal) / Feb 1 Docs", "~€16,000", "Swedish Institute (SISGP)", "Full ride (Tuition + 12k SEK/mo)", "Yes", "Not Started", "IKEA Ingvar Kamprad Design Centre. Ranked choice on UniversityAdmissions.se. SISGP portal opens Feb 9-26, 2027."],
@@ -68,11 +68,11 @@ const appTrackerRows = [
   ["EM1", "EMINENT Consortium", "Multi-EU (Siegen/Orléans/NTNU/Vilnius)", "MSc Embedded Intelligence Nanosystems Eng", "Erasmus Mundus: Full Ride", "Jan 15, 2027", "Covered", "Erasmus Mundus Scholarship", "Full Ride (~€28k-30k/yr)", "No", "Not Started", "Full tuition + €1,400/mo stipend + travel allowance + insurance. Directly eligible with NIT Trichy EEE degree."],
   ["EM2", "SSIs Consortium", "Multi-EU (Aalto/USN/BME)", "MSc Smart Systems Integrated Solutions", "Erasmus Mundus: Full Ride", "Jan 10, 2027", "Covered", "Erasmus Mundus Scholarship", "Full Ride (~€28k-30k/yr)", "Yes", "Not Started", "Smart embedded sensors, micro-packaging, and IoT hardware. Finishes with working prototype thesis."],
   ["EM3", "EDISS Consortium", "Multi-EU (Åbo Akademi/L'Aquila/Mälardalen/UIB)", "MSc Engineering of Data-Intensive Software Systems", "Erasmus Mundus: Full Ride", "Jan 15, 2027", "Covered", "Erasmus Mundus Scholarship", "Full Ride (~€28k-30k/yr)", "No", "Not Started", "Data-intensive intelligent IoT systems. Bridges embedded hardware with intelligent cloud data systems."],
-  ["EM4", "STEPS Consortium", "Multi-EU (Oviedo/Kiel/Sapienza/Coimbra)", "MSc Sustainable Transportation & Electrical Power Systems", "Erasmus Mundus: Full Ride", "Dec 31, 2026", "Covered", "Erasmus Mundus Scholarship", "Full Ride (~€28k-30k/yr)", "No", "Not Started", "Earliest EM deadline (Dec 31). Power electronics track builds directly on SiC converter research with Vignesh."],
+  ["EM4", "STEPS Consortium", "Multi-EU (Oviedo/Kiel/Sapienza/Coimbra)", "MSc Sustainable Transportation & Electrical Power Systems", "Erasmus Mundus: Full Ride", "Dec 31, 2026", "Covered", "Erasmus Mundus Scholarship", "Full Ride (~€28k-30k/yr)", "No", "Not Started", "Earliest EM deadline (Dec 31). Power electronics track builds directly on DAB converter research with Vignesh."],
   ["EM5", "SUSTAGRI Consortium", "Multi-EU (Navarre/UTAD/Athens)", "MSc Cutting-Edge Technologies for Sustainable Agriculture", "Erasmus Mundus: Full Ride", "Jan 15, 2027", "Covered", "Erasmus Mundus Scholarship", "Full Ride (~€28k-30k/yr)", "Yes", "Not Started", "Agritech hardware and precision agriculture reinforcement. Reuses Wageningen / off-grid solar irrigation narrative."],
   ["EM6", "DREAM Consortium", "Multi-EU (Centrale Nantes/UPC/HTW Berlin/Strathclyde)", "MSc Dynamics of Renewables-based Power Systems", "Erasmus Mundus: Full Ride", "Jan 31, 2027", "Covered", "Erasmus Mundus Scholarship", "Full Ride (~€28k-30k/yr)", "No", "Not Started", "Dynamics and control of renewable grid integration. Directly aligned with power converter research."],
   ["EM7", "EU-CORE Consortium", "Multi-EU (Lille/Oviedo/Genoa)", "MSc European Master on Control of Renewable Energy Systems", "Erasmus Mundus: Full Ride", "Jan 31, 2027", "Covered", "Erasmus Mundus Scholarship", "Full Ride (~€28k-30k/yr)", "No", "Not Started", "Control architectures for renewable systems with embedded entrepreneurship module."],
-  ["EM8", "SemiChips Consortium", "Multi-EU (Grenoble/Dresden/Leuven)", "MSc European Master in Semiconductor Chips & Systems", "Erasmus Mundus: Full Ride", "Jan 31, 2027", "Covered", "Erasmus Mundus Scholarship", "Full Ride (~€28k-30k/yr)", "No", "Not Started", "Semiconductor chip design, embedded microelectronics, and SiC power devices."],
+  ["EM8", "SemiChips Consortium", "Multi-EU (Grenoble/Dresden/Leuven)", "MSc European Master in Semiconductor Chips & Systems", "Erasmus Mundus: Full Ride", "Jan 31, 2027", "Covered", "Erasmus Mundus Scholarship", "Full Ride (~€28k-30k/yr)", "No", "Not Started", "Semiconductor chip design, embedded microelectronics, and power devices."],
   ["EM9", "EMIMEP Consortium", "Multi-EU (Limoges/Brescia/Aston/UPV)", "MSc European Master in Microwave Electronics & Photonics", "Erasmus Mundus: Full Ride", "March 13, 2027", "Covered", "Erasmus Mundus Scholarship", "Full Ride (~€28k-30k/yr)", "No", "Not Started", "High frequency electronics and sensing hardware. Final spring EM safety deadline."]
 ];
 
@@ -125,7 +125,7 @@ const timelineRows = [
   [
     "Phase 1: Foundation & Test Booking",
     "Sep - Oct 2026",
-    "• Oct 3, 2026: IELTS Academic test date (booked, weekday & weekend prep active)\n• Replace placeholder projects on portfolio site (anindita-sa.github.io) with real projects (Concrete Speaker, CHAARG, Deskimon, Polaris)\n• Dr. Vignesh Kumar SiC EMI research placement on weekdays (standard EMC for power converter topologies)\n• Complete Agri energy survey paper Phase 1 charts to unblock draft\n• Mid-Oct 2026: Sweden National Portal (UniversityAdmissions.se) opens for Autumn 2027 intake",
+    "• Oct 3, 2026: IELTS Academic test date (booked, weekday & weekend prep active)\n• Replace placeholder projects on portfolio site (anindita-sa.github.io) with real projects (Concrete Speaker, CHAARG, Deskimon, Polaris)\n• Dr. Vignesh Kumar DAB converter & power electronics research placement on weekdays (standard EMC for power converter topologies)\n• Complete Agri energy survey paper Phase 1 charts to unblock draft\n• Mid-Oct 2026: Sweden National Portal (UniversityAdmissions.se) opens for Autumn 2027 intake",
     "In Progress"
   ],
   [
@@ -168,15 +168,15 @@ const coldMailHeaders = [
 ];
 
 const coldMailRows = [
-  [1, "Prof. Jan Carel Diehl", "TU Delft", "Group 1", "Design for Sustainability / Frugal Tech", "j.c.diehl@tudelft.nl", "Drafted/Sent", "2026-08-31", "2026-09-08", "IPD MSc thesis synergy, frugal off-grid hardware"],
-  [2, "Prof. Arno Smets", "TU Delft", "Group 1", "PVMD / Solar & Storage Dynamics", "a.h.m.smets@tudelft.nl", "Drafted/Sent", "2026-08-31", "2026-09-08", "PV and battery longevity, Power Track / IPD"],
-  [3, "Prof. Angele Reinders", "TU/e Eindhoven", "Group 1", "Industrial Design / Smart Energy Systems", "a.h.m.e.reinders@tue.nl", "Drafted/Sent", "2026-08-31", "2026-09-08", "User-centric energy hardware, prototyping"],
-  [4, "Prof. Peter Groot Koerkamp", "Wageningen Univ.", "Group 1", "Farm Technology / Biosystems", "peter.grootkoerkamp@wur.nl", "Drafted/Sent", "2026-08-31", "2026-09-08", "Agricultural electrification, solar irrigation EMS"],
+  [1, "Prof. Jan Carel Diehl", "TU Delft", "Group 1", "Design for Sustainability / Frugal Tech", "j.c.diehl@tudelft.nl", "Drafted", "", "", "IPD MSc thesis synergy, frugal off-grid hardware"],
+  [2, "Prof. Arno Smets", "TU Delft", "Group 1", "PVMD / Solar & Storage Dynamics", "a.h.m.smets@tudelft.nl", "Queued", "", "", "PV and battery longevity, Power Track / IPD (Scheduled)"],
+  [3, "Prof. Angele Reinders", "TU/e Eindhoven", "Group 1", "Industrial Design / Smart Energy Systems", "a.h.m.e.reinders@tue.nl", "Drafted", "", "", "User-centric energy hardware, prototyping"],
+  [4, "Prof. Peter Groot Koerkamp", "Wageningen Univ.", "Group 1", "Farm Technology / Biosystems", "peter.grootkoerkamp@wur.nl", "Drafted", "", "", "Agricultural electrification, solar irrigation EMS"],
   [5, "Tilman", "TU Delft", "Group 1", "IPD Director", "", "Replied", "2026-08-15", "", "Responded previously with positive program guidance"],
-  [6, "Prof. Emanuela Colombo", "Politecnico di Milano", "Group 2", "Energy for Sustainable Development", "emanuela.colombo@polimi.it", "Queued", "2026-09-07", "2026-09-15", "UNESCO Chair, off-grid microgrids, productive use in ag"],
-  [7, "Prof. Francesco Fuso Nerini", "KTH Royal Institute", "Group 2", "Energy Systems & Climate Action", "francesco.fuso-nerini@energy.kth.se", "Queued", "2026-09-07", "2026-09-15", "Rural electrification, decentralized mini-grids, SISGP target"],
-  [8, "Dr. Richard Blanchard", "Loughborough Univ.", "Group 2", "CREST / Rural Energy & Agritech", "r.e.blanchard@lboro.ac.uk", "Queued", "2026-09-07", "2026-09-15", "Solar water pumping, mini-grids, agritech hardware"],
-  [9, "Dr. Philip Sandwell", "Imperial College London", "Group 2", "Energy Futures Lab / Mini-grids", "philip.sandwell@imperial.ac.uk", "Queued", "2026-09-07", "2026-09-15", "Battery degradation in off-grid solar, open-source microgrids"]
+  [6, "Prof. Emanuela Colombo", "Politecnico di Milano", "Group 2", "Energy for Sustainable Development", "emanuela.colombo@polimi.it", "Drafted", "", "", "UNESCO Chair, off-grid microgrids, productive use in ag"],
+  [7, "Prof. Francesco Fuso Nerini", "KTH Royal Institute", "Group 2", "Energy Systems & Climate Action", "francesco.fuso-nerini@energy.kth.se", "Drafted", "", "", "Rural electrification, decentralized mini-grids, SISGP target"],
+  [8, "Dr. Richard Blanchard", "Loughborough Univ.", "Group 2", "CREST / Rural Energy & Agritech", "r.e.blanchard@lboro.ac.uk", "Drafted", "", "", "Solar water pumping, mini-grids, agritech hardware"],
+  [9, "Dr. Philip Sandwell", "Imperial College London", "Group 2", "Energy Futures Lab / Mini-grids", "philip.sandwell@imperial.ac.uk", "Drafted", "", "", "Battery degradation in off-grid solar, open-source microgrids"]
 ];
 
 const coldMailSheetData = [
@@ -194,7 +194,7 @@ const portfolioRows = [
   ["Deskimon (desk companion)", "Product Design", "Design thinking ⭐⭐⭐⭐", "5%", "No", "Best IPD-fit project. Needs form factor design, user story, pomodoro integration."],
   ["ESP32 Smart Keychain", "Embedded / IoT", "Technical ⭐⭐", "5%", "No", "Quickest win. Complete as 4th project. Good for showing embedded breadth."],
   ["Concrete Speaker", "Craft / Physical", "Process & craft ⭐⭐⭐", "80%", "No", "Physical build complete. Case study draft in progress."],
-  ["SiC EMI / DAB Converter (Research)", "Research / EEE", "Technical depth ⭐⭐⭐⭐", "40%", "Partial", "Current semester internship work with Dr. Vignesh Kumar. Feeds STEPS and EE motivation letters directly."],
+  ["DAB Converter & Power Electronics EMC (Research)", "Research / EEE", "Technical depth ⭐⭐⭐⭐", "40%", "Partial", "Current semester internship work with Dr. Vignesh Kumar. Feeds STEPS and EE motivation letters directly."],
   ["Solar-Aware Deferrable Load Scheduler", "Hardware / Embedded", "Technical depth ⭐⭐⭐⭐", "Proposal stage", "No", "ESP32 + INA226 + buck converter, rolling linear regression scheduler. Proposal drafted."],
   ["Polaris Dashboard", "Software / Product", "Design thinking ⭐⭐⭐", "Deployed", "Partial", "React + Vite + Supabase + D3 self-built productivity dashboard. Legitimate portfolio candidate."]
 ];

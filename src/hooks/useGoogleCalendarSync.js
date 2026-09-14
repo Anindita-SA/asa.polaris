@@ -200,19 +200,23 @@ export function useGoogleCalendarSync() {
 
   // Approve a proposed event (Commit to confirmed status)
   const approveProposedEvent = async (eventId) => {
+    if (!user?.id) return
     await supabase
       .from('calendar_events')
       .update({ status: 'confirmed', updated_at: new Date().toISOString() })
       .eq('id', eventId)
+      .eq('user_id', user.id)
     await fetchSupabaseSchedule()
   }
 
   // Reject a proposed event
   const rejectProposedEvent = async (eventId) => {
+    if (!user?.id) return
     await supabase
       .from('calendar_events')
       .delete()
       .eq('id', eventId)
+      .eq('user_id', user.id)
     await fetchSupabaseSchedule()
   }
 

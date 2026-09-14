@@ -36,6 +36,7 @@ import {
   List,
   FileText,
   ChevronDown,
+  ChevronUp,
   Bell,
   BellOff
 } from 'lucide-react';
@@ -108,11 +109,119 @@ function getDefaultCoords(quadrantId) {
   }
 }
 
+import { useUserSettings } from '../../hooks/useUserSettings';
+
+export const QUADRANT_SHORT_NAMES = {
+  urgent_important: 'Q1',
+  important_not_urgent: 'Q2',
+  urgent_not_important: 'Q3',
+  neither: 'Q4'
+};
+
+export function isDueWithin48h(deadline) {
+  if (!deadline) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  let d;
+  if (deadline instanceof Date) {
+    d = new Date(deadline);
+  } else if (typeof deadline === 'string') {
+    d = new Date(deadline.includes('T') ? deadline : deadline + 'T00:00:00');
+  } else {
+    d = new Date(deadline);
+  }
+  if (isNaN(d.getTime())) return false;
+  d.setHours(0, 0, 0, 0);
+  const diffDays = Math.ceil((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  return diffDays <= 2;
+}
+
+export function computeActiveSubtask(incompleteSubtasks) {
+  if (!incompleteSubtasks || incompleteSubtasks.length === 0) return null;
+
+  // Tier 1 (Deadline override): Any incomplete subtask due within 48h (deadline <= today + 2 days).
+  // If multiple qualify, pick the lowest time_estimate_minutes (or estimated_minutes).
+  const urgentSubtasks = incompleteSubtasks.filter(s => isDueWithin48h(s.deadline));
+  if (urgentSubtasks.length > 0) {
+    return urgentSubtasks.reduce((minTask, currentTask) => {
+      const minEst = minTask.time_estimate_minutes ?? minTask.estimated_minutes ?? Infinity;
+      const currentEst = currentTask.time_estimate_minutes ?? currentTask.estimated_minutes ?? Infinity;
+      return currentEst < minEst ? currentTask : minTask;
+    });
+  }
+
+  // Tier 2 (Priority flag): If none are near deadline, surface the first subtask with status === 'in_progress' or priority === 'high'.
+  const prioritySubtask = incompleteSubtasks.find(s => s.status === 'in_progress' || s.priority === 'high');
+  if (prioritySubtask) {
+    return prioritySubtask;
+  }
+
+  // Tier 3 (Sequence with low-friction nudge): Sort by position (or created_at).
+  const sorted = [...incompleteSubtasks].sort((a, b) => {
+    if (a.position != null && b.position != null) return a.position - b.position;
+    if (a.position != null) return -1;
+    if (b.position != null) return 1;
+    const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
+    const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
+    if (timeA !== timeB) return timeA - timeB;
+    return (a.id || '').localeCompare(b.id || '');
+  });
+
+  const first = sorted[0];
+  const firstEst = first.time_estimate_minutes ?? first.estimated_minutes ?? 0;
+  if (firstEst > 60 && first.mental_load === 'high') {
+    const warmUp = [sorted[1], sorted[2]].find(s => {
+      if (!s) return false;
+      const sEst = s.time_estimate_minutes ?? s.estimated_minutes;
+      return sEst != null && sEst <= 20;
+    });
+    if (warmUp) return warmUp;
+  }
+
+  return first;
+}
+
+export function computeSuggestedQuadrant(task) {
+  if (!task) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  let isUrgent = false;
+  if (task.deadline) {
+    const d = new Date(task.deadline + 'T00:00:00');
+    const diffDays = Math.ceil((d - today) / (1000 * 60 * 60 * 24));
+    if (diffDays <= 2) {
+      isUrgent = true;
+    }
+  }
+
+  const load = task.mental_load;
+  let isImportant = false;
+  if (load === 'high') {
+    isImportant = true;
+  } else if (load === 'low') {
+    isImportant = false;
+  } else if (load === 'medium') {
+    isImportant = Boolean(task.deadline || task.milestone_id || task.category === 'polaris' || task.category === 'academic');
+  } else {
+    isImportant = Boolean(task.milestone_id || (task.deadline && isUrgent));
+  }
+
+  if (isUrgent && isImportant) return 'urgent_important';
+  if (!isUrgent && isImportant) return 'important_not_urgent';
+  if (isUrgent && !isImportant) return 'urgent_not_important';
+  return 'neither';
+}
+
 export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
   const { user } = useAuth();
+  const { featureFlags } = useUserSettings();
+  const autoQuadrantSuggest = featureFlags?.auto_quadrant_suggest ?? false;
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [newTitle, setNewTitle] = useState('');
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
+  const [milestones, setMilestones] = useState([]);
   const [isAuditing, setIsAuditing] = useState(false);
   const [auditMessage, setAuditMessage] = useState(null);
   const [expandedTasks, setExpandedTasks] = useState(new Set());
@@ -193,6 +302,8 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
   const innerRef = useRef(null);
   const zoomBehaviorRef = useRef(null);
 
+  const [recurringTemplates, setRecurringTemplates] = useState([]);
+
   // Fetch tasks
   const fetchTasks = useCallback(async () => {
     console.log('[MatrixCanvasView] fetchTasks called (Data loading triggered)');
@@ -207,6 +318,12 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
       let { data, error } = await offlineSelect('tasks', { user_id: userId });
 
       if (error) throw error;
+
+      const { data: mData } = await offlineSelect('milestones', { user_id: userId });
+      setMilestones(mData || []);
+
+      const { data: tplData } = await offlineSelect('recurring_task_templates', { user_id: userId });
+      setRecurringTemplates(tplData || []);
       
       // Merge local canvasX and canvasY into the newly fetched data
       setTasks(prev => {
@@ -261,6 +378,108 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
       if (onTasksChanged) onTasksChanged();
     } catch (err) {
       console.error('Error dumping task:', err);
+    }
+  };
+
+  // Add child subtask under selected task
+  const handleAddSubtask = async (e) => {
+    if (e) e.preventDefault();
+    const title = newSubtaskTitle.trim();
+    if (!title || !selectedTaskId) return;
+
+    try {
+      const userId = user?.id || (await supabase.auth.getSession()).data?.session?.user?.id;
+      if (!userId) return;
+      const targetParent = tasks.find(t => t.id === selectedTaskId);
+      const currentCount = tasks.filter(t => t.parent_task_id === selectedTaskId).length;
+      const newSub = {
+        id: crypto.randomUUID(),
+        user_id: userId,
+        title,
+        parent_task_id: selectedTaskId,
+        position: currentCount,
+        status: 'active',
+        quadrant: targetParent?.quadrant || 'important_not_urgent',
+        category: targetParent?.category || 'academic',
+        created_at: new Date().toISOString()
+      };
+      const { error } = await offlineInsert('tasks', newSub);
+      if (error) throw error;
+      setNewSubtaskTitle('');
+      await fetchTasks();
+      if (onTasksChanged) onTasksChanged();
+    } catch (err) {
+      console.error('Error adding subtask:', err);
+    }
+  };
+
+  // Set a specific subtask as next action (sets status: 'in_progress', reverts other incomplete subtasks to 'active')
+  const handleSetNextAction = async (targetSubtask) => {
+    const parentId = targetSubtask.parent_task_id;
+    if (!parentId) return;
+
+    setTasks(prev => prev.map(t => {
+      if (t.parent_task_id === parentId && t.status !== 'done') {
+        if (t.id === targetSubtask.id) {
+          return { ...t, status: 'in_progress' };
+        } else if (t.status === 'in_progress') {
+          return { ...t, status: 'active' };
+        }
+      }
+      return t;
+    }));
+
+    try {
+      await offlineUpdate('tasks', { id: targetSubtask.id }, { status: 'in_progress' });
+      const otherInProgress = tasks.filter(t => t.parent_task_id === parentId && t.id !== targetSubtask.id && t.status === 'in_progress');
+      for (const other of otherInProgress) {
+        await offlineUpdate('tasks', { id: other.id }, { status: 'active' });
+      }
+      if (onTasksChanged) onTasksChanged();
+    } catch (err) {
+      console.error('Error setting next action:', err);
+      fetchTasks();
+    }
+  };
+
+  // Reorder subtasks
+  const handleMoveSubtask = async (subtaskId, direction) => {
+    if (!selectedTaskId) return;
+    const currentSubtasks = tasks
+      .filter(t => t.parent_task_id === selectedTaskId)
+      .sort((a, b) => {
+        if (a.position != null && b.position != null) return a.position - b.position;
+        if (a.position != null) return -1;
+        if (b.position != null) return 1;
+        const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return timeA - timeB;
+      });
+
+    const index = currentSubtasks.findIndex(s => s.id === subtaskId);
+    if (index === -1) return;
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= currentSubtasks.length) return;
+
+    const current = currentSubtasks[index];
+    const target = currentSubtasks[targetIndex];
+
+    const newCurrentPos = targetIndex;
+    const newTargetPos = index;
+
+    setTasks(prev => prev.map(t => {
+      if (t.id === current.id) return { ...t, position: newCurrentPos };
+      if (t.id === target.id) return { ...t, position: newTargetPos };
+      return t;
+    }));
+
+    try {
+      await offlineUpdate('tasks', { id: current.id }, { position: newCurrentPos });
+      await offlineUpdate('tasks', { id: target.id }, { position: newTargetPos });
+      if (onTasksChanged) onTasksChanged();
+    } catch (err) {
+      console.error('Error reordering subtask:', err);
+      fetchTasks();
     }
   };
 
@@ -514,7 +733,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
     return tasks.filter((t) => {
       if (t.parent_task_id || t.quadrant === null || t.status === 'done') return false;
       if (hideReminders && t.category === 'reminders') return false;
-      if (hidePolaris && (t.category === 'polaris' || t.title.toLowerCase().includes('polaris'))) return false;
+      if (hidePolaris && (t.category === 'polaris' || (t.title || '').toLowerCase().includes('polaris'))) return false;
       if (hideFarScheduled && t.status === 'scheduled' && t.deadline) {
         const deadlineDate = new Date(t.deadline);
         if (deadlineDate > oneWeekFromNow) return false;
@@ -530,10 +749,10 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
       result = result.filter(t => t.category !== 'reminders');
     }
     if (hidePolaris) {
-      result = result.filter(t => !(t.category === 'polaris' || t.title.toLowerCase().includes('polaris')));
+      result = result.filter(t => !(t.category === 'polaris' || (t.title || '').toLowerCase().includes('polaris')));
     }
     if (searchQuery.trim()) {
-      result = result.filter(t => t.title.toLowerCase().includes(searchQuery.toLowerCase().trim()));
+      result = result.filter(t => (t.title || '').toLowerCase().includes(searchQuery.toLowerCase().trim()));
     }
     const catOrder = { 'polaris': 1, 'normal': 2, 'reminders': 3 };
     result.sort((a, b) => {
@@ -562,9 +781,143 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
     }
   };
 
+  const handleEstimateChange = async (taskId, value) => {
+    const rawVal = typeof value === 'string' ? value.trim() : value;
+    const mins = rawVal !== '' && rawVal !== null && !isNaN(parseInt(rawVal, 10)) ? parseInt(rawVal, 10) : null;
+    const currentTask = tasks.find(t => t.id === taskId);
+    const oldMins = currentTask ? (currentTask.time_estimate_minutes ?? currentTask.estimated_minutes ?? null) : null;
+
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, time_estimate_minutes: mins, estimated_minutes: mins } : t));
+
+    try {
+      const { error } = await offlineUpdate('tasks', { id: taskId }, { time_estimate_minutes: mins, estimated_minutes: mins });
+      if (error) throw error;
+
+      if (mins !== null && mins !== oldMins) {
+        const userId = user?.id || (await supabase.auth.getSession()).data?.session?.user?.id;
+        if (userId) {
+          const calibrationRecord = {
+            id: crypto.randomUUID(),
+            user_id: userId,
+            task_id: taskId,
+            estimated_minutes: mins,
+            actual_minutes: null,
+            created_at: new Date().toISOString()
+          };
+          await offlineInsert('task_estimate_calibration', calibrationRecord);
+        }
+      }
+      if (onTasksChanged) onTasksChanged();
+    } catch (err) {
+      console.error('Error updating estimate or logging calibration:', err);
+    }
+  };
+
   const selectedTask = useMemo(() => {
     return tasks.find(t => t.id === selectedTaskId);
   }, [tasks, selectedTaskId]);
+
+  const selectedSubtasks = useMemo(() => {
+    if (!selectedTask) return [];
+    const subs = tasks.filter(t => t.parent_task_id === selectedTask.id);
+    return [...subs].sort((a, b) => {
+      if (a.position != null && b.position != null) return a.position - b.position;
+      if (a.position != null) return -1;
+      if (b.position != null) return 1;
+      const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return timeA - timeB;
+    });
+  }, [tasks, selectedTask]);
+
+  const selectedIncompleteSubtasks = useMemo(() => {
+    return selectedSubtasks.filter(t => t.status !== 'done');
+  }, [selectedSubtasks]);
+
+  const selectedActiveSubtask = useMemo(() => {
+    return computeActiveSubtask(selectedIncompleteSubtasks);
+  }, [selectedIncompleteSubtasks]);
+
+  const fetchRecurringTemplates = useCallback(async () => {
+    try {
+      const userId = user?.id || (await supabase.auth.getSession()).data?.session?.user?.id;
+      if (!userId) return;
+      const { data: tplData } = await offlineSelect('recurring_task_templates', { user_id: userId });
+      setRecurringTemplates(tplData || []);
+    } catch (err) {
+      console.warn('Error fetching recurring templates:', err);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (selectedTaskId) {
+      fetchRecurringTemplates();
+    }
+  }, [selectedTaskId, fetchRecurringTemplates]);
+
+  const selectedTaskTemplate = useMemo(() => {
+    if (!selectedTask || !selectedTask.source_template_id) return null;
+    return recurringTemplates.find(tpl => tpl.id === selectedTask.source_template_id) || null;
+  }, [selectedTask, recurringTemplates]);
+
+  const isRecurringActive = useMemo(() => {
+    if (!selectedTask) return false;
+    if (selectedTaskTemplate) {
+      return Boolean(selectedTaskTemplate.is_active);
+    }
+    return Boolean(selectedTask.source_template_id);
+  }, [selectedTask, selectedTaskTemplate]);
+
+  const handleToggleRecurring = async (enable) => {
+    if (!selectedTask) return;
+    const userId = user?.id || (await supabase.auth.getSession()).data?.session?.user?.id;
+    if (!userId) return;
+
+    try {
+      if (enable) {
+        if (selectedTask.source_template_id) {
+          await offlineUpdate('recurring_task_templates', { id: selectedTask.source_template_id }, { is_active: true });
+          setRecurringTemplates(prev => {
+            const exists = prev.some(tpl => tpl.id === selectedTask.source_template_id);
+            if (exists) {
+              return prev.map(tpl => tpl.id === selectedTask.source_template_id ? { ...tpl, is_active: true } : tpl);
+            }
+            return [...prev, { id: selectedTask.source_template_id, user_id: userId, title: selectedTask.title, is_active: true }];
+          });
+        } else {
+          const newTemplateId = crypto.randomUUID();
+          const estMinutes = selectedTask.estimated_minutes || selectedTask.time_estimate_minutes || 30;
+          const quad = selectedTask.quadrant || 'important_not_urgent';
+          const newTemplate = {
+            id: newTemplateId,
+            user_id: userId,
+            title: selectedTask.title,
+            estimated_minutes: estMinutes,
+            quadrant: quad,
+            frequency: 'daily',
+            is_active: true,
+            created_at: new Date().toISOString()
+          };
+
+          const { error: insErr } = await offlineInsert('recurring_task_templates', newTemplate);
+          if (insErr) throw insErr;
+
+          setRecurringTemplates(prev => [...prev, newTemplate]);
+
+          await offlineUpdate('tasks', { id: selectedTask.id }, { source_template_id: newTemplateId });
+          setTasks(prev => prev.map(t => t.id === selectedTask.id ? { ...t, source_template_id: newTemplateId } : t));
+        }
+      } else {
+        if (selectedTask.source_template_id) {
+          await offlineUpdate('recurring_task_templates', { id: selectedTask.source_template_id }, { is_active: false });
+          setRecurringTemplates(prev => prev.map(tpl => tpl.id === selectedTask.source_template_id ? { ...tpl, is_active: false } : tpl));
+        }
+      }
+      if (onTasksChanged) onTasksChanged();
+    } catch (err) {
+      console.error('Error toggling recurring task:', err);
+    }
+  };
 
   return (
     <div className="w-full h-full bg-transparent text-starlight font-['Inter'] flex flex-col md:flex-row-reverse overflow-hidden relative selection:bg-gold selection:text-black">
@@ -609,8 +962,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
           data-role="canvas"
           className="flex-1 w-full h-full cursor-grab active:cursor-grabbing overflow-hidden relative select-none"
           style={{
-            backgroundImage: `radial-gradient(circle at 1px 1px, rgba(59,130,246,0.12) 1px, transparent 0)`,
-            backgroundSize: `${36 * zoom}px ${36 * zoom}px`,
+            backgroundColor: '#0a0a14',
           }}
         >
           <div
@@ -667,12 +1019,17 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                     <div className="flex-1 flex flex-col items-start gap-3 py-2 overflow-visible">
                       <AnimatePresence>
                         {qTasks.flatMap((task) => {
-                          const isOutput = task.estimate_source === 'ai' || task.title.toLowerCase().includes('write') || task.title.toLowerCase().includes('code') || task.title.toLowerCase().includes('ppt') || task.title.toLowerCase().includes('fix');
+                          const isOutput = task.estimate_source === 'ai' || (task.title || '').toLowerCase().includes('write') || (task.title || '').toLowerCase().includes('code') || (task.title || '').toLowerCase().includes('ppt') || (task.title || '').toLowerCase().includes('fix');
                           const ioTag = isOutput ? 'OUT' : 'IN';
-                          const subtasks = tasks.filter(t => t.parent_task_id === task.id && t.status !== 'done');
-                          const doneSubtasksCount = tasks.filter(t => t.parent_task_id === task.id && t.status === 'done').length;
-                          const totalSubtasksCount = subtasks.length + doneSubtasksCount;
+                          const childTasks = tasks.filter(t => t.parent_task_id === task.id);
+                          const incompleteSubtasks = childTasks.filter(t => t.status !== 'done');
+                          const activeSubtask = computeActiveSubtask(incompleteSubtasks);
+                          const hasUrgentSubtask = incompleteSubtasks.some(s => isDueWithin48h(s.deadline));
+                          const doneSubtasksCount = childTasks.filter(t => t.status === 'done').length;
+                          const totalSubtasksCount = childTasks.length;
+                          const remainingMinutes = incompleteSubtasks.reduce((sum, t) => sum + (t.time_estimate_minutes || t.estimated_minutes || 0), 0);
                           const isExpanded = expandedTasks.has(task.id);
+                          const taskEstimate = task.time_estimate_minutes || task.estimated_minutes;
 
                           const parentNode = (
                             <motion.div
@@ -736,11 +1093,15 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                                 boxShadow: `0 0 10px ${q.color}33` 
                               }}
                             >
-                              {/* Left Bullet */}
+                              {/* Left Bullet & Urgent Subtask Indicator */}
                               {task.status === 'in_progress' ? (
                                 <Zap className="w-3 h-3 shrink-0 pointer-events-none" style={{ color: q.color }} fill="currentColor" />
                               ) : (
                                 <span className="w-2.5 h-2.5 rounded-full shrink-0 pointer-events-none" style={{ backgroundColor: q.color }} />
+                              )}
+
+                              {hasUrgentSubtask && (
+                                <Sparkles data-testid="urgent-subtask-indicator" className="w-3 h-3 text-amber-400 shrink-0 pointer-events-none" title="Urgent Subtask Due within 48h" />
                               )}
                               
                               {/* Title */}
@@ -750,26 +1111,88 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
 
                               {/* Right Tags (IN / OUT & Duration) + Action Controls */}
                               <div className="flex items-center gap-1.5 shrink-0 font-mono text-xs">
+                                {task.source_template_id && (
+                                  <RefreshCw className="w-3 h-3 text-pulsar/80 shrink-0 pointer-events-none" title="Recurring Task" />
+                                )}
+
+                                {autoQuadrantSuggest && (() => {
+                                  if (task.quadrant === 'urgent_important' && !hasUrgentSubtask && task.deadline && !isDueWithin48h(task.deadline)) {
+                                    return (
+                                      <button
+                                        type="button"
+                                        onClick={async (e) => {
+                                          e.stopPropagation();
+                                          setTasks(prev => prev.map(t => t.id === task.id ? { ...t, quadrant: 'important_not_urgent' } : t));
+                                          try {
+                                            await offlineUpdate('tasks', { id: task.id }, { quadrant: 'important_not_urgent' });
+                                            if (onTasksChanged) onTasksChanged();
+                                          } catch (err) {
+                                            console.error('Error moving task back to Q2:', err);
+                                            fetchTasks();
+                                          }
+                                        }}
+                                        className="px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 hover:bg-blue-500 hover:text-void border border-blue-500/40 text-[9px] font-mono font-bold flex items-center gap-1 transition-all cursor-pointer pointer-events-auto shrink-0"
+                                        title="Click to move back to Q2"
+                                      >
+                                        <Sparkles className="w-2.5 h-2.5" />
+                                        <span>Move back to Q2?</span>
+                                      </button>
+                                    );
+                                  }
+                                  const suggestedQuad = computeSuggestedQuadrant(task);
+                                  if (suggestedQuad && suggestedQuad !== task.quadrant) {
+                                    return (
+                                      <button
+                                        type="button"
+                                        onClick={async (e) => {
+                                          e.stopPropagation();
+                                          setTasks(prev => prev.map(t => t.id === task.id ? { ...t, quadrant: suggestedQuad } : t));
+                                          try {
+                                            await offlineUpdate('tasks', { id: task.id }, { quadrant: suggestedQuad });
+                                            if (onTasksChanged) onTasksChanged();
+                                          } catch (err) {
+                                            console.error('Error moving task to suggested quadrant:', err);
+                                            fetchTasks();
+                                          }
+                                        }}
+                                        className="px-1.5 py-0.5 rounded bg-gold/20 text-gold hover:bg-gold hover:text-void border border-gold/40 text-[9px] font-mono font-bold flex items-center gap-1 transition-all cursor-pointer pointer-events-auto shrink-0"
+                                        title={`Click to move to ${QUADRANT_SHORT_NAMES[suggestedQuad]}`}
+                                      >
+                                        <Sparkles className="w-2.5 h-2.5" />
+                                        <span>Move to {QUADRANT_SHORT_NAMES[suggestedQuad]}</span>
+                                      </button>
+                                    );
+                                  }
+                                  return null;
+                                })()}
+
                                 <span className={`px-1.5 py-0.5 rounded font-bold pointer-events-none ${
                                   ioTag === 'IN' ? 'bg-[#1a263d] text-[#60a5fa]' : 'bg-stardust text-nova/60 border border-pulsar/40'
                                 }`}>
                                   {ioTag}
                                 </span>
 
-                                {task.estimated_minutes && (
+                                {totalSubtasksCount === 0 && taskEstimate && (
                                   <span className="text-nova/60 bg-void/60 px-1 py-0.5 rounded border border-pulsar/40 pointer-events-none">
-                                    {task.estimated_minutes}m
+                                    {taskEstimate}m
                                   </span>
                                 )}
 
                                 {totalSubtasksCount > 0 && (
-                                  <button
-                                    onClick={(e) => toggleTaskExpand(e, task.id)}
-                                    className="ml-1 bg-pulsar/20 text-nova/80 hover:text-starlight hover:bg-pulsar/40 px-1.5 py-0.5 rounded flex items-center gap-1 border border-pulsar/30 transition-colors pointer-events-auto"
-                                    title="Toggle Subtasks"
-                                  >
-                                    {isExpanded ? <ChevronDown className="w-3 h-3" /> : <><List className="w-3 h-3" /> {doneSubtasksCount}/{totalSubtasksCount}</>}
-                                  </button>
+                                  <div className="flex items-center gap-1">
+                                    <button
+                                      onClick={(e) => toggleTaskExpand(e, task.id)}
+                                      className="ml-1 bg-pulsar/20 text-nova/80 hover:text-starlight hover:bg-pulsar/40 px-1.5 py-0.5 rounded flex items-center gap-1 border border-pulsar/30 transition-colors pointer-events-auto"
+                                      title="Toggle Subtasks"
+                                    >
+                                      {isExpanded ? <ChevronDown className="w-3 h-3" /> : <><List className="w-3 h-3" /> {doneSubtasksCount}/{totalSubtasksCount}</>}
+                                    </button>
+                                    {remainingMinutes > 0 && (
+                                      <span className="text-amber-400 border border-amber-500/30 bg-amber-950/40 px-1.5 py-0.5 rounded text-[10px] font-mono pointer-events-none">
+                                        ~{remainingMinutes} min left
+                                      </span>
+                                    )}
+                                  </div>
                                 )}
 
                                 {/* Quick Hover Controls */}
@@ -800,36 +1223,45 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                             </motion.div>
                           );
 
-                          const childNodes = isExpanded ? subtasks.map(subtask => {
-                            const subIsOutput = subtask.estimate_source === 'ai' || subtask.title.toLowerCase().includes('write');
-                            const subIoTag = subIsOutput ? 'OUT' : 'IN';
-                            return (
+                          const childNodes = [];
+                          if (isExpanded && activeSubtask) {
+                            const subEstimate = activeSubtask.time_estimate_minutes || activeSubtask.estimated_minutes;
+                            childNodes.push(
                               <motion.div
-                                key={subtask.id}
+                                key={`active-${activeSubtask.id}`}
                                 layout
                                 initial={{ opacity: 0, scale: 0.9, x: -10 }}
                                 animate={{ opacity: 1, scale: 1, x: 0 }}
                                 exit={{ opacity: 0, scale: 0.9, x: -10 }}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  setSelectedTaskId(subtask.id);
+                                  setSelectedTaskId(activeSubtask.id);
                                   setActiveBrainDumpTab('details');
                                   setBrainDumpCollapsed(false);
                                 }}
-                                className="group flex items-center gap-2 px-3 py-1.5 rounded-lg bg-void/50 border border-pulsar/20 ml-6 w-fit max-w-[400px] select-none cursor-pointer hover:border-pulsar/40 transition-colors"
+                                className="group flex items-center gap-2 px-3 py-1.5 rounded-lg bg-void/50 border border-amber-500/40 ml-6 w-fit max-w-[400px] select-none cursor-pointer hover:border-amber-500/70 transition-colors shadow-sm"
                               >
-                                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: q.color }} />
-                                <h4 className="text-[12px] text-nova/80 truncate pointer-events-none">
-                                  {subtask.title}
+                                <Zap className="w-3 h-3 text-amber-400 shrink-0" />
+                                <h4 className="text-[12px] text-starlight truncate pointer-events-none">
+                                  {activeSubtask.title}
                                 </h4>
                                 <div className="flex items-center gap-1.5 shrink-0 font-mono text-[10px]">
-                                  {subtask.estimated_minutes && (
+                                  {activeSubtask.mental_load && (
+                                    <span className={`text-[8px] uppercase px-1 py-0.2 rounded font-bold pointer-events-none ${
+                                      activeSubtask.mental_load === 'low' ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/40' :
+                                      activeSubtask.mental_load === 'high' ? 'bg-purple-950 text-purple-300 border border-purple-500/40' :
+                                      'bg-amber-950 text-amber-300 border border-amber-500/40'
+                                    }`}>
+                                      {activeSubtask.mental_load}
+                                    </span>
+                                  )}
+                                  {subEstimate && (
                                     <span className="text-nova/60 bg-void/60 px-1 py-0.5 rounded border border-pulsar/40 pointer-events-none">
-                                      {subtask.estimated_minutes}m
+                                      {subEstimate}m
                                     </span>
                                   )}
                                   <button
-                                    onClick={(e) => { e.stopPropagation(); toggleDone(subtask); }}
+                                    onClick={(e) => { e.stopPropagation(); toggleDone(activeSubtask); }}
                                     className="text-nova/60 hover:text-emerald p-0.5 pointer-events-auto"
                                     title="Mark Done"
                                   >
@@ -838,7 +1270,29 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                                 </div>
                               </motion.div>
                             );
-                          }) : [];
+
+                            if (incompleteSubtasks.length > 1) {
+                              childNodes.push(
+                                <motion.button
+                                  key={`more-${task.id}`}
+                                  type="button"
+                                  layout
+                                  initial={{ opacity: 0, scale: 0.9, x: -10 }}
+                                  animate={{ opacity: 1, scale: 1, x: 0 }}
+                                  exit={{ opacity: 0, scale: 0.9, x: -10 }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedTaskId(task.id);
+                                    setActiveBrainDumpTab('details');
+                                    setBrainDumpCollapsed(false);
+                                  }}
+                                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-pulsar/10 border border-pulsar/30 hover:bg-pulsar/20 text-pulsar hover:text-starlight text-[11px] font-mono ml-6 w-fit cursor-pointer transition-colors"
+                                >
+                                  <span>+ {incompleteSubtasks.length - 1} queued in Project Drawer</span>
+                                </motion.button>
+                              );
+                            }
+                          }
 
                           return [parentNode, ...childNodes];
                         })}
@@ -857,8 +1311,15 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
 
             {/* Untethered Free-Floating Nodes on 2D Constellation Plane */}
             {matrixTasks.filter(t => t.canvasX != null && t.canvasY != null).map((task) => {
-              const isOutput = task.estimate_source === 'ai' || task.title.toLowerCase().includes('write') || task.title.toLowerCase().includes('code') || task.title.toLowerCase().includes('ppt') || task.title.toLowerCase().includes('fix');
+              const isOutput = task.estimate_source === 'ai' || (task.title || '').toLowerCase().includes('write') || (task.title || '').toLowerCase().includes('code') || (task.title || '').toLowerCase().includes('ppt') || (task.title || '').toLowerCase().includes('fix');
               const ioTag = isOutput ? 'OUT' : 'IN';
+              const childTasks = tasks.filter(t => t.parent_task_id === task.id);
+              const incompleteSubtasks = childTasks.filter(t => t.status !== 'done');
+              const hasUrgentSubtask = incompleteSubtasks.some(s => isDueWithin48h(s.deadline));
+              const doneSubtasksCount = childTasks.filter(t => t.status === 'done').length;
+              const totalSubtasksCount = childTasks.length;
+              const remainingMinutes = incompleteSubtasks.reduce((sum, t) => sum + (t.time_estimate_minutes || t.estimated_minutes || 0), 0);
+              const taskEstimate = task.time_estimate_minutes || task.estimated_minutes;
 
               const qColor = QUADRANTS[task.quadrant]?.color || '#f59e0b';
 
@@ -901,16 +1362,92 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                   className="group inline-flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-[#0a0f1e]/95 border-2 cursor-grab active:cursor-grabbing w-fit max-w-[450px] select-none"
                 >
                   <span className="w-2.5 h-2.5 rounded-full shrink-0 animate-pulse pointer-events-none" style={{ backgroundColor: qColor }} />
+                  {hasUrgentSubtask && (
+                    <Sparkles data-testid="urgent-subtask-indicator" className="w-3 h-3 text-amber-400 shrink-0 pointer-events-none" title="Urgent Subtask Due within 48h" />
+                  )}
                   <h4 className="text-[13px] font-body text-starlight truncate leading-none pointer-events-none">
                     {task.title}
                   </h4>
 
                   <div className="flex items-center gap-1.5 shrink-0 font-mono text-[9px]">
+                    {task.source_template_id && (
+                      <RefreshCw className="w-3 h-3 text-pulsar/80 shrink-0 pointer-events-none" title="Recurring Task" />
+                    )}
+                    {autoQuadrantSuggest && (() => {
+                      const currentEffective = task.quadrant || getQuadrantFromCoords(task.canvasX || 300, task.canvasY || 300);
+                      if (currentEffective === 'urgent_important' && !hasUrgentSubtask && task.deadline && !isDueWithin48h(task.deadline)) {
+                        return (
+                          <button
+                            type="button"
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              setTasks(prev => prev.map(t => t.id === task.id ? { ...t, quadrant: 'important_not_urgent', canvasX: null, canvasY: null } : t));
+                              saveLocalCoords(task.id, null, null);
+                              try {
+                                await offlineUpdate('tasks', { id: task.id }, { quadrant: 'important_not_urgent' });
+                                if (onTasksChanged) onTasksChanged();
+                              } catch (err) {
+                                console.error('Error moving untethered task back to Q2:', err);
+                                fetchTasks();
+                              }
+                            }}
+                            className="px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 hover:bg-blue-500 hover:text-void border border-blue-500/40 text-[9px] font-mono font-bold flex items-center gap-1 transition-all cursor-pointer pointer-events-auto shrink-0"
+                            title="Click to move back to Q2"
+                          >
+                            <Sparkles className="w-2.5 h-2.5" />
+                            <span>Move back to Q2?</span>
+                          </button>
+                        );
+                      }
+                      const suggestedQuad = computeSuggestedQuadrant(task);
+                      if (suggestedQuad && suggestedQuad !== currentEffective) {
+                        return (
+                          <button
+                            type="button"
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              setTasks(prev => prev.map(t => t.id === task.id ? { ...t, quadrant: suggestedQuad, canvasX: null, canvasY: null } : t));
+                              saveLocalCoords(task.id, null, null);
+                              try {
+                                await offlineUpdate('tasks', { id: task.id }, { quadrant: suggestedQuad });
+                                if (onTasksChanged) onTasksChanged();
+                              } catch (err) {
+                                console.error('Error moving untethered task to suggested quadrant:', err);
+                                fetchTasks();
+                              }
+                            }}
+                            className="px-1.5 py-0.5 rounded bg-gold/20 text-gold hover:bg-gold hover:text-void border border-gold/40 text-[9px] font-mono font-bold flex items-center gap-1 transition-all cursor-pointer pointer-events-auto shrink-0"
+                            title={`Click to move to ${QUADRANT_SHORT_NAMES[suggestedQuad]}`}
+                          >
+                            <Sparkles className="w-2.5 h-2.5" />
+                            <span>Move to {QUADRANT_SHORT_NAMES[suggestedQuad]}</span>
+                          </button>
+                        );
+                      }
+                      return null;
+                    })()}
                     <span className={`px-1.5 py-0.5 rounded font-bold pointer-events-none ${
                       ioTag === 'IN' ? 'bg-[#1a263d] text-[#60a5fa]' : 'bg-stardust text-nova/60 border border-pulsar/40'
                     }`}>
                       {ioTag}
                     </span>
+                    {totalSubtasksCount === 0 && taskEstimate && (
+                      <span className="text-nova/60 bg-void/60 px-1 py-0.5 rounded border border-pulsar/40 pointer-events-none">
+                        {taskEstimate}m
+                      </span>
+                    )}
+                    {totalSubtasksCount > 0 && (
+                      <div className="flex items-center gap-1">
+                        <span className="bg-pulsar/20 text-nova/80 px-1.5 py-0.5 rounded flex items-center gap-1 border border-pulsar/30 text-[9px]">
+                          <List className="w-2.5 h-2.5" /> {doneSubtasksCount}/{totalSubtasksCount}
+                        </span>
+                        {remainingMinutes > 0 && (
+                          <span className="text-amber-400 border border-amber-500/30 bg-amber-950/40 px-1.5 py-0.5 rounded text-[9px] font-mono pointer-events-none">
+                            {remainingMinutes}m
+                          </span>
+                        )}
+                      </div>
+                    )}
 
                     {/* Retether & Hover Controls */}
                     <div className="hidden lg:group-hover:flex items-center gap-1 pl-1 border-l border-pulsar/40">
@@ -1048,57 +1585,116 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                       Brain Dump is clear! Type above to capture thoughts.
                     </div>
                   ) : (
-                    brainDumpTasks.map((task) => (
-                      <div
-                        key={task.id}
-                        onClick={() => {
-                          setSelectedTaskId(task.id);
-                          setActiveBrainDumpTab('details');
-                        }}
-                        className="group p-3 rounded-lg glass border border-pulsar/30 hover:border-gold/50 transition-all flex flex-col gap-1.5 shadow-sm cursor-pointer"
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <span className="text-xs font-['Inter'] text-starlight leading-snug">
-                            {task.title}
-                          </span>
+                    brainDumpTasks.map((task) => {
+                      const childTasks = tasks.filter(t => t.parent_task_id === task.id);
+                      const incompleteSubtasks = childTasks.filter(t => t.status !== 'done');
+                      const doneSubtasksCount = childTasks.filter(t => t.status === 'done').length;
+                      const totalSubtasksCount = childTasks.length;
+                      const remainingMinutes = incompleteSubtasks.reduce((sum, t) => sum + (t.time_estimate_minutes || t.estimated_minutes || 0), 0);
+                      const taskEstimate = task.time_estimate_minutes || task.estimated_minutes;
 
-                        </div>
+                      return (
+                        <div
+                          key={task.id}
+                          onClick={() => {
+                            setSelectedTaskId(task.id);
+                            setActiveBrainDumpTab('details');
+                          }}
+                          className="group p-3 rounded-lg glass border border-pulsar/30 hover:border-gold/50 transition-all flex flex-col gap-1.5 shadow-sm cursor-pointer"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <span className="text-xs font-['Inter'] text-starlight leading-snug">
+                              {task.title}
+                            </span>
+                            {task.mental_load && (
+                              <span className={`text-[9px] font-mono uppercase px-1.5 py-0.5 rounded font-bold shrink-0 ${
+                                task.mental_load === 'low' ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/50' :
+                                task.mental_load === 'high' ? 'bg-purple-950 text-purple-300 border border-purple-500/50' :
+                                'bg-amber-950 text-amber-300 border border-amber-500/50'
+                              }`}>
+                                {task.mental_load === 'low' ? 'LOW LOAD' : task.mental_load === 'high' ? 'HIGH LOAD' : 'MED LOAD'}
+                              </span>
+                            )}
+                          </div>
 
-                        <div className="flex items-center justify-between pt-1 border-t border-pulsar/30 text-xs font-mono">
-                          <span className="text-nova/60">Deploy to Matrix:</span>
-                          <div className="flex items-center gap-1">
-                            <button
-                              onClick={(e) => { e.stopPropagation(); deployFromBrainDump(task, 'urgent_important'); }}
-                              className="px-1.5 py-0.5 rounded bg-gold/15 text-gold hover:bg-gold hover:text-void transition-all font-bold"
-                              title="Deploy to Urgent & Important"
-                            >
-                              U+I
-                            </button>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); deployFromBrainDump(task, 'important_not_urgent'); }}
-                              className="px-1.5 py-0.5 rounded bg-pulsar/15 text-pulsar hover:bg-pulsar hover:text-void transition-all font-bold"
-                              title="Deploy to Important (Schedule)"
-                            >
-                              Imp
-                            </button>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); deployFromBrainDump(task, 'urgent_not_important'); }}
-                              className="px-1.5 py-0.5 rounded bg-aurora/15 text-aurora hover:bg-aurora hover:text-void transition-all font-bold"
-                              title="Deploy to Urgent (Quick Wins)"
-                            >
-                              Urg
-                            </button>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); deployFromBrainDump(task, 'neither'); }}
-                              className="px-1.5 py-0.5 rounded bg-dim/15 text-nova/60 hover:bg-dim hover:text-void transition-all font-bold"
-                              title="Deploy to Neither (Backburner)"
-                            >
-                              Nei
-                            </button>
+                          <div className="flex items-center gap-1.5 text-xs font-mono">
+                            {taskEstimate && totalSubtasksCount === 0 && (
+                              <span className="text-nova/60 bg-void/60 px-1.5 py-0.5 rounded border border-pulsar/40 text-[10px]">
+                                {taskEstimate}m
+                              </span>
+                            )}
+                            {totalSubtasksCount > 0 && (
+                              <div className="flex items-center gap-1 text-[10px]">
+                                <span className="bg-pulsar/20 text-nova/80 px-1.5 py-0.5 rounded flex items-center gap-1 border border-pulsar/30">
+                                  <List className="w-2.5 h-2.5" /> {doneSubtasksCount}/{totalSubtasksCount}
+                                </span>
+                                {remainingMinutes > 0 && (
+                                  <span className="text-amber-400 border border-amber-500/30 bg-amber-950/40 px-1.5 py-0.5 rounded">
+                                    {remainingMinutes}m
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex items-center justify-between pt-1 border-t border-pulsar/30 text-xs font-mono">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <span className="text-nova/60">Deploy:</span>
+                              {autoQuadrantSuggest && (() => {
+                                const suggestedQuad = computeSuggestedQuadrant(task);
+                                if (suggestedQuad) {
+                                  return (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        deployFromBrainDump(task, suggestedQuad);
+                                      }}
+                                      className="px-1.5 py-0.5 rounded bg-gold/20 text-gold hover:bg-gold hover:text-void border border-gold/40 text-[9px] font-mono font-bold flex items-center gap-1 transition-all shrink-0 cursor-pointer"
+                                      title={`Click to deploy to suggested ${QUADRANT_SHORT_NAMES[suggestedQuad]}`}
+                                    >
+                                      <Sparkles className="w-2.5 h-2.5" />
+                                      <span>{QUADRANT_SHORT_NAMES[suggestedQuad]}</span>
+                                    </button>
+                                  );
+                                }
+                                return null;
+                              })()}
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); deployFromBrainDump(task, 'urgent_important'); }}
+                                className="px-1.5 py-0.5 rounded bg-gold/15 text-gold hover:bg-gold hover:text-void transition-all font-bold"
+                                title="Deploy to Urgent & Important"
+                              >
+                                U+I
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); deployFromBrainDump(task, 'important_not_urgent'); }}
+                                className="px-1.5 py-0.5 rounded bg-pulsar/15 text-pulsar hover:bg-pulsar hover:text-void transition-all font-bold"
+                                title="Deploy to Important (Schedule)"
+                              >
+                                Imp
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); deployFromBrainDump(task, 'urgent_not_important'); }}
+                                className="px-1.5 py-0.5 rounded bg-aurora/15 text-aurora hover:bg-aurora hover:text-void transition-all font-bold"
+                                title="Deploy to Urgent (Quick Wins)"
+                              >
+                                Urg
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); deployFromBrainDump(task, 'neither'); }}
+                                className="px-1.5 py-0.5 rounded bg-dim/15 text-nova/60 hover:bg-dim hover:text-void transition-all font-bold"
+                                title="Deploy to Neither (Backburner)"
+                              >
+                                Nei
+                              </button>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </>
@@ -1137,6 +1733,68 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
               <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-hide text-sm">
                 {selectedTask ? (
                   <div key={selectedTask.id} className="flex flex-col gap-4 text-starlight">
+                    {/* Linked Milestone or Parent Task Context */}
+                    {selectedTask.milestone_id && (
+                      <div className="bg-pulsar/10 border border-pulsar/30 rounded-lg px-3 py-2 text-xs flex items-center gap-2">
+                        <Target className="w-3.5 h-3.5 text-pulsar shrink-0" />
+                        <span className="text-nova/60 font-mono">Milestone:</span>
+                        <span className="text-starlight truncate font-medium">
+                          {milestones.find(m => m.id === selectedTask.milestone_id)?.title || selectedTask.milestone_id}
+                        </span>
+                      </div>
+                    )}
+
+                    {selectedTask.parent_task_id && (
+                      <div className="bg-aurora/10 border border-aurora/30 rounded-lg px-3 py-2 text-xs flex items-center gap-2">
+                        <Link className="w-3.5 h-3.5 text-aurora shrink-0" />
+                        <span className="text-nova/60 font-mono">Parent Task:</span>
+                        <span className="text-starlight truncate font-medium">
+                          {tasks.find(t => t.id === selectedTask.parent_task_id)?.title || selectedTask.parent_task_id}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Mental Load Badge */}
+                    {selectedTask.mental_load && (
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[10px] font-mono uppercase px-2.5 py-1 rounded font-bold tracking-wider ${
+                          selectedTask.mental_load === 'low' ? 'bg-emerald-950 text-emerald-300 border border-emerald-500' :
+                          selectedTask.mental_load === 'high' ? 'bg-purple-950 text-purple-300 border border-purple-500' :
+                          'bg-amber-950 text-amber-300 border border-amber-500'
+                        }`}>
+                          {selectedTask.mental_load === 'low' ? 'LOW LOAD' : selectedTask.mental_load === 'high' ? 'HIGH LOAD' : 'MED LOAD'}
+                        </span>
+                        {autoQuadrantSuggest && (() => {
+                          const suggestedQuad = computeSuggestedQuadrant(selectedTask);
+                          if (suggestedQuad && suggestedQuad !== selectedTask.quadrant) {
+                            return (
+                              <button
+                                type="button"
+                                onClick={() => updateTaskField(selectedTask.id, 'quadrant', suggestedQuad)}
+                                className="px-2 py-1 rounded bg-gold/20 text-gold hover:bg-gold hover:text-void border border-gold/40 text-xs font-mono font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                                title={`Click to move to ${QUADRANT_SHORT_NAMES[suggestedQuad]}`}
+                              >
+                                <Sparkles className="w-3 h-3" />
+                                <span>Move to {QUADRANT_SHORT_NAMES[suggestedQuad]}</span>
+                              </button>
+                            );
+                          }
+                          return null;
+                        })()}
+                      </div>
+                    )}
+
+                    {/* Start Focus Now Action */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        window.dispatchEvent(new CustomEvent('polaris-start-task', { detail: { task: selectedTask } }));
+                      }}
+                      className="w-full py-2.5 px-4 bg-[#f5a623] hover:bg-[#f5a623]/90 text-[#0c0f14] font-display font-bold text-xs rounded-xl flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer"
+                    >
+                      <Play className="w-3.5 h-3.5 fill-current" /> Start Focus Now
+                    </button>
+
                     <div>
                       <h4 className="text-xs uppercase tracking-wider font-bold text-nova/60 mb-1 font-mono ">Title</h4>
                       <input 
@@ -1175,19 +1833,20 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                         </div>
                       </div>
                       
-                      {/* Estimate */}
+                      {/* Mental Load */}
                       <div className="col-span-1">
-                        <h4 className="text-[10px] uppercase tracking-wider font-bold text-nova/60 mb-1 font-mono">Est (m)</h4>
-                        <div className="bg-void/40 border border-pulsar/40 rounded-lg px-2 py-1.5 text-xs flex items-center gap-1.5 focus-within:border-pulsar/50 transition-colors">
-                          <Clock className="w-3.5 h-3.5 text-gold shrink-0" />
-                          <input
-                            type="number"
-                            min="0"
-                            defaultValue={selectedTask.estimated_minutes != null ? selectedTask.estimated_minutes : ''}
-                            onBlur={(e) => updateTaskField(selectedTask.id, 'estimated_minutes', e.target.value ? parseInt(e.target.value, 10) : null)}
-                            className="bg-transparent w-full outline-none font-mono text-starlight"
-                            placeholder="-"
-                          />
+                        <h4 className="text-[10px] uppercase tracking-wider font-bold text-nova/60 mb-1 font-mono">Mental Load</h4>
+                        <div className="bg-void/40 border border-pulsar/40 rounded-lg px-2 py-1.5 text-xs flex items-center focus-within:border-pulsar/50 transition-colors">
+                          <select
+                            value={selectedTask.mental_load || ''}
+                            onChange={(e) => updateTaskField(selectedTask.id, 'mental_load', e.target.value || null)}
+                            className="bg-transparent w-full outline-none font-mono text-starlight cursor-pointer"
+                          >
+                            <option value="" className="bg-void text-nova/60">None</option>
+                            <option value="low" className="bg-void text-emerald-400">Low</option>
+                            <option value="medium" className="bg-void text-amber-400">Medium</option>
+                            <option value="high" className="bg-void text-purple-400">High</option>
+                          </select>
                         </div>
                       </div>
 
@@ -1260,6 +1919,22 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                         </AnimatePresence>
                       </div>
                     </div>
+
+                    {/* Time Estimate Input */}
+                    <div className="mt-2">
+                      <h4 className="text-[10px] uppercase tracking-wider font-bold text-nova/60 mb-1 font-mono">Time Estimate (minutes)</h4>
+                      <div className="bg-void/40 border border-pulsar/40 rounded-lg px-2 py-1.5 text-xs flex items-center gap-1.5 focus-within:border-pulsar/50 transition-colors">
+                        <Clock className="w-3.5 h-3.5 text-gold shrink-0" />
+                        <input
+                          type="number"
+                          min="0"
+                          defaultValue={selectedTask.time_estimate_minutes != null ? selectedTask.time_estimate_minutes : (selectedTask.estimated_minutes != null ? selectedTask.estimated_minutes : '')}
+                          onBlur={(e) => handleEstimateChange(selectedTask.id, e.target.value)}
+                          className="bg-transparent w-full outline-none font-mono text-starlight"
+                          placeholder="e.g. 30"
+                        />
+                      </div>
+                    </div>
                     {/* Deadline */}
                     <div className="mt-2">
                       <h4 className="text-[10px] uppercase tracking-wider font-bold text-nova/60 mb-1 font-mono">Deadline</h4>
@@ -1287,6 +1962,179 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                           <option value="reminders" className="bg-void">Reminders</option>
                         </select>
                       </div>
+                    </div>
+
+                    {/* Repeat Daily / Recurring Toggle */}
+                    <div className="mt-2 p-3 rounded-xl bg-void/40 border border-pulsar/30 flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${isRecurringActive ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-void text-nova/50 border border-pulsar/20'}`}>
+                          <RefreshCw className="w-3.5 h-3.5" />
+                        </div>
+                        <div>
+                          <label htmlFor="repeat-daily-toggle" className="text-xs font-display text-starlight font-medium block cursor-pointer">
+                            Repeat Daily / Recurring
+                          </label>
+                          <span className="text-[10px] font-mono text-nova/60">
+                            {isRecurringActive ? 'Active daily recurring routine' : 'One-time task'}
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        id="repeat-daily-toggle"
+                        type="button"
+                        role="switch"
+                        aria-checked={isRecurringActive}
+                        onClick={() => handleToggleRecurring(!isRecurringActive)}
+                        className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                          isRecurringActive ? 'bg-[#f5a623]' : 'bg-pulsar/30'
+                        }`}
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-[#0c0f14] shadow ring-0 transition duration-200 ease-in-out ${
+                            isRecurringActive ? 'translate-x-5' : 'translate-x-0'
+                          }`}
+                        />
+                      </button>
+                    </div>
+
+                    {/* Subtasks Section */}
+                    <div className="mt-2 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-[10px] uppercase tracking-wider font-bold text-nova/60 font-mono">
+                          Subtasks ({selectedSubtasks.filter(t => t.status === 'done').length}/{selectedSubtasks.length})
+                        </h4>
+                      </div>
+
+                      <form onSubmit={handleAddSubtask} className="flex items-center gap-1.5">
+                        <input
+                          type="text"
+                          value={newSubtaskTitle}
+                          onChange={(e) => setNewSubtaskTitle(e.target.value)}
+                          placeholder="Add a subtask..."
+                          className="flex-1 bg-void/40 border border-pulsar/40 rounded-lg px-2.5 py-1.5 text-xs text-starlight outline-none focus:border-pulsar/50"
+                        />
+                        <button
+                          type="submit"
+                          disabled={!newSubtaskTitle.trim()}
+                          className="px-2.5 py-1.5 bg-pulsar/20 text-pulsar hover:bg-pulsar/30 disabled:opacity-40 rounded-lg text-xs font-mono transition-colors"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                        </button>
+                      </form>
+
+                      {selectedSubtasks.length > 0 && (
+                        <div className="space-y-1.5 max-h-60 overflow-y-auto pr-1">
+                          {selectedSubtasks.map((st, idx) => {
+                            const isSubDone = st.status === 'done';
+                            const isActive = !isSubDone && selectedActiveSubtask && selectedActiveSubtask.id === st.id;
+                            const stEstimate = st.time_estimate_minutes || st.estimated_minutes;
+
+                            return (
+                              <div
+                                key={st.id}
+                                className={`p-2.5 rounded-lg border text-xs flex flex-col gap-1.5 transition-colors ${
+                                  isActive
+                                    ? 'bg-amber-500/10 border-amber-500/40 shadow-sm'
+                                    : 'bg-void/30 border-pulsar/20'
+                                }`}
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleDone(st)}
+                                    className="flex items-center gap-2 text-left flex-1 min-w-0"
+                                  >
+                                    <span className={`font-mono font-bold ${isSubDone ? 'text-emerald' : 'text-nova/60'}`}>
+                                      {isSubDone ? '✓' : '○'}
+                                    </span>
+                                    <span className={`truncate ${isSubDone ? 'line-through text-nova/60' : 'text-starlight font-medium'}`}>
+                                      {st.title}
+                                    </span>
+                                  </button>
+
+                                  <div className="flex items-center gap-1 shrink-0">
+                                    {!isSubDone && (
+                                      <button
+                                        type="button"
+                                        onClick={async () => {
+                                          await handleSetNextAction(st);
+                                          window.dispatchEvent(new CustomEvent('polaris-start-task', { detail: { task: st } }));
+                                        }}
+                                        className="text-amber-400 hover:text-amber-300 hover:bg-amber-500/20 p-0.5 rounded transition-colors"
+                                        title="Start Focus on Subtask"
+                                        aria-label="Start Focus on Subtask"
+                                      >
+                                        <Play className="w-3.5 h-3.5 fill-current" />
+                                      </button>
+                                    )}
+                                    <button
+                                      type="button"
+                                      disabled={idx === 0}
+                                      onClick={() => handleMoveSubtask(st.id, 'up')}
+                                      className="text-nova/50 hover:text-starlight disabled:opacity-20 p-0.5"
+                                      title="Move Up"
+                                    >
+                                      <ChevronUp className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      disabled={idx === selectedSubtasks.length - 1}
+                                      onClick={() => handleMoveSubtask(st.id, 'down')}
+                                      className="text-nova/50 hover:text-starlight disabled:opacity-20 p-0.5"
+                                      title="Move Down"
+                                    >
+                                      <ChevronDown className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => deleteTask(st.id)}
+                                      className="text-nova/60 hover:text-red-400 p-0.5 ml-1"
+                                      title="Delete Subtask"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {!isSubDone && (
+                                  <div className="flex items-center justify-between gap-2 pt-1 border-t border-pulsar/15 text-[10px] font-mono">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      {isActive ? (
+                                        <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/40 font-bold tracking-wider">
+                                          ACTIVE NEXT ACTION
+                                        </span>
+                                      ) : (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleSetNextAction(st)}
+                                          className="px-1.5 py-0.5 rounded bg-pulsar/20 text-pulsar hover:bg-pulsar hover:text-void border border-pulsar/40 font-bold transition-colors cursor-pointer"
+                                        >
+                                          Set as Next Action
+                                        </button>
+                                      )}
+                                      {st.mental_load && (
+                                        <span className={`px-1 py-0.2 rounded font-bold uppercase ${
+                                          st.mental_load === 'low' ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/40' :
+                                          st.mental_load === 'high' ? 'bg-purple-950 text-purple-300 border border-purple-500/40' :
+                                          'bg-amber-950 text-amber-300 border border-amber-500/40'
+                                        }`}>
+                                          {st.mental_load}
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    {stEstimate && (
+                                      <span className="text-nova/60">
+                                        {stEstimate}m
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                     {/* Delete Task Button */}
                     <div className="pt-4 mt-2 border-t border-pulsar/30 flex justify-end">

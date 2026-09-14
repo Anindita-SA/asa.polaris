@@ -47,6 +47,7 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
   useEffect(() => { fetchGoals() }, [activeScope, goalCategory, filterNodeId])
 
   const fetchGoals = async () => {
+    if (!user?.id) return
     const scopeToFetch = goalCategory === 'side_quest' ? 'side_quest' : activeScope
     
     let query = supabase.from('goals').select('*').eq('user_id', user.id).eq('scope', scopeToFetch)
@@ -137,7 +138,7 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
     let savedGoal = { ...payload }
 
     if (isEditing && form.id) {
-      await supabase.from('goals').update(payload).eq('id', form.id)
+      await supabase.from('goals').update(payload).eq('id', form.id).eq('user_id', user.id)
       savedGoal.id = form.id
     } else {
       const { data } = await supabase.from('goals').insert(payload).select().single()
@@ -180,7 +181,8 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
   }
 
   const deleteGoal = async (id) => {
-    await supabase.from('goals').delete().eq('id', id)
+    if (!user?.id) return
+    await supabase.from('goals').delete().eq('id', id).eq('user_id', user.id)
     fetchGoals()
   }
 
@@ -219,7 +221,7 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
         })
       })
       const data = await res.json()
-      setAuditFeedback(data.choices[0].message.content)
+      setAuditFeedback(data?.choices?.[0]?.message?.content || 'Audit unavailable.')
     } catch (err) {
       console.error(err)
       setAuditFeedback("Audit unavailable. Please check your Groq API key connection.")
@@ -229,8 +231,9 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
   }
 
   const migrateGoal = async (id) => {
+    if (!user?.id) return
     const today = new Date().toISOString().slice(0, 10)
-    await supabase.from('goals').update({ deadline: today }).eq('id', id)
+    await supabase.from('goals').update({ deadline: today }).eq('id', id).eq('user_id', user.id)
     fetchGoals()
   }
 

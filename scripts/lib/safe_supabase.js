@@ -19,7 +19,11 @@ const ALLOWED_TABLES = [
   'goals',
   'eulogies',
   'milestones',
-  'outreach_targets'
+  'outreach_targets',
+  'recurring_task_templates',
+  'task_estimate_calibration',
+  'user_settings',
+  'media_log'
 ];
 
 
@@ -82,7 +86,26 @@ export async function createSafeClient(scriptName, readMostly = false, isDryRun 
         }
         if (readMostly && tableName === 'tasks') {
            const keys = Object.keys(payload);
-           const allowedKeys = ['quadrant', 'title', 'category', 'skip_count', 'status', 'completion_count', 'completion_dates', 'source_template_id'];
+           const allowedKeys = [
+             'quadrant',
+             'title',
+             'category',
+             'notes',
+             'skip_count',
+             'status',
+             'completion_count',
+             'completion_dates',
+             'source_template_id',
+             'milestone_id',
+             'parent_task_id',
+             'deadline',
+             'estimated_minutes',
+             'time_estimate_minutes',
+             'mental_load',
+             'estimate_source',
+             'canvas_x',
+             'canvas_y'
+           ];
            const hasInvalidKey = keys.some(k => !allowedKeys.includes(k));
            if (hasInvalidKey) {
               throw new Error(`SECURITY EXCEPTION: Read-mostly script can only update allowed fields (${allowedKeys.join(', ')}) on tasks. Attempted to update: ${keys.join(', ')}`);

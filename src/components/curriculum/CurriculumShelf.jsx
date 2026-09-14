@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { BookOpen, Plus, Sparkles } from 'lucide-react'
@@ -286,7 +286,7 @@ const CurriculumShelf = () => {
 
                 {/* Shelf edge - decorative line */}
                 <div className="w-full max-w-4xl mx-auto px-16">
-                  <div className="h-[2px] rounded-full" style={{ background: `linear-gradient(90deg, transparent, ${tabColor}25, transparent)` }} />
+                  <div className="h-[2px] rounded-full" style={{ backgroundColor: `${tabColor}25` }} />
                 </div>
               </div>
             ) : !addingCurriculum && (

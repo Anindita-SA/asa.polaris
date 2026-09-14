@@ -57,7 +57,7 @@ const canonicalMilestones = [
     note: "Unblock draft with 2-3 charts and search synthesis for Energies (MDPI)."
   },
   {
-    title: "SiC EMI / Power Converter Research Placement",
+    title: "DAB Converter / Power Electronics Research Placement",
     deadline: "2026-10-31",
     status: "upcoming",
     xp_reward: 100,
@@ -84,7 +84,7 @@ const canonicalMilestones = [
     deadline: "2026-12-31",
     status: "upcoming",
     xp_reward: 150,
-    note: "Power electronics track. Direct match with SiC converter research."
+    note: "Power electronics track. Direct match with DAB converter research."
   },
 
   // Phase 3: Peak Master's Admissions & Major Deadlines

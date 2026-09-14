@@ -1,5 +1,79 @@
 # Changelog
 
+## [2026-09-14] Settings Consolidation, Task System Overhaul & UI Decluttering (v1.2.6)
+- **Task Hierarchy Unification & Split-Brain Resolution**: Unified task hierarchy strictly under `tasks.parent_task_id`, deprecating the legacy polymorphic `subtasks` table. Migrated legacy subtasks to `tasks` and established canonical parent sprints for IELTS and core portfolio/research projects.
+- **Single-Row Recurring State Machine**: Hardened `useRecurringTasks.js` to strictly target root tasks, enforce open-task guards (never clone active tasks), and recycle only completed canonical rows on scheduled days.
+- **Matrix Canvas UI Decluttering**: Replaced bulky `~X min left` text with compact duration chips rendered in amber (`text-amber-400 border-amber-500/30 bg-amber-950/40`) when indicating remaining subtask duration. Replaced text `Urgent Step Due` banners with subtle star icons (`Sparkles`) next to task bullets when subtasks are due within 48h.
+- **Unified Navigation & Logout**: Removed the standalone Logout button from the top HUD bar and unified Sign Out into `SettingsPanel.jsx` (with a prominent direct Sign Out action in the modal header and in the Data & Account section).
+- **Reminders Panel Quick Access**: Kept the header settings button in `RemindersPanel.jsx` directly opening the unified `SettingsPanel` scrolled to the Reminders section (`initialSection="reminders"`).
+- **Interactive Task Picker Modal**: Created `TaskPickerModal.jsx` allowing users to search and filter active tasks by quadrant (`All`, `Q1`, `Q2`, `Q3`, `Q4`, `Backlog`) and launch any task into active focus with 1 click.
+- **Matrix Canvas & Details Focus Launcher**: Added a prominent "Start Focus Now" button in the Matrix Details drawer and a quick-start `Play` button on individual subtasks, keeping the Launch Pad timer and Matrix active-next-action state fully synchronized via the global `polaris-start-task` event.
+- **Surprise Task Modal Focus Action**: Added a direct "Start Focus" button (`Play` icon) to `SurpriseTaskModal.jsx` to immediately start randomized tasks in the Launch Pad timer.
+- **Domain Context Sanitization**: Purged all inaccurate SiC references across documentation and scripts, aligning with canonical Dual Active Bridge (DAB) Converter & Power Electronics EMC research under Dr. Vignesh Kumar at NIT Trichy.
+- **Quality Gates & Test Coverage**: Added comprehensive test suites in `TaskPickerModal.test.jsx` and `SurpriseTaskModal.test.jsx`, updated `SettingsPanel.test.jsx`, `MatrixCanvasView.test.jsx`, and `RemindersPanel.test.jsx`, verified 151 unit tests across 16 test suites, and completed full `ImplementationAuditor` and `SecurityAuditor` quality gates.
+
+## [2026-09-14] RemindersPanel Section Collapsing Fix (v1.2.5)
+- **Persistent Section Headers**: Fixed issue in `RemindersPanel.jsx` where collapsed sections disappeared if their item count was zero, preventing users from re-expanding the sections without refreshing the page. Extracted `CollapsibleSection` to a top-level component with consistent state binding for `Nudges`, `Task Reminders`, `Habits`, and `Reach Out`.
+- **Test Coverage**: Added test in `RemindersPanel.test.jsx` verifying that collapsing and re-expanding sections functions as intended regardless of item counts.
+
+## [2026-09-14] Morning Brief Curriculum Media Log Routing & External Reading Links (v1.2.4)
+- **Decoupled Morning Brief Reading Items from Tasks**: Bookmarking news and tech breakthrough articles in `DayBriefView.jsx` now inserts records directly into the Personal Curriculum (`media_log` table) under `media_type: 'article'`, `tags: ['morning-brief', 'article']`, `status: 'want_to'`, and `recommended_by: 'Morning Brief'` instead of generating task clutter in the active matrix.
+- **Direct Web Article Reading Links**: Enhanced `MediaLog.jsx` to automatically extract article URLs from review notes or summaries and render clean, direct `Read Article ->` external links (`ExternalLink` with `safeExternalUrl` in a secure `_blank` window).
+- **Tag Filtering in Curriculum**: Added active tag filter dropdown and clickable `#tag` badges across media cards in `MediaLog.jsx`, enabling instant 1-click filtering by `#morning-brief` or topic tags.
+- **Safe Supabase Allowlist & Data Migration**: Added `media_log` to `ALLOWED_TABLES` in `safe_supabase.js` and executed `scripts/migrate_reading_tasks_to_media_log.js` to migrate existing reading tasks (including `Read: Dense-Fluid Pumped Hydro Works. Scaling It Is The Problem.`) out of `tasks` and into `media_log`.
+- **Test Suite & Build Verification**: Added comprehensive unit test suite in `MediaLog.test.jsx` (all 138 tests passing across 14 test suites, clean build verified).
+
+## [2026-09-13] Focused Next-Action Canvas Presentation, Dynamic Urgency Migration & SiC EMI Research Isolation (v1.2.3)
+- **Focused Next-Action Selection Algorithm**: Implemented pure deterministic 3-tier algorithm `computeActiveSubtask`: Tier 1 (subtask due within 48h with lowest estimate), Tier 2 (`in_progress` / `priority: high` flag), and Tier 3 (sequential position with low-friction warm-up nudge when first subtask >60m and high load).
+- **Single Next-Action Canvas Rendering**: Expanding a project parent card on the 2D Matrix Canvas renders ONLY the single active next-action subtask pill beneath the parent card, accompanied by a compact button `+ {X} queued in Project Drawer`. Checking off the active subtask immediately promotes the next subtask in place without a page reload.
+- **Dynamic Urgency Migration**: Gated behind `auto_quadrant_suggest`:
+  - When OFF: renders a subtle `Urgent Step Due` indicator on parent cards when an active subtask is due within 48h, without changing quadrants.
+  - When ON: elevates parent task to Q1 when an active subtask is due within 48h, and displays a `"Move back to Q2?"` chip when urgent subtasks are completed (never settles back silently).
+- **Details Drawer Pipeline Manager**: Added `ACTIVE NEXT ACTION` badge and `Set as Next Action` override action directly on subtask items in the Details drawer, with up/down reordering controls.
+- **SiC EMI & DAB Converter Research Isolation**: Created canonical project parent `SiC EMI & DAB Converter Research (Dr. Vignesh Kumar)` linked to milestone `SiC EMI / Power Converter Research Placement`, reparented all 8 DAB converter subtasks, and updated `nest_project_tasks.js`.
+- **Triage & Test Verification**: Added parent task urgency evaluation in `scripts/task_triage.js` and expanded unit tests in `MatrixCanvasView.test.jsx` and `task_triage.test.js` (all 134 tests passing across 13 test suites).
+
+## [2026-09-13] Canonical Project Task Nesting, 2D Matrix Canvas Streamlining & Per-Task Recurring Controls (v1.2.2)
+- **Canonical Project Sprint Nesting**: Executed `scripts/nest_project_tasks.js` to nest 38+ loose child tasks under 4 canonical sprint parents: `CHAARG Hardware & PCB Documentation`, `Agri Solar Energy Survey Paper (MDPI Energies)`, `Master's Portfolio & Application Strategy`, and `Concrete Speaker Portfolio Project`. Archived completed non-P0 REEF internship tasks.
+- **2D Matrix Canvas Streamlining**: Removed `mental_load` badges from 2D canvas card pills to eliminate visual noise (kept in the Details drawer). Consolidated duplicate duration markers: parent cards with subtasks display only remaining time (`~X min left`), while standalone tasks show `{estimate}m`.
+- **Per-Task Recurring Controls**: Added direct "Repeat Daily / Recurring" toggle switch in the task Details drawer (`MatrixCanvasView.jsx`) with live synchronization to `recurring_task_templates` and `tasks.source_template_id`. Added recurring status indicator (`RefreshCw`) on active recurring task cards.
+- **Subtask Quadrant Omission**: Hardened `MatrixCanvasView.jsx` and `TaskMatrix.jsx` to strictly exclude child subtasks (`parent_task_id != null`) from root quadrant slots and backlog queues, ensuring clean 2D quadrant views.
+- **Unified Recurring Task Management**: Added active template manager in `SettingsPanel.jsx` with instant on/off toggles.
+
+## [2026-09-13] IELTS Task Nesting & Task Triage Subtask Hardening (v1.2.1)
+- **Safe Supabase Allowlist & Task Update Scope**: Added `recurring_task_templates`, `task_estimate_calibration`, and `user_settings` to `ALLOWED_TABLES` in `safe_supabase.js`, and expanded `allowedKeys` for `tasks` updates to include time estimates, mental load, canvas coordinates, notes, deadline, and estimate source.
+- **Subtask Deduplication Isolation**: Scoped active task title indexing in `deduplicateActiveTasks` and `identifyDuplicatesAndMerge` by `sub:parent_task_id:title` vs `root:title`, guaranteeing child subtasks across different parent tasks are never merged or deduplicated against each other.
+- **Root-Only Triage Classification**: Added `is('parent_task_id', null)` constraint to `unsortedTasks` query in `task_triage.js` and updated `deduplicateTasks` to only consider root tasks when checking against active tasks.
+- **Quadrant Propagation**: Implemented automatic quadrant propagation to all child subtasks whenever a parent task's quadrant is updated during triage.
+- **Recurring Task Hierarchy Safety**: Hardened `useRecurringTasks.js` to strictly match and recycle root tasks (`!parent_task_id`), protecting subtasks from being misidentified as recurring template instances.
+- **IELTS Canonical Parent Sprint**: Created and executed `scripts/nest_ielts_tasks.js` to link the IELTS milestone, establish the canonical parent sprint task ("IELTS Preparation Sprint (Oct 3 Exam)"), nest all 4 skill practice subtasks (Writing, Speaking, Reading, Listening), and consolidate loose duplicates.
+- **Automated Test Suite**: Added test coverage in `scripts/task_triage.test.js` and `src/hooks/useRecurringTasks.test.js` verifying subtask deduplication isolation, child subtask omission during triage, and dry-run execution safety (all 117 tests passing).
+
+## [2026-09-13] Matrix & Triage Overhaul (v1.2.0)
+- **Phase 0 (Security Hardening, Crash Prevention & Decomposition)**:
+  - Enforced strict `user_id` query scoping across all Supabase mutations in `Journal.jsx`, `GoalsPanel.jsx`, `MediaLog.jsx`, `RelationshipsView.jsx`, `useGoogleCalendarSync.js`, `useContactReminders.js`, and `CurriculumView.jsx`.
+  - Added null guards and defensive fallbacks across `MatrixCanvasView.jsx`, `FitnessBridge.jsx`, `CalendarView.jsx`, `DayChunker.jsx`, and `TaskMatrix.jsx`.
+  - Removed invalid `scheduled_day` SQL updates in `TodaysTasksShuffle.jsx` and persisted daily schedule in `localStorage`.
+  - Decomposed the 1,743-line `ReachOutView.jsx` into modular components (`ReachOutTargetCard`, `ReachOutFilterBar`, `TargetFormModal`, `BatchImportModal`, `reachOutConstants`).
+  - Purged all CSS/Tailwind gradients (`IOBalanceBar`, `Starfield`, `CurriculumShelf`, `global.css`) and replaced all legacy em dashes in `curriculumDefaults.js` and `xpRewards.js`.
+- **Phase 1 (Recurring Task Deduplication)**:
+  - Upgraded `useRecurringTasks.js` to inspect active/scheduled tasks before creating or recycling, preventing duplicate active rows for recurring templates.
+  - Implemented `deduplicateActiveTasks` clustering in `scripts/task_triage.js` to deduplicate active tasks across all categories.
+- **Phase 2 (Unified Task Hierarchy Migration)**:
+  - Added `milestone_id` to `tasks` table with foreign key to `milestones`.
+  - Migrated legacy `subtasks` table rows directly into the unified `tasks` table with `milestone_id` and `parent_task_id`.
+  - Refactored `Timeline.jsx`, `FocusBoard.jsx`, `NodePanel.jsx`, and `MatrixCanvasView.jsx` to query and mutate `tasks` directly.
+- **Phase 3 (AI Time Estimates & Mental Load in Triage)**:
+  - Added `time_estimate_minutes` and `mental_load` ('low', 'medium', 'high') to `tasks` and Groq subtask generator prompts.
+  - Implemented automatic remaining time calculation (`~X min left`) on parent task cards in `MatrixCanvasView.jsx`.
+  - Created `task_estimate_calibration` table to log estimate adjustments when edited by the user.
+  - Added stale parent task detection in `task_triage.js` to flag inactive subtask trees after 3 days.
+- **Phase 4 (Unified Settings Panel)**:
+  - Created `user_settings` table and `useUserSettings.js` hook with dual `localStorage` and Supabase sync.
+  - Built unified `SettingsPanel.jsx` covering Triage & Matrix, Reminders & Nudges, Focus & Audio, and Data & Account.
+  - Added `auto_quadrant_suggest` toggle with clickable suggestion chips (`Move to Q2`) that require explicit user confirmation.
+- **Verification**: All 111 unit tests across 13 test suites passing cleanly. Build verified with zero errors.
+
 ## [2026-09-13] Google OAuth Compliant Privacy Policy, Terms of Service & Legal Infrastructure (v1.1.8)
 - **Standalone Static Legal Pages**: Created `public/privacy.html` and `public/terms.html` with Polaris dark void theme (#030712), glass card surfaces (#0f172a / rgba(15,23,42,0.7)), and gold/amber accents (#f59e0b, #d97706), with zero gradients.
 - **Google Limited Use Disclosure**: Explicitly stated adherence to the Google API Services User Data Policy and Limited Use requirements, confirming zero advertising, no market research, human access restrictions, and strict non-transferability of Google user data.

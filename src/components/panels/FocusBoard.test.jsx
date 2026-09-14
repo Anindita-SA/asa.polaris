@@ -41,7 +41,8 @@ describe('FocusBoard', () => {
     focus_items: [],
     backburner: [],
     milestones: [],
-    subtasks: []
+    subtasks: [],
+    tasks: []
   }
 
   beforeEach(() => {
@@ -50,7 +51,8 @@ describe('FocusBoard', () => {
       focus_items: [],
       backburner: [],
       milestones: [],
-      subtasks: []
+      subtasks: [],
+      tasks: []
     }
 
     offlineApi.offlineSelect.mockImplementation(async (table) => {

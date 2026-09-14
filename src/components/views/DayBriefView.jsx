@@ -89,14 +89,40 @@ export default function DayBriefView() {
       }
     }
 
+    // Query media_log to accurately reflect saved reading articles
+    const { data: mediaItems } = await supabase
+      .from('media_log')
+      .select('title, full_review')
+      .eq('user_id', user.id);
+
+    const savedTitles = new Set((mediaItems || []).map(m => m.title?.toLowerCase().trim()));
+    const savedUrls = new Set(
+      (mediaItems || [])
+        .map(m => {
+          const match = m.full_review?.match(/URL:\s*(https?:\/\/[^\s\n]+)/i);
+          return match ? match[1].trim() : null;
+        })
+        .filter(Boolean)
+    );
+
     // Filter out any opportunities that are marked rejected
     const activeItems = items.filter(item => !item.hardware_opportunity_id || !rejectedIds.has(item.hardware_opportunity_id));
 
     const enhancedItems = activeItems.map(item => {
+      let isApplied = false;
+      let isSaved = item.isSaved || false;
+
       if (item.hardware_opportunity_id && appliedIds.has(item.hardware_opportunity_id)) {
-        return { ...item, isApplied: true };
+        isApplied = true;
       }
-      return item;
+      if (item.title && savedTitles.has(item.title.toLowerCase().trim())) {
+        isSaved = true;
+      }
+      if (item.url && savedUrls.has(item.url.trim())) {
+        isSaved = true;
+      }
+
+      return { ...item, isApplied, isSaved };
     });
 
     setBriefItems(enhancedItems);
@@ -212,11 +238,15 @@ export default function DayBriefView() {
     setSavingNewsIds(prev => new Set(prev).add(index));
 
     try {
-      await supabase.from('tasks').insert({
-        title: `Read: ${item.title}`,
-        notes: `Source: ${item.source_name || ''}\nURL: ${item.url || ''}\n\nSummary: ${item.summary || ''}`,
-        status: 'active',
-        quadrant: 'important_not_urgent',
+      await supabase.from('media_log').insert({
+        title: item.title,
+        author_or_creator: item.source_name || 'Morning Brief',
+        media_type: 'article',
+        status: 'want_to',
+        recommended_by: 'Morning Brief',
+        one_line_takeaway: item.summary || null,
+        full_review: item.url ? `URL: ${item.url}` : null,
+        tags: ['morning-brief', 'article'],
         user_id: user.id
       });
 
@@ -250,7 +280,7 @@ export default function DayBriefView() {
           .eq('user_id', user.id);
       }
     } catch (err) {
-      console.error('Error saving news item to tasks:', err);
+      console.error('Error saving news item to curriculum media log:', err);
     } finally {
       setSavingNewsIds(prev => {
         const next = new Set(prev);
@@ -379,7 +409,7 @@ export default function DayBriefView() {
                       <button
                         onClick={() => handleSaveNewsItem(item, originalIndex)}
                         disabled={item.isSaved || isSaving}
-                        title={item.isSaved ? "Saved to Tasks" : "Save to Tasks"}
+                        title={item.isSaved ? "Saved to Curriculum" : "Save to Curriculum"}
                         className={`flex items-center justify-center p-1.5 rounded-lg transition-colors border ${
                           item.isSaved
                             ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30 opacity-70'
