@@ -14,8 +14,9 @@ export function identifyDuplicatesAndMerge(tasks = []) {
   const groups = new Map();
 
   for (const task of tasks) {
-    const key = (task.title || '').trim().toLowerCase();
-    if (!key) continue;
+    const rawKey = (task.title || '').trim().toLowerCase();
+    if (!rawKey) continue;
+    const key = task.parent_task_id ? `sub:${task.parent_task_id}:${rawKey}` : `root:${rawKey}`;
     if (!groups.has(key)) {
       groups.set(key, []);
     }

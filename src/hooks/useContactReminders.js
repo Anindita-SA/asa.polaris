@@ -71,12 +71,14 @@ export const useContactReminders = () => {
   }, [fetchContacts]);
 
   const markReachedOut = async (id) => {
+    if (!user?.id) return;
     const today = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
     
     const { error } = await supabase
       .from('contacts')
       .update({ last_contacted_at: today })
-      .eq('id', id);
+      .eq('id', id)
+      .eq('user_id', user.id);
 
     if (error) {
       console.error('Error updating contact:', error);

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
+import { safeExternalUrl } from '../../lib/urlUtils'
 import { ArrowLeft, Plus, X, BookOpen, Link as LinkIcon, Trash2, ChevronDown, Download, ExternalLink, Calendar, CheckCircle, Sparkles, ShieldCheck } from 'lucide-react'
 import TopicCard from './TopicCard'
 import PracticeScoreTracker from './PracticeScoreTracker'
@@ -224,7 +225,7 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
     URL.revokeObjectURL(url)
   }
 
-  const isIeltsCurriculum = curriculum.title?.toLowerCase().includes('ielts')
+  const isIeltsCurriculum = Boolean(curriculum?.title?.toLowerCase()?.includes('ielts'))
 
   useEffect(() => { fetchData() }, [curriculum.id])
 
@@ -260,7 +261,7 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
   const offset = C - (pct / 100) * C
 
   const addTopicHandler = async () => {
-    if (!newTopic.title.trim()) return
+    if (!newTopic.title.trim() || !user?.id) return
     await supabase.from('curriculum_topics').insert({
       user_id: user.id, curriculum_id: curriculum.id,
       title: newTopic.title, estimated_hours: parseFloat(newTopic.estimated_hours) || null,
@@ -272,7 +273,7 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
   }
 
   const addResourceHandler = async () => {
-    if (!newResource.title.trim()) return
+    if (!newResource.title.trim() || !user?.id) return
     await supabase.from('curriculum_resources').insert({
       user_id: user.id, curriculum_id: curriculum.id, ...newResource,
     })
@@ -282,24 +283,26 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
   }
 
   const saveEditResource = async () => {
-    if (!editingResource.title.trim()) return
+    if (!editingResource?.title?.trim() || !user?.id) return
     await supabase.from('curriculum_resources').update({
       title: editingResource.title,
       author: editingResource.author,
       url: editingResource.url,
       resource_type: editingResource.resource_type
-    }).eq('id', editingResource.id)
+    }).eq('id', editingResource.id).eq('user_id', user.id)
     setEditingResource(null)
     fetchData()
   }
 
   const deleteTopic = async (id) => {
-    await supabase.from('curriculum_topics').delete().eq('id', id)
+    if (!user?.id) return
+    await supabase.from('curriculum_topics').delete().eq('id', id).eq('user_id', user.id)
     fetchData()
   }
 
   const deleteResource = async (id) => {
-    await supabase.from('curriculum_resources').delete().eq('id', id)
+    if (!user?.id) return
+    await supabase.from('curriculum_resources').delete().eq('id', id).eq('user_id', user.id)
     fetchData()
   }
 
@@ -704,8 +707,8 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      {r.url && (
-                        <a href={r.url} target="_blank" rel="noopener noreferrer"
+                      {safeExternalUrl(r.url) && (
+                        <a href={safeExternalUrl(r.url)} target="_blank" rel="noopener noreferrer"
                           className="text-xs font-mono flex items-center gap-1 hover:underline" style={{ color: accentColor }}>
                           <LinkIcon className="w-3 h-3" />
                         </a>

@@ -101,14 +101,17 @@ const FocusBoard = () => {
 
     const targetIds = activeItems.map(item => item.id)
     if (targetIds.length) {
-      const { data: allSubtasks } = await offlineSelect('subtasks')
-      const subtasksRows = (allSubtasks || [])
-        .filter(s => s.user_id === user.id && s.parent_type === 'focus' && targetIds.includes(s.parent_id))
-        .sort((a, b) => a.position - b.position)
+      const { data: allTasks } = await offlineSelect('tasks')
+      const subtasksRows = (allTasks || [])
+        .filter(t => t.user_id === user.id && targetIds.includes(t.parent_task_id))
+        .sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0))
       const grouped = {}
       ;(subtasksRows || []).forEach(row => {
-        grouped[row.parent_id] = grouped[row.parent_id] || []
-        grouped[row.parent_id].push(row)
+        grouped[row.parent_task_id] = grouped[row.parent_task_id] || []
+        grouped[row.parent_task_id].push({
+          ...row,
+          completed: row.status === 'done'
+        })
       })
       setSubtasks(grouped)
     } else {
@@ -231,23 +234,27 @@ const FocusBoard = () => {
       }),
     })
     const data = await response.json()
-    const text = data?.content?.[0]?.text || '[]'
-    setGeneratedSteps(JSON.parse(text))
+    const text = (data?.content?.[0]?.text || '[]').replace(/```json|```/g, '').trim()
+    try {
+      setGeneratedSteps(JSON.parse(text))
+    } catch {
+      setGeneratedSteps([])
+    }
   }
 
   const saveSubtasks = async () => {
     if (!generatedSteps.length || !breakdownTarget) return
     const validSteps = generatedSteps.map(s => typeof s === 'string' ? s.trim() : '').filter(Boolean)
     if (!validSteps.length) return
-    const insertPromises = validSteps.map((title, idx) => offlineInsert('subtasks', {
+    const insertPromises = validSteps.map((title) => offlineInsert('tasks', {
       id: crypto.randomUUID(),
       created_at: new Date().toISOString(),
       user_id: user.id,
-      parent_id: breakdownTarget.id,
-      parent_type: 'focus',
+      parent_task_id: breakdownTarget.id,
       title,
-      position: idx,
-      completed: false
+      status: 'active',
+      quadrant: 'important_not_urgent',
+      category: breakdownTarget.category || 'academic',
     }))
     await Promise.all(insertPromises)
     setBreakdownTarget(null)
@@ -257,7 +264,8 @@ const FocusBoard = () => {
   }
 
   const toggleSubtask = async (task) => {
-    await offlineUpdate('subtasks', { id: task.id }, { completed: !task.completed })
+    const nextStatus = task.status === 'done' ? 'active' : 'done'
+    await offlineUpdate('tasks', { id: task.id }, { status: nextStatus })
     fetchFocus()
   }
 
@@ -330,7 +338,7 @@ const FocusBoard = () => {
                       </button>
                       {subtasks[item.id]?.length > 0 && (
                         <div className="mt-2 space-y-1">
-                          {subtasks[item.id].map(task => (
+                          {(subtasks[item.id] || []).map(task => (
                             <button key={task.id} onClick={() => toggleSubtask(task)} className="block text-xs text-left">
                               <span className={task.completed ? 'text-emerald line-through' : 'text-starlight'}>{task.completed ? '✓' : '○'} {task.title}</span>
                             </button>

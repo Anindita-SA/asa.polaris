@@ -51,12 +51,21 @@ const Timeline = ({ filterNodeId, onJumpToNode }) => {
     const { data: nodeData } = await supabase.from('nodes').select('*').eq('user_id', user.id)
     setNodes(nodeData || [])
 
-    const { data: subData } = await supabase.from('subtasks').select('*').eq('user_id', user.id).eq('parent_type', 'milestone').order('position')
+    const { data: milestoneTasks } = await supabase
+      .from('tasks')
+      .select('*')
+      .eq('user_id', user.id)
+      .not('milestone_id', 'is', null)
+      .order('created_at', { ascending: true })
+
     const grouped = {}
-      ; (subData || []).forEach(row => {
-        grouped[row.parent_id] = grouped[row.parent_id] || []
-        grouped[row.parent_id].push(row)
+    ;(milestoneTasks || []).forEach(row => {
+      grouped[row.milestone_id] = grouped[row.milestone_id] || []
+      grouped[row.milestone_id].push({
+        ...row,
+        completed: row.status === 'done'
       })
+    })
     setSubtasks(grouped)
   }
 
@@ -185,13 +194,15 @@ Rules:
 
   const saveSubtasks = async () => {
     if (!generatedSteps.length || !breakdownTarget) return
-    const maxPos = subtasks[breakdownTarget.id]?.length || 0
-    await supabase.from('subtasks').insert(generatedSteps.map((title, idx) => ({
+    await supabase.from('tasks').insert(generatedSteps.map(title => ({
+      id: crypto.randomUUID(),
       user_id: user.id,
-      parent_id: breakdownTarget.id,
-      parent_type: 'milestone',
+      milestone_id: breakdownTarget.id,
       title,
-      position: maxPos + idx,
+      status: 'active',
+      quadrant: 'important_not_urgent',
+      category: 'academic',
+      created_at: new Date().toISOString()
     })))
     setGeneratedSteps([])
     fetchMilestones()
@@ -199,25 +210,27 @@ Rules:
 
   const addManualSubtask = async () => {
     if (!newSubtask.trim() || !breakdownTarget) return
-    const maxPos = subtasks[breakdownTarget.id]?.length || 0
-    await supabase.from('subtasks').insert({
+    await supabase.from('tasks').insert({
+      id: crypto.randomUUID(),
       user_id: user.id,
-      parent_id: breakdownTarget.id,
-      parent_type: 'milestone',
+      milestone_id: breakdownTarget.id,
       title: newSubtask.trim(),
-      position: maxPos,
+      status: 'active',
+      quadrant: 'important_not_urgent',
+      category: 'academic',
+      created_at: new Date().toISOString()
     })
     setNewSubtask('')
     fetchMilestones()
   }
 
   const toggleSubtask = async (task) => {
-    await supabase.from('subtasks').update({ completed: !task.completed }).eq('id', task.id).eq('user_id', user.id)
+    await supabase.from('tasks').update({ status: task.status === 'done' ? 'active' : 'done' }).eq('id', task.id).eq('user_id', user.id)
     fetchMilestones()
   }
 
   const deleteSubtask = async (id) => {
-    await supabase.from('subtasks').delete().eq('id', id).eq('user_id', user.id)
+    await supabase.from('tasks').delete().eq('id', id).eq('user_id', user.id)
     fetchMilestones()
   }
 

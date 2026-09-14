@@ -61,17 +61,23 @@ serve(async (req) => {
       })
     }
 
-    const tasksToInsert = subtasks.map((st: any) => ({
-      user_id: user.id,
-      title: st.title,
-      parent_task_id: parent_task_id,
-      status: 'inbox',
-      quadrant: 'important_not_urgent',
-      estimated_minutes: st.estimated_minutes || 30,
-      estimate_source: 'ai',
-      deadline: opportunity.deadline,
-      notes: st.notes
-    }))
+    const tasksToInsert = subtasks.map((st: any) => {
+      const minutes = st.time_estimate_minutes || st.estimated_minutes || 30;
+      const mentalLoad = ['low', 'medium', 'high'].includes(st.mental_load) ? st.mental_load : 'medium';
+      return {
+        user_id: user.id,
+        title: st.title,
+        parent_task_id: parent_task_id,
+        status: 'inbox',
+        quadrant: 'important_not_urgent',
+        estimated_minutes: minutes,
+        time_estimate_minutes: minutes,
+        mental_load: mentalLoad,
+        estimate_source: 'ai',
+        deadline: opportunity.deadline,
+        notes: st.notes
+      };
+    })
 
     const { data, error } = await supabase
       .from('tasks')

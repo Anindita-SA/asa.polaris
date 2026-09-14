@@ -27,4 +27,13 @@ db.version(2).stores({
   eulogies: 'id, user_id, written_date'
 });
 
+db.version(3).stores({
+  tasks: 'id, user_id, status, quadrant, category, deadline, parent_task_id, milestone_id',
+});
+
+db.version(4).stores({
+  tasks: 'id, user_id, status, quadrant, category, deadline, parent_task_id, milestone_id, time_estimate_minutes, mental_load',
+  task_estimate_calibration: 'id, user_id, task_id, created_at',
+});
+
 export default db;

@@ -531,6 +531,95 @@ describe("RemindersPanel", () => {
       expect(screen.queryByText("Tune nudges, alerts, and quiet focus preferences")).toBeNull();
     });
   });
+
+  it("should collapse and expand sections without losing header even when count is zero", async () => {
+    useNudgeScheduler.mockReturnValue({
+      nudges: [],
+      dismissNudge: vi.fn(),
+      fetchNudges: vi.fn()
+    });
+
+    render(<RemindersPanel />);
+
+    // Check Nudges header exists with 0 count
+    const nudgesButton = screen.getByRole("button", { name: /^Nudges/i });
+    expect(nudgesButton).toBeDefined();
+    expect(screen.getByText("No active nudges")).toBeDefined();
+
+    // Click to collapse
+    fireEvent.click(nudgesButton);
+
+    // Content should be hidden
+    expect(screen.queryByText("No active nudges")).toBeNull();
+    // Header must STILL be in the DOM
+    expect(screen.getByRole("button", { name: /^Nudges/i })).toBeDefined();
+
+    // Click to re-expand
+    fireEvent.click(screen.getByRole("button", { name: /^Nudges/i }));
+    expect(screen.getByText("No active nudges")).toBeDefined();
+  });
+
+  it("should open TaskPickerModal when Choose Task button is clicked and launch selected task", async () => {
+    const tasks = [
+      { id: "task-1", title: "Refactor Authentication Flow", status: "active", category: "work", quadrant: "urgent_important", estimated_minutes: 45, wsjfScore: 4.5 },
+      { id: "task-2", title: "Write Release Notes", status: "active", category: "work", quadrant: "important_not_urgent", estimated_minutes: 20, wsjfScore: 3.5 }
+    ];
+
+    setupSupabaseMock(tasks, []);
+
+    render(<RemindersPanel onOpenDayGuide={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Refactor Authentication Flow")).toBeDefined();
+    });
+
+    // Click Choose Task button
+    const chooseTaskBtn = screen.getByTitle("Choose Focus Task");
+    fireEvent.click(chooseTaskBtn);
+
+    // TaskPickerModal should be displayed
+    await waitFor(() => {
+      expect(screen.getByText("Choose Focus Task")).toBeDefined();
+    });
+    expect(screen.getByPlaceholderText("Search active tasks...")).toBeDefined();
+
+    const modal = screen.getByText("Choose Focus Task").closest(".modal-content");
+    expect(within(modal).getByText("Refactor Authentication Flow")).toBeDefined();
+    expect(within(modal).getByText("Write Release Notes")).toBeDefined();
+
+    // Click Start Focus on the second task inside modal
+    const startFocusBtns = within(modal).getAllByRole("button", { name: /Start Focus/i });
+    fireEvent.click(startFocusBtns[1]);
+
+    // The modal should close and the task should now be launched in Ongoing Now
+    await waitFor(() => {
+      expect(screen.getByText("Ongoing Now")).toBeDefined();
+      expect(screen.getByText("Write Release Notes")).toBeDefined();
+    });
+  });
+
+  it("should start task in Launch Pad when polaris-start-task custom event is dispatched", async () => {
+    setupSupabaseMock([], []);
+
+    render(<RemindersPanel onOpenDayGuide={vi.fn()} />);
+
+    const externalTask = {
+      id: "ext-101",
+      title: "Draft Matrix Architectural Overview",
+      status: "active",
+      estimated_minutes: 50
+    };
+
+    // Dispatch global polaris-start-task event
+    fireEvent(window, new CustomEvent("polaris-start-task", {
+      detail: { task: externalTask }
+    }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Ongoing Now")).toBeDefined();
+      expect(screen.getByText("Draft Matrix Architectural Overview")).toBeDefined();
+    });
+  });
 });
 
 

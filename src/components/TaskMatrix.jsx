@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { offlineSelect, offlineInsert, offlineUpdate, offlineDelete } from '../lib/offlineApi';
 import { getGroqKey } from '../lib/llm';
@@ -94,6 +95,9 @@ function checkReassess(task) {
 }
 
 export default function TaskMatrix() {
+  const { user } = useAuth();
+  const userId = user?.id;
+
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [newTitle, setNewTitle] = useState('');
@@ -107,9 +111,14 @@ export default function TaskMatrix() {
 
   // Fetch tasks from Supabase
   const fetchTasks = useCallback(async () => {
+    if (!userId) {
+      setTasks([]);
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
-      const { data, error } = await offlineSelect('tasks');
+      const { data, error } = await offlineSelect('tasks', { user_id: userId });
       if (data) data.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
 
       if (error) throw error;
@@ -119,7 +128,7 @@ export default function TaskMatrix() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
     fetchTasks();
@@ -129,18 +138,15 @@ export default function TaskMatrix() {
   const handleAddTask = async (e) => {
     if (e) e.preventDefault();
     const title = newTitle.trim();
-    if (!title || isSubmitting) return;
+    if (!title || isSubmitting || !userId) return;
 
     setIsSubmitting(true);
     try {
-      const { data: userData } = await supabase.auth.getUser();
-      const userId = userData?.user?.id;
-
       const newTask = {
         title,
         status: 'inbox',
         quadrant: null,
-        ...(userId ? { user_id: userId } : {})
+        user_id: userId
       };
       newTask.id = crypto.randomUUID();
       newTask.created_at = new Date().toISOString();
@@ -239,8 +245,8 @@ export default function TaskMatrix() {
 
       const prompt = `You are a pragmatic, realistic time-management coach. Estimate the duration in minutes for the following task. You MUST account for context-switching, setup, and transition overhead (not just raw focused execution time).
 
-Task Title: "${task.title}"
-Task Notes: "${task.notes || 'None'}"
+Task Title: ${JSON.stringify(task.title || '')}
+Task Notes: ${JSON.stringify(task.notes || 'None')}
 
 Return ONLY a single valid JSON object in this exact format: {"minutes": 45}. Do not add any commentary or markdown around it.`;
 
@@ -258,6 +264,7 @@ Return ONLY a single valid JSON object in this exact format: {"minutes": 45}. Do
       });
 
       const data = await res.json();
+      if (!data?.choices?.length) throw new Error(data?.error?.message || 'Invalid AI response');
       let mins = 30; // sensible fallback
       try {
         const parsed = JSON.parse(data.choices[0].message.content);
@@ -322,9 +329,9 @@ Return ONLY a single valid JSON object in this exact format: {"minutes": 45}. Do
   };
 
   // Filtered lists
-  const unsortedTasks = tasks.filter((t) => t.quadrant === null && (filterDone || t.status !== 'done'));
+  const unsortedTasks = tasks.filter((t) => !t.parent_task_id && t.quadrant === null && (filterDone || t.status !== 'done'));
   const getQuadrantTasks = (qId) =>
-    tasks.filter((t) => t.quadrant === qId && (filterDone || t.status !== 'done'));
+    tasks.filter((t) => !t.parent_task_id && t.quadrant === qId && (filterDone || t.status !== 'done'));
 
   return (
     <div className="w-full min-h-screen bg-[#0c0f14] text-[#e8e6df] font-['Space_Grotesk',sans-serif] p-4 sm:p-6 md:p-8 selection:bg-[#f5a623] selection:text-black">
@@ -828,4 +835,3 @@ function EditTaskModal({ task, onClose, onSave }) {
     </div>
   );
 }
-

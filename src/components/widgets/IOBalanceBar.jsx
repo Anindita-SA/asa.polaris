@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { Plus, X } from 'lucide-react'
@@ -95,11 +95,7 @@ const IOBalanceBar = () => {
           <div className="absolute right-1/2 top-0 bottom-0 rounded-l-full transition-all duration-1000 z-10"
             style={{ 
               width: `${inputMins > 0 ? Math.max(Math.min((inputMins / Math.max(inputMins + outputMins, 1)) * 100, 50), 3) : 0}%`,
-              background: balanceState === 'alert' 
-                ? 'linear-gradient(270deg, #f59e0b, #ef4444, #f59e0b)'
-                : 'linear-gradient(270deg, #f59e0b90, #f59e0b50)',
-              backgroundSize: balanceState === 'alert' ? '200% 100%' : 'auto',
-              animation: balanceState === 'alert' ? 'aurora-shift 2s ease-in-out infinite' : 'none',
+              backgroundColor: balanceState === 'alert' ? '#ef4444' : '#f59e0b',
             }} 
           />
           
@@ -107,31 +103,24 @@ const IOBalanceBar = () => {
           <div className="absolute left-1/2 top-0 bottom-0 rounded-r-full transition-all duration-1000 z-10"
             style={{ 
               width: `${outputMins > 0 ? Math.max(Math.min((outputMins / Math.max(inputMins + outputMins, 1)) * 100, 50), 3) : 0}%`,
-              background: balanceState === 'balanced'
-                ? 'linear-gradient(90deg, #10b981, #06d6a0, #34d399, #10b981)'
-                : 'linear-gradient(90deg, #10b98180, #10b98150)',
-              backgroundSize: balanceState === 'balanced' ? '300% 100%' : 'auto',
-              animation: balanceState === 'balanced' ? 'aurora-shift 3s ease-in-out infinite' : 'none',
+              backgroundColor: balanceState === 'balanced' ? '#06d6a0' : '#10b981',
             }} 
           />
 
           {/* Aurora glow layer - only when balanced and active */}
           {balanceState === 'balanced' && outputMins > 0 && (
-            <div className="absolute inset-0 rounded-full z-20 pointer-events-none"
+            <div className="absolute inset-0 rounded-full z-20 pointer-events-none opacity-40"
               style={{ 
-                background: 'linear-gradient(90deg, transparent 10%, rgba(16,185,129,0.25) 30%, rgba(6,214,160,0.3) 50%, rgba(52,211,153,0.25) 70%, transparent 90%)',
-                backgroundSize: '200% 100%',
-                animation: 'aurora-shift 4s ease-in-out infinite, aurora-pulse 2.5s ease-in-out infinite',
+                backgroundColor: '#06d6a0',
               }} 
             />
           )}
 
           {/* Red pulsing alert layer */}
           {balanceState === 'alert' && (
-            <div className="absolute inset-0 rounded-full z-20 pointer-events-none"
+            <div className="absolute inset-0 rounded-full z-20 pointer-events-none opacity-30"
               style={{ 
-                background: 'linear-gradient(90deg, rgba(239,68,68,0.15) 0%, transparent 50%, transparent 100%)',
-                animation: 'alert-pulse 1.5s ease-in-out infinite',
+                backgroundColor: '#ef4444',
               }} 
             />
           )}

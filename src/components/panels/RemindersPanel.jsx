@@ -16,7 +16,8 @@ import {
   Clock, 
   Zap,
   Dices,
-  Sliders
+  Sliders,
+  Target
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useNudgeScheduler } from '../../hooks/useNudgeScheduler'
@@ -25,7 +26,8 @@ import { useCelebration } from '../../hooks/useCelebration'
 import { supabase } from '../../lib/supabase'
 import { computeWSJFScore } from '../../hooks/useWSJFScore'
 import SurpriseTaskModal from '../modals/SurpriseTaskModal'
-import NotificationSettingsModal from '../modals/NotificationSettingsModal'
+import TaskPickerModal from '../modals/TaskPickerModal'
+import SettingsPanel from './SettingsPanel'
 
 const TIER_COLORS = {
   hearth: 'text-rose-500 bg-rose-500/10 border-rose-500/30',
@@ -56,6 +58,32 @@ const TINY_CUES = [
   "Move your physical body into position at your desk."
 ];
 
+function CollapsibleSection({ title, count, isCollapsed, onToggle, children }) {
+  return (
+    <div className="space-y-3">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex items-center justify-between w-full group cursor-pointer"
+        aria-expanded={!isCollapsed}
+      >
+        <h4 className="text-xs uppercase tracking-wider font-mono text-nova/60 group-hover:text-starlight transition-colors">
+          {title}
+        </h4>
+        <div className="flex items-center gap-2">
+          {count > 0 && (
+            <span className="text-xs font-mono text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded">
+              {count}
+            </span>
+          )}
+          <ChevronRight className={`w-3 h-3 text-nova/60 transition-transform ${isCollapsed ? '' : 'rotate-90'}`} />
+        </div>
+      </button>
+      {!isCollapsed && children}
+    </div>
+  );
+}
+
 const RemindersPanel = ({ onOpenDayGuide }) => {
   const { user } = useAuth()
   const { celebrate } = useCelebration()
@@ -67,8 +95,8 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
 
   // Task Queue State
   const [tasks, setTasks] = useState([])
-  const [newTaskTitle, setNewTaskTitle] = useState('')
   const [showSurprise, setShowSurprise] = useState(false)
+  const [showTaskPicker, setShowTaskPicker] = useState(false)
 
   // Launch Pad Timer State
   const [activeTask, setActiveTask] = useState(null)
@@ -150,6 +178,23 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
     }
   }, [user, fetchTasks, fetchHabitTasks, fetchNudges])
 
+  // Global event listener for polaris-start-task to launch focus directly from other views
+  useEffect(() => {
+    const handleStartTaskEvent = (e) => {
+      if (e.detail?.task) {
+        startTaskLaunch(e.detail.task)
+      }
+    }
+    if (typeof window !== 'undefined') {
+      window.addEventListener('polaris-start-task', handleStartTaskEvent)
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('polaris-start-task', handleStartTaskEvent)
+      }
+    }
+  }, [])
+
   // Timer interval
   useEffect(() => {
     let interval = null
@@ -161,15 +206,32 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
     return () => clearInterval(interval)
   }, [isTimerRunning])
 
-  const startTaskLaunch = (task) => {
+  const startTaskLaunch = async (task) => {
     setActiveTask(task)
     setTimerSeconds(0)
     setIsTimerRunning(true)
     setTinyCue(TINY_CUES[Math.floor(Math.random() * TINY_CUES.length)])
+
+    // If a subtask is started, update its status to in_progress to sync with matrix canvas & views
+    if (task?.parent_task_id && user?.id) {
+      try {
+        await supabase.from('tasks').update({ status: 'in_progress' }).eq('id', task.id).eq('user_id', user.id)
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('polaris-tasks-changed', { detail: { table: 'tasks', operation: 'update' } }))
+        }
+      } catch (err) {
+        console.warn('Error syncing subtask in_progress status:', err)
+      }
+    }
   }
 
   const markTaskDone = async (taskId) => {
-    await supabase.from('tasks').update({ status: 'done' }).eq('id', taskId).eq('user_id', user.id)
+    if (!user?.id) return
+    const { error } = await supabase.from('tasks').update({ status: 'done' }).eq('id', taskId).eq('user_id', user.id)
+    if (error) {
+      console.error('Error marking task done:', error)
+      return
+    }
     if (activeTask?.id === taskId) {
       setActiveTask(null)
       setIsTimerRunning(false)
@@ -179,31 +241,23 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
   }
 
   const completeHabitForToday = async (task) => {
+    if (!user?.id) return
     const todayStr = new Date().toLocaleDateString('en-CA')
     const dates = Array.isArray(task.completion_dates) ? [...task.completion_dates] : []
     if (dates.includes(todayStr)) return
     dates.push(todayStr)
     dates.sort()
-    await supabase.from('tasks').update({
+    const { error } = await supabase.from('tasks').update({
       completion_dates: dates,
       completion_count: (task.completion_count || 0) + 1,
       status: 'done'
     }).eq('id', task.id).eq('user_id', user.id)
+    if (error) {
+      console.error('Error completing habit:', error)
+      return
+    }
     celebrate()
     fetchHabitTasks()
-  }
-
-  const handleAddTask = async (e) => {
-    if (!user?.id) return
-    if (e.key === 'Enter' && newTaskTitle.trim()) {
-      await supabase.from('tasks').insert({
-        user_id: user.id,
-        title: newTaskTitle.trim(),
-        status: 'inbox'
-      })
-      setNewTaskTitle('')
-      fetchTasks()
-    }
   }
 
   // Nudge Settings handlers
@@ -384,24 +438,9 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
     return !dates.includes(todayStr)
   })
 
-  const toggleSection = (key) => setCollapsedSections(prev => ({ ...prev, [key]: !prev[key] }))
-
-  const CollapsibleSection = ({ title, count, sectionKey, children }) => {
-    const isCollapsed = collapsedSections[sectionKey]
-    if (count === 0 && isCollapsed) return null
-    return (
-      <div className="space-y-3">
-        <button onClick={() => toggleSection(sectionKey)} className="flex items-center justify-between w-full group">
-          <h4 className="text-xs uppercase tracking-wider font-mono text-nova/60">{title}</h4>
-          <div className="flex items-center gap-2">
-            {count > 0 && <span className="text-xs font-mono text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded">{count}</span>}
-            <ChevronRight className={`w-3 h-3 text-nova/60 transition-transform ${isCollapsed ? '' : 'rotate-90'}`} />
-          </div>
-        </button>
-        {!isCollapsed && children}
-      </div>
-    )
-  }
+  const toggleSection = useCallback((key) => {
+    setCollapsedSections(prev => ({ ...prev, [key]: !prev[key] }))
+  }, [])
 
   return (
     <div className="relative w-full h-full flex flex-col">
@@ -442,11 +481,22 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
                 Focus Task
               </h4>
               
+              {/* Choose Task Picker Button */}
+              <button
+                onClick={() => setShowTaskPicker(true)}
+                className="text-[#f5a623] hover:text-white hover:scale-110 transition-transform flex items-center justify-center p-1 cursor-pointer"
+                title="Choose Focus Task"
+                aria-label="Choose Focus Task"
+              >
+                <Target className="w-3.5 h-3.5" />
+              </button>
+
               {/* Task Randomiser Button */}
               <button 
                 onClick={() => setShowSurprise(true)} 
-                className="text-[#f5a623] hover:text-white hover:scale-110 transition-transform flex items-center justify-center p-1" 
+                className="text-[#f5a623] hover:text-white hover:scale-110 transition-transform flex items-center justify-center p-1 cursor-pointer" 
                 title="Randomise Task (Surprise Me)"
+                aria-label="Randomise Task"
               >
                 <Dices className="w-3.5 h-3.5" />
               </button>
@@ -633,7 +683,12 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
         <div className="h-px bg-blue-900/30" />
         
         {/* Section 2: Nudges */}
-        <CollapsibleSection title="Nudges" count={nudges.filter(n => !n.isTask && n.active).length} sectionKey="nudges">
+        <CollapsibleSection
+          title="Nudges"
+          count={nudges.filter(n => !n.isTask && n.active).length}
+          isCollapsed={Boolean(collapsedSections['nudges'])}
+          onToggle={() => toggleSection('nudges')}
+        >
           <div className="flex justify-end items-center -mt-1">
             <button 
               onClick={() => setShowNudgeSettings(!showNudgeSettings)} 
@@ -701,7 +756,12 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
         <div className="h-px bg-blue-900/30" />
 
         {/* Task Reminders */}
-        <CollapsibleSection title="Task Reminders" count={reminderTasks.length} sectionKey="reminders">
+        <CollapsibleSection
+          title="Task Reminders"
+          count={reminderTasks.length}
+          isCollapsed={Boolean(collapsedSections['reminders'])}
+          onToggle={() => toggleSection('reminders')}
+        >
           <div className="space-y-2">
             {reminderTasks.map(task => (
               <div key={task.id} className="glass glass-hover hover:-translate-y-1 transition-transform border border-pulsar/30 p-3 rounded-xl flex items-center justify-between">
@@ -721,7 +781,12 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
         <div className="h-px bg-blue-900/30" />
 
         {/* Habits */}
-        <CollapsibleSection title="Habits" count={incompleteHabits.length} sectionKey="habits">
+        <CollapsibleSection
+          title="Habits"
+          count={incompleteHabits.length}
+          isCollapsed={Boolean(collapsedSections['habits'])}
+          onToggle={() => toggleSection('habits')}
+        >
           <div className="space-y-2">
             {habitTasks.map(task => {
               const dates = Array.isArray(task.completion_dates) ? task.completion_dates : []
@@ -748,7 +813,12 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
         <div className="h-px bg-blue-900/30" />
 
         {/* Section 3: Reach Out */}
-        <CollapsibleSection title="Reach Out" count={contacts.filter(c => c.isOverdue).length} sectionKey="reachout">
+        <CollapsibleSection
+          title="Reach Out"
+          count={contacts.filter(c => c.isOverdue).length}
+          isCollapsed={Boolean(collapsedSections['reachout'])}
+          onToggle={() => toggleSection('reachout')}
+        >
           <div className="space-y-2">
             {contacts.filter(c => c.isOverdue).map(contact => (
               <div key={contact.id} className="glass glass-hover hover:-translate-y-1 transition-transform border border-pulsar/30 p-3 rounded-xl">
@@ -760,9 +830,7 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
                         {contact.tier}
                       </span>
                     </div>
-                    <p className={`text-xs mt-0.5 ${contact.isOverdue ? 'text-amber-400 font-bold' : 'text-nova/60'}`}>
-                      {contact.isOverdue ? `${contact.daysSince === Infinity ? 'Overdue' : `${contact.daysSince} days overdue`}` : `Due in ${contact.frequency_days - contact.daysSince} days`}
-                    </p>
+                    <p className={`text-xs mt-0.5 ${contact.isOverdue ? 'text-amber-400 font-bold' : 'text-nova/60'}`}>{contact.isOverdue ? `${contact.daysSince === Infinity ? 'Overdue' : `${contact.daysSince} days overdue`}` : `Due in ${contact.frequency_days - contact.daysSince} days`}</p>
                   </div>
                   <button onClick={(e) => { e.stopPropagation(); markReachedOut(contact.id); celebrate(); }} className="h-8 w-8 rounded-full bg-blue-900/20 border border-emerald-500/20 flex items-center justify-center text-emerald-400 hover:bg-emerald-500/20 hover:border-emerald-500/50 transition-all shrink-0 ml-2">
                     <Check className="w-4 h-4" />
@@ -790,11 +858,20 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
         onClose={() => setShowSurprise(false)} 
         tasks={focusTasks}
         toggleComplete={markTaskDone} 
+        onStartFocus={(task) => startTaskLaunch(task)}
       />
 
-      <NotificationSettingsModal
-        isOpen={showNotificationSettings}
+      <TaskPickerModal
+        isOpen={showTaskPicker}
+        onClose={() => setShowTaskPicker(false)}
+        tasks={focusTasks}
+        onSelectTask={(task) => startTaskLaunch(task)}
+      />
+
+      <SettingsPanel
+        open={showNotificationSettings}
         onClose={() => setShowNotificationSettings(false)}
+        initialSection="reminders"
       />
     </div>
   )

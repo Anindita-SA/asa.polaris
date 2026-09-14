@@ -97,8 +97,18 @@ const PomodoroTimer = ({ mobilePill = false }) => {
   const [trackIndex, setTrackIndex] = useState(0)
 
   const widgetRef = useRef(null)
+  const pipIntervalRef = useRef(null)
 
   const [pipWindow, setPipWindow] = useState(null)
+
+  useEffect(() => {
+    return () => {
+      if (pipIntervalRef.current) {
+        clearInterval(pipIntervalRef.current)
+        pipIntervalRef.current = null
+      }
+    }
+  }, [])
   
   const handlePopOut = async () => {
     if (pipWindow && !pipWindow.closed) {
@@ -150,9 +160,11 @@ const PomodoroTimer = ({ mobilePill = false }) => {
       pip.document.body.style.overflow = 'hidden'
       
       pip.addEventListener('unload', () => setPipWindow(null))
-      const checkClosed = setInterval(() => {
+      if (pipIntervalRef.current) clearInterval(pipIntervalRef.current)
+      pipIntervalRef.current = setInterval(() => {
         if (pip.closed) {
-          clearInterval(checkClosed)
+          clearInterval(pipIntervalRef.current)
+          pipIntervalRef.current = null
           setPipWindow(null)
         }
       }, 500)

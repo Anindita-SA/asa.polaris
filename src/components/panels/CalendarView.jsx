@@ -340,7 +340,7 @@ const CalendarView = () => {
                           </div>
                         ) : (
                           dayEvents.map(event => {
-                            const isAllDay = !event.start.dateTime
+                            const isAllDay = !event?.start?.dateTime
                             const startTime = isAllDay ? 'All day' : format(new Date(event.start.dateTime), 'h:mm a')
                             const color = GOOGLE_COLORS[event.colorId] || '#38bdf8'
 

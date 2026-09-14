@@ -46,6 +46,7 @@ const Journal = () => {
   }, [dateStr])
 
   const fetchHighlight = async () => {
+    if (!user?.id) return
     setHighlight(null)
     setOneLiner('')
     setHighlightText('')
@@ -65,11 +66,13 @@ const Journal = () => {
   }
 
   const fetchMood = async () => {
+    if (!user?.id) return
     const { data } = await supabase.from('mood_logs').select('mood').eq('user_id', user.id).eq('log_date', dateStr).maybeSingle()
     setMood(data?.mood || null)
   }
 
   const fetchHabits = async () => {
+    if (!user?.id) return
     const { data } = await supabase
       .from('recurring_task_templates')
       .select('*')
@@ -80,10 +83,11 @@ const Journal = () => {
   }
 
   const saveHighlight = async () => {
+    if (!user?.id) return
     setSaving(true)
     const combinedText = `${oneLiner}|||${highlightText}`
     if (highlight) {
-      await supabase.from('highlights').update({ text: combinedText }).eq('id', highlight.id)
+      await supabase.from('highlights').update({ text: combinedText }).eq('id', highlight.id).eq('user_id', user.id)
     } else {
       const { data } = await supabase.from('highlights').insert({ user_id: user.id, date: dateStr, text: combinedText }).select().limit(1)
       if (data && data.length > 0) setHighlight(data[0])
@@ -93,10 +97,11 @@ const Journal = () => {
   }
 
   const saveMood = async (m) => {
+    if (!user?.id) return
     setMood(m)
     const { data: existing } = await supabase.from('mood_logs').select('id').eq('user_id', user.id).eq('log_date', dateStr).maybeSingle()
     if (existing) {
-      await supabase.from('mood_logs').update({ mood: m }).eq('id', existing.id)
+      await supabase.from('mood_logs').update({ mood: m }).eq('id', existing.id).eq('user_id', user.id)
     } else {
       await supabase.from('mood_logs').insert({ user_id: user.id, log_date: dateStr, mood: m })
       await addXP(XP.JOURNAL_PHOTO)
@@ -104,6 +109,7 @@ const Journal = () => {
   }
 
   const uploadPhoto = async (e) => {
+    if (!user?.id) return
     const file = e.target.files[0]
     if (!file) return
     setUploading(true)
@@ -123,7 +129,7 @@ const Journal = () => {
     const publicUrl = signData.signedUrl
     const combinedText = `${oneLiner}|||${highlightText}`
     if (highlight) {
-      await supabase.from('highlights').update({ photo_url: publicUrl, text: combinedText }).eq('id', highlight.id)
+      await supabase.from('highlights').update({ photo_url: publicUrl, text: combinedText }).eq('id', highlight.id).eq('user_id', user.id)
       setHighlight(h => ({ ...h, photo_url: publicUrl, text: combinedText }))
     } else {
       const { data } = await supabase.from('highlights').insert({ user_id: user.id, date: dateStr, text: combinedText, photo_url: publicUrl }).select().limit(1)
@@ -133,7 +139,7 @@ const Journal = () => {
   }
 
   const addHabit = async () => {
-    if (!newHabitTitle) return
+    if (!user?.id || !newHabitTitle) return
     await supabase.from('recurring_task_templates').insert({
       user_id: user.id,
       title: newHabitTitle,
@@ -147,6 +153,7 @@ const Journal = () => {
   }
 
   const deleteHabit = async (id) => {
+    if (!user?.id) return
     await supabase.from('recurring_task_templates').update({ is_active: false }).eq('id', id).eq('user_id', user.id)
     fetchHabits()
   }

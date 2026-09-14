@@ -1,8 +1,8 @@
 /**
- * POLARIS — Central XP Rewards Registry
+ * POLARIS : Central XP Rewards Registry
  * 
  * All XP values for every action in the app live here.
- * No component should hardcode an XP number — import from this file.
+ * No component should hardcode an XP number: import from this file.
  */
 
 export const XP = {

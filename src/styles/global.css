@@ -69,7 +69,6 @@
 }
 
 @keyframes twinkle {
-
   0%,
   100% {
     opacity: var(--max-opacity, 0.8);
@@ -165,7 +164,7 @@
   left: -100%;
   width: 60%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+  background: rgba(255, 255, 255, 0.12);
   animation: shimmer 2.5s ease-in-out infinite;
 }
 
@@ -239,8 +238,6 @@
   }
 }
 
-
-
 @keyframes nodeTwinkle {
   0% { opacity: 0.6; transform: scale(0.95); }
   100% { opacity: 1; transform: scale(1.05); }
@@ -266,7 +263,7 @@
   background-color: rgba(255,255,255,0.02);
 }
 
-/* ── Curriculum Bookshelf ──────────────────────────────────────────────────── */
+/* -- Curriculum Bookshelf ---------------------------------------------------- */
 
 .book-shelf {
   animation: shelf-drift 40s ease-in-out infinite;
@@ -327,26 +324,16 @@
 .shimmer-card::after {
   content: '';
   position: absolute;
-  top: -50%;
-  left: -200%;
-  width: 200%;
-  height: 200%;
-  background: linear-gradient(
-    110deg,
-    transparent 25%,
-    rgba(251, 191, 36, 0.1) 25%,
-    rgba(251, 191, 36, 0.1) 40%,
-    transparent 40%,
-    transparent 45%,
-    rgba(251, 191, 36, 0.1) 45%,
-    rgba(251, 191, 36, 0.1) 50%,
-    transparent 50%
-  );
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: rgba(251, 191, 36, 0.1);
   animation: shimmer-swipe 3s infinite linear;
   pointer-events: none;
 }
 
 @keyframes shimmer-swipe {
   0% { transform: translateX(0); }
-  100% { transform: translateX(150%); }
-}
+  100% { transform: translateX(200%); }
+}

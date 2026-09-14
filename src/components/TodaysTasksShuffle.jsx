@@ -65,6 +65,14 @@ export default function TodaysTasksShuffle() {
     sunday: 180,
   });
 
+  const [scheduledDays, setScheduledDays] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('polaris_task_scheduled_days') || '{}');
+    } catch {
+      return {};
+    }
+  });
+
   const [shuffleSeed, setShuffleSeed] = useState(0);
   const [activeTask, setActiveTask] = useState(null);
   const [timerSeconds, setTimerSeconds] = useState(0);
@@ -77,8 +85,8 @@ export default function TodaysTasksShuffle() {
   const dayTasks = useMemo(() => {
     if (!tasks || tasks.length === 0) return [];
 
-    const explicitlyAssigned = tasks.filter(t => t.scheduled_day === selectedDay && t.status !== 'done');
-    const unassigned = tasks.filter(t => !t.scheduled_day && t.status !== 'done');
+    const explicitlyAssigned = tasks.filter(t => (scheduledDays[t.id] || t.scheduled_day) === selectedDay && t.status !== 'done');
+    const unassigned = tasks.filter(t => !(scheduledDays[t.id] || t.scheduled_day) && t.status !== 'done');
 
     const combined = [...explicitlyAssigned];
 
@@ -106,7 +114,7 @@ export default function TodaysTasksShuffle() {
     }
 
     return combined;
-  }, [tasks, selectedDay, shuffleSeed, weekdayCapacities]);
+  }, [tasks, selectedDay, shuffleSeed, weekdayCapacities, scheduledDays]);
 
   const dayAllocatedMinutes = useMemo(() => {
     return dayTasks.reduce((sum, t) => sum + (t.estimated_minutes || 30), 0);
@@ -116,18 +124,12 @@ export default function TodaysTasksShuffle() {
     setShuffleSeed((prev) => prev + 1);
   };
 
-  const assignTaskToWeekday = async (taskId, weekdayId) => {
-    try {
-      const { error } = await supabase
-        .from('tasks')
-        .update({ scheduled_day: weekdayId })
-        .eq('id', taskId).eq('user_id', user?.id);
-
-      if (error) throw error;
-      refetch();
-    } catch (err) {
-      console.error('Error scheduling task for weekday:', err);
-    }
+  const assignTaskToWeekday = (taskId, weekdayId) => {
+    setScheduledDays(prev => {
+      const next = { ...prev, [taskId]: weekdayId };
+      localStorage.setItem('polaris_task_scheduled_days', JSON.stringify(next));
+      return next;
+    });
   };
 
   useEffect(() => {
@@ -386,6 +388,7 @@ export default function TodaysTasksShuffle() {
                   rank={index + 1}
                   showScore={showScores}
                   selectedDay={selectedDay}
+                  taskScheduledDay={scheduledDays[task.id] || task.scheduled_day}
                   isActive={activeTask && activeTask.id === task.id}
                   onStart={() => handleStartTask(task)}
                   onMarkDone={() => handleMarkDone(task)}
@@ -400,7 +403,7 @@ export default function TodaysTasksShuffle() {
   );
 }
 
-function WeekdayTaskCard({ task, rank, showScore, selectedDay, isActive, onStart, onMarkDone, onAssignDay }) {
+function WeekdayTaskCard({ task, rank, showScore, selectedDay, taskScheduledDay, isActive, onStart, onMarkDone, onAssignDay }) {
   const [isHovered, setIsHovered] = useState(false);
 
   return (
@@ -456,7 +459,7 @@ function WeekdayTaskCard({ task, rank, showScore, selectedDay, isActive, onStart
         <div className="flex items-center gap-1 bg-void border border-pulsar/40 px-2.5 py-1 rounded-xl text-xs font-mono text-nova/60">
           <span>Move:</span>
           <select
-            value={task.scheduled_day || selectedDay}
+            value={taskScheduledDay || selectedDay}
             onChange={(e) => onAssignDay(e.target.value)}
             className="bg-transparent text-gold font-bold outline-none cursor-pointer"
           >

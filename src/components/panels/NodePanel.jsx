@@ -54,12 +54,15 @@ const NodePanel = ({ node, onClose, onRefreshGraph }) => {
     const [g, m, s, c] = await Promise.all([
       supabase.from('goals').select('*').eq('node_id', node.id).eq('user_id', user.id),
       supabase.from('milestones').select('*').eq('user_id', user.id),
-      supabase.from('subtasks').select('*').eq('user_id', user.id).eq('parent_type', 'node').eq('parent_id', node.id).order('position'),
+      supabase.from('tasks').select('*').eq('user_id', user.id).eq('parent_task_id', node.id).order('created_at'),
       supabase.from('nodes').select('*').eq('user_id', user.id),
     ])
     setGoals(g.data || [])
     setMilestones(m.data || [])
-    setSubtasks(s.data || [])
+    setSubtasks((s.data || []).map(row => ({
+      ...row,
+      completed: row.status === 'done'
+    })))
     // Build children tree: direct children of this node (or top-level nodes if this is root)
     const allNodes = c.data || []
     const directChildren = allNodes.filter(n => 
@@ -156,14 +159,22 @@ const NodePanel = ({ node, onClose, onRefreshGraph }) => {
   }
 
   const saveSubtasks = async () => {
-    await supabase.from('subtasks').insert(generatedSteps.map((title, idx) => ({
-      user_id: user.id, parent_id: node.id, parent_type: 'node', title, position: idx,
+    await supabase.from('tasks').insert(generatedSteps.map((title) => ({
+      id: crypto.randomUUID(),
+      user_id: user.id,
+      parent_task_id: node.id,
+      title,
+      status: 'active',
+      quadrant: 'important_not_urgent',
+      category: 'academic',
+      created_at: new Date().toISOString(),
     })))
     setShowBreakdown(false); setGeneratedSteps([]); setTaskDescription(''); fetchAll()
   }
 
   const toggleSubtask = async (task) => {
-    await supabase.from('subtasks').update({ completed: !task.completed }).eq('id', task.id)
+    const nextStatus = task.status === 'done' ? 'active' : 'done'
+    await supabase.from('tasks').update({ status: nextStatus }).eq('id', task.id).eq('user_id', user.id)
     fetchAll()
   }
 

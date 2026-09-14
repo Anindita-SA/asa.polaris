@@ -90,6 +90,11 @@ export function useWSJFScore() {
   const [error, setError] = useState(null);
 
   const fetchAndScoreTasks = useCallback(async () => {
+    if (!user?.id) {
+      setTasks([]);
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       setError(null);
@@ -97,7 +102,7 @@ export function useWSJFScore() {
       const { data, error: fetchError } = await supabase
         .from('tasks')
         .select('*')
-        .in('status', ['inbox', 'active']).eq('user_id', user?.id);
+        .in('status', ['inbox', 'active']).eq('user_id', user.id);
 
       if (fetchError) throw fetchError;
 
