@@ -156,7 +156,7 @@ const TaskPickerModal = ({ isOpen, onClose, tasks = [], onSelectTask }) => {
                     onClick={() => handlePickTask(task)}
                     className="p-3 rounded-xl bg-void/60 border border-pulsar/30 hover:border-amber-500/50 hover:bg-amber-500/5 transition-all flex items-center justify-between gap-3 cursor-pointer group shadow-sm"
                   >
-                    <div className="min-w-0 flex-1 space-y-1">
+                    <div className="min-w-0 flex-1 space-y-1.5">
                       <div className="flex items-center gap-2">
                         <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded border font-bold shrink-0 ${badgeInfo.color}`}>
                           {badgeInfo.label}
@@ -165,37 +165,28 @@ const TaskPickerModal = ({ isOpen, onClose, tasks = [], onSelectTask }) => {
                           {task.title}
                         </h4>
                       </div>
-                      <div className="flex items-center gap-2 text-[10px] font-mono text-nova/60">
-                        <span className="flex items-center gap-1">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] font-mono text-nova/60">
+                        <span className="flex items-center gap-1 shrink-0">
                           <Clock className="w-3 h-3 text-emerald" /> {estMinutes}m
                         </span>
                         {task.mental_load && (
                           <>
-                            <span>•</span>
-                            <span className="uppercase text-pulsar/80">{task.mental_load} load</span>
+                            <span className="text-pulsar/40 hidden sm:inline">•</span>
+                            <span className="uppercase text-pulsar/80 shrink-0">{task.mental_load} load</span>
                           </>
                         )}
                         {task.deadline && (
                           <>
-                            <span>•</span>
-                            <span>Due {task.deadline}</span>
+                            <span className="text-pulsar/40 hidden sm:inline">•</span>
+                            <span className="shrink-0">Due {task.deadline}</span>
                           </>
                         )}
                       </div>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handlePickTask(task)
-                      }}
-                      className="px-2.5 py-1.5 rounded-lg bg-amber-500/20 text-amber-400 hover:bg-amber-500 hover:text-[#0c0f14] border border-amber-500/40 text-xs font-mono font-bold flex items-center gap-1 transition-all shrink-0 cursor-pointer"
-                      title="Start Focus"
-                    >
-                      <Play className="w-3 h-3 fill-current" />
-                      <span>Start Focus</span>
-                    </button>
+                    <div className="w-7 h-7 rounded-full bg-void/80 border border-pulsar/20 flex items-center justify-center shrink-0 opacity-0 group-hover:opacity-100 group-hover:border-amber-500/50 group-hover:bg-amber-500/10 transition-all text-amber-500">
+                      <Play className="w-3 h-3 fill-current ml-0.5" />
+                    </div>
                   </div>
                 )
               })

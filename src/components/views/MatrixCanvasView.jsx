@@ -1801,16 +1801,18 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                       </div>
                     )}
 
-                    {/* Mental Load Badge */}
-                    {selectedTask.mental_load && (
-                      <div className="flex items-center gap-2">
-                        <span className={`text-[10px] font-mono uppercase px-2.5 py-1 rounded font-bold tracking-wider ${
-                          selectedTask.mental_load === 'low' ? 'bg-emerald-950 text-emerald-300 border border-emerald-500' :
-                          selectedTask.mental_load === 'high' ? 'bg-purple-950 text-purple-300 border border-purple-500' :
-                          'bg-amber-950 text-amber-300 border border-amber-500'
-                        }`}>
-                          {selectedTask.mental_load === 'low' ? 'LOW LOAD' : selectedTask.mental_load === 'high' ? 'HIGH LOAD' : 'MED LOAD'}
-                        </span>
+                    {/* Top Badges & Actions Strip */}
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {selectedTask.mental_load && (
+                          <span className={`text-[10px] font-mono uppercase px-2.5 py-1 rounded font-bold tracking-wider ${
+                            selectedTask.mental_load === 'low' ? 'bg-emerald-950 text-emerald-300 border border-emerald-500' :
+                            selectedTask.mental_load === 'high' ? 'bg-purple-950 text-purple-300 border border-purple-500' :
+                            'bg-amber-950 text-amber-300 border border-amber-500'
+                          }`}>
+                            {selectedTask.mental_load === 'low' ? 'LOW LOAD' : selectedTask.mental_load === 'high' ? 'HIGH LOAD' : 'MED LOAD'}
+                          </span>
+                        )}
                         {autoQuadrantSuggest && (() => {
                           const suggestedQuad = computeSuggestedQuadrant(selectedTask);
                           if (suggestedQuad && suggestedQuad !== selectedTask.quadrant) {
@@ -1829,18 +1831,21 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                           return null;
                         })()}
                       </div>
-                    )}
 
-                    {/* Start Focus Now Action */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        window.dispatchEvent(new CustomEvent('polaris-start-task', { detail: { task: selectedTask } }));
-                      }}
-                      className="w-full py-2.5 px-4 bg-[#f5a623] hover:bg-[#f5a623]/90 text-[#0c0f14] font-display font-bold text-xs rounded-xl flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer"
-                    >
-                      <Play className="w-3.5 h-3.5 fill-current" /> Start Focus Now
-                    </button>
+                      {/* Subtle Integrated Start Focus Button */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          window.dispatchEvent(new CustomEvent('polaris-start-task', { detail: { task: selectedTask } }));
+                        }}
+                        className="ml-auto px-2.5 py-1 rounded-lg bg-gold/15 hover:bg-gold/25 text-gold border border-gold/30 hover:border-gold/50 text-xs font-mono font-medium flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+                        title="Start focus on task"
+                        aria-label="Start focus on task"
+                      >
+                        <Play className="w-3 h-3 fill-current" />
+                        <span>Start Focus</span>
+                      </button>
+                    </div>
 
                     <div>
                       <h4 className="text-xs uppercase tracking-wider font-bold text-nova/60 mb-1 font-mono ">Title</h4>
@@ -1967,47 +1972,52 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                       </div>
                     </div>
 
-                    {/* Time Estimate Input */}
-                    <div className="mt-2">
-                      <h4 className="text-[10px] uppercase tracking-wider font-bold text-nova/60 mb-1 font-mono">Time Estimate (minutes)</h4>
-                      <div className="bg-void/40 border border-pulsar/40 rounded-lg px-2 py-1.5 text-xs flex items-center gap-1.5 focus-within:border-pulsar/50 transition-colors">
-                        <Clock className="w-3.5 h-3.5 text-gold shrink-0" />
-                        <input
-                          type="number"
-                          min="0"
-                          defaultValue={selectedTask.time_estimate_minutes != null ? selectedTask.time_estimate_minutes : (selectedTask.estimated_minutes != null ? selectedTask.estimated_minutes : '')}
-                          onBlur={(e) => handleEstimateChange(selectedTask.id, e.target.value)}
-                          className="bg-transparent w-full outline-none font-mono text-starlight"
-                          placeholder="e.g. 30"
-                        />
+                    {/* Consolidated Row: Time Estimate, Deadline, Category */}
+                    <div className="grid grid-cols-3 gap-2 mt-2">
+                      {/* Time Estimate */}
+                      <div className="col-span-1 min-w-0">
+                        <h4 className="text-[10px] uppercase tracking-wider font-bold text-nova/60 mb-1 font-mono truncate">Est (min)</h4>
+                        <div className="bg-void/40 border border-pulsar/40 rounded-lg px-2 py-1.5 text-xs flex items-center gap-1.5 focus-within:border-pulsar/50 transition-colors">
+                          <Clock className="w-3.5 h-3.5 text-gold shrink-0" />
+                          <input
+                            type="number"
+                            min="0"
+                            defaultValue={selectedTask.time_estimate_minutes != null ? selectedTask.time_estimate_minutes : (selectedTask.estimated_minutes != null ? selectedTask.estimated_minutes : '')}
+                            onBlur={(e) => handleEstimateChange(selectedTask.id, e.target.value)}
+                            className="bg-transparent w-full outline-none font-mono text-starlight min-w-0"
+                            placeholder="30"
+                          />
+                        </div>
                       </div>
-                    </div>
-                    {/* Deadline */}
-                    <div className="mt-2">
-                      <h4 className="text-[10px] uppercase tracking-wider font-bold text-nova/60 mb-1 font-mono">Deadline</h4>
-                      <div className="bg-void/40 border border-pulsar/40 rounded-lg px-2 py-1.5 text-xs flex items-center gap-1.5 focus-within:border-pulsar/50 transition-colors">
-                        <Calendar className="w-3.5 h-3.5 text-pulsar shrink-0" />
-                        <input
-                          type="date"
-                          defaultValue={selectedTask.deadline || ''}
-                          onBlur={(e) => updateTaskField(selectedTask.id, 'deadline', e.target.value || null)}
-                          className="bg-transparent w-full outline-none text-starlight cursor-pointer min-w-[130px] font-sans"
-                        />
+
+                      {/* Deadline */}
+                      <div className="col-span-1 min-w-0">
+                        <h4 className="text-[10px] uppercase tracking-wider font-bold text-nova/60 mb-1 font-mono truncate">Deadline</h4>
+                        <div className="bg-void/40 border border-pulsar/40 rounded-lg px-2 py-1.5 text-xs flex items-center gap-1 focus-within:border-pulsar/50 transition-colors">
+                          <Calendar className="w-3.5 h-3.5 text-pulsar shrink-0" />
+                          <input
+                            type="date"
+                            defaultValue={selectedTask.deadline || ''}
+                            onBlur={(e) => updateTaskField(selectedTask.id, 'deadline', e.target.value || null)}
+                            className="bg-transparent w-full outline-none text-starlight cursor-pointer min-w-0 text-[11px] font-sans"
+                          />
+                        </div>
                       </div>
-                    </div>
-                    {/* Category */}
-                    <div className="mt-2">
-                      <h4 className="text-[10px] uppercase tracking-wider font-bold text-nova/60 mb-1 font-mono">Category</h4>
-                      <div className="bg-void/40 border border-pulsar/40 rounded-lg px-2 py-1.5 text-xs flex items-center gap-1.5 focus-within:border-pulsar/50 transition-colors">
-                        <select
-                          value={selectedTask.category || 'normal'}
-                          onChange={(e) => updateTaskField(selectedTask.id, 'category', e.target.value === 'normal' ? null : e.target.value)}
-                          className="bg-transparent w-full outline-none text-starlight cursor-pointer font-sans"
-                        >
-                          <option value="normal" className="bg-void">Normal Task</option>
-                          <option value="polaris" className="bg-void">Polaris Edit / Building</option>
-                          <option value="reminders" className="bg-void">Reminders</option>
-                        </select>
+
+                      {/* Category */}
+                      <div className="col-span-1 min-w-0">
+                        <h4 className="text-[10px] uppercase tracking-wider font-bold text-nova/60 mb-1 font-mono truncate">Category</h4>
+                        <div className="bg-void/40 border border-pulsar/40 rounded-lg px-2 py-1.5 text-xs flex items-center focus-within:border-pulsar/50 transition-colors">
+                          <select
+                            value={selectedTask.category || 'normal'}
+                            onChange={(e) => updateTaskField(selectedTask.id, 'category', e.target.value === 'normal' ? null : e.target.value)}
+                            className="bg-transparent w-full outline-none text-starlight cursor-pointer font-sans min-w-0 text-[11px] truncate"
+                          >
+                            <option value="normal" className="bg-void">Normal</option>
+                            <option value="polaris" className="bg-void">Polaris</option>
+                            <option value="reminders" className="bg-void">Reminder</option>
+                          </select>
+                        </div>
                       </div>
                     </div>
 

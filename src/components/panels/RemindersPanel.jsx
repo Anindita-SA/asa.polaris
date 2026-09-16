@@ -319,15 +319,21 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
 
   const todayStr = new Date().toLocaleDateString('en-CA');
 
+  const isOverdue = (t) => Boolean(t?.deadline && t.deadline < todayStr);
+
   const getNeglectedBadge = (t) => {
     if (!t) return null;
-    if (t.deadline && t.deadline < todayStr) return 'OVERDUE';
+    // Overdue state is communicated via red card coloring and shimmer, no text tag needed
+    if (t.deadline && t.deadline < todayStr) return null;
     if (t.deadline && t.deadline === todayStr) return 'DUE TODAY';
     if ((t.skip_count || 0) >= 3) return 'NEGLECTED';
     return null;
   };
 
-  const ongoingNeglectedBadge = getNeglectedBadge(ongoingTask);
+  const currentOngoing = activeTask || ongoingTask;
+  const isOngoingOverdue = isOverdue(currentOngoing);
+  const ongoingNeglectedBadge = getNeglectedBadge(currentOngoing);
+  const ongoingAlert = isOngoingOverdue || Boolean(ongoingNeglectedBadge);
 
   // Unified Needs Attention Items
   const needsAttentionItems = []
@@ -516,8 +522,8 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
           {/* Ongoing Task Card (Do Now) */}
           {activeTask ? (
             <div 
-              className={`glass border-2 ${ongoingNeglectedBadge ? 'border-red-500/60 bg-red-950/20' : 'border-[#f5a623] bg-[#f5a623]/10'} rounded-xl p-3 space-y-2 shadow-lg`}
-              style={ongoingNeglectedBadge ? { animation: `shimmer ${shimmerDuration} ease-in-out infinite ${shimmerDelay}` } : undefined}
+              className={`glass border-2 ${ongoingAlert ? 'border-red-500/60 bg-red-950/20' : 'border-[#f5a623] bg-[#f5a623]/10'} rounded-xl p-3 space-y-2 shadow-lg`}
+              style={ongoingAlert ? { animation: `shimmer ${shimmerDuration} ease-in-out infinite ${shimmerDelay}` } : undefined}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -558,8 +564,8 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
             </div>
           ) : ongoingTask ? (
             <div 
-              className={`glass border ${ongoingNeglectedBadge ? 'border-red-500/50 bg-red-950/20' : 'border-[#f5a623]/30 bg-[#f5a623]/5'} rounded-xl p-3 space-y-2`}
-              style={ongoingNeglectedBadge ? { animation: `shimmer ${shimmerDuration} ease-in-out infinite ${shimmerDelay}` } : undefined}
+              className={`glass border ${ongoingAlert ? 'border-red-500/50 bg-red-950/20' : 'border-[#f5a623]/30 bg-[#f5a623]/5'} rounded-xl p-3 space-y-2`}
+              style={ongoingAlert ? { animation: `shimmer ${shimmerDuration} ease-in-out infinite ${shimmerDelay}` } : undefined}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 max-w-[180px]">
@@ -604,11 +610,13 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
           {/* ONLY 1 Next Upcoming Task */}
           {nextTask && (() => {
             const nextNeglectedBadge = getNeglectedBadge(nextTask);
+            const isNextOverdue = isOverdue(nextTask);
+            const nextAlert = isNextOverdue || Boolean(nextNeglectedBadge);
             return (
               <div className="pt-1">
                 <div 
-                  className={`glass border ${nextNeglectedBadge ? 'border-red-500/50 bg-red-950/20' : 'border-pulsar/30'} p-2.5 rounded-xl flex items-center justify-between`}
-                  style={nextNeglectedBadge ? { animation: `shimmer ${shimmerDuration} ease-in-out infinite ${shimmerDelay}` } : undefined}
+                  className={`glass border ${nextAlert ? 'border-red-500/50 bg-red-950/20' : 'border-pulsar/30'} p-2.5 rounded-xl flex items-center justify-between`}
+                  style={nextAlert ? { animation: `shimmer ${shimmerDuration} ease-in-out infinite ${shimmerDelay}` } : undefined}
                 >
                   <div className="flex items-center gap-2 truncate mr-2">
                     <span className="text-[13px] font-body text-starlight/90 truncate">{nextTask.title}</span>

@@ -2,14 +2,14 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { getLevelInfo } from '../../data/defaults'
-import { Star, Edit2, Check, Menu, X, PanelRightClose, PanelRightOpen, WifiOff, Settings } from 'lucide-react'
+import { Star, Edit2, Check, Menu, X, PanelRightClose, PanelRightOpen, WifiOff, Settings, LogOut } from 'lucide-react'
 import IOBalanceBar from '../widgets/IOBalanceBar'
 import StatsModal from '../modals/StatsModal'
 import SettingsPanel from '../panels/SettingsPanel'
 import { useOnlineStatus } from '../../hooks/useOnlineStatus'
 
 const HUD = ({ activeView, setActiveView, rightPanelOpen, setRightPanelOpen }) => {
-  const { profile, updateProfile } = useAuth()
+  const { profile, updateProfile, signOut } = useAuth()
   const { isOnline, pendingSyncCount } = useOnlineStatus()
   const [editingAnchor, setEditingAnchor] = useState(false)
   const [editingChapter, setEditingChapter] = useState(false)
@@ -142,36 +142,55 @@ const HUD = ({ activeView, setActiveView, rightPanelOpen, setRightPanelOpen }) =
           <div className="w-px h-6 bg-blue-900/40 hidden lg:block mx-1" />
 
           {/* Stacked bars: XP + IO */}
-          <div onClick={() => setIsStatsOpen(true)} className="relative flex flex-col gap-0.5 flex-1 min-w-[140px] max-w-[350px] cursor-pointer group hover:bg-pulsar/10 p-1 rounded transition-colors -ml-1">
+          <div 
+            onClick={() => setIsStatsOpen(true)} 
+            className="relative flex flex-col gap-0.5 shrink min-w-0 max-w-[280px] sm:max-w-[340px] cursor-pointer group hover:bg-pulsar/10 p-1 rounded transition-colors -ml-1"
+          >
             {systemAlerts.length > 0 && (
               <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse z-10" />
             )}
             {/* XP row */}
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-mono uppercase tracking-widest text-gold whitespace-nowrap hidden sm:inline group-hover:text-nova transition-colors">{current.name}</span>
-              <div className="flex-1 h-1.5 bg-stardust rounded-xl overflow-hidden">
+            <div className="flex items-center gap-2 min-w-0">
+              <span 
+                className="text-xs font-mono uppercase tracking-widest text-gold truncate max-w-[110px] xl:max-w-[160px] hidden sm:inline group-hover:text-nova transition-colors shrink"
+                title={current.name}
+              >
+                {current.name}
+              </span>
+              <div className="flex-1 min-w-[32px] h-1.5 bg-stardust rounded-xl overflow-hidden shrink">
                 <div
                   className="h-full bg-gold rounded-xl xp-bar-fill transition-all duration-700"
                   style={{ width: `${progress}%` }}
                 />
               </div>
-              <span className="text-xs font-mono text-nova/60 whitespace-nowrap">{xp}{next ? `/${next.minXp}` : ''}</span>
-              <span className="text-xs font-mono uppercase tracking-wider text-nova group-hover:text-gold transition-colors">Lv.{current.level}</span>
+              <span className="text-xs font-mono text-nova/60 whitespace-nowrap shrink-0">{xp}{next ? `/${next.minXp}` : ''}</span>
+              <span className="text-xs font-mono uppercase tracking-wider text-nova group-hover:text-gold transition-colors shrink-0">Lv.{current.level}</span>
             </div>
             {/* IO row */}
-            <div className="hidden md:block pointer-events-none">
+            <div className="hidden md:block pointer-events-none min-w-0">
               <IOBalanceBar />
             </div>
           </div>
 
-          {/* Settings */}
-          <button 
-            onClick={() => setIsSettingsOpen(true)} 
-            className="text-nova/60 hover:text-gold transition-colors ml-1 p-1 rounded hover:bg-pulsar/10 cursor-pointer" 
-            title="Settings & Preferences"
-          >
-            <Settings className="w-4 h-4" />
-          </button>
+          {/* Action Icons */}
+          <div className="flex items-center gap-1 shrink-0 ml-1">
+            <button 
+              onClick={() => setIsSettingsOpen(true)} 
+              className="text-nova/60 hover:text-gold transition-colors p-1.5 rounded hover:bg-pulsar/10 cursor-pointer" 
+              title="Settings & Preferences"
+              aria-label="Settings & Preferences"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+            <button 
+              onClick={signOut} 
+              className="text-nova/60 hover:text-red-400 transition-colors p-1.5 rounded hover:bg-pulsar/10 cursor-pointer" 
+              title="Sign Out"
+              aria-label="Sign Out"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
 

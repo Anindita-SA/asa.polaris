@@ -67,7 +67,7 @@ describe('TaskPickerModal', () => {
     expect(screen.queryByText('Review Paper')).toBeNull()
   })
 
-  it('calls onSelectTask and onClose when Start Focus button is clicked', () => {
+  it('calls onSelectTask and onClose when a task card is clicked', () => {
     const mockSelect = vi.fn()
     const mockClose = vi.fn()
 
@@ -75,8 +75,8 @@ describe('TaskPickerModal', () => {
       <TaskPickerModal isOpen={true} onClose={mockClose} tasks={mockTasks} onSelectTask={mockSelect} />
     )
 
-    const startBtns = screen.getAllByRole('button', { name: /Start Focus/i })
-    fireEvent.click(startBtns[0])
+    const taskCard = screen.getByText('Deep Work Session')
+    fireEvent.click(taskCard)
 
     expect(mockSelect).toHaveBeenCalledWith(mockTasks[0])
     expect(mockClose).toHaveBeenCalled()

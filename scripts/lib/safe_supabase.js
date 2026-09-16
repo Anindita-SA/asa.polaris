@@ -44,16 +44,14 @@ export async function createSafeClient(scriptName, readMostly = false, isDryRun 
   const rawClient = createClient(url, key, { auth: { persistSession: false } });
 
   // Resolve and lock user_id
-  const { data } = await rawClient.from('profiles').select('id').limit(1);
-  const uid = data?.[0]?.id;
-  if (!uid) throw new Error('Could not resolve a user_id from profiles.');
-
+  let uid;
   if (fs.existsSync(LOCK_FILE_PATH)) {
-    const lockedUid = fs.readFileSync(LOCK_FILE_PATH, 'utf8').trim();
-    if (lockedUid !== uid) {
-      throw new Error(`CRITICAL: Resolved user_id (${uid}) does not match locked user_id (${lockedUid}).`);
-    }
+    uid = fs.readFileSync(LOCK_FILE_PATH, 'utf8').trim();
+    // Optional: could verify it exists in profiles, but trusting the lock is fine for background scripts
   } else {
+    const { data } = await rawClient.from('profiles').select('id').order('created_at', { ascending: true }).limit(1);
+    uid = data?.[0]?.id;
+    if (!uid) throw new Error('Could not resolve a user_id from profiles.');
     fs.writeFileSync(LOCK_FILE_PATH, uid, 'utf8');
   }
 

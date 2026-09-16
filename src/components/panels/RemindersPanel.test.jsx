@@ -374,7 +374,7 @@ describe("RemindersPanel", () => {
     expect(within(needsAttentionSection).queryByText("Overdue Next Task")).toBeNull();
   });
 
-  it("should show OVERDUE badge and shimmer style on overdue focus tasks", async () => {
+  it("should show red alert style and shimmer on overdue focus tasks without redundant text tag", async () => {
     const tasks = [
       { id: "t1", title: "Overdue Focus Task", status: "active", category: "work", deadline: "2020-01-01", wsjfScore: 5.0 },
       { id: "t2", title: "Next Overdue Task", status: "active", category: "work", deadline: "2020-01-01", wsjfScore: 4.0 }
@@ -388,15 +388,16 @@ describe("RemindersPanel", () => {
       expect(screen.getByText("Overdue Focus Task")).toBeDefined();
     });
 
-    // Both ongoing and next should show OVERDUE badges
-    const badges = screen.getAllByText("OVERDUE");
-    expect(badges.length).toBe(2);
+    // Redundant OVERDUE text badge should NOT be rendered
+    expect(screen.queryByText("OVERDUE")).toBeNull();
 
-    // Verify shimmer animation style is present on the task container
+    // Verify shimmer animation style and red alert border are present on the task container
     const ongoingCard = screen.getByText("Overdue Focus Task").closest(".rounded-xl");
     expect(ongoingCard.getAttribute("style")).toContain("animation: shimmer");
+    expect(ongoingCard.className).toContain("border-red-500");
     const nextCard = screen.getByText("Next Overdue Task").closest(".rounded-xl");
     expect(nextCard.getAttribute("style")).toContain("animation: shimmer");
+    expect(nextCard.className).toContain("border-red-500");
   });
 
   it("should show DUE TODAY or NEGLECTED badge when task is due today or skipped >= 3 times", async () => {

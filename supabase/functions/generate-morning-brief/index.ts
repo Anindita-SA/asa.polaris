@@ -1,7 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
 import Parser from 'npm:rss-parser'
-import { extractJsonFromLlm } from '../_shared/llm_utils.ts'
+import { extractJsonFromLlm, getBestGroqModel } from '../_shared/llm_utils.ts'
 import { newsPrompt } from '../_shared/personal_prompts.ts'
 
 const corsHeaders = {
@@ -126,11 +126,13 @@ serve(async (req) => {
 
     const prompt = newsPrompt(JSON.stringify(minifiedPool));
 
+    const dynamicModel = await getBestGroqModel(groqApiKey);
+
     const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${groqApiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'qwen/qwen3.6-27b',
+        model: dynamicModel,
         messages: [{ role: 'user', content: prompt }],
         response_format: { type: 'json_object' },
         reasoning_effort: 'none',
