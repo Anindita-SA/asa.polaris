@@ -19,8 +19,18 @@ serve(async (req) => {
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     const targetUserId = Deno.env.get('TARGET_USER_ID')
 
-    if (!serviceRoleKey) throw new Error('SUPABASE_SERVICE_ROLE_KEY is not set')
-    if (!targetUserId) throw new Error('TARGET_USER_ID is not set in secrets')
+    if (!serviceRoleKey) throw new Error('Configuration error: Missing database key')
+    if (!targetUserId) throw new Error('Configuration error: Missing target user')
+
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Missing authorization header' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    const token = authHeader.replace('Bearer ', '')
 
     const supabaseClient = createClient(supabaseUrl, serviceRoleKey, {
       auth: {
@@ -28,6 +38,16 @@ serve(async (req) => {
         persistSession: false
       }
     })
+
+    if (token !== serviceRoleKey) {
+      const { data: { user: callerUser }, error: authErr } = await supabaseClient.auth.getUser(token)
+      if (authErr || !callerUser || callerUser.id !== targetUserId) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+    }
 
     const user = { id: targetUserId };
 
@@ -162,7 +182,7 @@ serve(async (req) => {
         if (force) {
           // If force, we wipe old news and add new ones
           const newItems = [...nonNewsItems, ...newsItems];
-          const { error: updateErr } = await supabaseClient.from('morning_briefs').update({ items: newItems }).eq('id', existingBrief.id);
+          const { error: updateErr } = await supabaseClient.from('morning_briefs').update({ items: newItems }).eq('id', existingBrief.id).eq('user_id', user.id);
           if (updateErr) throw updateErr;
         } else {
           // If not force, and we already have news, don't generate more
@@ -174,7 +194,7 @@ serve(async (req) => {
             })
           } else {
              const newItems = [...nonNewsItems, ...newsItems];
-             const { error: updateErr } = await supabaseClient.from('morning_briefs').update({ items: newItems }).eq('id', existingBrief.id);
+             const { error: updateErr } = await supabaseClient.from('morning_briefs').update({ items: newItems }).eq('id', existingBrief.id).eq('user_id', user.id);
              if (updateErr) throw updateErr;
           }
         }

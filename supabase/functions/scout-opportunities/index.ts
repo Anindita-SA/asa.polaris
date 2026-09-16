@@ -14,11 +14,27 @@ serve(async (req) => {
   }
 
   try {
+    const firecrawlApiKey = Deno.env.get('FIRECRAWL_API_KEY')
+    const groqApiKey = Deno.env.get('GROQ_API_KEY')
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    
-    if (!serviceRoleKey) throw new Error('SUPABASE_SERVICE_ROLE_KEY is not set')
-    
+    const targetUserId = Deno.env.get('TARGET_USER_ID')
+
+    if (!firecrawlApiKey) throw new Error('Configuration error: Missing firecrawl key')
+    if (!groqApiKey) throw new Error('Configuration error: Missing groq key')
+    if (!serviceRoleKey) throw new Error('Configuration error: Missing database key')
+    if (!targetUserId) throw new Error('Configuration error: Missing target user')
+
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Missing authorization header' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    const token = authHeader.replace('Bearer ', '')
+
     // Create admin client bypassing RLS
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
       auth: {
@@ -27,17 +43,20 @@ serve(async (req) => {
       }
     })
 
-    const targetUserId = Deno.env.get('TARGET_USER_ID')
-    if (!targetUserId) throw new Error('TARGET_USER_ID is not set in secrets')
+    if (token !== serviceRoleKey) {
+      const { data: { user: callerUser }, error: authErr } = await supabaseAdmin.auth.getUser(token)
+      if (authErr || !callerUser || callerUser.id !== targetUserId) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+    }
 
     const user = { id: targetUserId }
     const today = new Date().toLocaleDateString('en-CA')
 
-    const firecrawlApiKey = Deno.env.get('FIRECRAWL_API_KEY')
-    if (!firecrawlApiKey) throw new Error('FIRECRAWL_API_KEY is not set')
 
-    const groqApiKey = Deno.env.get('GROQ_API_KEY')
-    if (!groqApiKey) throw new Error('GROQ_API_KEY is not set')
 
     // Helper function to append previous highly recommended opportunities
     const appendPreviousOpps = async (reason: string) => {
@@ -84,7 +103,7 @@ serve(async (req) => {
 
         if (itemsToAdd.length > 0) {
           const updatedItems = [...existingItems, ...itemsToAdd]
-          await supabaseAdmin.from('morning_briefs').update({ items: updatedItems }).eq('id', existingBrief.id)
+          await supabaseAdmin.from('morning_briefs').update({ items: updatedItems }).eq('id', existingBrief.id).eq('user_id', user.id)
           insertedCount = itemsToAdd.length;
         }
       } else {
@@ -247,7 +266,7 @@ serve(async (req) => {
     if (existingBrief) {
       const existingItems = existingBrief.items || []
       const updatedItems = [...existingItems, ...briefItems]
-      await supabaseAdmin.from('morning_briefs').update({ items: updatedItems }).eq('id', existingBrief.id)
+      await supabaseAdmin.from('morning_briefs').update({ items: updatedItems }).eq('id', existingBrief.id).eq('user_id', user.id)
     } else {
       await supabaseAdmin.from('morning_briefs').insert({
         user_id: user.id, date: today, items: briefItems, seen: false

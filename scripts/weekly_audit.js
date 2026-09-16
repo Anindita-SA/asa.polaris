@@ -1,11 +1,8 @@
 import 'dotenv/config';
-import { createClient } from '@supabase/supabase-js';
-import ws from 'ws';
+import { createSafeClient } from './lib/safe_supabase.js';
 
 // Configuration
 export const config = {
-  supabaseUrl: process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL,
-  supabaseKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
   groqApiKey: process.env.GROQ_API_KEY || process.env.VITE_GROQ_API_KEY
 };
 
@@ -13,38 +10,24 @@ export const config = {
  * Validates environment variables.
  */
 export function validateEnvironment(cfg = config) {
-  if (!cfg.supabaseUrl || !cfg.supabaseKey || !cfg.groqApiKey) {
-    throw new Error("Missing required environment variables (SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, or GROQ_API_KEY).");
+  if (!cfg.groqApiKey) {
+    throw new Error("Missing required environment variables (GROQ_API_KEY).");
   }
 }
 
 /**
  * Initializes Supabase client.
  */
-export function getSupabaseClient(cfg = config) {
-  validateEnvironment(cfg);
-  return createClient(cfg.supabaseUrl, cfg.supabaseKey, {
-    auth: {
-      persistSession: false
-    },
-    realtime: {
-      transport: ws
-    },
-    global: {
-      WebSocket: ws
-    }
-  });
+export async function getSupabaseClient() {
+  return await createSafeClient('weekly_audit', false, false);
 }
 
 /**
- * Fetches the primary user ID (assumes single-user environment).
+ * Fetches the primary user ID from the safe client.
  */
 export async function fetchPrimaryUser(supabase) {
-  const { data, error } = await supabase.from('profiles').select('id').limit(1);
-  if (error || !data || data.length === 0) {
-    throw new Error("Could not find a user profile.");
-  }
-  return data[0].id;
+  if (!supabase._uid) throw new Error("Could not find a user profile.");
+  return supabase._uid;
 }
 
 /**
@@ -201,7 +184,7 @@ export async function insertTasks(supabase, userId, newTasks) {
 export async function runAudit() {
   console.log("Starting weekly AI audit...");
   
-  const supabase = getSupabaseClient();
+  const supabase = await getSupabaseClient();
   const userId = await fetchPrimaryUser(supabase);
   
   const [milestones, meals] = await Promise.all([
