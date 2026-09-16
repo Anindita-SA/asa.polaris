@@ -588,9 +588,9 @@ describe("RemindersPanel", () => {
     expect(within(modal).getByText("Refactor Authentication Flow")).toBeDefined();
     expect(within(modal).getByText("Write Release Notes")).toBeDefined();
 
-    // Click Start Focus on the second task inside modal
-    const startFocusBtns = within(modal).getAllByRole("button", { name: /Start Focus/i });
-    fireEvent.click(startFocusBtns[1]);
+    // Click the second task inside modal
+    const taskRow = within(modal).getByText("Write Release Notes");
+    fireEvent.click(taskRow);
 
     // The modal should close and the task should now be launched in Ongoing Now
     await waitFor(() => {
