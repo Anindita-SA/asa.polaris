@@ -425,6 +425,77 @@ async function run() {
   const uid = supabase._uid;
 
   try {
+    // 0a. Self-Healing: Deactivate orphan templates and clean up loose ghosts
+    console.log(`Running self-healing for orphan templates...`);
+    
+    // Find all subtasks that have a source_template_id
+    const { data: subtasksWithTemplates, error: subtaskErr } = await supabase
+      .from('tasks')
+      .select('id, title, source_template_id')
+      .eq('user_id', uid)
+      .not('parent_task_id', 'is', null)
+      .not('source_template_id', 'is', null);
+
+    if (subtaskErr) throw subtaskErr;
+
+    if (subtasksWithTemplates && subtasksWithTemplates.length > 0) {
+      // Collect unique orphan template IDs
+      const orphanTemplateIds = [...new Set(subtasksWithTemplates.map(t => t.source_template_id))];
+      
+      if (orphanTemplateIds.length > 0) {
+        console.log(`Found ${orphanTemplateIds.length} orphan templates linked to subtasks.`);
+        
+        // 1. Deactivate these templates so they stop spawning ghosts
+        if (isDryRun) {
+          console.log(`[DRY RUN] Would deactivate ${orphanTemplateIds.length} orphan templates: ${orphanTemplateIds.join(', ')}`);
+        } else {
+          const { error: deactivateErr } = await supabase
+            .from('recurring_task_templates')
+            .update({ is_active: false })
+            .in('id', orphanTemplateIds)
+            .eq('user_id', uid)
+            .eq('is_active', true);
+            
+          if (deactivateErr) {
+            console.error('Failed to deactivate orphan templates:', deactivateErr);
+          } else {
+             console.log(`Deactivated orphan templates.`);
+          }
+        }
+
+        // 2. Archive any loose root tasks (ghosts) spawned by these templates
+        const { data: looseGhosts, error: ghostsErr } = await supabase
+          .from('tasks')
+          .select('id, title')
+          .eq('user_id', uid)
+          .is('parent_task_id', null)
+          .neq('status', 'done')
+          .in('source_template_id', orphanTemplateIds);
+
+        if (ghostsErr) throw ghostsErr;
+
+        if (looseGhosts && looseGhosts.length > 0) {
+          console.log(`Found ${looseGhosts.length} loose ghost tasks spawned by orphan templates.`);
+          if (isDryRun) {
+            console.log(`[DRY RUN] Would archive ghost tasks: ${looseGhosts.map(t => t.id).join(', ')}`);
+          } else {
+            const ghostIds = looseGhosts.map(t => t.id);
+            const { error: archiveErr } = await supabase
+              .from('tasks')
+              .update({ status: 'done', notes: '[Archived by Self-Healing]' })
+              .in('id', ghostIds)
+              .eq('user_id', uid);
+              
+            if (archiveErr) {
+              console.error('Failed to archive ghost tasks:', archiveErr);
+            } else {
+              console.log(`Archived ${looseGhosts.length} ghost tasks.`);
+            }
+          }
+        }
+      }
+    }
+
     // 0. Pre-process #polaris tasks
     const { data: polarisTasks, error: polarisErr } = await supabase
       .from('tasks')

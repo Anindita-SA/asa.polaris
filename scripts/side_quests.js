@@ -9,7 +9,7 @@ const __dirname = path.dirname(__filename);
 
 // Configuration
 export const config = {
-  groqApiKey: process.env.GROQ_API_KEY
+  groqApiKey: process.env.GROQ_API_KEY || process.env.VITE_GROQ_API_KEY
 };
 
 /**
@@ -59,6 +59,24 @@ Schema for each task object:
 
 Generate the JSON array now:`;
 
+  const modelsRes = await fetch('https://api.groq.com/openai/v1/models', {
+    headers: { 'Authorization': `Bearer ${groqApiKey}` }
+  });
+  
+  let dynamicModel = 'llama-3.3-70b-versatile';
+  if (modelsRes.ok) {
+    const json = await modelsRes.json();
+    const available = json.data.map(m => m.id);
+    const priorities = ['llama-3.3-70b', 'llama-3.1-70b', 'llama3-70b', 'qwen-2.5-32b', 'mixtral-8x7b', 'llama'];
+    for (const prefix of priorities) {
+      const match = available.find(m => m.includes(prefix));
+      if (match) {
+        dynamicModel = match;
+        break;
+      }
+    }
+  }
+
   const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -66,7 +84,7 @@ Generate the JSON array now:`;
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      model: 'llama3-8b-8192',
+      model: dynamicModel,
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.7
     })
