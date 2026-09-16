@@ -24,7 +24,8 @@ const ALLOWED_TABLES = [
   'task_estimate_calibration',
   'user_settings',
   'media_log',
-  'practice_scores'
+  'practice_scores',
+  'meal_logs'
 ];
 
 
