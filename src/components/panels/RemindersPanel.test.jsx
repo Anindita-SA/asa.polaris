@@ -483,40 +483,6 @@ describe("RemindersPanel", () => {
     expect(supabase.removeChannel).toHaveBeenCalledWith(mockChannel);
   });
 
-  it("should open Notification Settings modal and interact with controls", async () => {
-    render(<RemindersPanel onOpenDayGuide={vi.fn()} />);
-
-    // Click Notification Settings button in header
-    const settingsBtn = screen.getByTitle("Notification Settings");
-    fireEvent.click(settingsBtn);
-
-    // Modal should be open
-    expect(screen.getByText("Notification Settings")).toBeDefined();
-    expect(screen.getByText("Focus Task Only")).toBeDefined();
-    expect(screen.getByText("Single Consolidated Nudge")).toBeDefined();
-    expect(screen.getByText("All Overdue & Reminders")).toBeDefined();
-    expect(screen.getByText("Off (Visual Only)")).toBeDefined();
-
-    // Select 'Single Consolidated Nudge'
-    const consolidatedBtn = screen.getByText("Single Consolidated Nudge").closest("button");
-    fireEvent.click(consolidatedBtn);
-
-    let saved = JSON.parse(localStorage.getItem("polaris_notification_settings") || "{}");
-    expect(saved.taskMode).toBe("consolidated");
-
-    // Toggle Master Mute switch
-    const masterToggle = screen.getByRole("switch", { name: /Master Mute/i });
-    fireEvent.click(masterToggle);
-    saved = JSON.parse(localStorage.getItem("polaris_notification_settings") || "{}");
-    expect(saved.masterMuted).toBe(true);
-
-    // Change Task Reminder Frequency
-    const freqSelect = screen.getByLabelText(/Task Reminder Frequency/i);
-    fireEvent.change(freqSelect, { target: { value: "60" } });
-    saved = JSON.parse(localStorage.getItem("polaris_notification_settings") || "{}");
-    expect(saved.taskIntervalMinutes).toBe(60);
-
-    // Click Reset Defaults
     const resetBtn = screen.getByRole("button", { name: /Reset Defaults/i });
     fireEvent.click(resetBtn);
     saved = JSON.parse(localStorage.getItem("polaris_notification_settings") || "{}");

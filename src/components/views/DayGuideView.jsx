@@ -1,4 +1,4 @@
-import { getGroqKey } from '../../lib/llm';
+import { getGroqKey, generateLlmResponse } from '../../lib/llm';
 import React, { useState, useCallback, useEffect, lazy, Suspense } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { supabase } from '../../lib/supabase';
@@ -103,16 +103,7 @@ function AuditorPanel({ onAuditDone }) {
           for (const task of unestimated) {
             const prompt = `Analyze task: "${task.title}". Return ONLY valid JSON with duration in minutes and task_type as "input" (reading, research, studying, learning, absorbing) or "output" (writing, coding, creating, building, designing, submitting, producing). Example: {"minutes": 35, "task_type": "output"}`;
             try {
-              const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-                method: 'POST',
-                headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  model: 'llama-3.3-70b-versatile',
-                  messages: [{ role: 'user', content: prompt }],
-                  response_format: { type: 'json_object' }
-                })
-              });
-              const data = await res.json();
+              const data = await generateLlmResponse([{ role: 'user', content: prompt }], true);
               const parsed = JSON.parse(data.choices[0].message.content);
               const mins = parsed?.minutes ? Math.max(5, Math.round(parsed.minutes)) : 30;
               await offlineUpdate('tasks', { id: task.id }, { estimated_minutes: mins, estimate_source: 'ai' });

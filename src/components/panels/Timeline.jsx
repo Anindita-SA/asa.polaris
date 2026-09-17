@@ -1,4 +1,4 @@
-import { getGroqKey } from '../../lib/llm';
+import { getGroqKey, generateLlmResponse } from '../../lib/llm';
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
@@ -157,24 +157,10 @@ Rules:
 - If the task is vague, make reasonable assumptions and pick the most impactful interpretation.`
 
     try {
-      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${key}`,
-        },
-        body: JSON.stringify({
-          model: 'llama-3.3-70b-versatile',
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: `Break this down into ADHD-friendly micro-steps: "${taskDescription}"` },
-          ],
-          temperature: 0.7,
-          max_tokens: 1024,
-          response_format: { type: 'json_object' },
-        }),
-      })
-      const data = await response.json()
+      const data = await generateLlmResponse([
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: `Break this down into ADHD-friendly micro-steps: "${taskDescription}"` },
+      ], true, 1024)
       const text = data?.choices?.[0]?.message?.content || '{"steps":[]}'
       try {
         const parsed = JSON.parse(text)

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { offlineSelect, offlineInsert, offlineUpdate, offlineDelete } from '../lib/offlineApi';
-import { getGroqKey } from '../lib/llm';
+import { getGroqKey, generateLlmResponse } from '../lib/llm';
 import { 
   Plus, 
   Sparkles, 
@@ -301,20 +301,7 @@ Task Notes: ${JSON.stringify(task.notes || 'None')}
 
 Return ONLY a single valid JSON object in this exact format: {"minutes": 45}. Do not add any commentary or markdown around it.`;
 
-      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${key}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'llama-3.3-70b-versatile',
-          messages: [{ role: 'user', content: prompt }],
-          response_format: { type: 'json_object' },
-        }),
-      });
-
-      const data = await res.json();
+      const data = await generateLlmResponse([{ role: 'user', content: prompt }], true);
       if (!data?.choices?.length) throw new Error(data?.error?.message || 'Invalid AI response');
       let mins = 30; // sensible fallback
       try {

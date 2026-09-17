@@ -1,4 +1,4 @@
-import { getGroqKey } from '../../lib/llm';
+import { getGroqKey, generateLlmResponse } from '../../lib/llm';
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import * as d3 from 'd3';
 import { supabase } from '../../lib/supabase';
@@ -690,16 +690,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
           const safeTitle = JSON.stringify(task.title);
           const prompt = `Estimate realistic duration in minutes for task: ${safeTitle}. Return ONLY JSON like {"minutes": 35}.`;
           try {
-            const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-              method: 'POST',
-              headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                model: 'llama-3.3-70b-versatile',
-                messages: [{ role: 'user', content: prompt }],
-                response_format: { type: 'json_object' }
-              })
-            });
-            const data = await res.json();
+            const data = await generateLlmResponse([{ role: 'user', content: prompt }], true);
             const parsed = JSON.parse(data.choices[0].message.content);
             const mins = parsed?.minutes ? Math.max(5, Math.round(parsed.minutes)) : 30;
 
