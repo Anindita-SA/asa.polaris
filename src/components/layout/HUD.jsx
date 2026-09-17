@@ -182,14 +182,7 @@ const HUD = ({ activeView, setActiveView, rightPanelOpen, setRightPanelOpen }) =
             >
               <Settings className="w-4 h-4" />
             </button>
-            <button 
-              onClick={signOut} 
-              className="text-nova/60 hover:text-red-400 transition-colors p-1.5 rounded hover:bg-pulsar/10 cursor-pointer" 
-              title="Sign Out"
-              aria-label="Sign Out"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
+
           </div>
         </div>
       </div>

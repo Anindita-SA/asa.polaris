@@ -1,4 +1,8 @@
-﻿## [2026-09-16] Self-Healing LLM Router & UI Polish (v1.2.10)
+## [2026-09-17] Redundant Buttons Cleanup & UI Polish (v1.2.11)
+- **Unified Actions**: Removed the redundant LogOut icon from HUD.jsx, as it is already accessible at the bottom of the main Settings drawer.
+- **Settings Deduplication**: Removed the redundant Sliders settings icon button from the Reminders panel header. Notification preferences are already accessible via the main Settings drawer in the HUD.
+
+## [2026-09-16] Self-Healing LLM Router & UI Polish (v1.2.10)
 - **Self-Healing LLM Resolver**: Built a dynamic getBestGroqModel utility to actively poll the Groq API (GET /openai/v1/models) for available models, preventing hard crashes when models are deprecated (like qwen3.6-27b or llama3-8b-8192).
 - **Backend & Script Integration**: Injected dynamic resolution into Supabase Edge Functions (morning brief, scout) and local Node cron scripts (side quests, weekly audit).
 - **Frontend Fallback**: Added robust API querying logic into src/lib/llm.js for all client-side Groq requests.
@@ -41,7 +45,7 @@
 - **Strict ID Matching in Today's Tasks**: Updated `useTodaysTasks.js` to match task toggles strictly by `id: item.id`.
 - **Impeccable Subtasks Drawer & Canvas UI Redesign**:
   - **Full Title Readability**: Removed aggressive truncation from subtask titles in the Details drawer, allowing natural text wrapping with high clarity.
-  - **Legible Completed Items**: Replaced dim, low-contrast text with crisp `text-slate-400 line-through` styling and clear `âœ“` markers.
+  - **Legible Completed Items**: Replaced dim, low-contrast text with crisp `text-slate-400 line-through` styling and clear `✓` markers.
   - **Hover-Revealed Action Controls**: Reordering arrows (`ChevronUp`, `ChevronDown`) and delete actions (`Trash2`) now smoothly reveal on card hover (`opacity-0 group-hover:opacity-100`), reclaiming 50% horizontal card space for text.
   - **Sleek Single-Row Next Action**: Eliminated the bulky 2nd row and oversized yellow banner. Replaced with an amber accent card border, an inline `Next Action` badge, and a direct `Play` focus launch button.
   - **Expanded Canvas Pill Breathing Room**: Increased max width of active subtask pills on the 2D canvas to `500px`.
@@ -55,9 +59,9 @@
   - 0 tests: `No data yet` (neutral)
   - 1 test: `Baseline (1 test)` (neutral)
   - 2 tests: Direct comparison (`+X.X vs Test 1`, `-X.X vs Test 1`, or `Stable (2 tests)`)
-  - 3+ tests: Rolling recent 3 tests average vs baseline average (`+X.X vs baseline`, `-X.X vs baseline`, or `Stable (Â±0.0)`).
+  - 3+ tests: Rolling recent 3 tests average vs baseline average (`+X.X vs baseline`, `-X.X vs baseline`, or `Stable (±0.0)`).
 - **Module Filter Tabs & Chronological Progression Strip**: Added interactive skill filter tabs (`All`, `Listening`, `Reading`, `Writing`, `Speaking`) and a horizontal progression timeline strip tracking chronological band improvements.
-- **Matrix Canvas UI Decluttering**: Removed the written duration chip (`~min left`) on parent task cards leaving only the clean subtask counter button (`0/5`). Replaced the standard bullet dot (`â—`) directly with the amber `Sparkles` star icon (`âœ¨`) when an urgent subtask is due within 48h, eliminating visual redundancy and duplicate markers.
+- **Matrix Canvas UI Decluttering**: Removed the written duration chip (`~min left`) on parent task cards leaving only the clean subtask counter button (`0/5`). Replaced the standard bullet dot (`●`) directly with the amber `Sparkles` star icon (`✨`) when an urgent subtask is due within 48h, eliminating visual redundancy and duplicate markers.
 - **Database Schema & Safe Client Registry**: Updated `docs/DATABASE_SCHEMA.md` and added `practice_scores` to `ALLOWED_TABLES` in `scripts/lib/safe_supabase.js`.
 - **Test Suite Verification**: Added comprehensive unit and component test suite in `PracticeScoreTracker.test.jsx` with 15 tests covering band calculation, rounding, trend floors, filtering, migration, and CRUD persistence.
 
@@ -65,8 +69,8 @@
 - **Universal Link Metadata Fetcher**: Built `src/lib/linkMetadataFetcher.js` with multi-tier automatic extraction for dropped URLs:
   - **Academic Papers & Preprints**: Direct CORS-friendly querying of OpenAlex and Crossref APIs for ResearchGate URLs (via title slug), DOIs (`10.xxxx/...`), and arXiv preprints (`arxiv.org/abs/...`), pulling exact paper titles, full author lists, journal/venue citations, publication dates, and abstracts without API keys or CORS issues.
   - **General Web Articles & Media**: Automated OpenGraph and metadata extraction via Microlink API for Substack, Medium, news, tech blogs, YouTube, and podcasts with graceful rate-limit handling and resilient URL slug fallbacks.
-- **Top Quick-Drop Link Bar**: Added a fast URL paste bar directly at the top of `MediaLog.jsx` (`[ ðŸ”— Paste link... ] [ âš¡ Auto-Fetch & Add ]`) and in `AddMediaModal.jsx`, allowing 1-click auto-population and saving.
-- **Dedicated Sub-View Category Filters**: Added clean category sub-views inside `MediaLog.jsx` (`All Items`, `ðŸ“„ Research Papers`, `ðŸ“° Articles & News`, `ðŸ“š Books`, `ðŸŽ™ï¸ Audio & Video`) keeping Media & Lit unified on the shelf while offering dedicated academic reading focus.
+- **Top Quick-Drop Link Bar**: Added a fast URL paste bar directly at the top of `MediaLog.jsx` (`[ 🔗 Paste link... ] [ ⚡ Auto-Fetch & Add ]`) and in `AddMediaModal.jsx`, allowing 1-click auto-population and saving.
+- **Dedicated Sub-View Category Filters**: Added clean category sub-views inside `MediaLog.jsx` (`All Items`, `📄 Research Papers`, `📰 Articles & News`, `📚 Books`, `🎙️ Audio & Video`) keeping Media & Lit unified on the shelf while offering dedicated academic reading focus.
 - **First-Class Research Paper Styling**: Added `'paper'` to canonical `MEDIA_TYPES` with distinct sky/cyan accent badges, full citation metadata (authors, venue, year), expandable abstract drawers, and direct `Read Paper ->` external links.
 - **Page View & Tab State Persistence on Refresh**:
   - `Dashboard.jsx`: Initialized `activeView` from `localStorage` (`polaris_active_view`) so that hard browser reloads and POLARIS logo clicks restore the user's exact active view instead of resetting to Constellation.
@@ -467,5 +471,6 @@ All notable changes to Polaris will be documented in this file.
 - **Groq Rate Limit Fix**: Fixed an issue where the Scout would fail silently due to requesting 1024 max_tokens (Groq free tier limit is 1000). Reduced `max_tokens` to 800.-   * * B u g   F i x   ( H U D ) : * *   A d d e d   m i s s i n g   \ u s e r _ i d \   f i l t e r s   t o   t h e   \ m o r n i n g _ b r i e f s \   a n d   \ 	 a s k s \   q u e r i e s   i n   \ H U D . j s x \   t o   f i x   s c h e m a   d r i f t   w a r n i n g s   a n d   p r e v e n t   p o t e n t i a l   d a t a   l e a k s . 
  
  
+
 
 

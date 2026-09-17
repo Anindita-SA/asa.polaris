@@ -27,7 +27,6 @@ import { supabase } from '../../lib/supabase'
 import { computeWSJFScore } from '../../hooks/useWSJFScore'
 import SurpriseTaskModal from '../modals/SurpriseTaskModal'
 import TaskPickerModal from '../modals/TaskPickerModal'
-import SettingsPanel from './SettingsPanel'
 
 const TIER_COLORS = {
   hearth: 'text-rose-500 bg-rose-500/10 border-rose-500/30',
@@ -106,7 +105,6 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
 
   // Nudge settings state
   const [showNudgeSettings, setShowNudgeSettings] = useState(false)
-  const [showNotificationSettings, setShowNotificationSettings] = useState(false)
   const [editingNudge, setEditingNudge] = useState(null)
   const [newNudgeTitle, setNewNudgeTitle] = useState('')
   const [newNudgeInterval, setNewNudgeInterval] = useState('60')
@@ -466,14 +464,6 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
       <div className="p-4 pr-14 flex items-center justify-between border-b border-pulsar/30">
         <div className="flex items-center gap-2">
           <h3 className="text-lg font-display text-starlight">Reminders</h3>
-          <button
-            onClick={() => setShowNotificationSettings(true)}
-            className="p-1 rounded text-nova/60 hover:text-starlight hover:bg-pulsar/20 transition-colors"
-            title="Notification Settings"
-            aria-label="Notification Settings"
-          >
-            <Sliders className="w-4 h-4" />
-          </button>
         </div>
       </div>
 
@@ -874,12 +864,6 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
         onClose={() => setShowTaskPicker(false)}
         tasks={focusTasks}
         onSelectTask={(task) => startTaskLaunch(task)}
-      />
-
-      <SettingsPanel
-        open={showNotificationSettings}
-        onClose={() => setShowNotificationSettings(false)}
-        initialSection="reminders"
       />
     </div>
   )
