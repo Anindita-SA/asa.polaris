@@ -94,16 +94,9 @@ export async function nestProjectTasks(supabaseClient = null, isDryRun = false) 
     };
 
     if (existingParent) {
-      console.log(`Found existing canonical parent "${pDef.title}" (${existingParent.id}). Updating...`);
+      console.log(`Found existing canonical parent "${pDef.title}" (${existingParent.id}). Preserving manual changes.`);
       parentIds[pDef.key] = existingParent.id;
-      if (!isDryRun) {
-        const { error: pUpdateErr } = await supabase
-          .from('tasks')
-          .update(parentPayload)
-          .eq('id', existingParent.id)
-          .eq('user_id', uid);
-        if (pUpdateErr) throw pUpdateErr;
-      }
+      // Do not update the parent payload to avoid overwriting user manual changes
     } else {
       console.log(`Creating canonical parent "${pDef.title}"...`);
       if (!isDryRun) {
