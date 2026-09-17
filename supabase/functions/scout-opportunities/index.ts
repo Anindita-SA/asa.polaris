@@ -1,6 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
-import { extractJsonFromLlm, getBestGroqModel } from '../_shared/llm_utils.ts'
+import { extractJsonFromLlm, getBestGroqModel, generateWithFallback } from '../_shared/llm_utils.ts'
 import { opportunitiesPrompt } from '../_shared/personal_prompts.ts'
 
 const corsHeaders = {
@@ -170,31 +170,14 @@ serve(async (req) => {
     }))
 
     const prompt = opportunitiesPrompt(JSON.stringify(minifiedPool), learnedFeedback);
-
-    const dynamicModel = await getBestGroqModel(groqApiKey);
-
-    const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${groqApiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: dynamicModel,
-        messages: [{ role: 'user', content: prompt }],
-        response_format: { type: 'json_object' },
-        reasoning_effort: 'none',
-        reasoning_format: 'hidden',
-        max_tokens: 800
-      })
-    })
-
-    if (!groqRes.ok) throw new Error(`Groq API Error: ${groqRes.status} ${await groqRes.text()}`)
-
-    const groqData = await groqRes.json()
+  
+    const geminiApiKey = Deno.env.get('GEMINI_API_KEY') || null;
     let parsedOpps = []
     try {
-      const parsed = extractJsonFromLlm(groqData.choices[0].message.content)
-      parsedOpps = parsed.opportunities || []
+      const parsed = await generateWithFallback(prompt, groqApiKey, geminiApiKey);
+      parsedOpps = parsed.opportunities || parsed.items || []
     } catch (err) {
-      console.error("Failed to parse LLM JSON:", err)
+      console.error("Failed LLM generation or parsing:", err)
     }
 
     if (parsedOpps.length === 0) {
