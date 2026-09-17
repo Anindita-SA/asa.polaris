@@ -36,6 +36,9 @@ if (-not $OllamaRunning) {
 Write-Host "Executing Node triage script..."
 node "$ScriptDir\task_triage.js"
 
+Write-Host "Executing Cloud Scouts..."
+node "$ScriptDir\run_cloud_scouts.js"
+
 # 3. Cleanup if we started it
 if ($StartedByUs) {
     Write-Host "Cleaning up: Shutting down the headless Ollama server."
@@ -43,3 +46,4 @@ if ($StartedByUs) {
     Stop-Process -Name "llama-server" -Force -ErrorAction SilentlyContinue
 }
 Write-Host "Done."
+

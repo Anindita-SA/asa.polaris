@@ -60,9 +60,20 @@ export function useMorningBrief({ autoRun = true } = {}) {
   }
 
   useEffect(() => {
-    if (!user || !autoRun || hasRun.current) return
-    hasRun.current = true
-    generateBrief()
+    if (!user || !autoRun) return
+    
+    if (!hasRun.current) {
+      hasRun.current = true
+      generateBrief()
+    }
+
+    // Check every hour if a new brief is needed (e.g. date rolled over)
+    // generateBrief automatically skips if today's brief already exists
+    const intervalId = setInterval(() => {
+      generateBrief()
+    }, 60 * 60 * 1000)
+
+    return () => clearInterval(intervalId)
   }, [user, autoRun])
 
   return { generateBrief, isGenerating }

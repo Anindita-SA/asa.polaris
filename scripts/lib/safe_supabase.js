@@ -81,9 +81,19 @@ export async function createSafeClient(scriptName, readMostly = false, isDryRun 
       };
 
       chain.update = (payload) => {
-        if (readMostly && tableName !== 'tasks') {
+        if (readMostly && tableName !== 'tasks' && tableName !== 'recurring_task_templates') {
           throw new Error(`SECURITY EXCEPTION: ${scriptName} is read-mostly. Update blocked on ${tableName}.`);
         }
+        
+        if (readMostly && tableName === 'recurring_task_templates') {
+           const keys = Object.keys(payload);
+           const allowedKeys = ['is_active'];
+           const hasInvalidKey = keys.some(k => !allowedKeys.includes(k));
+           if (hasInvalidKey) {
+              throw new Error(`SECURITY EXCEPTION: Read-mostly script can only update allowed fields (${allowedKeys.join(', ')}) on recurring_task_templates. Attempted to update: ${keys.join(', ')}`);
+           }
+        }
+        
         if (readMostly && tableName === 'tasks') {
            const keys = Object.keys(payload);
            const allowedKeys = [

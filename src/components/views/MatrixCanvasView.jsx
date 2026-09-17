@@ -2111,11 +2111,10 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                                     </button>
 
                                     <div className="flex-1 min-w-0">
-                                      <div className="flex flex-wrap items-center gap-1.5">
-                                        <span className={`break-words text-xs leading-snug ${isSubDone ? 'text-slate-400 line-through' : 'text-starlight font-medium'}`}>
-                                          {st.title}
-                                        </span>
-
+                                      <span className={`block break-words text-xs leading-snug ${isSubDone ? 'text-slate-400 line-through' : 'text-starlight font-medium'}`}>
+                                        {st.title}
+                                      </span>
+                                      <div className="flex flex-wrap items-center gap-1.5 mt-1.5 min-h-[16px]">
                                         {isActive && (
                                           <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 font-mono text-[9px] font-semibold tracking-wide shrink-0">
                                             Next Action
