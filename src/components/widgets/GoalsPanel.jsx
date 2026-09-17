@@ -1,4 +1,4 @@
-import { getGroqKey } from '../../lib/llm';
+import { getGroqKey, generateLlmResponse } from '../../lib/llm';
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
@@ -209,18 +209,7 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
       const key = getGroqKey()
       if (!key) throw new Error("No Groq API Key")
       
-      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${key}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model: 'llama-3.3-70b-versatile',
-          messages: [{ role: 'user', content: prompt }]
-        })
-      })
-      const data = await res.json()
+      const data = await generateLlmResponse([{ role: 'user', content: prompt }], false)
       setAuditFeedback(data?.choices?.[0]?.message?.content || 'Audit unavailable.')
     } catch (err) {
       console.error(err)

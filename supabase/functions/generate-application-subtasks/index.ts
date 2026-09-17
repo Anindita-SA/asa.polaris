@@ -1,6 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
-import { extractJsonFromLlm } from '../_shared/llm_utils.ts'
+import { generateWithFallback } from '../_shared/llm_utils.ts'
 import { applicationSubtasksPrompt } from '../_shared/personal_prompts.ts'
 
 const corsHeaders = {
@@ -33,25 +33,11 @@ serve(async (req) => {
     const groqApiKey = Deno.env.get('GROQ_API_KEY')
     if (!groqApiKey) throw new Error('GROQ_API_KEY is not set')
 
+    const geminiApiKey = Deno.env.get('GEMINI_API_KEY') || null
+
     const prompt = applicationSubtasksPrompt(opportunity)
 
-    const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${groqApiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'qwen/qwen3.6-27b',
-        messages: [{ role: 'user', content: prompt }],
-        response_format: { type: 'json_object' },
-        reasoning_effort: 'none',
-        reasoning_format: 'hidden',
-        max_tokens: 1000
-      })
-    })
-
-    if (!groqRes.ok) throw new Error(`Groq API Error: ${groqRes.status} ${await groqRes.text()}`)
-
-    const groqData = await groqRes.json()
-    const parsed = extractJsonFromLlm(groqData.choices[0].message.content)
+    const parsed = await generateWithFallback(prompt, groqApiKey, geminiApiKey)
     const subtasks = parsed.subtasks || []
 
     if (subtasks.length === 0) {

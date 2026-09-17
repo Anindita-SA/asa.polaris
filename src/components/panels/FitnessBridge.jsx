@@ -1,4 +1,4 @@
-import { getGroqKey } from '../../lib/llm';
+import { getGroqKey, generateLlmResponse } from '../../lib/llm';
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
@@ -72,20 +72,10 @@ const FitnessBridge = () => {
     }`
 
     try {
-      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
-        body: JSON.stringify({
-          model: 'llama-3.3-70b-versatile',
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: summary },
-          ],
-          temperature: 0.7,
-          response_format: { type: 'json_object' }
-        })
-      })
-      const data = await response.json()
+      const data = await generateLlmResponse([
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: summary },
+      ], true)
       const parsed = JSON.parse(data?.choices?.[0]?.message?.content || '{}')
       if (parsed.verdict) {
         const result = { ...parsed, date: new Date().toISOString() }

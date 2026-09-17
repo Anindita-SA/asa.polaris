@@ -69,9 +69,17 @@ export async function getBestGroqModel(apiKey) {
   }
 }
 
-export async function generateLlmResponse(prompt, asJson = true, maxTokens = 1024) {
+export async function generateLlmResponse(promptOrMessages, asJson = true, maxTokens = 1024, systemPrompt = null) {
   const groqApiKey = getGroqKey();
   
+  let messages = [];
+  if (Array.isArray(promptOrMessages)) {
+    messages = promptOrMessages;
+  } else {
+    if (systemPrompt) messages.push({ role: 'system', content: systemPrompt });
+    messages.push({ role: 'user', content: promptOrMessages });
+  }
+
   // Try Groq First
   if (groqApiKey) {
     try {
@@ -81,7 +89,7 @@ export async function generateLlmResponse(prompt, asJson = true, maxTokens = 102
         headers: { 'Authorization': 'Bearer ' + groqApiKey, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: dynamicModel,
-          messages: [{ role: 'user', content: prompt }],
+          messages: messages,
           response_format: asJson ? { type: 'json_object' } : undefined,
           reasoning_effort: 'none',
           reasoning_format: 'hidden',
@@ -102,10 +110,16 @@ export async function generateLlmResponse(prompt, asJson = true, maxTokens = 102
   const geminiApiKey = getGeminiKey();
   if (geminiApiKey) {
     try {
-      // User explicitly asked for gemini-3.6-flash fallback
-      const model = 'gemini-3.6-flash';
+      // Map OpenAI messages format to Gemini format
+      const geminiContents = messages.map(msg => ({
+        role: msg.role === 'user' ? 'user' : (msg.role === 'assistant' ? 'model' : 'user'),
+        parts: [{ text: msg.content }]
+      }));
+      // Note: Gemini has system_instruction, but for simplicity here we just pass it as a user message if it was system
+      
+      const model = 'gemini-3.7-flash';
       const geminiPayload = {
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        contents: geminiContents,
         generationConfig: {
           responseMimeType: asJson ? "application/json" : "text/plain",
           maxOutputTokens: maxTokens

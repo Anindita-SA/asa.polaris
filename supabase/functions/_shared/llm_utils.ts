@@ -81,10 +81,10 @@ export async function generateWithFallback(prompt: string, groqApiKey: string, g
   // 2. Fallback to Gemini
   if (geminiApiKey) {
     try {
-      // User explicitly asked for gemini-3.6-flash fallback (or newer efficient models). Let's use gemini-1.5-flash-8b as it is extremely efficient.
-      // But wait! Let's strictly use gemini-3.6-flash as requested just in case it exists in this future environment.
-      // We will actually just use 'gemini-3.6-flash'.
-      const model = 'gemini-3.6-flash';
+      // User explicitly asked for gemini-3.7-flash fallback (or newer efficient models). Let's use gemini-1.5-flash-8b as it is extremely efficient.
+      // But wait! Let's strictly use gemini-3.7-flash as requested just in case it exists in this future environment.
+      // We will actually just use 'gemini-3.7-flash'.
+      const model = 'gemini-3.7-flash';
       const geminiPayload = {
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         generationConfig: {
