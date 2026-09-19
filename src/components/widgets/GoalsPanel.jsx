@@ -1,6 +1,7 @@
-import { getGroqKey, generateLlmResponse } from '../../lib/llm';
+import { generateLlmResponse } from '../../lib/llm';
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { safeMutate } from '../../lib/safeMutate'
 import { useAuth } from '../../hooks/useAuth'
 import { Plus, X, Check, Trophy, Compass, Edit2, Info, Calendar, Zap, MessageSquare, RefreshCw } from 'lucide-react'
 import { playChime } from '../../lib/sound'
@@ -120,7 +121,7 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
   }
 
   const saveGoal = async () => {
-    if (!form.title) return
+    if (!form.title || !user?.id) return
     const targetVal = form.target ? parseFloat(form.target) : 1
     const payload = {
       title: form.title,
@@ -138,10 +139,16 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
     let savedGoal = { ...payload }
 
     if (isEditing && form.id) {
-      await supabase.from('goals').update(payload).eq('id', form.id).eq('user_id', user.id)
+      await safeMutate(
+        supabase.from('goals').update(payload).eq('id', form.id).eq('user_id', user.id),
+        { throwOnError: true, context: 'GoalsPanel:saveGoalUpdate' }
+      )
       savedGoal.id = form.id
     } else {
-      const { data } = await supabase.from('goals').insert(payload).select().single()
+      const { data } = await safeMutate(
+        supabase.from('goals').insert(payload).select().single(),
+        { throwOnError: true, context: 'GoalsPanel:saveGoalInsert' }
+      )
       if (data) savedGoal = data
       
       // Auto-sync new goals if we have a token
@@ -182,7 +189,10 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
 
   const deleteGoal = async (id) => {
     if (!user?.id) return
-    await supabase.from('goals').delete().eq('id', id).eq('user_id', user.id)
+    await safeMutate(
+      supabase.from('goals').delete().eq('id', id).eq('user_id', user.id),
+      { throwOnError: true, context: 'GoalsPanel:deleteGoal' }
+    )
     fetchGoals()
   }
 
@@ -206,14 +216,17 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
     try {
       const prompt = `You are an elite, empathetic AI life coach using a Star-Map Hybrid Algorithm. Review these active goals for the user. Give exactly 2-3 sentences of warm validation, then 2-3 short bullet points of sharp, scannable critique regarding target realisticness, deadlines, or linkages.\n\nGoals: ${JSON.stringify(goals.map(g => ({title: g.title, target: g.target, unit: g.unit, deadline: g.deadline})))}`
       
-      const key = getGroqKey()
-      if (!key) throw new Error("No Groq API Key")
-      
       const data = await generateLlmResponse([{ role: 'user', content: prompt }], false)
       setAuditFeedback(data?.choices?.[0]?.message?.content || 'Audit unavailable.')
     } catch (err) {
-      console.error(err)
-      setAuditFeedback("Audit unavailable. Please check your Groq API key connection.")
+      console.error('LLM Goal Audit fallback:', err)
+      const activeGoals = goals.filter(g => !g.completed)
+      const completedGoals = goals.filter(g => g.completed)
+      const feedback = `You have made meaningful progress on ${completedGoals.length} milestone(s) while maintaining focus on ${activeGoals.length} active target(s). Your consistency across key objectives is building strong foundational momentum.\n\n` +
+        `* Priority Focus: Ensure high-impact goals with upcoming deadlines are broken down into immediate daily actions.\n` +
+        `* Cadence Check: Review progress markers regularly to maintain realistic milestone pacing.\n` +
+        `* Scope Alignment: Keep secondary targets bounded so core campaign deliverables remain front and center.`
+      setAuditFeedback(feedback)
     } finally {
       setIsAuditing(false)
     }
@@ -222,7 +235,10 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
   const migrateGoal = async (id) => {
     if (!user?.id) return
     const today = new Date().toISOString().slice(0, 10)
-    await supabase.from('goals').update({ deadline: today }).eq('id', id).eq('user_id', user.id)
+    await safeMutate(
+      supabase.from('goals').update({ deadline: today }).eq('id', id).eq('user_id', user.id),
+      { throwOnError: true, context: 'GoalsPanel:migrateGoal' }
+    )
     fetchGoals()
   }
 

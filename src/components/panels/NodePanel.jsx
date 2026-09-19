@@ -1,8 +1,10 @@
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
+import { safeMutate } from '../../lib/safeMutate'
 import { useAuth } from '../../hooks/useAuth'
 import { X, Target, Flag, Plus, Check, Zap, ChevronRight, ChevronDown, Pencil, Trash2 } from 'lucide-react'
 import { XP } from '../../data/xpRewards'
+import { generateLlmResponse } from '../../lib/llm'
 
 // ─── Colours ────────────────────────────────────────────────────────────────
 const TYPE_META = {
@@ -80,13 +82,19 @@ const NodePanel = ({ node, onClose, onRefreshGraph }) => {
 
   // ── Node edits ──────────────────────────────────────────────────────────────
   const updateNodeField = async (field, value) => {
-    await supabase.from('nodes').update({ [field]: value }).eq('id', node.id)
+    await safeMutate(
+      supabase.from('nodes').update({ [field]: value }).eq('id', node.id).eq('user_id', user.id),
+      { throwOnError: true, context: 'NodePanel:updateNodeField' }
+    )
     onRefreshGraph && onRefreshGraph()
   }
 
   const deleteNode = async (id) => {
     if (!confirm('Delete this node and all its children? This cannot be undone.')) return
-    await supabase.from('nodes').delete().eq('id', id)
+    await safeMutate(
+      supabase.from('nodes').delete().eq('id', id).eq('user_id', user.id),
+      { throwOnError: true, context: 'NodePanel:deleteNode' }
+    )
     onRefreshGraph && onRefreshGraph()
     fetchAll()
   }
@@ -95,14 +103,17 @@ const NodePanel = ({ node, onClose, onRefreshGraph }) => {
   const addChild = async () => {
     if (!newChildTitle.trim() || !addingChild) return
     const { parentId, level } = addingChild
-    await supabase.from('nodes').insert({
-      user_id: user.id,
-      title: newChildTitle.trim(),
-      type: level,          // 'subnode' or 'topic'
-      parent_id: parentId,
-      x_pos: 0.4 + Math.random() * 0.2,
-      y_pos: 0.4 + Math.random() * 0.2,
-    })
+    await safeMutate(
+      supabase.from('nodes').insert({
+        user_id: user.id,
+        title: newChildTitle.trim(),
+        type: level,          // 'subnode' or 'topic'
+        parent_id: parentId,
+        x_pos: 0.4 + Math.random() * 0.2,
+        y_pos: 0.4 + Math.random() * 0.2,
+      }),
+      { throwOnError: true, context: 'NodePanel:addChild' }
+    )
     setNewChildTitle('')
     setAddingChild(null)
     onRefreshGraph && onRefreshGraph()
@@ -112,7 +123,10 @@ const NodePanel = ({ node, onClose, onRefreshGraph }) => {
   // ── Goals ───────────────────────────────────────────────────────────────────
   const addGoal = async () => {
     if (!newGoal.title || !newGoal.target) return
-    await supabase.from('goals').insert({ ...newGoal, node_id: node.id, user_id: user.id, target: parseFloat(newGoal.target) })
+    await safeMutate(
+      supabase.from('goals').insert({ ...newGoal, node_id: node.id, user_id: user.id, target: parseFloat(newGoal.target) }),
+      { throwOnError: true, context: 'NodePanel:addGoal' }
+    )
     setNewGoal({ title: '', scope: 'weekly', target: '', unit: '' })
     setAddingGoal(false)
     fetchAll()
@@ -121,14 +135,20 @@ const NodePanel = ({ node, onClose, onRefreshGraph }) => {
   const incrementGoal = async (goal) => {
     const newCurrent = Math.min(goal.current + 1, goal.target)
     const completed = newCurrent >= goal.target
-    await supabase.from('goals').update({ current: newCurrent, completed }).eq('id', goal.id)
+    await safeMutate(
+      supabase.from('goals').update({ current: newCurrent, completed }).eq('id', goal.id).eq('user_id', user.id),
+      { throwOnError: true, context: 'NodePanel:incrementGoal' }
+    )
     if (completed && !goal.completed) await addXP(goal.xp_reward || XP.GOAL_COMPLETE)
     fetchAll()
   }
 
   // ── Milestones ──────────────────────────────────────────────────────────────
   const completeMilestone = async (ms) => {
-    await supabase.from('milestones').update({ status: 'done' }).eq('id', ms.id)
+    await safeMutate(
+      supabase.from('milestones').update({ status: 'done' }).eq('id', ms.id).eq('user_id', user.id),
+      { throwOnError: true, context: 'NodePanel:completeMilestone' }
+    )
     await addXP(ms.xp_reward || XP.MILESTONE_COMPLETE)
     fetchAll()
   }
@@ -143,38 +163,62 @@ const NodePanel = ({ node, onClose, onRefreshGraph }) => {
 
   // ── AI Task breakdown ───────────────────────────────────────────────────────
   const breakDownTask = async () => {
-    const key = import.meta.env.VITE_ANTHROPIC_API_KEY
-    if (!key || !taskDescription.trim()) return
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514', max_tokens: 1000,
-        system: 'Return ONLY a JSON array of 5-10 short actionable steps. No markdown.',
-        messages: [{ role: 'user', content: taskDescription }],
-      }),
-    })
-    const data = await res.json()
-    try { setGeneratedSteps(JSON.parse(data?.content?.[0]?.text || '[]')) } catch { setGeneratedSteps([]) }
+    if (!taskDescription.trim()) return
+    const systemPrompt = 'You are a task breakdown assistant. Given a project or task, return ONLY a valid JSON object with a single key "steps" containing an array of 5-8 short, specific, actionable steps. Example: { "steps": ["step 1", "step 2"] }'
+    try {
+      const data = await generateLlmResponse([
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: taskDescription.trim() }
+      ], true, 1024)
+      const text = data?.choices?.[0]?.message?.content || '{"steps":[]}'
+      const parsed = JSON.parse(text)
+      const steps = Array.isArray(parsed.steps) ? parsed.steps : (Array.isArray(parsed) ? parsed : Object.values(parsed)[0] || [])
+      setGeneratedSteps(steps.length ? steps : [
+        `Open workspace and define requirements for ${taskDescription.trim()}`,
+        `Gather necessary research materials and tools`,
+        `Create initial structural draft or skeleton`,
+        `Implement core solution and deliverables`,
+        `Review and verify against quality criteria`
+      ])
+    } catch (e) {
+      console.warn('AI breakdown failed, applying heuristic fallback:', e)
+      setGeneratedSteps([
+        `Open workspace and define requirements for ${taskDescription.trim()}`,
+        `Gather necessary research materials and tools`,
+        `Create initial structural draft or skeleton`,
+        `Implement core solution and deliverables`,
+        `Review and verify against quality criteria`
+      ])
+    }
   }
 
   const saveSubtasks = async () => {
-    await supabase.from('tasks').insert(generatedSteps.map((title) => ({
-      id: crypto.randomUUID(),
-      user_id: user.id,
-      parent_task_id: node.id,
-      title,
-      status: 'active',
-      quadrant: 'important_not_urgent',
-      category: 'academic',
-      created_at: new Date().toISOString(),
-    })))
+    await safeMutate(
+      supabase.from('tasks').insert(generatedSteps.map((title) => ({
+        id: crypto.randomUUID(),
+        user_id: user.id,
+        parent_task_id: node.id,
+        title,
+        status: 'active',
+        quadrant: 'important_not_urgent',
+        category: 'academic',
+        estimated_minutes: 20,
+        time_estimate_minutes: 20,
+        mental_load: 'medium',
+        estimate_source: 'ai',
+        created_at: new Date().toISOString(),
+      }))),
+      { throwOnError: true, context: 'NodePanel:saveSubtasks' }
+    )
     setShowBreakdown(false); setGeneratedSteps([]); setTaskDescription(''); fetchAll()
   }
 
   const toggleSubtask = async (task) => {
     const nextStatus = task.status === 'done' ? 'active' : 'done'
-    await supabase.from('tasks').update({ status: nextStatus }).eq('id', task.id).eq('user_id', user.id)
+    await safeMutate(
+      supabase.from('tasks').update({ status: nextStatus }).eq('id', task.id).eq('user_id', user.id),
+      { throwOnError: true, context: 'NodePanel:toggleSubtask' }
+    )
     fetchAll()
   }
 
@@ -241,7 +285,14 @@ const NodePanel = ({ node, onClose, onRefreshGraph }) => {
                     </button>
                     <div className={`w-2 h-2 rounded-full flex-shrink-0 ${meta('subnode').dot}`} />
                     <InlineEdit value={sub.title} className="text-xs text-starlight flex-1 min-w-0"
-                      onSave={async v => { await supabase.from('nodes').update({ title: v }).eq('id', sub.id); fetchAll(); onRefreshGraph && onRefreshGraph() }} />
+                      onSave={async v => {
+                        await safeMutate(
+                          supabase.from('nodes').update({ title: v }).eq('id', sub.id).eq('user_id', user.id),
+                          { throwOnError: true, context: 'NodePanel:updateSubnodeTitle' }
+                        )
+                        fetchAll()
+                        onRefreshGraph && onRefreshGraph()
+                      }} />
                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
                       <button onClick={() => setAddingChild({ parentId: sub.id, level: 'topic' })}
                         className="text-nova/60 hover:text-nova p-0.5"><Plus className="w-3 h-3" /></button>
@@ -266,7 +317,14 @@ const NodePanel = ({ node, onClose, onRefreshGraph }) => {
                     <div key={topic.id} className="flex items-center gap-2 group ml-6 py-0.5 px-2 rounded-lg hover:bg-pulsar/10">
                       <div className="w-1.5 h-1.5 rounded-full bg-stardust/50 flex-shrink-0 ml-0.5" />
                       <InlineEdit value={topic.title} className="text-xs text-nova/60 flex-1 min-w-0"
-                        onSave={async v => { await supabase.from('nodes').update({ title: v }).eq('id', topic.id); fetchAll(); onRefreshGraph && onRefreshGraph() }} />
+                        onSave={async v => {
+                          await safeMutate(
+                            supabase.from('nodes').update({ title: v }).eq('id', topic.id).eq('user_id', user.id),
+                            { throwOnError: true, context: 'NodePanel:updateTopicTitle' }
+                          )
+                          fetchAll()
+                          onRefreshGraph && onRefreshGraph()
+                        }} />
                       <button onClick={() => deleteNode(topic.id)}
                         className="text-nova/60 hover:text-danger p-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
                         <Trash2 className="w-2.5 h-2.5" />
@@ -281,7 +339,14 @@ const NodePanel = ({ node, onClose, onRefreshGraph }) => {
                 <div key={topic.id} className="flex items-center gap-2 group py-0.5 px-2 rounded-lg hover:bg-pulsar/10">
                   <div className="w-1.5 h-1.5 rounded-full bg-stardust/50 flex-shrink-0 ml-1" />
                   <InlineEdit value={topic.title} className="text-xs text-nova/60 flex-1 min-w-0"
-                    onSave={async v => { await supabase.from('nodes').update({ title: v }).eq('id', topic.id); fetchAll(); onRefreshGraph && onRefreshGraph() }} />
+                    onSave={async v => {
+                      await safeMutate(
+                        supabase.from('nodes').update({ title: v }).eq('id', topic.id).eq('user_id', user.id),
+                        { throwOnError: true, context: 'NodePanel:updateDirectTopicTitle' }
+                      )
+                      fetchAll()
+                      onRefreshGraph && onRefreshGraph()
+                    }} />
                   <button onClick={() => deleteNode(topic.id)}
                     className="text-nova/60 hover:text-danger p-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
                     <Trash2 className="w-2.5 h-2.5" />

@@ -10,16 +10,29 @@ const __dirname = path.dirname(__filename);
 
 // Configuration
 export const config = {
-  groqApiKey: process.env.GROQ_API_KEY || process.env.VITE_GROQ_API_KEY
+  groqApiKey: process.env.GROQ_API_KEY || process.env.VITE_GROQ_API_KEY || null,
+  geminiApiKey: process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || null
 };
 
 /**
  * Validates environment variables.
  */
 export function validateEnvironment(cfg = config) {
-  if (!cfg.groqApiKey) {
-    throw new Error("Missing required environment variable GROQ_API_KEY.");
+  if (!cfg.groqApiKey && !cfg.geminiApiKey) {
+    throw new Error("Missing required environment variable (GROQ_API_KEY or GEMINI_API_KEY).");
   }
+}
+
+/**
+ * Heuristic side quest task generator (Tier 3 fallback).
+ */
+export function generateHeuristicSideQuestTasks(quests = []) {
+  const chosen = quests.slice(0, 2);
+  return chosen.map(q => ({
+    title: `Progress on: ${q.replace(/^#+\s*/, '').slice(0, 80)}`,
+    notes: `Active side quest from curriculum: ${q}`,
+    estimated_minutes: 45
+  }));
 }
 
 /**
@@ -60,10 +73,17 @@ Schema for each task object:
 
 Generate the JSON array now:`;
 
-  const geminiApiKey = process.env.GEMINI_API_KEY || null;
-  if (!groqApiKey && !geminiApiKey) throw new Error("No LLM API keys configured");
-  
-  return await generateWithFallbackNode(prompt, groqApiKey, geminiApiKey, false);
+  const geminiApiKey = config.geminiApiKey;
+  try {
+    if (groqApiKey || geminiApiKey) {
+      const response = await generateWithFallbackNode(prompt, groqApiKey, geminiApiKey, false);
+      if (response) return response;
+    }
+  } catch (err) {
+    console.warn("AI generation failed in side quests, applying heuristic fallback:", err.message || err);
+  }
+
+  return JSON.stringify(generateHeuristicSideQuestTasks(quests));
 }
 
 /**

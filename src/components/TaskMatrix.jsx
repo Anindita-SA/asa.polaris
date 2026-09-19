@@ -2,7 +2,53 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { offlineSelect, offlineInsert, offlineUpdate, offlineDelete } from '../lib/offlineApi';
-import { getGroqKey, generateLlmResponse } from '../lib/llm';
+import { generateLlmResponse } from '../lib/llm';
+
+function estimateDurationHeuristic(title) {
+  const t = (title || '').toLowerCase();
+  const minMatch = t.match(/(\d+)\s*(?:m|min|mins|minutes)\b/);
+  const hrMatch = t.match(/(\d+(?:\.\d+)?)\s*(?:h|hr|hrs|hours)\b/);
+
+  let explicitMinutes = null;
+  if (minMatch) {
+    explicitMinutes = Math.min(240, Math.max(5, parseInt(minMatch[1], 10)));
+  } else if (hrMatch) {
+    explicitMinutes = Math.min(240, Math.max(5, Math.round(parseFloat(hrMatch[1]) * 60)));
+  }
+
+  // High Load (45-60m)
+  if (/(code|write|build|design|derive|simulate|implement|architect|pcb|hardware|math|proof|sop)\b/i.test(t)) {
+    return {
+      minutes: explicitMinutes || 45,
+      mentalLoad: 'high',
+      taskType: 'output'
+    };
+  }
+
+  // Medium Load (30-40m)
+  if (/(draft|outline|email|reach out|fill|plan|submit|apply|test|debug|solve|practice|prep)\b/i.test(t)) {
+    return {
+      minutes: explicitMinutes || 30,
+      mentalLoad: 'medium',
+      taskType: 'output'
+    };
+  }
+
+  // Low Load (20-25m)
+  if (/(read|research|survey|review|explore|watch|listen|skim|browse|check|organize|tag|clean|request)\b/i.test(t)) {
+    return {
+      minutes: explicitMinutes || 20,
+      mentalLoad: 'low',
+      taskType: /(read|research|survey|explore|watch|listen|skim|browse)/i.test(t) ? 'input' : 'output'
+    };
+  }
+
+  return {
+    minutes: explicitMinutes || 30,
+    mentalLoad: 'medium',
+    taskType: 'output'
+  };
+}
 import { 
   Plus, 
   Sparkles, 
@@ -288,47 +334,66 @@ export default function TaskMatrix() {
   const estimateTimeWithAI = async (task) => {
     setEstimatingId(task.id);
     try {
-      const key = getGroqKey();
-      if (!key) {
-        setEstimatingId(null);
-        return;
-      }
-
-      const prompt = `You are a pragmatic, realistic time-management coach. Estimate the duration in minutes for the following task. You MUST account for context-switching, setup, and transition overhead (not just raw focused execution time).
+      const prompt = `You are a pragmatic, realistic time-management coach. Estimate the duration in minutes and mental load ("low", "medium", "high") for the following task. You MUST account for context-switching, setup, and transition overhead (not just raw focused execution time).
 
 Task Title: ${JSON.stringify(task.title || '')}
 Task Notes: ${JSON.stringify(task.notes || 'None')}
 
-Return ONLY a single valid JSON object in this exact format: {"minutes": 45}. Do not add any commentary or markdown around it.`;
+Return ONLY a single valid JSON object in this exact format: {"minutes": 45, "mental_load": "medium"}. Do not add any commentary or markdown around it.`;
 
-      const data = await generateLlmResponse([{ role: 'user', content: prompt }], true);
-      if (!data?.choices?.length) throw new Error(data?.error?.message || 'Invalid AI response');
-      let mins = 30; // sensible fallback
+      let mins = null;
+      let mentalLoad = null;
+      let estimateSource = 'ai';
       try {
-        const parsed = JSON.parse(data.choices[0].message.content);
+        const data = await generateLlmResponse([{ role: 'user', content: prompt }], true);
+        const raw = data?.choices?.[0]?.message?.content || '{}';
+        let parsed = {};
+        try {
+          parsed = JSON.parse(raw);
+        } catch (pErr) {
+          const match = raw.match(/\{[\s\S]*\}/);
+          if (match) parsed = JSON.parse(match[0]);
+        }
         if (parsed && typeof parsed.minutes === 'number') {
           mins = Math.max(5, Math.round(parsed.minutes));
+        } else {
+          const numMatch = raw.match(/\d+/);
+          if (numMatch) mins = Math.max(5, parseInt(numMatch[0], 10));
         }
-      } catch (e) {
-        const match = data.choices[0]?.message?.content?.match(/\d+/);
-        if (match) mins = parseInt(match[0], 10);
+        if (['low', 'medium', 'high'].includes(parsed?.mental_load)) {
+          mentalLoad = parsed.mental_load;
+        }
+      } catch (llmErr) {
+        console.error('LLM estimation error, falling back to heuristic:', llmErr);
+      }
+
+      if (!mins) {
+        const heuristic = estimateDurationHeuristic(task.title);
+        mins = heuristic.minutes;
+        mentalLoad = heuristic.mentalLoad;
+        estimateSource = 'heuristic';
       }
 
       // Save to Supabase
-      const { error } = await offlineUpdate('tasks', { id: task.id }, { estimated_minutes: mins, estimate_source: 'ai' });
+      const updatePayload = {
+        estimated_minutes: mins,
+        time_estimate_minutes: mins,
+        mental_load: mentalLoad || 'medium',
+        estimate_source: estimateSource
+      };
+      const { error } = await offlineUpdate('tasks', { id: task.id }, updatePayload);
 
       if (error) throw error;
 
       setTasks((prev) =>
         prev.map((t) =>
           t.id === task.id
-            ? { ...t, estimated_minutes: mins, estimate_source: 'ai' }
+            ? { ...t, ...updatePayload }
             : t
         )
       );
     } catch (err) {
       console.error('AI Estimation Error:', err);
-      alert('Could not generate estimate. Check network connection or API key.');
     } finally {
       setEstimatingId(null);
     }

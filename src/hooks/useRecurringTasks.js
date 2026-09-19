@@ -64,6 +64,23 @@ export function useRecurringTasks() {
               await offlineUpdate('tasks', { id: openTask.id }, { source_template_id: template.id })
             }
             if (!template.last_generated_date || template.last_generated_date < today) {
+              const childSubtasks = allTasks.filter(t => t.parent_task_id === openTask.id)
+              for (const sub of childSubtasks) {
+                if (sub.status === 'done') {
+                  const subPastDates = Array.isArray(sub.completion_dates) ? sub.completion_dates : []
+                  const dateCompleted = sub.deadline || template.last_generated_date || today
+                  const subPayload = {
+                    status: 'active',
+                    deadline: today,
+                    completion_count: (sub.completion_count || 0) + 1,
+                    completion_dates: subPastDates.includes(dateCompleted) ? subPastDates : [...subPastDates, dateCompleted]
+                  }
+                  const { error: subErr } = await offlineUpdate('tasks', { id: sub.id }, subPayload)
+                  if (subErr) console.error('Error resetting child subtask:', sub.id, subErr)
+                  count += 1
+                }
+              }
+
               const { error: updateError } = await offlineUpdate('recurring_task_templates', { id: template.id }, { last_generated_date: today })
               if (updateError) {
                 console.error('Error updating recurring template last_generated_date:', template.id, updateError)

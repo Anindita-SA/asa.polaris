@@ -1,94 +1,144 @@
+function cleanLlmContent(text, asJson = false) {
+  if (!text) return '';
+  let cleaned = text.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+  if (asJson) {
+    if (cleaned.startsWith('```json')) {
+      cleaned = cleaned.replace(/^```json\s*/i, '').replace(/\s*```$/, '').trim();
+    } else if (cleaned.startsWith('```')) {
+      cleaned = cleaned.replace(/^```\s*/, '').replace(/\s*```$/, '').trim();
+    }
+  }
+  return cleaned;
+}
+
 export async function getBestGroqModel(apiKey) {
+  const fallback = 'llama-3.3-70b-versatile';
+  if (!apiKey) return fallback;
+
   try {
     const res = await fetch('https://api.groq.com/openai/v1/models', {
       headers: { 'Authorization': 'Bearer ' + apiKey }
     });
-    
+
     if (!res.ok) {
-      return 'llama-3.1-70b-versatile'; // fallback
+      return fallback;
     }
 
     const json = await res.json();
-    const availableModels = json.data.map(m => m.id);
+    const availableModels = (json.data || []).map(m => m.id);
+
+    const excludeRegex = /whisper|guard|prompt-guard|safeguard|embed|bge|vision|rerank|orpheus|allam|compound/i;
+    const filteredModels = availableModels.filter(id => !excludeRegex.test(id));
 
     const priorities = [
-      'openai/gpt-oss-120b',
-      'groq/compound',
       'llama-3.3-70b-versatile',
+      'llama-3.1-8b-instant',
       'llama-3.1-70b-versatile',
-      'llama3-70b-8192',
-      'mixtral-8x7b-32768',
-      'qwen-2.5-32b'
+      'llama3-70b-8192'
     ];
 
     for (const prefix of priorities) {
-      const match = availableModels.find(m => m.includes(prefix));
+      const match = filteredModels.find(m => m.includes(prefix) || m === prefix);
       if (match) {
         return match;
       }
     }
 
-    const textModels = availableModels.filter(m => !m.includes('whisper') && !m.includes('guard'));
-    return textModels[0] || 'llama-3.1-70b-versatile';
+    return filteredModels[0] || fallback;
   } catch (err) {
-    return 'llama-3.1-70b-versatile';
+    return fallback;
   }
 }
 
-export async function generateWithFallbackNode(prompt, groqApiKey, geminiApiKey, asJson = false) {
-  // Try Groq First
-  if (groqApiKey) {
+export async function generateWithFallbackNode(prompt, groqApiKey = null, geminiApiKey = null, asJson = false) {
+  const finalGroqKey = groqApiKey || (typeof process !== 'undefined' ? (process.env.GROQ_API_KEY || process.env.VITE_GROQ_API_KEY) : null);
+  const finalGeminiKey = geminiApiKey || (typeof process !== 'undefined' ? (process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY) : null);
+
+  // 1. Try Groq with 2-model candidate list and 6s timeout
+  if (finalGroqKey) {
+    let topModel = 'llama-3.3-70b-versatile';
     try {
-      const dynamicModel = await getBestGroqModel(groqApiKey);
-      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: { 'Authorization': 'Bearer ' + groqApiKey, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: dynamicModel,
-          messages: [{ role: 'user', content: prompt }],
-          response_format: asJson ? { type: 'json_object' } : undefined,
-          reasoning_effort: 'none',
-          reasoning_format: 'hidden',
-          max_tokens: 2048,
-          temperature: 0.7
-        })
-      });
-      
-      if (res.ok) {
-        const groqData = await res.json();
-        return groqData.choices[0].message.content.trim();
+      topModel = await getBestGroqModel(finalGroqKey);
+    } catch (e) {
+      topModel = 'llama-3.3-70b-versatile';
+    }
+
+    const groqCandidates = Array.from(new Set([
+      topModel,
+      'llama-3.3-70b-versatile',
+      'llama-3.1-8b-instant'
+    ])).slice(0, 2);
+
+    for (const candidate of groqCandidates) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
+      try {
+        const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + finalGroqKey, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: candidate,
+            messages: [{ role: 'user', content: prompt }],
+            response_format: asJson ? { type: 'json_object' } : undefined,
+            max_tokens: 2048,
+            temperature: 0.7
+          }),
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        if (res.ok) {
+          const groqData = await res.json();
+          const content = groqData.choices?.[0]?.message?.content;
+          if (content) {
+            return cleanLlmContent(content, asJson);
+          }
+        } else {
+          console.warn(`Groq candidate ${candidate} failed:`, res.status, await res.text());
+        }
+      } catch (err) {
+        clearTimeout(timeoutId);
+        console.error(`Groq error on ${candidate}:`, err);
       }
-      console.warn("Groq script failed:", res.status, await res.text());
-    } catch (err) {
-      console.error('Groq script error:', err);
     }
   }
 
-  // Fallback to Gemini
-  if (geminiApiKey) {
-    try {
-      const model = 'gemini-3.7-flash';
-      const geminiPayload = {
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: {
-          responseMimeType: asJson ? "application/json" : "text/plain",
-          maxOutputTokens: 2048
+  // 2. Fallback to Gemini cascade (gemini-3.7-flash -> gemini-3.5-flash with 8s timeout)
+  if (finalGeminiKey) {
+    const geminiModels = ['gemini-3.7-flash', 'gemini-3.5-flash'];
+    for (const model of geminiModels) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      try {
+        const geminiPayload = {
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          generationConfig: {
+            responseMimeType: asJson ? "application/json" : "text/plain",
+            maxOutputTokens: 2048
+          }
+        };
+
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${finalGeminiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(geminiPayload),
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        if (res.ok) {
+          const data = await res.json();
+          const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (content) {
+            return cleanLlmContent(content, asJson);
+          }
+        } else {
+          console.warn(`Gemini candidate ${model} fallback failed:`, res.status, await res.text());
         }
-      };
-      
-      const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent?key=' + geminiApiKey, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(geminiPayload)
-      });
-      
-      if (res.ok) {
-        const data = await res.json();
-        return data.candidates?.[0]?.content?.parts?.[0]?.text;
+      } catch (err) {
+        clearTimeout(timeoutId);
+        console.error(`Gemini error on ${model}:`, err);
       }
-      console.warn("Gemini script fallback failed:", res.status, await res.text());
-    } catch (err) {
-      console.error('Gemini script error:', err);
     }
   }
 

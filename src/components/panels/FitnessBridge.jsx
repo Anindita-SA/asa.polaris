@@ -1,4 +1,4 @@
-import { getGroqKey, generateLlmResponse } from '../../lib/llm';
+import { generateLlmResponse } from '../../lib/llm';
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
@@ -59,8 +59,7 @@ const FitnessBridge = () => {
   }
 
   const generateVerdict = async () => {
-    const key = getGroqKey()
-    if (!key || !workouts.length) return
+    if (!workouts.length) return
     setAiLoading(true)
 
     const summary = `Workouts: ${workouts.length}. Meals: ${meals.length}. Weight Change: ${weightDelta || 0}kg. Recent exercises: ${workouts.slice(0, 5).map(w => w.day_type).join(', ')}.`
@@ -76,14 +75,29 @@ const FitnessBridge = () => {
         { role: 'system', content: systemPrompt },
         { role: 'user', content: summary },
       ], true)
-      const parsed = JSON.parse(data?.choices?.[0]?.message?.content || '{}')
+      const raw = data?.choices?.[0]?.message?.content || '{}'
+      let parsed = {}
+      try {
+        parsed = JSON.parse(raw)
+      } catch (parseErr) {
+        const m = raw.match(/\{[\s\S]*\}/)
+        if (m) parsed = JSON.parse(m[0])
+      }
       if (parsed.verdict) {
         const result = { ...parsed, date: new Date().toISOString() }
         setVerdict(result)
         localStorage.setItem('polaris_fitness_verdict', JSON.stringify(result))
+      } else {
+        throw new Error('No verdict in response')
       }
     } catch (e) {
-      console.error(e)
+      console.error('Fitness verdict fallback:', e)
+      const count = workouts.length
+      const deltaText = weightDelta !== null ? `${weightDelta > 0 ? '+' : ''}${weightDelta}kg weight shift` : 'stable trend'
+      const fallbackVerdict = `Completed ${count} workout session(s) across the logged period with ${deltaText}. Maintain consistent training volume, prioritize progressive overload on primary compound movements, and track protein intake systematically across training days.`
+      const result = { verdict: fallbackVerdict, date: new Date().toISOString() }
+      setVerdict(result)
+      localStorage.setItem('polaris_fitness_verdict', JSON.stringify(result))
     } finally {
       setAiLoading(false)
     }

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from './useAuth'
 import { supabase } from '../lib/supabase'
+import { safeMutate } from '../lib/safeMutate'
 
 export function useGoogleCalendarSync() {
   const { user, providerToken } = useAuth()
@@ -104,21 +105,24 @@ export function useGoogleCalendarSync() {
 
             if (!startTime || !endTime) continue
 
-            await supabase.from('calendar_events').upsert({
-              user_id: user.id,
-              gcal_event_id: item.id,
-              summary: item.summary || '(No title)',
-              description: item.description || '',
-              start_time: new Date(startTime).toISOString(),
-              end_time: new Date(endTime).toISOString(),
-              is_all_day: isAllDay,
-              color_id: item.colorId || cal.colorId || null,
-              location: cal.summary ? `[${cal.summary}] ${item.location || ''}` : item.location || null,
-              source: 'gcal',
-              status: 'confirmed',
-              raw_payload: { ...item, calendar_name: cal.summary },
-              updated_at: new Date().toISOString()
-            }, { onConflict: 'user_id,gcal_event_id' })
+            await safeMutate(
+              supabase.from('calendar_events').upsert({
+                user_id: user.id,
+                gcal_event_id: item.id,
+                summary: item.summary || '(No title)',
+                description: item.description || '',
+                start_time: new Date(startTime).toISOString(),
+                end_time: new Date(endTime).toISOString(),
+                is_all_day: isAllDay,
+                color_id: item.colorId || cal.colorId || null,
+                location: cal.summary ? `[${cal.summary}] ${item.location || ''}` : item.location || null,
+                source: 'gcal',
+                status: 'confirmed',
+                raw_payload: { ...item, calendar_name: cal.summary },
+                updated_at: new Date().toISOString()
+              }, { onConflict: 'user_id,gcal_event_id' }),
+              { throwOnError: true, context: 'useGoogleCalendarSync:upsertEvent' }
+            )
           }
         } catch (calErr) {
           console.warn(`Failed to sync calendar ${cal.summary}:`, calErr)
@@ -178,12 +182,15 @@ export function useGoogleCalendarSync() {
     const rawIcs = icsLines.join('\r\n')
 
     // Insert into Supabase calendar_backups
-    await supabase.from('calendar_backups').insert({
-      user_id: user.id,
-      snapshot_name: name,
-      event_count: events.length,
-      raw_ics_content: rawIcs
-    })
+    await safeMutate(
+      supabase.from('calendar_backups').insert({
+        user_id: user.id,
+        snapshot_name: name,
+        event_count: events.length,
+        raw_ics_content: rawIcs
+      }),
+      { throwOnError: true, context: 'useGoogleCalendarSync:createBackup' }
+    )
 
     // Trigger local download
     const blob = new Blob([rawIcs], { type: 'text/calendar;charset=utf-8' })
@@ -201,22 +208,28 @@ export function useGoogleCalendarSync() {
   // Approve a proposed event (Commit to confirmed status)
   const approveProposedEvent = async (eventId) => {
     if (!user?.id) return
-    await supabase
-      .from('calendar_events')
-      .update({ status: 'confirmed', updated_at: new Date().toISOString() })
-      .eq('id', eventId)
-      .eq('user_id', user.id)
+    await safeMutate(
+      supabase
+        .from('calendar_events')
+        .update({ status: 'confirmed', updated_at: new Date().toISOString() })
+        .eq('id', eventId)
+        .eq('user_id', user.id),
+      { throwOnError: true, context: 'useGoogleCalendarSync:approveProposedEvent' }
+    )
     await fetchSupabaseSchedule()
   }
 
   // Reject a proposed event
   const rejectProposedEvent = async (eventId) => {
     if (!user?.id) return
-    await supabase
-      .from('calendar_events')
-      .delete()
-      .eq('id', eventId)
-      .eq('user_id', user.id)
+    await safeMutate(
+      supabase
+        .from('calendar_events')
+        .delete()
+        .eq('id', eventId)
+        .eq('user_id', user.id),
+      { throwOnError: true, context: 'useGoogleCalendarSync:rejectProposedEvent' }
+    )
     await fetchSupabaseSchedule()
   }
 

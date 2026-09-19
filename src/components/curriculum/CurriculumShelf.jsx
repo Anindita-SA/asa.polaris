@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
+import { safeMutate } from '../../lib/safeMutate'
 import { useAuth } from '../../hooks/useAuth'
 import { BookOpen, Plus, Sparkles } from 'lucide-react'
 import BookSpine from './BookSpine'
@@ -59,39 +60,54 @@ const CurriculumShelf = () => {
     try {
       const catMap = {}
       for (const cat of CURRICULUM_CATEGORIES) {
-        const { data: ins } = await supabase.from('curriculum_categories').insert({
-          user_id: user.id, title: cat.title, accent_color: cat.accent_color, position: cat.position,
-        }).select('id, title').single()
+        const { data: ins } = await safeMutate(
+          supabase.from('curriculum_categories').insert({
+            user_id: user.id, title: cat.title, accent_color: cat.accent_color, position: cat.position,
+          }).select('id, title').single(),
+          { throwOnError: true, context: 'CurriculumShelf:seedCategories' }
+        )
         if (ins) catMap[ins.title] = ins.id
       }
       for (let i = 0; i < SEED_CURRICULA.length; i++) {
         const c = SEED_CURRICULA[i]
         const categoryId = catMap[c.category]
         if (!categoryId) continue
-        const { data: curr } = await supabase.from('curricula').insert({
-          user_id: user.id, category_id: categoryId, title: c.title,
-          description: c.description, estimated_hours: c.estimated_hours, position: i,
-        }).select('id').single()
+        const { data: curr } = await safeMutate(
+          supabase.from('curricula').insert({
+            user_id: user.id, category_id: categoryId, title: c.title,
+            description: c.description, estimated_hours: c.estimated_hours, position: i,
+          }).select('id').single(),
+          { throwOnError: true, context: 'CurriculumShelf:seedCurricula' }
+        )
         if (!curr?.id) continue
         if (c.topics?.length) {
-          await supabase.from('curriculum_topics').insert(
-            c.topics.map((t, idx) => ({
-              user_id: user.id, curriculum_id: curr.id, title: t.title,
-              estimated_hours: t.estimated_hours || null,
-              is_recommended_next: t.is_recommended_next || false, position: idx,
-            }))
+          await safeMutate(
+            supabase.from('curriculum_topics').insert(
+              c.topics.map((t, idx) => ({
+                user_id: user.id, curriculum_id: curr.id, title: t.title,
+                estimated_hours: t.estimated_hours || null,
+                is_recommended_next: t.is_recommended_next || false, position: idx,
+              }))
+            ),
+            { throwOnError: true, context: 'CurriculumShelf:seedTopics' }
           )
         }
         if (c.resources?.length) {
-          await supabase.from('curriculum_resources').insert(
-            c.resources.map(r => ({
-              user_id: user.id, curriculum_id: curr.id, title: r.title,
-              author: r.author || null, resource_type: r.resource_type || 'book', url: r.url || null,
-            }))
+          await safeMutate(
+            supabase.from('curriculum_resources').insert(
+              c.resources.map(r => ({
+                user_id: user.id, curriculum_id: curr.id, title: r.title,
+                author: r.author || null, resource_type: r.resource_type || 'book', url: r.url || null,
+              }))
+            ),
+            { throwOnError: true, context: 'CurriculumShelf:seedResources' }
           )
         }
       }
-      await supabase.from('media_log').insert(SEED_MEDIA_LOG.map(m => ({ user_id: user.id, ...m })))
+      await safeMutate(
+        supabase.from('media_log').insert(SEED_MEDIA_LOG.map(m => ({ user_id: user.id, ...m }))),
+        { throwOnError: true, context: 'CurriculumShelf:seedMediaLog' }
+      )
       fetchAll()
     } catch (e) { console.error('Seed error:', e) }
     finally { setSeeding(false) }
@@ -117,31 +133,40 @@ const CurriculumShelf = () => {
       try {
         const ieltsSeed = SEED_CURRICULA.find(c => c.title.includes('IELTS'))
         if (ieltsSeed) {
-          const { data: newCurr } = await supabase.from('curricula').insert({
-            user_id: user.id,
-            category_id: cat.id,
-            title: ieltsSeed.title,
-            description: ieltsSeed.description,
-            estimated_hours: ieltsSeed.estimated_hours,
-            position: (currs?.length || 0)
-          }).select('*').single()
+          const { data: newCurr } = await safeMutate(
+            supabase.from('curricula').insert({
+              user_id: user.id,
+              category_id: cat.id,
+              title: ieltsSeed.title,
+              description: ieltsSeed.description,
+              estimated_hours: ieltsSeed.estimated_hours,
+              position: (currs?.length || 0)
+            }).select('*').single(),
+            { throwOnError: true, context: 'CurriculumShelf:autoSeedIELTSCurriculum' }
+          )
 
           if (newCurr?.id) {
             if (ieltsSeed.topics?.length) {
-              await supabase.from('curriculum_topics').insert(
-                ieltsSeed.topics.map((t, idx) => ({
-                  user_id: user.id, curriculum_id: newCurr.id, title: t.title,
-                  estimated_hours: t.estimated_hours || null,
-                  is_recommended_next: t.is_recommended_next || false, position: idx,
-                }))
+              await safeMutate(
+                supabase.from('curriculum_topics').insert(
+                  ieltsSeed.topics.map((t, idx) => ({
+                    user_id: user.id, curriculum_id: newCurr.id, title: t.title,
+                    estimated_hours: t.estimated_hours || null,
+                    is_recommended_next: t.is_recommended_next || false, position: idx,
+                  }))
+                ),
+                { throwOnError: true, context: 'CurriculumShelf:autoSeedIELTSTopics' }
               )
             }
             if (ieltsSeed.resources?.length) {
-              await supabase.from('curriculum_resources').insert(
-                ieltsSeed.resources.map(r => ({
-                  user_id: user.id, curriculum_id: newCurr.id, title: r.title,
-                  author: r.author || null, resource_type: r.resource_type || 'book', url: r.url || null,
-                }))
+              await safeMutate(
+                supabase.from('curriculum_resources').insert(
+                  ieltsSeed.resources.map(r => ({
+                    user_id: user.id, curriculum_id: newCurr.id, title: r.title,
+                    author: r.author || null, resource_type: r.resource_type || 'book', url: r.url || null,
+                  }))
+                ),
+                { throwOnError: true, context: 'CurriculumShelf:autoSeedIELTSResources' }
               )
             }
             // Refetch after insertion
@@ -182,15 +207,18 @@ const CurriculumShelf = () => {
   }
 
   const addCurriculum = async () => {
-    if (!newForm.title.trim()) return
+    if (!newForm.title.trim() || !user?.id) return
     const cat = categories.find(c => c.title === activeTab)
     if (!cat) return
-    await supabase.from('curricula').insert({
-      user_id: user.id, category_id: cat.id, title: newForm.title,
-      description: newForm.description || null,
-      estimated_hours: parseInt(newForm.estimated_hours) || null,
-      position: curricula.length,
-    })
+    await safeMutate(
+      supabase.from('curricula').insert({
+        user_id: user.id, category_id: cat.id, title: newForm.title,
+        description: newForm.description || null,
+        estimated_hours: parseInt(newForm.estimated_hours) || null,
+        position: curricula.length,
+      }),
+      { throwOnError: true, context: 'CurriculumShelf:addCurriculum' }
+    )
     setNewForm({ title: '', description: '', estimated_hours: '' })
     setAddingCurriculum(false)
     fetchAll()

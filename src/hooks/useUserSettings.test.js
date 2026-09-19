@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   useUserSettings,
@@ -119,5 +119,49 @@ describe('useUserSettings hook', () => {
 
     const stored = JSON.parse(localStorage.getItem(USER_SETTINGS_STORAGE_KEY) || '{}');
     expect(stored.featureFlags.auto_quadrant_suggest).toBe(false);
+  });
+
+  it('handles remote fetch error gracefully without corrupting state', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    supabase.from.mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          maybeSingle: vi.fn().mockResolvedValue({ data: null, error: new Error('Network error') })
+        })
+      })
+    });
+
+    const { result } = renderHook(() => useUserSettings());
+
+    expect(result.current.featureFlags).toEqual(DEFAULT_FEATURE_FLAGS);
+    await waitFor(() => {
+      expect(warnSpy).toHaveBeenCalledWith(
+        'Could not fetch user_settings from Supabase (offline or table pending):',
+        'Network error'
+      );
+    });
+    warnSpy.mockRestore();
+  });
+
+  it('handles Supabase upsert error gracefully when updating feature flag', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    supabase.from.mockReturnValue({
+      upsert: vi.fn().mockResolvedValue({ data: null, error: { message: 'RLS error' } })
+    });
+
+    const { result } = renderHook(() => useUserSettings());
+
+    await act(async () => {
+      await result.current.updateFeatureFlag('auto_quadrant_suggest', true);
+    });
+
+    expect(result.current.featureFlags.auto_quadrant_suggest).toBe(true);
+    await waitFor(() => {
+      expect(warnSpy).toHaveBeenCalledWith(
+        'Supabase feature_flags sync warning:',
+        'RLS error'
+      );
+    });
+    warnSpy.mockRestore();
   });
 });

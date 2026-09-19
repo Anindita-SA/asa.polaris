@@ -80,30 +80,14 @@ export const useUserSettings = () => {
     const fetchRemoteSettings = async () => {
       try {
         setLoading(true);
-        const query = supabase
+        const { data, error } = await supabase
           .from('user_settings')
           .select('*')
-          .eq('user_id', user.id);
-
-        let data = null;
-        let error = null;
-
-        if (typeof query?.maybeSingle === 'function') {
-          const res = await query.maybeSingle();
-          data = res?.data;
-          error = res?.error;
-        } else if (typeof query?.single === 'function') {
-          const res = await query.single();
-          data = res?.data;
-          error = res?.error;
-        } else if (typeof query?.then === 'function') {
-          const res = await query;
-          data = Array.isArray(res?.data) ? res.data[0] : res?.data;
-          error = res?.error;
-        }
+          .eq('user_id', user.id)
+          .maybeSingle();
 
         if (error) {
-          console.warn('Could not fetch user_settings from Supabase (offline or table pending):', error.message);
+          console.warn('Could not fetch user_settings from Supabase (offline or table pending):', error.message || error);
           return;
         }
 
@@ -125,13 +109,16 @@ export const useUserSettings = () => {
         } else if (!data && isMounted) {
           // If no row exists yet for this user, insert initial row
           try {
-            const tableRef = supabase.from('user_settings');
-            if (tableRef && typeof tableRef.insert === 'function') {
-              await tableRef.insert({
+            const { error: insertErr } = await supabase
+              .from('user_settings')
+              .insert({
                 user_id: user.id,
                 feature_flags: featureFlags,
                 updated_at: new Date().toISOString()
               });
+
+            if (insertErr) {
+              console.warn('Initial user_settings row insert failed:', insertErr.message || insertErr);
             }
           } catch (insertErr) {
             console.warn('Initial user_settings row insert skipped:', insertErr);
@@ -221,23 +208,16 @@ export const useUserSettings = () => {
     // Async sync to Supabase if authenticated
     if (user?.id && typeof supabase?.from === 'function') {
       try {
-        const tableRef = supabase.from('user_settings');
-        if (tableRef && typeof tableRef.upsert === 'function') {
-          const res = tableRef.upsert({
+        const { error: upsertErr } = await supabase
+          .from('user_settings')
+          .upsert({
             user_id: user.id,
             feature_flags: nextFlags || { [key]: value },
             updated_at: new Date().toISOString()
           }, { onConflict: 'user_id' });
 
-          if (res && typeof res.then === 'function') {
-            res.then(({ error }) => {
-              if (error) {
-                console.warn('Supabase feature_flags sync warning:', error.message);
-              }
-            }).catch((err) => {
-              console.warn('Supabase feature_flags sync caught error:', err);
-            });
-          }
+        if (upsertErr) {
+          console.warn('Supabase feature_flags sync warning:', upsertErr.message || upsertErr);
         }
       } catch (err) {
         console.warn('Supabase sync caught error:', err);

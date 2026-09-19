@@ -24,6 +24,7 @@ import { useNudgeScheduler } from '../../hooks/useNudgeScheduler'
 import { useContactReminders } from '../../hooks/useContactReminders'
 import { useCelebration } from '../../hooks/useCelebration'
 import { supabase } from '../../lib/supabase'
+import { safeMutate } from '../../lib/safeMutate'
 import { computeWSJFScore } from '../../hooks/useWSJFScore'
 import SurpriseTaskModal from '../modals/SurpriseTaskModal'
 import TaskPickerModal from '../modals/TaskPickerModal'
@@ -213,7 +214,10 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
     // If a subtask is started, update its status to in_progress to sync with matrix canvas & views
     if (task?.parent_task_id && user?.id) {
       try {
-        await supabase.from('tasks').update({ status: 'in_progress' }).eq('id', task.id).eq('user_id', user.id)
+        await safeMutate(
+          supabase.from('tasks').update({ status: 'in_progress' }).eq('id', task.id).eq('user_id', user.id),
+          { throwOnError: true, context: 'RemindersPanel:syncSubtaskInProgress' }
+        )
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('polaris-tasks-changed', { detail: { table: 'tasks', operation: 'update' } }))
         }
@@ -225,7 +229,10 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
 
   const markTaskDone = async (taskId) => {
     if (!user?.id) return
-    const { error } = await supabase.from('tasks').update({ status: 'done' }).eq('id', taskId).eq('user_id', user.id)
+    const { error } = await safeMutate(
+      supabase.from('tasks').update({ status: 'done' }).eq('id', taskId).eq('user_id', user.id),
+      { throwOnError: true, context: 'RemindersPanel:markTaskDone' }
+    )
     if (error) {
       console.error('Error marking task done:', error)
       return
@@ -245,11 +252,14 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
     if (dates.includes(todayStr)) return
     dates.push(todayStr)
     dates.sort()
-    const { error } = await supabase.from('tasks').update({
-      completion_dates: dates,
-      completion_count: (task.completion_count || 0) + 1,
-      status: 'done'
-    }).eq('id', task.id).eq('user_id', user.id)
+    const { error } = await safeMutate(
+      supabase.from('tasks').update({
+        completion_dates: dates,
+        completion_count: (task.completion_count || 0) + 1,
+        status: 'done'
+      }).eq('id', task.id).eq('user_id', user.id),
+      { throwOnError: true, context: 'RemindersPanel:completeHabitForToday' }
+    )
     if (error) {
       console.error('Error completing habit:', error)
       return
@@ -264,9 +274,15 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
     const interval = parseInt(newNudgeInterval) || 60
     
     if (editingNudge) {
-      await supabase.from('nudges').update({ title: newNudgeTitle, interval_minutes: interval }).eq('id', editingNudge.id).eq('user_id', user.id)
+      await safeMutate(
+        supabase.from('nudges').update({ title: newNudgeTitle, interval_minutes: interval }).eq('id', editingNudge.id).eq('user_id', user.id),
+        { throwOnError: true, context: 'RemindersPanel:updateNudge' }
+      )
     } else {
-      await supabase.from('nudges').insert({ user_id: user.id, title: newNudgeTitle, interval_minutes: interval })
+      await safeMutate(
+        supabase.from('nudges').insert({ user_id: user.id, title: newNudgeTitle, interval_minutes: interval }),
+        { throwOnError: true, context: 'RemindersPanel:insertNudge' }
+      )
     }
     
     setNewNudgeTitle('')
@@ -277,13 +293,19 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
 
   const toggleNudgeActive = async (nudge) => {
     if (!user?.id) return
-    await supabase.from('nudges').update({ active: !nudge.active }).eq('id', nudge.id).eq('user_id', user.id)
+    await safeMutate(
+      supabase.from('nudges').update({ active: !nudge.active }).eq('id', nudge.id).eq('user_id', user.id),
+      { throwOnError: true, context: 'RemindersPanel:toggleNudgeActive' }
+    )
     fetchNudges()
   }
 
   const deleteNudge = async (id) => {
     if (!user?.id) return
-    await supabase.from('nudges').delete().eq('id', id).eq('user_id', user.id)
+    await safeMutate(
+      supabase.from('nudges').delete().eq('id', id).eq('user_id', user.id),
+      { throwOnError: true, context: 'RemindersPanel:deleteNudge' }
+    )
     fetchNudges()
   }
 

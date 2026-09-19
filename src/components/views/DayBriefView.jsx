@@ -7,6 +7,7 @@ import { Flame, Check, Target, ChevronRight, Zap, Sparkles, RefreshCw, Rocket, X
 import { motion, AnimatePresence } from 'framer-motion';
 import DismissFeedbackModal from '../modals/DismissFeedbackModal';
 import { safeExternalUrl } from '../../lib/urlUtils';
+import { safeMutate } from '../../lib/safeMutate';
 
 export default function DayBriefView() {
   const { user } = useAuth();
@@ -138,30 +139,37 @@ export default function DayBriefView() {
   };
 
   const handleDismissOpportunity = async (opp, reason) => {
+    if (!user?.id) return;
     const oppId = opp.hardware_opportunity_id || opp.id;
     const oppUrl = opp.url;
 
     // 1. Mark in hardware_opportunities if ID exists
     if (oppId) {
-      await supabase
-        .from('hardware_opportunities')
-        .update({
-          status: 'rejected',
-          rejection_reason: reason || 'Dismissed by user',
-          rejected_at: new Date().toISOString()
-        })
-        .eq('id', oppId)
-        .eq('user_id', user.id);
+      await safeMutate(
+        supabase
+          .from('hardware_opportunities')
+          .update({
+            status: 'rejected',
+            rejection_reason: reason || 'Dismissed by user',
+            rejected_at: new Date().toISOString()
+          })
+          .eq('id', oppId)
+          .eq('user_id', user.id),
+        { throwOnError: true, context: 'DayBriefView:dismissOpportunityById' }
+      );
     } else if (oppUrl) {
-      await supabase
-        .from('hardware_opportunities')
-        .update({
-          status: 'rejected',
-          rejection_reason: reason || 'Dismissed by user',
-          rejected_at: new Date().toISOString()
-        })
-        .eq('url', oppUrl)
-        .eq('user_id', user.id);
+      await safeMutate(
+        supabase
+          .from('hardware_opportunities')
+          .update({
+            status: 'rejected',
+            rejection_reason: reason || 'Dismissed by user',
+            rejected_at: new Date().toISOString()
+          })
+          .eq('url', oppUrl)
+          .eq('user_id', user.id),
+        { throwOnError: true, context: 'DayBriefView:dismissOpportunityByUrl' }
+      );
     }
 
     // 2. Remove from today's morning_briefs
@@ -177,37 +185,46 @@ export default function DayBriefView() {
       const filtered = currentBrief.items.filter(i => 
         (oppId && i.hardware_opportunity_id === oppId) || (oppUrl && i.url === oppUrl) ? false : true
       );
-      await supabase
-        .from('morning_briefs')
-        .update({ items: filtered })
-        .eq('id', currentBrief.id)
-        .eq('user_id', user.id);
+      await safeMutate(
+        supabase
+          .from('morning_briefs')
+          .update({ items: filtered })
+          .eq('id', currentBrief.id)
+          .eq('user_id', user.id),
+        { throwOnError: true, context: 'DayBriefView:updateMorningBriefItems' }
+      );
     }
 
     await fetchExtras();
   };
 
   const flagToApply = async (item, index) => {
-    if (!item.hardware_opportunity_id) return;
+    if (!item.hardware_opportunity_id || !user?.id) return;
     setApplyingIds(prev => new Set(prev).add(index));
     
     let newTaskId;
-    const { data: taskData } = await supabase.from('tasks').insert({
-      title: `Apply for: ${item.title}`,
-      notes: `URL: ${item.url || ''}\nDeadline: ${item.deadline || 'Unknown'}`,
-      status: 'active',
-      quadrant: 'important_not_urgent',
-      deadline: item.deadline || null,
-      user_id: user.id
-    }).select().single();
+    const { data: taskData } = await safeMutate(
+      supabase.from('tasks').insert({
+        title: `Apply for: ${item.title}`,
+        notes: `URL: ${item.url || ''}\nDeadline: ${item.deadline || 'Unknown'}`,
+        status: 'active',
+        quadrant: 'important_not_urgent',
+        deadline: item.deadline || null,
+        user_id: user.id
+      }).select().single(),
+      { throwOnError: true, context: 'DayBriefView:flagToApplyInsertTask' }
+    );
     
     if (taskData) newTaskId = taskData.id;
 
     if (newTaskId) {
-      await supabase.from('hardware_opportunities')
-        .update({ status: 'applied', task_id: newTaskId })
-        .eq('id', item.hardware_opportunity_id)
-        .eq('user_id', user.id);
+      await safeMutate(
+        supabase.from('hardware_opportunities')
+          .update({ status: 'applied', task_id: newTaskId })
+          .eq('id', item.hardware_opportunity_id)
+          .eq('user_id', user.id),
+        { throwOnError: true, context: 'DayBriefView:flagToApplyUpdateOpportunity' }
+      );
         
       // Fire-and-forget subtask generation
       supabase.functions.invoke('generate-application-subtasks', {
@@ -238,17 +255,20 @@ export default function DayBriefView() {
     setSavingNewsIds(prev => new Set(prev).add(index));
 
     try {
-      await supabase.from('media_log').insert({
-        title: item.title,
-        author_or_creator: item.source_name || 'Morning Brief',
-        media_type: 'article',
-        status: 'want_to',
-        recommended_by: 'Morning Brief',
-        one_line_takeaway: item.summary || null,
-        full_review: item.url ? `URL: ${item.url}` : null,
-        tags: ['morning-brief', 'article'],
-        user_id: user.id
-      });
+      await safeMutate(
+        supabase.from('media_log').insert({
+          title: item.title,
+          author_or_creator: item.source_name || 'Morning Brief',
+          media_type: 'article',
+          status: 'want_to',
+          recommended_by: 'Morning Brief',
+          one_line_takeaway: item.summary || null,
+          full_review: item.url ? `URL: ${item.url}` : null,
+          tags: ['morning-brief', 'article'],
+          user_id: user.id
+        }),
+        { throwOnError: true, context: 'DayBriefView:saveNewsToMediaLog' }
+      );
 
       const updatedBriefItems = briefItems.map((bi, i) => {
         if (i === index || (bi.title === item.title && (bi.url === item.url || bi.source_name === item.source_name))) {
@@ -273,11 +293,14 @@ export default function DayBriefView() {
           }
           return bi;
         });
-        await supabase
-          .from('morning_briefs')
-          .update({ items: briefUpdatedItems })
-          .eq('id', currentBrief.id)
-          .eq('user_id', user.id);
+        await safeMutate(
+          supabase
+            .from('morning_briefs')
+            .update({ items: briefUpdatedItems })
+            .eq('id', currentBrief.id)
+            .eq('user_id', user.id),
+          { throwOnError: true, context: 'DayBriefView:updateMorningBriefSavedStatus' }
+        );
       }
     } catch (err) {
       console.error('Error saving news item to curriculum media log:', err);

@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
+import { safeMutate } from '../../lib/safeMutate'
 import { useAuth } from '../../hooks/useAuth'
 import { Camera, Plus, Check, X, Flame, ChevronLeft, ChevronRight, Calendar } from 'lucide-react'
 import { format, subDays, eachDayOfInterval, startOfDay, isToday, addDays } from 'date-fns'
@@ -87,9 +88,15 @@ const Journal = () => {
     setSaving(true)
     const combinedText = `${oneLiner}|||${highlightText}`
     if (highlight) {
-      await supabase.from('highlights').update({ text: combinedText }).eq('id', highlight.id).eq('user_id', user.id)
+      await safeMutate(
+        supabase.from('highlights').update({ text: combinedText }).eq('id', highlight.id).eq('user_id', user.id),
+        { throwOnError: true, context: 'Journal:saveHighlightUpdate' }
+      )
     } else {
-      const { data } = await supabase.from('highlights').insert({ user_id: user.id, date: dateStr, text: combinedText }).select().limit(1)
+      const { data } = await safeMutate(
+        supabase.from('highlights').insert({ user_id: user.id, date: dateStr, text: combinedText }).select().limit(1),
+        { throwOnError: true, context: 'Journal:saveHighlightInsert' }
+      )
       if (data && data.length > 0) setHighlight(data[0])
       await addXP(XP.JOURNAL_ENTRY)
     }
@@ -101,9 +108,15 @@ const Journal = () => {
     setMood(m)
     const { data: existing } = await supabase.from('mood_logs').select('id').eq('user_id', user.id).eq('log_date', dateStr).maybeSingle()
     if (existing) {
-      await supabase.from('mood_logs').update({ mood: m }).eq('id', existing.id).eq('user_id', user.id)
+      await safeMutate(
+        supabase.from('mood_logs').update({ mood: m }).eq('id', existing.id).eq('user_id', user.id),
+        { throwOnError: true, context: 'Journal:saveMoodUpdate' }
+      )
     } else {
-      await supabase.from('mood_logs').insert({ user_id: user.id, log_date: dateStr, mood: m })
+      await safeMutate(
+        supabase.from('mood_logs').insert({ user_id: user.id, log_date: dateStr, mood: m }),
+        { throwOnError: true, context: 'Journal:saveMoodInsert' }
+      )
       await addXP(XP.JOURNAL_PHOTO)
     }
   }
@@ -129,10 +142,16 @@ const Journal = () => {
     const publicUrl = signData.signedUrl
     const combinedText = `${oneLiner}|||${highlightText}`
     if (highlight) {
-      await supabase.from('highlights').update({ photo_url: publicUrl, text: combinedText }).eq('id', highlight.id).eq('user_id', user.id)
+      await safeMutate(
+        supabase.from('highlights').update({ photo_url: publicUrl, text: combinedText }).eq('id', highlight.id).eq('user_id', user.id),
+        { throwOnError: true, context: 'Journal:uploadPhotoUpdate' }
+      )
       setHighlight(h => ({ ...h, photo_url: publicUrl, text: combinedText }))
     } else {
-      const { data } = await supabase.from('highlights').insert({ user_id: user.id, date: dateStr, text: combinedText, photo_url: publicUrl }).select().limit(1)
+      const { data } = await safeMutate(
+        supabase.from('highlights').insert({ user_id: user.id, date: dateStr, text: combinedText, photo_url: publicUrl }).select().limit(1),
+        { throwOnError: true, context: 'Journal:uploadPhotoInsert' }
+      )
       if (data && data.length > 0) setHighlight(data[0])
     }
     setUploading(false)
@@ -140,21 +159,27 @@ const Journal = () => {
 
   const addHabit = async () => {
     if (!user?.id || !newHabitTitle) return
-    await supabase.from('recurring_task_templates').insert({
-      user_id: user.id,
-      title: newHabitTitle,
-      is_habit: true,
-      frequency: 'daily',
-      quadrant: 'important_not_urgent',
-      estimated_minutes: 15,
-      is_active: true
-    })
+    await safeMutate(
+      supabase.from('recurring_task_templates').insert({
+        user_id: user.id,
+        title: newHabitTitle,
+        is_habit: true,
+        frequency: 'daily',
+        quadrant: 'important_not_urgent',
+        estimated_minutes: 15,
+        is_active: true
+      }),
+      { throwOnError: true, context: 'Journal:addHabit' }
+    )
     setNewHabitTitle(''); setAddingHabit(false); fetchHabits()
   }
 
   const deleteHabit = async (id) => {
     if (!user?.id) return
-    await supabase.from('recurring_task_templates').update({ is_active: false }).eq('id', id).eq('user_id', user.id)
+    await safeMutate(
+      supabase.from('recurring_task_templates').update({ is_active: false }).eq('id', id).eq('user_id', user.id),
+      { throwOnError: true, context: 'Journal:deleteHabit' }
+    )
     fetchHabits()
   }
 

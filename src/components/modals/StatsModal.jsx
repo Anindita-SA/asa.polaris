@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import { safeMutate } from '../../lib/safeMutate'
 import { useAuth } from '../../hooks/useAuth'
 import { X, TrendingUp, Activity, Shield, Award, Plus, Trash2 } from 'lucide-react'
 import { getLevelInfo, TIERS } from '../../data/defaults'
@@ -53,19 +54,26 @@ const StatsModal = ({ onClose, systemAlerts = [] }) => {
 
   const addManualIO = async () => {
     if (!user || !ioForm.category || !ioForm.minutes || !ioForm.date) return
-    await supabase.from('io_logs').insert({
-      user_id: user.id,
-      type: ioForm.type,
-      category: ioForm.category,
-      minutes: parseInt(ioForm.minutes),
-      date: ioForm.date,
-    })
+    await safeMutate(
+      supabase.from('io_logs').insert({
+        user_id: user.id,
+        type: ioForm.type,
+        category: ioForm.category,
+        minutes: parseInt(ioForm.minutes),
+        date: ioForm.date,
+      }),
+      { throwOnError: true, context: 'StatsModal:addManualIO' }
+    )
     setIoForm(f => ({ ...f, category: '', minutes: 25 }))
     fetchIOHistory()
   }
 
   const deleteIOLog = async (id) => {
-    await supabase.from('io_logs').delete().eq('id', id)
+    if (!user?.id) return
+    await safeMutate(
+      supabase.from('io_logs').delete().eq('id', id).eq('user_id', user.id),
+      { throwOnError: true, context: 'StatsModal:deleteIOLog' }
+    )
     fetchIOHistory()
   }
 

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
+import { safeMutate } from '../lib/safeMutate';
 import { useAuth } from './useAuth';
 import { getNotificationSettings, NOTIFICATION_SETTINGS_EVENT } from './useNotificationSettings';
 
@@ -23,11 +24,14 @@ export const useNudgeScheduler = () => {
         .eq('user_id', user.id);
 
       if (count === 0) {
-        await supabase.from('nudges').insert([
-          { user_id: user.id, title: "Drink water", interval_minutes: 120, active: true },
-          { user_id: user.id, title: "Posture check", interval_minutes: 60, active: true },
-          { user_id: user.id, title: "Take a break", interval_minutes: 90, active: true }
-        ]);
+        await safeMutate(
+          supabase.from('nudges').insert([
+            { user_id: user.id, title: "Drink water", interval_minutes: 120, active: true },
+            { user_id: user.id, title: "Posture check", interval_minutes: 60, active: true },
+            { user_id: user.id, title: "Take a break", interval_minutes: 90, active: true }
+          ]),
+          { context: 'useNudgeScheduler:seedDefaultNudges' }
+        );
         fetchNudges();
       }
     };
@@ -305,13 +309,14 @@ export const useNudgeScheduler = () => {
 
         if (!fetchErr && taskData) {
           const currentSkipCount = taskData.skip_count || 0;
-          const { error: updateErr } = await supabase
-            .from('tasks')
-            .update({ skip_count: currentSkipCount + 1 })
-            .eq('id', id)
-            .eq('user_id', user.id);
-
-          if (updateErr) console.error('Failed to increment skip_count:', updateErr);
+          await safeMutate(
+            supabase
+              .from('tasks')
+              .update({ skip_count: currentSkipCount + 1 })
+              .eq('id', id)
+              .eq('user_id', user.id),
+            { context: 'useNudgeScheduler:incrementSkipCount' }
+          );
         }
       } catch (err) {
         console.error('Error incrementing skip_count on dismiss:', err);

@@ -25,6 +25,7 @@ import {
   Trash2
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { safeMutate } from '../../lib/safeMutate'
 import { useAuth } from '../../hooks/useAuth'
 import {
   useUserSettings,
@@ -217,11 +218,14 @@ const SettingsPanel = ({ open, isOpen, onClose, initialSection = 'all' }) => {
     if (!user?.id) return
     setRecurringTemplates(prev => prev.map(t => t.id === templateId ? { ...t, is_active: isActive } : t))
     try {
-      await supabase
-        .from('recurring_task_templates')
-        .update({ is_active: isActive })
-        .eq('id', templateId)
-        .eq('user_id', user.id)
+      await safeMutate(
+        supabase
+          .from('recurring_task_templates')
+          .update({ is_active: isActive })
+          .eq('id', templateId)
+          .eq('user_id', user.id),
+        { throwOnError: true, context: 'SettingsPanel:toggleTemplateActive' }
+      )
     } catch (e) {
       console.error('Error updating template status:', e)
       fetchTemplates()
@@ -232,11 +236,14 @@ const SettingsPanel = ({ open, isOpen, onClose, initialSection = 'all' }) => {
     if (!user?.id) return
     setRecurringTemplates(prev => prev.filter(t => t.id !== templateId))
     try {
-      await supabase
-        .from('recurring_task_templates')
-        .delete()
-        .eq('id', templateId)
-        .eq('user_id', user.id)
+      await safeMutate(
+        supabase
+          .from('recurring_task_templates')
+          .delete()
+          .eq('id', templateId)
+          .eq('user_id', user.id),
+        { throwOnError: true, context: 'SettingsPanel:deleteTemplate' }
+      )
     } catch (e) {
       console.error('Error deleting template:', e)
       fetchTemplates()

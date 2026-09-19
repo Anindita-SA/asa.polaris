@@ -269,13 +269,17 @@ describe('useRecurringTasks hook', () => {
   });
 
   it('skips weekly template if less than 7 days have passed', async () => {
+    const threeDaysAgo = new Date();
+    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+    const lastGen = threeDaysAgo.toLocaleDateString('en-CA');
+
     const templates = [
       {
         id: 'tpl-weekly',
         user_id: 'test-user-123',
         title: 'Weekly Review',
         is_active: true,
-        last_generated_date: '2026-09-11',
+        last_generated_date: lastGen,
         frequency: 'weekly'
       }
     ];
@@ -504,6 +508,114 @@ describe('useRecurringTasks hook', () => {
       'tasks',
       { id: 'subtask-2' },
       { status: 'active', deadline: today, completion_count: 1, completion_dates: ['2026-09-01'] }
+    );
+  });
+
+  it('resets completed child subtasks to active when an open parent task exists and template last_generated_date is before today', async () => {
+    const today = new Date().toLocaleDateString('en-CA');
+    const templates = [
+      {
+        id: 'tpl-ielts-sprint',
+        user_id: 'test-user-123',
+        title: 'IELTS Sprint',
+        is_active: true,
+        last_generated_date: '2026-09-01',
+        frequency: 'daily'
+      }
+    ];
+
+    const tasks = [
+      {
+        id: 'task-parent-active',
+        user_id: 'test-user-123',
+        title: 'IELTS Sprint',
+        status: 'active',
+        parent_task_id: null,
+        source_template_id: 'tpl-ielts-sprint',
+        created_at: '2026-09-01T06:00:00Z',
+        deadline: '2026-09-01'
+      },
+      {
+        id: 'subtask-done-1',
+        user_id: 'test-user-123',
+        title: 'Reading Section Practice',
+        status: 'done',
+        parent_task_id: 'task-parent-active',
+        deadline: '2026-09-01',
+        completion_count: 2,
+        completion_dates: ['2026-08-31', '2026-09-01']
+      },
+      {
+        id: 'subtask-active-2',
+        user_id: 'test-user-123',
+        title: 'Speaking Section Practice',
+        status: 'active',
+        parent_task_id: 'task-parent-active',
+        deadline: '2026-09-01',
+        completion_count: 1,
+        completion_dates: ['2026-08-31']
+      },
+      {
+        id: 'subtask-done-3',
+        user_id: 'test-user-123',
+        title: 'Writing Section Practice',
+        status: 'done',
+        parent_task_id: 'task-parent-active',
+        deadline: null,
+        completion_count: 0,
+        completion_dates: []
+      }
+    ];
+
+    offlineSelect.mockImplementation(async (table) => {
+      if (table === 'recurring_task_templates') return { data: templates, error: null };
+      if (table === 'tasks') return { data: tasks, error: null };
+      return { data: [], error: null };
+    });
+
+    const { result } = renderHook(() => useRecurringTasks());
+
+    await waitFor(() => {
+      expect(result.current.generated).toBe(2);
+    });
+
+    // No duplicate tasks should be inserted
+    expect(offlineInsert).not.toHaveBeenCalled();
+
+    // Already active subtask should NOT be modified
+    expect(offlineUpdate).not.toHaveBeenCalledWith('tasks', { id: 'subtask-active-2' }, expect.anything());
+
+    // Completed subtasks must be reset to active with deadline today and completion history updated
+    expect(offlineUpdate).toHaveBeenCalledWith(
+      'tasks',
+      { id: 'subtask-done-1' },
+      {
+        status: 'active',
+        deadline: today,
+        completion_count: 3,
+        completion_dates: ['2026-08-31', '2026-09-01']
+      }
+    );
+
+    expect(offlineUpdate).toHaveBeenCalledWith(
+      'tasks',
+      { id: 'subtask-done-3' },
+      {
+        status: 'active',
+        deadline: today,
+        completion_count: 1,
+        completion_dates: ['2026-09-01']
+      }
+    );
+
+    // Parent task source_template_id is already set, so parent task itself should not receive a redundant update
+    expect(offlineUpdate).not.toHaveBeenCalledWith('tasks', { id: 'task-parent-active' }, expect.anything());
+
+    // Template last_generated_date must be updated to today
+    expect(offlineUpdate).toHaveBeenCalledWith(
+      'recurring_task_templates',
+      { id: 'tpl-ielts-sprint' },
+      { last_generated_date: today }
     );
   });
 });

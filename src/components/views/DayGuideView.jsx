@@ -1,7 +1,54 @@
-import { getGroqKey, generateLlmResponse } from '../../lib/llm';
+import { generateLlmResponse } from '../../lib/llm';
 import React, { useState, useCallback, useEffect, lazy, Suspense } from 'react';
+
+function estimateDurationHeuristic(title) {
+  const t = (title || '').toLowerCase();
+  const minMatch = t.match(/(\d+)\s*(?:m|min|mins|minutes)\b/);
+  const hrMatch = t.match(/(\d+(?:\.\d+)?)\s*(?:h|hr|hrs|hours)\b/);
+
+  let explicitMinutes = null;
+  if (minMatch) {
+    explicitMinutes = Math.min(240, Math.max(5, parseInt(minMatch[1], 10)));
+  } else if (hrMatch) {
+    explicitMinutes = Math.min(240, Math.max(5, Math.round(parseFloat(hrMatch[1]) * 60)));
+  }
+
+  // High Load (45-60m)
+  if (/(code|write|build|design|derive|simulate|implement|architect|pcb|hardware|math|proof|sop)\b/i.test(t)) {
+    return {
+      minutes: explicitMinutes || 45,
+      mentalLoad: 'high',
+      taskType: 'output'
+    };
+  }
+
+  // Medium Load (30-40m)
+  if (/(draft|outline|email|reach out|fill|plan|submit|apply|test|debug|solve|practice|prep)\b/i.test(t)) {
+    return {
+      minutes: explicitMinutes || 30,
+      mentalLoad: 'medium',
+      taskType: 'output'
+    };
+  }
+
+  // Low Load (20-25m)
+  if (/(read|research|survey|review|explore|watch|listen|skim|browse|check|organize|tag|clean|request)\b/i.test(t)) {
+    return {
+      minutes: explicitMinutes || 20,
+      mentalLoad: 'low',
+      taskType: /(read|research|survey|explore|watch|listen|skim|browse)/i.test(t) ? 'input' : 'output'
+    };
+  }
+
+  return {
+    minutes: explicitMinutes || 30,
+    mentalLoad: 'medium',
+    taskType: 'output'
+  };
+}
 import { useAuth } from '../../hooks/useAuth';
 import { supabase } from '../../lib/supabase';
+import { safeMutate } from '../../lib/safeMutate';
 import { offlineSelect, offlineInsert, offlineUpdate, offlineDelete, offlineUpsert } from '../../lib/offlineApi';
 import { computeWSJFScore } from '../../hooks/useWSJFScore';
 import {
@@ -93,28 +140,51 @@ function AuditorPanel({ onAuditDone }) {
     setPickedIds([]);
 
     try {
-      const key = getGroqKey();
-      if (!key) {
-        pushLog('Groq API Key not configured. AI estimation skipped.', 'warn');
-      } else {
-        const unestimated = tasks.filter(t => !t.estimated_minutes && t.status !== 'done');
-        if (unestimated.length > 0) {
-          pushLog(`Estimating duration for ${unestimated.length} unestimated tasks via AI...`, 'info');
-          for (const task of unestimated) {
-            const prompt = `Analyze task: "${task.title}". Return ONLY valid JSON with duration in minutes and task_type as "input" (reading, research, studying, learning, absorbing) or "output" (writing, coding, creating, building, designing, submitting, producing). Example: {"minutes": 35, "task_type": "output"}`;
+      const unestimated = tasks.filter(t => !t.estimated_minutes && t.status !== 'done');
+      if (unestimated.length > 0) {
+        pushLog(`Estimating duration for ${unestimated.length} unestimated tasks...`, 'info');
+        for (const task of unestimated) {
+          const prompt = `Analyze task: "${task.title}". Return ONLY valid JSON with duration in minutes and task_type as "input" (reading, research, studying, learning, absorbing) or "output" (writing, coding, creating, building, designing, submitting, producing), and mental_load as "low", "medium", or "high". Example: {"minutes": 35, "task_type": "output", "mental_load": "medium"}`;
+          let mins = null;
+          let mentalLoad = null;
+          let estimateSource = 'ai';
+          try {
+            const data = await generateLlmResponse([{ role: 'user', content: prompt }], true);
+            const raw = data?.choices?.[0]?.message?.content || '{}';
+            let parsed = {};
             try {
-              const data = await generateLlmResponse([{ role: 'user', content: prompt }], true);
-              const parsed = JSON.parse(data.choices[0].message.content);
-              const mins = parsed?.minutes ? Math.max(5, Math.round(parsed.minutes)) : 30;
-              await offlineUpdate('tasks', { id: task.id }, { estimated_minutes: mins, estimate_source: 'ai' });
-              pushLog(`  + "${task.title}" -> ${mins}m`, 'success');
-            } catch (e) {
-              pushLog(`  x Failed to estimate "${task.title}"`, 'error');
+              parsed = JSON.parse(raw);
+            } catch (pErr) {
+              const m = raw.match(/\{[\s\S]*\}/);
+              if (m) parsed = JSON.parse(m[0]);
             }
+            if (parsed?.minutes && typeof parsed.minutes === 'number') {
+              mins = Math.max(5, Math.round(parsed.minutes));
+            }
+            if (['low', 'medium', 'high'].includes(parsed?.mental_load)) {
+              mentalLoad = parsed.mental_load;
+            }
+          } catch (e) {
+            // LLM unavailable or error, fall back to heuristic
           }
-        } else {
-          pushLog('All active tasks already have time estimates.', 'success');
+
+          if (!mins) {
+            const heuristic = estimateDurationHeuristic(task.title);
+            mins = heuristic.minutes;
+            mentalLoad = heuristic.mentalLoad;
+            estimateSource = 'heuristic';
+          }
+
+          await offlineUpdate('tasks', { id: task.id }, {
+            estimated_minutes: mins,
+            time_estimate_minutes: mins,
+            mental_load: mentalLoad || 'medium',
+            estimate_source: estimateSource
+          });
+          pushLog(`  + "${task.title}" -> ${mins}m (${mentalLoad || 'medium'} load)`, 'success');
         }
+      } else {
+        pushLog('All active tasks already have time estimates.', 'success');
       }
 
       pushLog('Scoring all tasks with WSJF algorithm...', 'info');
@@ -152,15 +222,27 @@ function AuditorPanel({ onAuditDone }) {
         const todayStr = new Date().toLocaleDateString('en-CA');
         const pickedFull = scored.filter(t => todayPickIds.includes(t.id));
         for (const t of pickedFull) {
-          const { data: existing } = await supabase
-            .from('daily_tasks').select('id')
-            .eq('user_id', userId).eq('date', todayStr).eq('title', t.title)
-            .maybeSingle();
+          const { data: existing } = await safeMutate(
+            supabase
+              .from('daily_tasks')
+              .select('id')
+              .eq('user_id', userId)
+              .eq('date', todayStr)
+              .eq('title', t.title)
+              .maybeSingle(),
+            { throwOnError: true, context: 'DayGuideView:checkExistingDailyTask' }
+          );
           if (!existing) {
-            await supabase.from('daily_tasks').insert({
-              user_id: userId, title: t.title,
-              date: todayStr, recurring: false, completed: false,
-            });
+            await safeMutate(
+              supabase.from('daily_tasks').insert({
+                user_id: userId,
+                title: t.title,
+                date: todayStr,
+                recurring: false,
+                completed: false,
+              }),
+              { throwOnError: true, context: 'DayGuideView:insertDailyTaskBridge' }
+            );
           }
         }
       } catch (e) { console.warn('daily_tasks bridge (AuditorPanel):', e); }

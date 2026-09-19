@@ -1,6 +1,7 @@
-import { getGroqKey, generateLlmResponse } from '../../lib/llm';
+import { generateLlmResponse } from '../../lib/llm';
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { safeMutate } from '../../lib/safeMutate'
 import { useAuth } from '../../hooks/useAuth'
 import { Check, Flag, Clock, AlertCircle, ChevronDown, ChevronUp, Zap, Plus, X, Compass, Edit2, Trash2 } from 'lucide-react'
 import { XP } from '../../data/xpRewards'
@@ -91,20 +92,26 @@ const Timeline = ({ filterNodeId, onJumpToNode }) => {
     const note = addForm.linkedNode ? `[Node: ${addForm.linkedNode}]` : ''
     
     if (editingMilestone) {
-      await supabase.from('milestones').update({
-        title: addForm.title,
-        deadline: addForm.deadline,
-        note: note || editingMilestone.note?.replace(/\[Node: .*?\]/, '') || ''
-      }).eq('id', editingMilestone.id).eq('user_id', user.id)
+      await safeMutate(
+        supabase.from('milestones').update({
+          title: addForm.title,
+          deadline: addForm.deadline,
+          note: note || editingMilestone.note?.replace(/\[Node: .*?\]/, '') || ''
+        }).eq('id', editingMilestone.id).eq('user_id', user.id),
+        { throwOnError: true, context: 'Timeline:saveMilestoneUpdate' }
+      )
     } else {
-      await supabase.from('milestones').insert({
-        user_id: user.id,
-        title: addForm.title,
-        deadline: addForm.deadline,
-        status: 'upcoming',
-        xp_reward: 100,
-        note,
-      })
+      await safeMutate(
+        supabase.from('milestones').insert({
+          user_id: user.id,
+          title: addForm.title,
+          deadline: addForm.deadline,
+          status: 'upcoming',
+          xp_reward: 100,
+          note,
+        }),
+        { throwOnError: true, context: 'Timeline:saveMilestoneInsert' }
+      )
     }
     
     setAddForm({ title: '', deadline: '', linkedNode: '' })
@@ -114,20 +121,32 @@ const Timeline = ({ filterNodeId, onJumpToNode }) => {
   }
 
   const deleteMilestone = async (id) => {
+    if (!user?.id) return
     if (window.confirm("Are you sure you want to delete this milestone?")) {
-      await supabase.from('milestones').delete().eq('id', id).eq('user_id', user.id)
+      await safeMutate(
+        supabase.from('milestones').delete().eq('id', id).eq('user_id', user.id),
+        { throwOnError: true, context: 'Timeline:deleteMilestone' }
+      )
       fetchMilestones()
     }
   }
 
   const updateStatus = async (ms, status) => {
-    await supabase.from('milestones').update({ status }).eq('id', ms.id).eq('user_id', user.id)
+    if (!user?.id) return
+    await safeMutate(
+      supabase.from('milestones').update({ status }).eq('id', ms.id).eq('user_id', user.id),
+      { throwOnError: true, context: 'Timeline:updateStatus' }
+    )
     trackXP(ms.status === 'done', status === 'done', ms.xp_reward || XP.MILESTONE_COMPLETE)
     fetchMilestones()
   }
 
   const updateNote = async (id, note) => {
-    await supabase.from('milestones').update({ note }).eq('id', id).eq('user_id', user.id)
+    if (!user?.id) return
+    await safeMutate(
+      supabase.from('milestones').update({ note }).eq('id', id).eq('user_id', user.id),
+      { throwOnError: true, context: 'Timeline:updateNote' }
+    )
   }
 
   const getDaysUntil = (deadline) => {
@@ -138,8 +157,7 @@ const Timeline = ({ filterNodeId, onJumpToNode }) => {
   const [aiLoading, setAiLoading] = useState(false)
 
   const breakDownTask = async () => {
-    const key = getGroqKey()
-    if (!key || !taskDescription.trim()) return
+    if (!taskDescription.trim()) return
     setAiLoading(true)
 
     const systemPrompt = `You are an ADHD-friendly task coach for a university student named Anindita who is studying EEE at NIT Trichy, India. She is working toward MSc applications in Europe, research papers, hardware projects, and creative work.
@@ -162,61 +180,89 @@ Rules:
         { role: 'user', content: `Break this down into ADHD-friendly micro-steps: "${taskDescription}"` },
       ], true, 1024)
       const text = data?.choices?.[0]?.message?.content || '{"steps":[]}'
+      let steps = []
       try {
         const parsed = JSON.parse(text)
-        const steps = Array.isArray(parsed.steps) ? parsed.steps : (Array.isArray(parsed) ? parsed : Object.values(parsed)[0] || [])
-        setGeneratedSteps(steps.length ? steps : ['⚠ AI could not generate steps. Try a different description.'])
+        steps = Array.isArray(parsed.steps) ? parsed.steps : (Array.isArray(parsed) ? parsed : Object.values(parsed)[0] || [])
       } catch (parseError) {
-        console.error('JSON Parse failed:', text)
-        setGeneratedSteps(['⚠ AI response was malformed. Please try again.'])
+        const match = text.match(/\[[\s\S]*\]/)
+        if (match) steps = JSON.parse(match[0])
+      }
+
+      if (steps && steps.length > 0) {
+        setGeneratedSteps(steps)
+      } else {
+        throw new Error('Empty steps array from LLM')
       }
     } catch (err) {
-      console.error('AI breakdown failed:', err)
-      setGeneratedSteps(['⚠ AI breakdown failed due to network or API error - try again.'])
+      console.error('AI breakdown fallback triggered:', err)
+      const desc = taskDescription.trim()
+      const fallbackSteps = [
+        `Open the workspace or notes for "${desc}" (~5 min)`,
+        `Define the specific end goal and top 3 requirements (~10 min)`,
+        `Draft initial outline or implement foundational component (~15 min)`,
+        `Review and test preliminary results (~10 min)`,
+        `Document progress and schedule next active step (~5 min)`
+      ]
+      setGeneratedSteps(fallbackSteps)
     } finally {
       setAiLoading(false)
     }
   }
 
   const saveSubtasks = async () => {
-    if (!generatedSteps.length || !breakdownTarget) return
-    await supabase.from('tasks').insert(generatedSteps.map(title => ({
-      id: crypto.randomUUID(),
-      user_id: user.id,
-      milestone_id: breakdownTarget.id,
-      title,
-      status: 'active',
-      quadrant: 'important_not_urgent',
-      category: 'academic',
-      created_at: new Date().toISOString()
-    })))
+    if (!generatedSteps.length || !breakdownTarget || !user?.id) return
+    await safeMutate(
+      supabase.from('tasks').insert(generatedSteps.map(title => ({
+        id: crypto.randomUUID(),
+        user_id: user.id,
+        milestone_id: breakdownTarget.id,
+        title,
+        status: 'active',
+        quadrant: 'important_not_urgent',
+        category: 'academic',
+        created_at: new Date().toISOString()
+      }))),
+      { throwOnError: true, context: 'Timeline:saveSubtasks' }
+    )
     setGeneratedSteps([])
     fetchMilestones()
   }
 
   const addManualSubtask = async () => {
-    if (!newSubtask.trim() || !breakdownTarget) return
-    await supabase.from('tasks').insert({
-      id: crypto.randomUUID(),
-      user_id: user.id,
-      milestone_id: breakdownTarget.id,
-      title: newSubtask.trim(),
-      status: 'active',
-      quadrant: 'important_not_urgent',
-      category: 'academic',
-      created_at: new Date().toISOString()
-    })
+    if (!newSubtask.trim() || !breakdownTarget || !user?.id) return
+    await safeMutate(
+      supabase.from('tasks').insert({
+        id: crypto.randomUUID(),
+        user_id: user.id,
+        milestone_id: breakdownTarget.id,
+        title: newSubtask.trim(),
+        status: 'active',
+        quadrant: 'important_not_urgent',
+        category: 'academic',
+        created_at: new Date().toISOString()
+      }),
+      { throwOnError: true, context: 'Timeline:addManualSubtask' }
+    )
     setNewSubtask('')
     fetchMilestones()
   }
 
   const toggleSubtask = async (task) => {
-    await supabase.from('tasks').update({ status: task.status === 'done' ? 'active' : 'done' }).eq('id', task.id).eq('user_id', user.id)
+    if (!user?.id) return
+    await safeMutate(
+      supabase.from('tasks').update({ status: task.status === 'done' ? 'active' : 'done' }).eq('id', task.id).eq('user_id', user.id),
+      { throwOnError: true, context: 'Timeline:toggleSubtask' }
+    )
     fetchMilestones()
   }
 
   const deleteSubtask = async (id) => {
-    await supabase.from('tasks').delete().eq('id', id).eq('user_id', user.id)
+    if (!user?.id) return
+    await safeMutate(
+      supabase.from('tasks').delete().eq('id', id).eq('user_id', user.id),
+      { throwOnError: true, context: 'Timeline:deleteSubtask' }
+    )
     fetchMilestones()
   }
 

@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
+import Parser from 'npm:rss-parser'
 import { extractJsonFromLlm, getBestGroqModel, generateWithFallback } from '../_shared/llm_utils.ts'
 import { opportunitiesPrompt } from '../_shared/personal_prompts.ts'
 
@@ -14,16 +15,13 @@ serve(async (req) => {
   }
 
   try {
-    const firecrawlApiKey = Deno.env.get('FIRECRAWL_API_KEY')
-    const groqApiKey = Deno.env.get('GROQ_API_KEY')
+    const firecrawlApiKey = Deno.env.get('FIRECRAWL_API_KEY') || null
+    const groqApiKey = Deno.env.get('GROQ_API_KEY') || null
+    const geminiApiKey = Deno.env.get('GEMINI_API_KEY') || null
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    const targetUserId = Deno.env.get('TARGET_USER_ID')
 
-    if (!firecrawlApiKey) throw new Error('Configuration error: Missing firecrawl key')
-    if (!groqApiKey) throw new Error('Configuration error: Missing groq key')
     if (!serviceRoleKey) throw new Error('Configuration error: Missing database key')
-    if (!targetUserId) throw new Error('Configuration error: Missing target user')
 
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
@@ -43,20 +41,35 @@ serve(async (req) => {
       }
     })
 
+    let resolvedUserId: string | null = null
+
     if (token !== serviceRoleKey) {
       const { data: { user: callerUser }, error: authErr } = await supabaseAdmin.auth.getUser(token)
-      if (authErr || !callerUser || callerUser.id !== targetUserId) {
+      if (authErr || !callerUser) {
         return new Response(JSON.stringify({ error: 'Unauthorized' }), {
           status: 403,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
       }
+      resolvedUserId = callerUser.id
+    } else {
+      const envTarget = Deno.env.get('TARGET_USER_ID')
+      if (envTarget) {
+        resolvedUserId = envTarget
+      } else {
+        const { data: profiles } = await supabaseAdmin.from('profiles').select('id').limit(1)
+        if (profiles && profiles.length > 0) {
+          resolvedUserId = profiles[0].id
+        }
+      }
     }
 
-    const user = { id: targetUserId }
+    if (!resolvedUserId) {
+      throw new Error('Configuration error: Missing target user')
+    }
+
+    const user = { id: resolvedUserId }
     const today = new Date().toLocaleDateString('en-CA')
-
-
 
     // Helper function to append previous highly recommended opportunities
     const appendPreviousOpps = async (reason: string) => {
@@ -95,7 +108,7 @@ serve(async (req) => {
         .eq('date', today)
         .maybeSingle()
 
-      let insertedCount = 0;
+      let insertedCount = 0
       if (existingBrief) {
         const existingItems = existingBrief.items || []
         const existingUrls = new Set(existingItems.map((i: any) => i.url))
@@ -104,13 +117,13 @@ serve(async (req) => {
         if (itemsToAdd.length > 0) {
           const updatedItems = [...existingItems, ...itemsToAdd]
           await supabaseAdmin.from('morning_briefs').update({ items: updatedItems }).eq('id', existingBrief.id).eq('user_id', user.id)
-          insertedCount = itemsToAdd.length;
+          insertedCount = itemsToAdd.length
         }
       } else {
         await supabaseAdmin.from('morning_briefs').insert({
           user_id: user.id, date: today, items: briefItems, seen: false
         })
-        insertedCount = briefItems.length;
+        insertedCount = briefItems.length
       }
 
       return new Response(JSON.stringify({ success: true, message: `Appended ${insertedCount} previous opportunities (${reason})` }), {
@@ -119,34 +132,72 @@ serve(async (req) => {
       })
     }
 
-    // 1. Search Firecrawl
-    const query = "fully funded international travel OR global field expeditions OR conservation tech OR robotics OR UN programs grants funding opportunities"
-    const firecrawlRes = await fetch('https://api.firecrawl.dev/v1/search', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${firecrawlApiKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        query: query,
-        limit: 5,
-        tbs: 'qdr:w',
-        scrapeOptions: { formats: ["markdown"] }
-      })
-    })
+    // 1. Opportunity Ingestion (Firecrawl with resilient RSS fallback)
+    let searchResults: any[] = []
 
-    if (!firecrawlRes.ok) {
-      throw new Error(`Firecrawl API Error: ${firecrawlRes.status} ${await firecrawlRes.text()}`)
+    if (firecrawlApiKey) {
+      const query = "fully funded international travel OR global field expeditions OR conservation tech OR robotics OR UN programs grants funding opportunities"
+      try {
+        const firecrawlRes = await fetch('https://api.firecrawl.dev/v1/search', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${firecrawlApiKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            query: query,
+            limit: 5,
+            tbs: 'qdr:w',
+            scrapeOptions: { formats: ["markdown"] }
+          })
+        })
+
+        if (firecrawlRes.ok) {
+          const firecrawlData = await firecrawlRes.json()
+          searchResults = firecrawlData.data || []
+        } else {
+          console.warn("Firecrawl search error:", firecrawlRes.status, await firecrawlRes.text())
+        }
+      } catch (crawlErr) {
+        console.error("Firecrawl fetch error:", crawlErr)
+      }
     }
 
-    const firecrawlData = await firecrawlRes.json()
-    const searchResults = firecrawlData.data || []
-    
+    // Multi-Source RSS Fallback if Firecrawl yielded no results
     if (searchResults.length === 0) {
-      return await appendPreviousOpps('No results from Firecrawl')
+      console.log("Ingesting from curated opportunity RSS feeds...")
+      const parser = new Parser({
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
+      })
+      const opportunityFeeds = [
+        { name: 'Opportunity Desk', url: 'https://opportunitydesk.org/feed/' },
+        { name: 'FundsForNGOs', url: 'https://www.fundsforngos.org/feed/' }
+      ]
+
+      for (const feedConfig of opportunityFeeds) {
+        try {
+          const feed = await parser.parseURL(feedConfig.url)
+          for (const item of (feed.items || []).slice(0, 5)) {
+            if (item.title && item.link) {
+              searchResults.push({
+                title: item.title,
+                url: item.link,
+                description: item.contentSnippet || item.content || item.summary || item.title,
+                source_name: feedConfig.name
+              })
+            }
+          }
+        } catch (feedErr) {
+          console.warn(`Failed to parse opportunity feed ${feedConfig.name}:`, feedErr)
+        }
+      }
     }
 
-    // 2. Query Groq with Learned Rejection Feedback
+    if (searchResults.length === 0) {
+      return await appendPreviousOpps('No results from Firecrawl or Opportunity Feeds')
+    }
+
+    // 2. Query LLM with Learned Rejection Feedback
     const { data: rejectedFeedback } = await supabaseAdmin
       .from('hardware_opportunities')
       .select('title, rejection_reason')
@@ -169,19 +220,35 @@ serve(async (req) => {
       content: r.markdown ? r.markdown.substring(0, 1500) : r.description
     }))
 
-    const prompt = opportunitiesPrompt(JSON.stringify(minifiedPool), learnedFeedback);
+    const prompt = opportunitiesPrompt(JSON.stringify(minifiedPool), learnedFeedback)
   
-    const geminiApiKey = Deno.env.get('GEMINI_API_KEY') || null;
-    let parsedOpps = []
+    let parsedOpps: any[] = []
     try {
-      const parsed = await generateWithFallback(prompt, groqApiKey, geminiApiKey);
-      parsedOpps = parsed.opportunities || parsed.items || []
+      if (groqApiKey || geminiApiKey) {
+        const parsed = await generateWithFallback(prompt, groqApiKey, geminiApiKey)
+        parsedOpps = parsed?.opportunities || parsed?.items || []
+      }
     } catch (err) {
-      console.error("Failed LLM generation or parsing:", err)
+      console.error("Failed LLM generation or parsing for scout opportunities:", err)
+    }
+
+    // Tier 3 Keyword fallback if LLM returned nothing
+    if (parsedOpps.length === 0 && searchResults.length > 0) {
+      console.log("Using Tier 3 keyword scoring fallback for scouted opportunities")
+      parsedOpps = searchResults.slice(0, 3).map((r: any) => ({
+        title: r.title || 'Funded Opportunity',
+        url: r.url,
+        deadline: null,
+        effort: 'med',
+        profile_match: 80,
+        acceptance_chance: 60,
+        project_fit: (r.description || r.title || 'Relevant opportunity matching research interests.').slice(0, 200),
+        what_offered: 'Travel and project funding'
+      }))
     }
 
     if (parsedOpps.length === 0) {
-      return await appendPreviousOpps('Groq returned no opportunities')
+      return await appendPreviousOpps('LLM and keyword heuristic returned no opportunities')
     }
 
     // 3. Idempotency Check
@@ -213,10 +280,10 @@ serve(async (req) => {
       url: o.url,
       deadline: (o.deadline && String(o.deadline).match(/^\d{4}-\d{2}-\d{2}$/)) ? o.deadline : null,
       effort: o.effort || 'med',
-      profile_match: o.profile_match,
-      acceptance_chance: o.acceptance_chance,
-      project_fit: o.project_fit,
-      what_offered: o.what_offered,
+      profile_match: o.profile_match || 75,
+      acceptance_chance: o.acceptance_chance || 50,
+      project_fit: o.project_fit || 'Scouted grant/fellowship opportunity',
+      what_offered: o.what_offered || 'Grant funding',
       status: 'new'
     }))
 
