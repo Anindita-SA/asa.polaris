@@ -51,6 +51,8 @@ describe('SettingsPanel', () => {
             data: table === 'recurring_task_templates' ? mockTemplates : [],
             error: null
           })),
+          maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+          single: vi.fn().mockResolvedValue({ data: null, error: null }),
           upsert: vi.fn().mockResolvedValue({ data: null, error: null }),
           insert: vi.fn().mockResolvedValue({ data: null, error: null }),
           update: vi.fn().mockImplementation((payload) => {

@@ -4,6 +4,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { useContactReminders } from '../../hooks/useContactReminders'
 import { useCelebration } from '../../hooks/useCelebration'
 import { supabase } from '../../lib/supabase'
+import { safeMutate } from '../../lib/safeMutate'
 
 const TIER_DEFAULTS = {
   hearth: 2,
@@ -88,9 +89,15 @@ export default function RelationshipsView() {
       category: formData.category.trim() || null
     }
     if (editingContact) {
-      await supabase.from('contacts').update(payload).eq('id', editingContact.id).eq('user_id', user.id)
+      await safeMutate(
+        supabase.from('contacts').update(payload).eq('id', editingContact.id).eq('user_id', user.id),
+        { throwOnError: true, context: 'RelationshipsView:saveContactUpdate' }
+      )
     } else {
-      await supabase.from('contacts').insert(payload)
+      await safeMutate(
+        supabase.from('contacts').insert(payload),
+        { throwOnError: true, context: 'RelationshipsView:saveContactInsert' }
+      )
     }
     setIsModalOpen(false)
     fetchContacts()
@@ -99,7 +106,10 @@ export default function RelationshipsView() {
   const deleteContact = async (id) => {
     if (!user?.id) return
     if (window.confirm("Delete this contact?")) {
-      await supabase.from('contacts').delete().eq('id', id).eq('user_id', user.id)
+      await safeMutate(
+        supabase.from('contacts').delete().eq('id', id).eq('user_id', user.id),
+        { throwOnError: true, context: 'RelationshipsView:deleteContact' }
+      )
       fetchContacts()
     }
   }
@@ -112,7 +122,10 @@ export default function RelationshipsView() {
     // update all contacts with oldCat
     const toUpdate = contacts.filter(c => c.category === oldCat)
     for (const c of toUpdate) {
-      await supabase.from('contacts').update({ category: cleanNew || null }).eq('id', c.id).eq('user_id', user.id)
+      await safeMutate(
+        supabase.from('contacts').update({ category: cleanNew || null }).eq('id', c.id).eq('user_id', user.id),
+        { throwOnError: true, context: 'RelationshipsView:renameCategory' }
+      )
     }
     fetchContacts()
     if (activeCategory === oldCat) setActiveCategory(cleanNew || 'All')

@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { safeMutate } from '../lib/safeMutate';
 import { useAuth } from './useAuth';
 import { useCelebration } from './useCelebration';
 
@@ -23,6 +24,7 @@ export const useGoalCompletion = () => {
   };
 
   const toggleGoal = async (goal, onUpdate, e) => {
+    if (!user?.id) return;
     const completed = !goal.completed;
     const newCurrent = completed ? Math.max(goal.current, goal.target || 1) : 0;
     const wasCompleted = goal.completed;
@@ -31,7 +33,10 @@ export const useGoalCompletion = () => {
       onUpdate({ ...goal, current: newCurrent, completed });
     }
 
-    await supabase.from('goals').update({ current: newCurrent, completed }).eq('id', goal.id).eq('user_id', user?.id);
+    await safeMutate(
+      supabase.from('goals').update({ current: newCurrent, completed }).eq('id', goal.id).eq('user_id', user.id),
+      { throwOnError: true, context: 'useGoalCompletion:toggleGoal' }
+    );
 
     if (completed && !wasCompleted) celebrate(e ? { x: e.clientX, y: e.clientY } : undefined);
     trackXP(wasCompleted, completed, goal.xp_reward || 50);
@@ -44,6 +49,7 @@ export const useGoalCompletion = () => {
   };
 
   const updateGoalProgress = async (goal, delta, onUpdate, e) => {
+    if (!user?.id) return;
     const newCurrent = Math.max(0, Math.min(goal.current + delta, goal.target || 1));
     const completed = newCurrent >= (goal.target || 1);
     const wasCompleted = goal.completed;
@@ -52,7 +58,10 @@ export const useGoalCompletion = () => {
       onUpdate({ ...goal, current: newCurrent, completed });
     }
 
-    await supabase.from('goals').update({ current: newCurrent, completed }).eq('id', goal.id).eq('user_id', user?.id);
+    await safeMutate(
+      supabase.from('goals').update({ current: newCurrent, completed }).eq('id', goal.id).eq('user_id', user.id),
+      { throwOnError: true, context: 'useGoalCompletion:updateGoalProgress' }
+    );
 
     if (completed && !wasCompleted) celebrate(e ? { x: e.clientX, y: e.clientY } : undefined);
     trackXP(wasCompleted, completed, goal.xp_reward || 50);

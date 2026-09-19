@@ -483,22 +483,6 @@ describe("RemindersPanel", () => {
     expect(supabase.removeChannel).toHaveBeenCalledWith(mockChannel);
   });
 
-    const resetBtn = screen.getByRole("button", { name: /Reset Defaults/i });
-    fireEvent.click(resetBtn);
-    saved = JSON.parse(localStorage.getItem("polaris_notification_settings") || "{}");
-    expect(saved.taskMode).toBe("focus_only");
-    expect(saved.masterMuted).toBe(false);
-    expect(saved.taskIntervalMinutes).toBe(120);
-
-    // Close modal
-    const closeBtn = screen.getByRole("button", { name: /Save and Close/i });
-    fireEvent.click(closeBtn);
-
-    await waitFor(() => {
-      expect(screen.queryByText("Tune nudges, alerts, and quiet focus preferences")).toBeNull();
-    });
-  });
-
   it("should collapse and expand sections without losing header even when count is zero", async () => {
     useNudgeScheduler.mockReturnValue({
       nudges: [],

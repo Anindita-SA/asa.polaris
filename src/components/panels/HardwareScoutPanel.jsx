@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { safeMutate } from '../../lib/safeMutate'
 import { useAuth } from '../../hooks/useAuth'
 import { Cpu, ExternalLink, Plus, Check, Edit2, X, Save } from 'lucide-react'
 import DismissFeedbackModal from '../modals/DismissFeedbackModal'
@@ -59,34 +60,43 @@ const HardwareScoutPanel = () => {
     let newTaskId = opp.task_id
 
     if (opp.task_id) {
-      await supabase
-        .from('tasks')
-        .update({ status: 'active', quadrant: 'important_not_urgent' })
-        .eq('id', opp.task_id)
-        .eq('user_id', user.id)
+      await safeMutate(
+        supabase
+          .from('tasks')
+          .update({ status: 'active', quadrant: 'important_not_urgent' })
+          .eq('id', opp.task_id)
+          .eq('user_id', user.id),
+        { throwOnError: true, context: 'HardwareScoutPanel:activateExistingTask' }
+      )
     } else {
-      const { data: taskData } = await supabase
-        .from('tasks')
-        .insert({
-          title: `Apply for: ${opp.title}`,
-          notes: `URL: ${opp.url}\n\nDraft:\n${opp.application_draft || ''}`,
-          status: 'active',
-          quadrant: 'important_not_urgent',
-          user_id: user.id
-        })
-        .select()
-        .single()
+      const { data: taskData } = await safeMutate(
+        supabase
+          .from('tasks')
+          .insert({
+            title: `Apply for: ${opp.title}`,
+            notes: `URL: ${opp.url}\n\nDraft:\n${opp.application_draft || ''}`,
+            status: 'active',
+            quadrant: 'important_not_urgent',
+            user_id: user.id
+          })
+          .select()
+          .single(),
+        { throwOnError: true, context: 'HardwareScoutPanel:insertTask' }
+      )
       
       if (taskData) {
         newTaskId = taskData.id
       }
     }
 
-    await supabase
-      .from('hardware_opportunities')
-      .update({ status: 'applied', task_id: newTaskId })
-      .eq('id', opp.id)
-      .eq('user_id', user.id)
+    await safeMutate(
+      supabase
+        .from('hardware_opportunities')
+        .update({ status: 'applied', task_id: newTaskId })
+        .eq('id', opp.id)
+        .eq('user_id', user.id),
+      { throwOnError: true, context: 'HardwareScoutPanel:applyOpportunity' }
+    )
 
     if (newTaskId) {
       supabase.functions.invoke('generate-application-subtasks', {
@@ -109,18 +119,22 @@ const HardwareScoutPanel = () => {
   }
 
   const rejectOpportunityWithFeedback = async (opp, reason) => {
+    if (!user?.id) return
     // Optimistic update
     setOpportunities(prev => prev.filter(o => o.id !== opp.id))
 
-    await supabase
-      .from('hardware_opportunities')
-      .update({ 
-        status: 'rejected',
-        rejection_reason: reason || 'Dismissed by user',
-        rejected_at: new Date().toISOString()
-      })
-      .eq('id', opp.id)
-      .eq('user_id', user.id)
+    await safeMutate(
+      supabase
+        .from('hardware_opportunities')
+        .update({ 
+          status: 'rejected',
+          rejection_reason: reason || 'Dismissed by user',
+          rejected_at: new Date().toISOString()
+        })
+        .eq('id', opp.id)
+        .eq('user_id', user.id),
+      { throwOnError: true, context: 'HardwareScoutPanel:rejectOpportunity' }
+    )
     
     // Ensure state remains synchronized with backend
     fetchOpportunities()
@@ -133,21 +147,24 @@ const HardwareScoutPanel = () => {
 
   const saveEdit = async () => {
     if (!user?.id) return
-    await supabase
-      .from('hardware_opportunities')
-      .update({
-        title: editForm.title,
-        url: editForm.url,
-        deadline: editForm.deadline,
-        what_offered: editForm.what_offered,
-        project_fit: editForm.project_fit,
-        effort: editForm.effort,
-        application_draft: editForm.application_draft,
-        profile_match: editForm.profile_match,
-        acceptance_chance: editForm.acceptance_chance
-      })
-      .eq('id', editingId)
-      .eq('user_id', user.id)
+    await safeMutate(
+      supabase
+        .from('hardware_opportunities')
+        .update({
+          title: editForm.title,
+          url: editForm.url,
+          deadline: editForm.deadline,
+          what_offered: editForm.what_offered,
+          project_fit: editForm.project_fit,
+          effort: editForm.effort,
+          application_draft: editForm.application_draft,
+          profile_match: editForm.profile_match,
+          acceptance_chance: editForm.acceptance_chance
+        })
+        .eq('id', editingId)
+        .eq('user_id', user.id),
+      { throwOnError: true, context: 'HardwareScoutPanel:saveEdit' }
+    )
     
     setEditingId(null)
     fetchOpportunities()

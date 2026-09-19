@@ -183,9 +183,25 @@ describe('MediaLog', () => {
 
     await waitFor(() => {
       expect(spy).toHaveBeenCalledWith('https://doi.org/10.1234/test')
-      expect(screen.getByText('Log Media or Paper')).toBeTruthy()
+      expect(screen.getByText('Log Literature or Media')).toBeTruthy()
       expect(screen.getByDisplayValue('New Solar Research Paper')).toBeTruthy()
       expect(screen.getByDisplayValue('A. Saha')).toBeTruthy()
+    })
+  })
+
+  it('opens edit modal when clicking edit button and populates existing data', async () => {
+    render(<MediaLog />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Thinking in Systems')).toBeTruthy()
+    })
+
+    const editBtns = screen.getAllByTitle('Edit entry')
+    fireEvent.click(editBtns[0])
+
+    await waitFor(() => {
+      expect(screen.getByText('Edit Literature / Media Entry')).toBeTruthy()
+      expect(screen.getByDisplayValue('Opportunities for decentralised solar power to improve reliability')).toBeTruthy()
     })
   })
 })

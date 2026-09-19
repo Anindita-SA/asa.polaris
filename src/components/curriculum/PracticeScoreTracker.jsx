@@ -20,6 +20,7 @@ import {
   Calendar
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { safeMutate } from '../../lib/safeMutate';
 import { useAuth } from '../../hooks/useAuth';
 
 // Official IELTS raw score to band conversion
@@ -235,10 +236,14 @@ export default function PracticeScoreTracker({ curriculumId }) {
       setLoading(true);
 
       // Load cached local state immediately for instant feedback
+      let initialScores = [];
       try {
         const cached = localStorage.getItem(cacheKey) || localStorage.getItem(legacyKey);
-        if (cached && isMounted) {
-          setScores(JSON.parse(cached));
+        if (cached) {
+          initialScores = JSON.parse(cached);
+          if (Array.isArray(initialScores) && isMounted) {
+            setScores(initialScores);
+          }
         }
       } catch (e) {
         // Ignore cache parsing errors
@@ -250,7 +255,7 @@ export default function PracticeScoreTracker({ curriculumId }) {
       }
 
       try {
-        // Check for legacy localStorage scores to migrate
+        // Check for legacy localStorage scores to migrate safely
         const legacyRaw = localStorage.getItem(legacyKey);
         if (legacyRaw) {
           try {
@@ -268,8 +273,14 @@ export default function PracticeScoreTracker({ curriculumId }) {
                 created_at: item.date || new Date().toISOString(),
               }));
 
-              await supabase.from('practice_scores').insert(migrationPayload);
-              localStorage.removeItem(legacyKey);
+              const { error: insertError } = await safeMutate(
+                supabase.from('practice_scores').insert(migrationPayload),
+                { throwOnError: false, context: 'PracticeScoreTracker:migrateScores' }
+              );
+              // Only remove legacy key if database insert succeeded without error
+              if (!insertError) {
+                localStorage.removeItem(legacyKey);
+              }
             }
           } catch (migrateErr) {
             console.error('Error during practice scores migration:', migrateErr);
@@ -295,6 +306,9 @@ export default function PracticeScoreTracker({ curriculumId }) {
           } catch (storageErr) {
             // Ignore storage quota errors
           }
+        } else if (error && isMounted) {
+          // If Supabase table is not yet created or returns error, keep local scores intact
+          console.warn('Supabase practice_scores unavailable, using local cache:', error.message);
         }
       } catch (err) {
         console.error('Failed to fetch practice scores:', err);
@@ -394,10 +408,13 @@ export default function PracticeScoreTracker({ curriculumId }) {
           curriculum_id: curriculumId || null,
         };
 
-        const { data, error } = await supabase
-          .from('practice_scores')
-          .insert([dbPayload])
-          .select();
+        const { data, error } = await safeMutate(
+          supabase
+            .from('practice_scores')
+            .insert([dbPayload])
+            .select(),
+          { throwOnError: true, context: 'PracticeScoreTracker:addScore' }
+        );
 
         const createdItem = data && data[0] ? data[0] : { ...dbPayload, id: Date.now().toString() };
         const updated = [createdItem, ...scores];
@@ -435,11 +452,14 @@ export default function PracticeScoreTracker({ curriculumId }) {
   const handleDelete = async (id) => {
     if (user?.id) {
       try {
-        await supabase
-          .from('practice_scores')
-          .delete()
-          .eq('id', id)
-          .eq('user_id', user.id);
+        await safeMutate(
+          supabase
+            .from('practice_scores')
+            .delete()
+            .eq('id', id)
+            .eq('user_id', user.id),
+          { throwOnError: true, context: 'PracticeScoreTracker:deleteScore' }
+        );
       } catch (err) {
         console.error('Failed to delete score from Supabase:', err);
       }

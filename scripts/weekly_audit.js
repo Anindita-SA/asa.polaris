@@ -4,16 +4,55 @@ import { generateWithFallbackNode } from './lib/llm_utils.js';
 
 // Configuration
 export const config = {
-  groqApiKey: process.env.GROQ_API_KEY || process.env.VITE_GROQ_API_KEY
+  groqApiKey: process.env.GROQ_API_KEY || process.env.VITE_GROQ_API_KEY || null,
+  geminiApiKey: process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || null
 };
 
 /**
  * Validates environment variables.
  */
 export function validateEnvironment(cfg = config) {
-  if (!cfg.groqApiKey) {
-    throw new Error("Missing required environment variables (GROQ_API_KEY).");
+  if (!cfg.groqApiKey && !cfg.geminiApiKey) {
+    throw new Error("Missing required environment variables (GROQ_API_KEY or GEMINI_API_KEY).");
   }
+}
+
+/**
+ * Rule-based heuristic audit task generator (Tier 3 fallback).
+ */
+export function generateHeuristicAuditTasks(milestones = [], meals = []) {
+  const tasks = [];
+  // 1. Upcoming milestones in 14 days
+  for (const m of milestones) {
+    tasks.push({
+      title: `Prepare next step for ${m.title}`,
+      notes: `Milestone "${m.title}" is due on ${m.deadline}. Review deliverables and outline next sub-tasks.`,
+      estimated_minutes: 30
+    });
+  }
+
+  // 2. Nutrition log anomalies
+  const anomalies = [];
+  for (const meal of meals) {
+    const mealDesc = (meal.meal_description || meal.name || meal.description || '').toLowerCase();
+    const protein = meal.protein_g || meal.protein || 0;
+    if (mealDesc.includes('egg') && protein > 12) {
+      anomalies.push(`Meal "${mealDesc}" lists ${protein}g protein (>12g per egg average).`);
+    }
+    if (meal.cost === null || meal.cost === undefined || meal.cost === '') {
+      anomalies.push(`Meal "${mealDesc || 'unnamed'}" on ${meal.log_date || 'recent date'} is missing cost data.`);
+    }
+  }
+
+  if (anomalies.length > 0) {
+    tasks.push({
+      title: "Audit Nutrition Logs",
+      notes: `Anomalies detected in meal logs:\n- ${anomalies.slice(0, 5).join('\n- ')}`,
+      estimated_minutes: 15
+    });
+  }
+
+  return tasks;
 }
 
 /**
@@ -92,10 +131,17 @@ Rules for Tasks:
 
 Generate the JSON array now:`;
 
-  const geminiApiKey = process.env.GEMINI_API_KEY || null;
-  if (!groqApiKey && !geminiApiKey) throw new Error("No LLM API keys configured");
-  
-  return await generateWithFallbackNode(prompt, groqApiKey, geminiApiKey, false);
+  const geminiApiKey = config.geminiApiKey;
+  try {
+    if (groqApiKey || geminiApiKey) {
+      const response = await generateWithFallbackNode(prompt, groqApiKey, geminiApiKey, false);
+      if (response) return response;
+    }
+  } catch (err) {
+    console.warn("AI generation failed in weekly audit, applying heuristic fallback:", err.message || err);
+  }
+
+  return JSON.stringify(generateHeuristicAuditTasks(milestones, meals));
 }
 
 /**

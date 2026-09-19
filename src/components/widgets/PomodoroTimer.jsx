@@ -314,29 +314,47 @@ const PomodoroTimer = ({ mobilePill = false }) => {
       if (mode === 'focus' && user?.id) {
         const mins = durations.focus
         const xpEarned = Math.round(mins * 0.8)
-        if (addXP) addXP(xpEarned)
-
         const finalTitle = comment || linkedItem || (currentTask ? currentTask.title : 'Focus Session')
 
-        supabase.from('focus_sessions').insert({
-          user_id: user.id,
-          duration_minutes: mins,
-          mode: 'focus',
-          io_type: ioType,
-          comment: finalTitle,
-          node_title: linkedItem || null,
-          goal_id: linkedGoal || null,
-          created_at: new Date().toISOString()
-        }).then()
+        const handleFocusCompletion = async () => {
+          try {
+            const { error: focusErr } = await supabase.from('focus_sessions').insert({
+              user_id: user.id,
+              duration_minutes: mins,
+              mode: 'focus',
+              io_type: ioType,
+              comment: finalTitle,
+              node_title: linkedItem || null,
+              goal_id: linkedGoal || null,
+              created_at: new Date().toISOString()
+            })
 
-        // Sync with IO Tracker automatically
-        supabase.from('io_logs').insert({
-          user_id: user.id,
-          type: ioType,
-          category: ioType === 'input' ? 'reading' : 'creating',
-          minutes: mins,
-          date: new Date().toISOString().slice(0, 10)
-        }).then()
+            if (focusErr) {
+              console.error('Failed to save focus session:', focusErr)
+            } else if (addXP) {
+              addXP(xpEarned)
+            }
+
+            // Sync with IO Tracker automatically
+            const { error: ioErr } = await supabase.from('io_logs').insert({
+              user_id: user.id,
+              type: ioType,
+              category: ioType === 'input' ? 'reading' : 'creating',
+              minutes: mins,
+              date: new Date().toISOString().slice(0, 10)
+            })
+
+            if (ioErr) {
+              console.error('Failed to save IO log:', ioErr)
+            } else if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('polaris-io-logs-changed'))
+            }
+          } catch (err) {
+            console.error('Error saving focus session or IO log:', err)
+          }
+        }
+
+        handleFocusCompletion()
       }
 
       if (autoRestart) {
@@ -347,7 +365,7 @@ const PomodoroTimer = ({ mobilePill = false }) => {
         setIsRunning(true)
       }
     }
-  }, [timeLeft, isRunning, mode, durations, linkedItem, comment, user?.id, ioType, autoRestart, addXP, currentTask])
+  }, [timeLeft, isRunning, mode, durations, linkedItem, linkedGoal, comment, user?.id, ioType, autoRestart, addXP, currentTask])
 
   const prevModeRef = useRef(mode)
   useEffect(() => {

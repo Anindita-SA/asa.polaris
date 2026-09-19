@@ -17,10 +17,8 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    const targetUserId = Deno.env.get('TARGET_USER_ID')
 
     if (!serviceRoleKey) throw new Error('Configuration error: Missing database key')
-    if (!targetUserId) throw new Error('Configuration error: Missing target user')
 
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
@@ -39,36 +37,54 @@ serve(async (req) => {
       }
     })
 
+    let resolvedUserId: string | null = null
+
     if (token !== serviceRoleKey) {
       const { data: { user: callerUser }, error: authErr } = await supabaseClient.auth.getUser(token)
-      if (authErr || !callerUser || callerUser.id !== targetUserId) {
+      if (authErr || !callerUser) {
         return new Response(JSON.stringify({ error: 'Unauthorized' }), {
           status: 403,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
       }
+      resolvedUserId = callerUser.id
+    } else {
+      const envTarget = Deno.env.get('TARGET_USER_ID')
+      if (envTarget) {
+        resolvedUserId = envTarget
+      } else {
+        const { data: profiles, error: profilesError } = await supabaseClient.from('profiles').select('id').limit(1)
+        if (profilesError) throw profilesError
+        if (profiles && profiles.length > 0) {
+          resolvedUserId = profiles[0].id
+        }
+      }
     }
 
-    const user = { id: targetUserId };
+    if (!resolvedUserId) {
+      throw new Error('Configuration error: Missing target user')
+    }
 
-    let force = false;
+    const user = { id: resolvedUserId }
+
+    let force = false
     try {
-      const body = await req.json();
-      force = body.force === true;
+      const body = await req.json()
+      force = body.force === true
     } catch (e) {}
 
     const today = new Date().toLocaleDateString('en-CA')
     
     // Check for existing brief
-    const { data: existingBrief } = await supabaseClient
+    const { data: existingBrief, error: existingBriefError } = await supabaseClient
       .from('morning_briefs')
       .select('id, items')
       .eq('user_id', user.id)
       .eq('date', today)
       .maybeSingle()
 
-    // We no longer abort if existingBrief is found. We append.
-    
+    if (existingBriefError) throw existingBriefError
+
     // Fetch active sources
     const { data: sources, error: sourcesError } = await supabaseClient
       .from('brief_sources')
@@ -79,23 +95,25 @@ serve(async (req) => {
     if (sourcesError) throw sourcesError
 
     // Fallback RSS feeds if empty
-    let activeSources = sources || [];
+    let activeSources = sources || []
     if (activeSources.length === 0) {
       activeSources = [
         { type: 'fixed', name: 'Wildlabs', url: 'https://www.wildlabs.net/feed' },
         { type: 'fixed', name: 'Mongabay India', url: 'https://india.mongabay.com/feed/' },
         { type: 'fixed', name: 'AgFunderNews', url: 'https://agfundernews.com/feed' },
         { type: 'fixed', name: 'Innovation Origins', url: 'https://innovationorigins.com/en/feed/' }
-      ];
+      ]
     }
 
-    const { data: pastBriefs } = await supabaseClient
+    const { data: pastBriefs, error: pastBriefsError } = await supabaseClient
       .from('morning_briefs')
       .select('items')
       .eq('user_id', user.id)
 
+    if (pastBriefsError) throw pastBriefsError
+
     const usedUrls = new Set(
-      (pastBriefs || []).flatMap(b => (b.items || []).map((i: any) => i.url).filter(Boolean))
+      (pastBriefs || []).flatMap((b: any) => (b.items || []).map((i: any) => i.url).filter(Boolean))
     )
 
     const pool = []
@@ -137,22 +155,41 @@ serve(async (req) => {
       })
     }
 
-    const groqApiKey = Deno.env.get('GROQ_API_KEY')
-    if (!groqApiKey) throw new Error('GROQ_API_KEY secret is not set')
+    const groqApiKey = Deno.env.get('GROQ_API_KEY') || null
+    const geminiApiKey = Deno.env.get('GEMINI_API_KEY') || null
 
     const minifiedPool = pool.map(i => ({
       title: i.title, url: i.url, source_name: i.source_name, summary: (i.summary || '').substring(0, 500)
     }))
 
-    const prompt = newsPrompt(JSON.stringify(minifiedPool));
+    const prompt = newsPrompt(JSON.stringify(minifiedPool))
   
-    const geminiApiKey = Deno.env.get('GEMINI_API_KEY') || null;
     let parsedItems = []
     try {
-      const parsed = await generateWithFallback(prompt, groqApiKey, geminiApiKey);
-      parsedItems = parsed.items || []
+      if (groqApiKey || geminiApiKey) {
+        const parsed = await generateWithFallback(prompt, groqApiKey, geminiApiKey)
+        parsedItems = parsed?.items || []
+      }
     } catch (err) {
-      console.error("Failed LLM generation or parsing:", err)
+      console.error("Failed LLM generation or parsing, falling back to Tier 3 RSS synthesis:", err)
+    }
+
+    // Tier 3 heuristic fallback: Directly pick top 3 RSS pool items
+    if (parsedItems.length === 0 && pool.length > 0) {
+      console.log("Tier 3 RSS fallback active: generating brief directly from top RSS pool items.")
+      parsedItems = pool.slice(0, 3).map(item => {
+        const cleanSummary = (item.summary || item.title || '')
+          .replace(/<[^>]*>?/gm, '')
+          .replace(/\s+/g, ' ')
+          .trim()
+        const truncated = cleanSummary.length > 160 ? cleanSummary.slice(0, 157) + '...' : cleanSummary
+        return {
+          title: item.title,
+          summary: truncated || item.title,
+          url: item.url,
+          source: item.source_name
+        }
+      })
     }
     
     // Tag with type="news"
@@ -161,24 +198,24 @@ serve(async (req) => {
     if (newsItems.length > 0) {
       if (existingBrief) {
         // Keep existing non-news items (like type="opportunity"), append new news items
-        const nonNewsItems = (existingBrief.items || []).filter((i: any) => i.type !== 'news');
+        const nonNewsItems = (existingBrief.items || []).filter((i: any) => i.type !== 'news')
         if (force) {
           // If force, we wipe old news and add new ones
-          const newItems = [...nonNewsItems, ...newsItems];
-          const { error: updateErr } = await supabaseClient.from('morning_briefs').update({ items: newItems }).eq('id', existingBrief.id).eq('user_id', user.id);
-          if (updateErr) throw updateErr;
+          const newItems = [...nonNewsItems, ...newsItems]
+          const { error: updateErr } = await supabaseClient.from('morning_briefs').update({ items: newItems }).eq('id', existingBrief.id).eq('user_id', user.id)
+          if (updateErr) throw updateErr
         } else {
           // If not force, and we already have news, don't generate more
-          const hasNews = (existingBrief.items || []).some((i: any) => i.type === 'news');
+          const hasNews = (existingBrief.items || []).some((i: any) => i.type === 'news')
           if (hasNews) {
             return new Response(JSON.stringify({ message: 'Brief already has news items for today' }), {
               headers: { ...corsHeaders, 'Content-Type': 'application/json' },
               status: 200,
             })
           } else {
-             const newItems = [...nonNewsItems, ...newsItems];
-             const { error: updateErr } = await supabaseClient.from('morning_briefs').update({ items: newItems }).eq('id', existingBrief.id).eq('user_id', user.id);
-             if (updateErr) throw updateErr;
+             const newItems = [...nonNewsItems, ...newsItems]
+             const { error: updateErr } = await supabaseClient.from('morning_briefs').update({ items: newItems }).eq('id', existingBrief.id).eq('user_id', user.id)
+             if (updateErr) throw updateErr
           }
         }
       } else {
@@ -193,7 +230,7 @@ serve(async (req) => {
         status: 200,
       })
     } else {
-      return new Response(JSON.stringify({ message: 'Groq returned no items' }), {
+      return new Response(JSON.stringify({ message: 'No items could be generated' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       })

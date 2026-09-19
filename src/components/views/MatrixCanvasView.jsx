@@ -1,5 +1,51 @@
-import { getGroqKey, generateLlmResponse } from '../../lib/llm';
+import { generateLlmResponse } from '../../lib/llm';
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+
+function estimateDurationHeuristic(title) {
+  const t = (title || '').toLowerCase();
+  const minMatch = t.match(/(\d+)\s*(?:m|min|mins|minutes)\b/);
+  const hrMatch = t.match(/(\d+(?:\.\d+)?)\s*(?:h|hr|hrs|hours)\b/);
+
+  let explicitMinutes = null;
+  if (minMatch) {
+    explicitMinutes = Math.min(240, Math.max(5, parseInt(minMatch[1], 10)));
+  } else if (hrMatch) {
+    explicitMinutes = Math.min(240, Math.max(5, Math.round(parseFloat(hrMatch[1]) * 60)));
+  }
+
+  // High Load (45-60m)
+  if (/(code|write|build|design|derive|simulate|implement|architect|pcb|hardware|math|proof|sop)\b/i.test(t)) {
+    return {
+      minutes: explicitMinutes || 45,
+      mentalLoad: 'high',
+      taskType: 'output'
+    };
+  }
+
+  // Medium Load (30-40m)
+  if (/(draft|outline|email|reach out|fill|plan|submit|apply|test|debug|solve|practice|prep)\b/i.test(t)) {
+    return {
+      minutes: explicitMinutes || 30,
+      mentalLoad: 'medium',
+      taskType: 'output'
+    };
+  }
+
+  // Low Load (20-25m)
+  if (/(read|research|survey|review|explore|watch|listen|skim|browse|check|organize|tag|clean|request)\b/i.test(t)) {
+    return {
+      minutes: explicitMinutes || 20,
+      mentalLoad: 'low',
+      taskType: /(read|research|survey|explore|watch|listen|skim|browse)/i.test(t) ? 'input' : 'output'
+    };
+  }
+
+  return {
+    minutes: explicitMinutes || 30,
+    mentalLoad: 'medium',
+    taskType: 'output'
+  };
+}
 import * as d3 from 'd3';
 import { supabase } from '../../lib/supabase';
 import { computeWSJFScore } from '../../hooks/useWSJFScore';
@@ -676,28 +722,48 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
     setAuditMessage("Auditing Brain Dump & spatial matrix nodes...");
 
     try {
-      const key = getGroqKey();
-      if (!key) {
-        alert("Groq API Key is not configured. Please enter your key to enable AI features.");
-        setIsAuditing(false);
-        return;
-      }
-
       const unestimated = tasks.filter((t) => !t.estimated_minutes && t.status !== 'done');
       if (unestimated.length > 0) {
-        setAuditMessage(`Estimating duration for ${unestimated.length} unestimated tasks via AI...`);
+        setAuditMessage(`Estimating duration for ${unestimated.length} unestimated tasks...`);
         for (const task of unestimated) {
           const safeTitle = JSON.stringify(task.title);
-          const prompt = `Estimate realistic duration in minutes for task: ${safeTitle}. Return ONLY JSON like {"minutes": 35}.`;
+          const prompt = `Estimate realistic duration in minutes and mental_load ("low", "medium", "high") for task: ${safeTitle}. Return ONLY JSON like {"minutes": 35, "mental_load": "medium"}.`;
+          let mins = null;
+          let mentalLoad = null;
+          let estimateSource = 'ai';
           try {
             const data = await generateLlmResponse([{ role: 'user', content: prompt }], true);
-            const parsed = JSON.parse(data.choices[0].message.content);
-            const mins = parsed?.minutes ? Math.max(5, Math.round(parsed.minutes)) : 30;
-
-            await offlineUpdate('tasks', { id: task.id }, { estimated_minutes: mins, estimate_source: 'ai' });
+            const raw = data?.choices?.[0]?.message?.content || '{}';
+            let parsed = {};
+            try {
+              parsed = JSON.parse(raw);
+            } catch (pErr) {
+              const m = raw.match(/\{[\s\S]*\}/);
+              if (m) parsed = JSON.parse(m[0]);
+            }
+            if (parsed?.minutes && typeof parsed.minutes === 'number') {
+              mins = Math.max(5, Math.round(parsed.minutes));
+            }
+            if (['low', 'medium', 'high'].includes(parsed?.mental_load)) {
+              mentalLoad = parsed.mental_load;
+            }
           } catch (e) {
-            console.error('Estimate error for task:', task.title, e);
+            console.error('LLM estimate error for task:', task.title, e);
           }
+
+          if (!mins) {
+            const heuristic = estimateDurationHeuristic(task.title);
+            mins = heuristic.minutes;
+            mentalLoad = heuristic.mentalLoad;
+            estimateSource = 'heuristic';
+          }
+
+          await offlineUpdate('tasks', { id: task.id }, {
+            estimated_minutes: mins,
+            time_estimate_minutes: mins,
+            mental_load: mentalLoad || 'medium',
+            estimate_source: estimateSource
+          });
         }
       }
 

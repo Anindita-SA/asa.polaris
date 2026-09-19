@@ -8,6 +8,7 @@ import { Flame, Archive, Plus, X, ArrowUp, Check, Zap, Dices, Trash2 } from 'luc
 import PomodoroTimer from '../widgets/PomodoroTimer'
 import { useTodaysTasks } from '../../hooks/useTodaysTasks'
 import SurpriseTaskModal from '../modals/SurpriseTaskModal'
+import { generateLlmResponse } from '../../lib/llm'
 const CATEGORIES = ['academic', 'portfolio', 'application', 'health', 'creative', 'research']
 
 const FocusBoard = () => {
@@ -217,28 +218,32 @@ const FocusBoard = () => {
   }
 
   const breakDownTask = async () => {
-    const key = import.meta.env.VITE_ANTHROPIC_API_KEY
-    if (!key || !taskDescription.trim()) return
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': key,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        system: 'You are a task breakdown assistant. Given a project or task, return ONLY a JSON array of 5-10 short, specific, actionable steps. No markdown, no preamble, just the JSON array of strings.',
-        messages: [{ role: 'user', content: taskDescription.trim() }],
-      }),
-    })
-    const data = await response.json()
-    const text = (data?.content?.[0]?.text || '[]').replace(/```json|```/g, '').trim()
+    if (!taskDescription.trim()) return
+    const systemPrompt = 'You are a task breakdown assistant. Given a project or task, return ONLY a valid JSON object with a single key "steps" containing an array of 5-8 short, specific, actionable steps. Example: { "steps": ["step 1", "step 2"] }'
     try {
-      setGeneratedSteps(JSON.parse(text))
-    } catch {
-      setGeneratedSteps([])
+      const data = await generateLlmResponse([
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: taskDescription.trim() }
+      ], true, 1024)
+      const text = data?.choices?.[0]?.message?.content || '{"steps":[]}'
+      const parsed = JSON.parse(text)
+      const steps = Array.isArray(parsed.steps) ? parsed.steps : (Array.isArray(parsed) ? parsed : Object.values(parsed)[0] || [])
+      setGeneratedSteps(steps.length ? steps : [
+        `Open workspace and define requirements for ${taskDescription.trim()}`,
+        `Gather necessary research materials and tools`,
+        `Create initial structural draft or skeleton`,
+        `Implement core solution and deliverables`,
+        `Review and verify against quality criteria`
+      ])
+    } catch (e) {
+      console.warn('AI breakdown failed, applying heuristic fallback:', e)
+      setGeneratedSteps([
+        `Open workspace and define requirements for ${taskDescription.trim()}`,
+        `Gather necessary research materials and tools`,
+        `Create initial structural draft or skeleton`,
+        `Implement core solution and deliverables`,
+        `Review and verify against quality criteria`
+      ])
     }
   }
 
@@ -255,6 +260,10 @@ const FocusBoard = () => {
       status: 'active',
       quadrant: 'important_not_urgent',
       category: breakdownTarget.category || 'academic',
+      estimated_minutes: 20,
+      time_estimate_minutes: 20,
+      mental_load: 'medium',
+      estimate_source: 'ai'
     }))
     await Promise.all(insertPromises)
     setBreakdownTarget(null)

@@ -3,6 +3,41 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createSafeClient } from './lib/safe_supabase.js';
+import { generateWithFallbackNode } from './lib/llm_utils.js';
+
+/**
+ * Deterministic heuristic Eisenhower quadrant classifier when LLM is unavailable.
+ */
+export function classifyTaskHeuristically(task, activeGoals = []) {
+  const currentDate = new Date();
+  if (task.deadline) {
+    const d = new Date(task.deadline);
+    const diffDays = Math.ceil((d - currentDate) / (1000 * 60 * 60 * 24));
+    if (diffDays <= 3) {
+      return 'urgent_important';
+    }
+  }
+
+  const titleLower = (task.title || '').toLowerCase();
+  const notesLower = (task.notes || '').toLowerCase();
+  const contextLower = (task.context || '').toLowerCase();
+  const fullText = `${titleLower} ${notesLower} ${contextLower}`;
+
+  const isGoalAligned = (activeGoals || []).some(g => {
+    const gTitle = (g.title || '').toLowerCase();
+    return gTitle.split(/\s+/).some(w => w.length > 3 && fullText.includes(w));
+  });
+
+  if (isGoalAligned || /(research|paper|msc|thesis|delft|kicad|code|build|design|write|substack|study|exam|project|portfolio|internship)/i.test(fullText)) {
+    return 'important_not_urgent';
+  }
+
+  if ((task.estimated_minutes && task.estimated_minutes <= 15) || /(quick|email|inbox|reply|call|submit|pay|ping|update|sync|errand|bill|form|clean)/i.test(fullText)) {
+    return 'urgent_not_important';
+  }
+
+  return 'neither';
+}
 
 /**
  * Deduplicates active tasks (status !== 'done') sharing the same normalized title or source_template_id.
@@ -378,6 +413,22 @@ export async function triageParentTasksUrgency(supabase, uid, allTasks = [], isD
   return updates;
 }
 
+/**
+ * Filters unsorted tasks to exclude parents that have subtasks and habit tasks.
+ * Parent tasks with children derive their quadrant solely through urgency inheritance.
+ *
+ * @param {Array} unsortedTasks - Array of candidate tasks to triage
+ * @param {Set<string>} parentTaskIdsWithChildren - Set of parent task IDs that have child subtasks
+ * @returns {Array} Filtered list of tasks eligible for LLM / rule-based triage
+ */
+export function filterTasksForTriage(unsortedTasks = [], parentTaskIdsWithChildren = new Set()) {
+  return (unsortedTasks || []).filter(t => {
+    if (parentTaskIdsWithChildren.has(t.id)) return false;
+    if (t.category === 'habits') return false;
+    return true;
+  });
+}
+
 const OLLAMA_URL = 'http://127.0.0.1:11434/api/generate';
 const MODEL = 'qwen2.5:1.5b';
 
@@ -542,8 +593,16 @@ async function run() {
       await handleStaleParentTasks(supabase, uid, staleParents, isDryRun);
     }
 
-    // 1c. Parent task urgency inheritance triage
+    // 1c. Parent task urgency inheritance triage (sole authority for deciding quadrant for parent tasks with child subtasks)
     await triageParentTasksUrgency(supabase, uid, remainingUserTasks, isDryRun);
+
+    // Build a set of parent task IDs with child subtasks
+    const parentTaskIdsWithChildren = new Set(
+      (remainingUserTasks || [])
+        .filter(t => t.parent_task_id)
+        .map(t => t.parent_task_id)
+        .filter(Boolean)
+    );
 
     // 2. Fetch unsorted tasks
     let { data: unsortedTasks, error: taskErr } = await supabase
@@ -572,11 +631,11 @@ async function run() {
       await resolveDuplicates(supabase, uid, unsortedDuplicateIds, isDryRun);
     }
 
-    unsortedTasks = uniqueTasks;
-    unsortedTasks = unsortedTasks.filter(t => t.category !== 'habits');
+    // Exclude parent tasks that have subtasks and habit category tasks
+    unsortedTasks = filterTasksForTriage(uniqueTasks, parentTaskIdsWithChildren);
 
     if (unsortedTasks.length === 0) {
-      console.log('All unsorted tasks were duplicates or habits. Exiting.');
+      console.log('All unsorted tasks were duplicates, habits, or parent tasks with children. Exiting.');
       return;
     }
 
@@ -639,54 +698,76 @@ async function run() {
       console.log('--------------------------');
     }
 
-    // 5. Call Ollama
-    let resultText = "";
-    if (ollamaReady) {
-      console.log(`Calling local model: ${MODEL}...`);
-      const res = await fetch(OLLAMA_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: MODEL,
-          prompt: prompt,
-          stream: false,
-          format: 'json'
-        })
-      });
-
-      if (!res.ok) {
-        throw new Error(`Ollama API error: ${res.statusText}`);
-      }
-
-      const json = await res.json();
-      resultText = json.response ? json.response.trim() : (json.message?.content || "").trim();
-    } else {
-      console.log("Mocking LLM response since Ollama is not ready...");
-      resultText = "[]"; // Empty response
-    }
-    
-    console.log("LLM Raw Output:", resultText);
-
-    let parsed = JSON.parse(resultText);
-    
-    // Normalize LLM output to a flat array
+    // 5. Tiered Classification: Ollama -> Groq / Gemini -> Heuristic
     let normalized = [];
-    if (Array.isArray(parsed)) {
-      normalized = parsed;
-    } else if (typeof parsed === 'object' && parsed !== null) {
-      // Handle cases where the LLM returns {"id": [...]} or {"id": {id, quadrant}}
-      for (const key in parsed) {
-        if (Array.isArray(parsed[key])) {
-          normalized.push(...parsed[key]);
-        } else if (typeof parsed[key] === 'object') {
-          normalized.push(parsed[key]);
-        } else if (parsed.id && parsed.quadrant) {
-          // It's a single object
-          normalized.push(parsed);
-          break;
+    if (ollamaReady) {
+      try {
+        console.log(`Calling local model: ${MODEL}...`);
+        const res = await fetch(OLLAMA_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: MODEL,
+            prompt: prompt,
+            stream: false,
+            format: 'json'
+          })
+        });
+
+        if (res.ok) {
+          const json = await res.json();
+          const resultText = json.response ? json.response.trim() : (json.message?.content || "").trim();
+          const parsed = JSON.parse(resultText);
+          if (Array.isArray(parsed)) {
+            normalized = parsed;
+          } else if (typeof parsed === 'object' && parsed !== null) {
+            for (const key in parsed) {
+              if (Array.isArray(parsed[key])) normalized.push(...parsed[key]);
+              else if (typeof parsed[key] === 'object') normalized.push(parsed[key]);
+              else if (parsed.id && parsed.quadrant) { normalized.push(parsed); break; }
+            }
+          }
         }
+      } catch (ollamaErr) {
+        console.warn("Ollama invocation failed, proceeding to cloud LLM fallback:", ollamaErr.message || ollamaErr);
       }
     }
+
+    if (normalized.length === 0) {
+      try {
+        console.log("Calling Groq/Gemini fallback cascade for task triage...");
+        const rawCloudText = await generateWithFallbackNode(prompt, null, null, true);
+        if (rawCloudText) {
+          const parsed = JSON.parse(rawCloudText);
+          if (Array.isArray(parsed)) {
+            normalized = parsed;
+          } else if (typeof parsed === 'object' && parsed !== null) {
+            for (const key in parsed) {
+              if (Array.isArray(parsed[key])) normalized.push(...parsed[key]);
+              else if (typeof parsed[key] === 'object') normalized.push(parsed[key]);
+              else if (parsed.id && parsed.quadrant) { normalized.push(parsed); break; }
+            }
+          }
+        }
+      } catch (cloudErr) {
+        console.warn("Cloud LLM providers unavailable or failed, applying deterministic heuristic triage:", cloudErr.message || cloudErr);
+      }
+    }
+
+    // Tier 3 Deterministic Heuristic Fallback
+    const existingMappedIds = new Set(normalized.map(item => item.id));
+    const missingTasks = unsortedTasks.filter(t => !existingMappedIds.has(t.id));
+    if (missingTasks.length > 0) {
+      console.log(`Applying heuristic triage for ${missingTasks.length} tasks...`);
+      for (const t of missingTasks) {
+        normalized.push({
+          id: t.id,
+          quadrant: classifyTaskHeuristically(t, goalsRes?.data || [])
+        });
+      }
+    }
+
+    console.log(`Classified ${normalized.length} total tasks.`);
     
     const validQuadrants = ['urgent_important', 'important_not_urgent', 'urgent_not_important', 'neither'];
     let successCount = 0;
@@ -724,7 +805,7 @@ async function run() {
       console.warn(`Skipped ${invalidItems.length} invalid items from LLM response.`);
     }
 
-    console.log(`Triage complete. Successfully processed ${isDryRun ? parsed.length : successCount} tasks.`);
+    console.log(`Triage complete. Successfully processed ${isDryRun ? normalized.length : successCount} tasks.`);
 
     // 7. Increment skip_count for all triaged tasks (surfaced without action = a skip)
     await incrementSkipCounts(supabase, uid, unsortedTasks, isDryRun);

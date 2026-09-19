@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import { safeMutate } from '../../lib/safeMutate'
 import { useAuth } from '../../hooks/useAuth'
 import { Plus, X } from 'lucide-react'
 import { XP } from '../../data/xpRewards'
@@ -42,13 +43,16 @@ const IOBalanceBar = () => {
 
   const addLog = async () => {
     if (!user?.id || logMins <= 0) return
-    await supabase.from('io_logs').insert({
-      user_id: user.id,
-      type: logType,
-      category: logCategory,
-      minutes: logMins,
-      date: today,
-    })
+    await safeMutate(
+      supabase.from('io_logs').insert({
+        user_id: user.id,
+        type: logType,
+        category: logCategory,
+        minutes: logMins,
+        date: today,
+      }),
+      { throwOnError: true, context: 'IOBalanceBar:addLog' }
+    )
     // XP for output
     if (logType === 'output') await addXP(XP.IO_OUTPUT_LOG)
     const newOutputMins = outputMins + (logType === 'output' ? logMins : 0)

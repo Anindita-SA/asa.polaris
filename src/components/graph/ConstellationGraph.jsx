@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from 'react'
 import { select, forceSimulation, forceLink, forceManyBody, forceCenter, forceCollide, drag, zoom } from 'd3'
 import { supabase } from '../../lib/supabase'
+import { safeMutate } from '../../lib/safeMutate'
 import { useAuth } from '../../hooks/useAuth'
 import { Plus, X } from 'lucide-react'
 
@@ -30,7 +31,7 @@ const ConstellationGraph = forwardRef(({ onNodeSelect, isActive = true }, ref) =
   const [showModal, setShowModal] = useState(false)
   const [form, setForm] = useState({ title: '', type: 'career', description: '' })
 
-  // ── fetch ──────────────────────────────────────────────────────────────────
+  // -- fetch --
   const fetchNodes = useCallback(async () => {
     if (!user?.id) return
     const { data, error } = await supabase.from('nodes').select('*').eq('user_id', user.id)
@@ -38,10 +39,13 @@ const ConstellationGraph = forwardRef(({ onNodeSelect, isActive = true }, ref) =
 
     let rows = data || []
     if (!rows.some(n => n.type === 'root')) {
-      const { data: root } = await supabase.from('nodes').insert({
-        user_id: user.id, title: 'Polaris', type: 'root',
-        description: 'Your North Star', x_pos: 0.5, y_pos: 0.5,
-      }).select().single()
+      const { data: root } = await safeMutate(
+        supabase.from('nodes').insert({
+          user_id: user.id, title: 'Polaris', type: 'root',
+          description: 'Your North Star', x_pos: 0.5, y_pos: 0.5,
+        }).select().single(),
+        { throwOnError: false, context: 'ConstellationGraph:insertRoot' }
+      )
       if (root) rows = [root, ...rows]
     }
 
@@ -52,14 +56,14 @@ const ConstellationGraph = forwardRef(({ onNodeSelect, isActive = true }, ref) =
   useImperativeHandle(ref, () => ({ refresh: fetchNodes }))
   useEffect(() => { fetchNodes() }, [fetchNodes])
 
-  // ── window resize → force redraw ───────────────────────────────────────────
+  // -- window resize -> force redraw --
   useEffect(() => {
     const onResize = () => setTick(t => t + 1)
     window.addEventListener('resize', onResize)
     return () => window.removeEventListener('resize', onResize)
   }, [])
 
-  // ── pause / resume simulation based on isActive ───────────────────────────
+  // -- pause / resume simulation based on isActive --
   useEffect(() => {
     if (!simRef.current) return
     if (!isActive) {
@@ -69,7 +73,7 @@ const ConstellationGraph = forwardRef(({ onNodeSelect, isActive = true }, ref) =
     }
   }, [isActive])
 
-  // ── draw ───────────────────────────────────────────────────────────────────
+  // -- draw --
   // Reads container size SYNCHRONOUSLY at effect time - no race with state.
   useEffect(() => {
     if (!nodes.length || !svgRef.current || !containerRef.current) return
@@ -180,7 +184,10 @@ const ConstellationGraph = forwardRef(({ onNodeSelect, isActive = true }, ref) =
           if (!e.active) sim.alphaTarget(0)
           d.fx = null; d.fy = null
           if (isFinite(d.x) && isFinite(d.y) && user?.id)
-            await supabase.from('nodes').update({ x_pos: d.x / w, y_pos: d.y / h }).eq('id', d.id).eq('user_id', user.id)
+            await safeMutate(
+              supabase.from('nodes').update({ x_pos: d.x / w, y_pos: d.y / h }).eq('id', d.id).eq('user_id', user.id),
+              { throwOnError: false, context: 'ConstellationGraph:updatePosition' }
+            )
         })
     )
 
@@ -210,15 +217,18 @@ const ConstellationGraph = forwardRef(({ onNodeSelect, isActive = true }, ref) =
     }
   }, [nodes, tick, onNodeSelect])  // tick forces retry when window resizes or first paint hasn't settled
 
-  // ── add ────────────────────────────────────────────────────────────────────
+  // -- add --
   const addNode = async () => {
-    if (!form.title.trim()) return
+    if (!form.title.trim() || !user?.id) return
     const root = nodes.find(n => n.type === 'root')
-    await supabase.from('nodes').insert({
-      user_id: user.id, title: form.title.trim(), type: form.type,
-      description: form.description, parent_id: root?.id ?? null,
-      x_pos: 0.45 + Math.random() * 0.1, y_pos: 0.45 + Math.random() * 0.1,
-    })
+    await safeMutate(
+      supabase.from('nodes').insert({
+        user_id: user.id, title: form.title.trim(), type: form.type,
+        description: form.description, parent_id: root?.id ?? null,
+        x_pos: 0.45 + Math.random() * 0.1, y_pos: 0.45 + Math.random() * 0.1,
+      }),
+      { throwOnError: true, context: 'ConstellationGraph:addNode' }
+    )
     setForm({ title: '', type: 'career', description: '' })
     setShowModal(false)
     fetchNodes()

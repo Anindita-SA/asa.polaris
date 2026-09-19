@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import { safeMutate } from '../../lib/safeMutate'
 import { useAuth } from '../../hooks/useAuth'
 import { safeExternalUrl } from '../../lib/urlUtils'
 import { ArrowLeft, Plus, X, BookOpen, Link as LinkIcon, Trash2, ChevronDown, Download, ExternalLink, Calendar, CheckCircle, Sparkles, ShieldCheck } from 'lucide-react'
@@ -262,11 +263,14 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
 
   const addTopicHandler = async () => {
     if (!newTopic.title.trim() || !user?.id) return
-    await supabase.from('curriculum_topics').insert({
-      user_id: user.id, curriculum_id: curriculum.id,
-      title: newTopic.title, estimated_hours: parseFloat(newTopic.estimated_hours) || null,
-      position: topics.length,
-    })
+    await safeMutate(
+      supabase.from('curriculum_topics').insert({
+        user_id: user.id, curriculum_id: curriculum.id,
+        title: newTopic.title, estimated_hours: parseFloat(newTopic.estimated_hours) || null,
+        position: topics.length,
+      }),
+      { throwOnError: true, context: 'CurriculumView:addTopicHandler' }
+    )
     setNewTopic({ title: '', estimated_hours: '' })
     setAddingTopic(false)
     fetchData()
@@ -274,9 +278,12 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
 
   const addResourceHandler = async () => {
     if (!newResource.title.trim() || !user?.id) return
-    await supabase.from('curriculum_resources').insert({
-      user_id: user.id, curriculum_id: curriculum.id, ...newResource,
-    })
+    await safeMutate(
+      supabase.from('curriculum_resources').insert({
+        user_id: user.id, curriculum_id: curriculum.id, ...newResource,
+      }),
+      { throwOnError: true, context: 'CurriculumView:addResourceHandler' }
+    )
     setNewResource({ title: '', author: '', resource_type: 'book', url: '' })
     setAddingResource(false)
     fetchData()
@@ -284,25 +291,34 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
 
   const saveEditResource = async () => {
     if (!editingResource?.title?.trim() || !user?.id) return
-    await supabase.from('curriculum_resources').update({
-      title: editingResource.title,
-      author: editingResource.author,
-      url: editingResource.url,
-      resource_type: editingResource.resource_type
-    }).eq('id', editingResource.id).eq('user_id', user.id)
+    await safeMutate(
+      supabase.from('curriculum_resources').update({
+        title: editingResource.title,
+        author: editingResource.author,
+        url: editingResource.url,
+        resource_type: editingResource.resource_type
+      }).eq('id', editingResource.id).eq('user_id', user.id),
+      { throwOnError: true, context: 'CurriculumView:saveEditResource' }
+    )
     setEditingResource(null)
     fetchData()
   }
 
   const deleteTopic = async (id) => {
     if (!user?.id) return
-    await supabase.from('curriculum_topics').delete().eq('id', id).eq('user_id', user.id)
+    await safeMutate(
+      supabase.from('curriculum_topics').delete().eq('id', id).eq('user_id', user.id),
+      { throwOnError: true, context: 'CurriculumView:deleteTopic' }
+    )
     fetchData()
   }
 
   const deleteResource = async (id) => {
     if (!user?.id) return
-    await supabase.from('curriculum_resources').delete().eq('id', id).eq('user_id', user.id)
+    await safeMutate(
+      supabase.from('curriculum_resources').delete().eq('id', id).eq('user_id', user.id),
+      { throwOnError: true, context: 'CurriculumView:deleteResource' }
+    )
     fetchData()
   }
 

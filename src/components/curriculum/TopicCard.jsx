@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
+import { safeMutate } from '../../lib/safeMutate'
 import { useAuth } from '../../hooks/useAuth'
 import { Check, Circle, Clock, Zap, ChevronRight } from 'lucide-react'
 import { XP } from '../../data/xpRewards'
@@ -20,6 +21,7 @@ const TopicCard = ({ topic, accentColor, pomodoroMins = 0, onUpdate }) => {
   const StatusIcon = cfg.icon
 
   const cycleStatus = async () => {
+    if (!user?.id) return
     const order = ['not_started', 'in_progress', 'done']
     const idx = order.indexOf(topic.status)
     const newStatus = order[(idx + 1) % 3]
@@ -32,20 +34,30 @@ const TopicCard = ({ topic, accentColor, pomodoroMins = 0, onUpdate }) => {
       updates.date_completed = new Date().toISOString().slice(0, 10)
     }
 
-    await supabase.from('curriculum_topics').update(updates).eq('id', topic.id).eq('user_id', user.id)
+    await safeMutate(
+      supabase.from('curriculum_topics').update(updates).eq('id', topic.id).eq('user_id', user.id),
+      { throwOnError: true, context: 'TopicCard:cycleStatus' }
+    )
     trackXP(topic.status === 'done', newStatus === 'done', XP.TOPIC_COMPLETE)
     onUpdate()
   }
 
   const saveNotes = async () => {
-    if (notes === (topic.notes || '')) return
+    if (!user?.id || notes === (topic.notes || '')) return
     setSaving(true)
-    await supabase.from('curriculum_topics').update({ notes }).eq('id', topic.id).eq('user_id', user.id)
+    await safeMutate(
+      supabase.from('curriculum_topics').update({ notes }).eq('id', topic.id).eq('user_id', user.id),
+      { throwOnError: true, context: 'TopicCard:saveNotes' }
+    )
     setSaving(false)
   }
 
   const updateDate = async (field, value) => {
-    await supabase.from('curriculum_topics').update({ [field]: value || null }).eq('id', topic.id).eq('user_id', user.id)
+    if (!user?.id) return
+    await safeMutate(
+      supabase.from('curriculum_topics').update({ [field]: value || null }).eq('id', topic.id).eq('user_id', user.id),
+      { throwOnError: true, context: 'TopicCard:updateDate' }
+    )
     onUpdate()
   }
 

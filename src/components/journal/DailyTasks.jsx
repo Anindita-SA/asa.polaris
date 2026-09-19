@@ -8,6 +8,7 @@ import { useCelebration } from '../../hooks/useCelebration'
 
 const DailyTasks = ({ dateStr }) => {
   const { user, trackXP } = useAuth()
+  const { celebrate } = useCelebration()
   const [tasks, setTasks] = useState([])
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [isAdding, setIsAdding] = useState(false)
@@ -17,8 +18,10 @@ const DailyTasks = ({ dateStr }) => {
   }, [user, dateStr])
 
   const fetchTasks = async () => {
+    if (!user?.id) return
+
     // 1. Roll over unfinished recurring tasks to today
-    await supabase
+    const { error: rolloverErr } = await supabase
       .from('daily_tasks')
       .update({ date: dateStr })
       .eq('user_id', user.id)
@@ -26,29 +29,43 @@ const DailyTasks = ({ dateStr }) => {
       .eq('completed', false)
       .lt('date', dateStr)
 
+    if (rolloverErr) {
+      console.error('Failed to rollover recurring daily tasks:', rolloverErr)
+    }
+
     // 2. Fetch tasks for this date
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('daily_tasks')
       .select('*')
       .eq('user_id', user.id)
       .eq('date', dateStr)
       .order('created_at', { ascending: true })
       
+    if (error) {
+      console.error('Failed to fetch daily tasks:', error)
+      return
+    }
+
     setTasks(data || [])
   }
 
   const addTask = async () => {
-    if (!newTaskTitle.trim()) {
+    if (!newTaskTitle.trim() || !user?.id) {
       setIsAdding(false)
       return
     }
-    const { data } = await supabase.from('daily_tasks').insert({
+    const { data, error } = await supabase.from('daily_tasks').insert({
       user_id: user.id,
-      title: newTaskTitle,
+      title: newTaskTitle.trim(),
       date: dateStr,
       recurring: false
     }).select().single()
     
+    if (error) {
+      console.error('Failed to create daily task:', error)
+      return
+    }
+
     if (data) {
       setTasks(prev => [...prev, data])
       setNewTaskTitle('')
@@ -57,8 +74,19 @@ const DailyTasks = ({ dateStr }) => {
   }
 
   const toggleTask = async (task) => {
+    if (!user?.id) return
     const completed = !task.completed
-    await supabase.from('daily_tasks').update({ completed }).eq('id', task.id)
+    const { error } = await supabase
+      .from('daily_tasks')
+      .update({ completed })
+      .eq('id', task.id)
+      .eq('user_id', user.id)
+
+    if (error) {
+      console.error('Failed to update daily task:', error)
+      return
+    }
+
     setTasks(prev => prev.map(t => t.id === task.id ? { ...t, completed } : t))
     if (completed) {
       playChime('success')
@@ -68,13 +96,35 @@ const DailyTasks = ({ dateStr }) => {
   }
 
   const toggleRecurring = async (task) => {
+    if (!user?.id) return
     const recurring = !task.recurring
-    await supabase.from('daily_tasks').update({ recurring }).eq('id', task.id)
+    const { error } = await supabase
+      .from('daily_tasks')
+      .update({ recurring })
+      .eq('id', task.id)
+      .eq('user_id', user.id)
+
+    if (error) {
+      console.error('Failed to toggle recurring task:', error)
+      return
+    }
+
     setTasks(prev => prev.map(t => t.id === task.id ? { ...t, recurring } : t))
   }
 
   const deleteTask = async (id) => {
-    await supabase.from('daily_tasks').delete().eq('id', id)
+    if (!user?.id) return
+    const { error } = await supabase
+      .from('daily_tasks')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id)
+
+    if (error) {
+      console.error('Failed to delete daily task:', error)
+      return
+    }
+
     setTasks(prev => prev.filter(t => t.id !== id))
   }
 

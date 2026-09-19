@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../../lib/supabase'
+import { safeMutate } from '../../lib/safeMutate'
 import { useAuth } from '../../hooks/useAuth'
-import { Plus, Star, ChevronDown, X, BookOpen, ExternalLink, Tag, Sparkles, Link as LinkIcon, FileText, Loader2, AlertCircle, Headphones, Video, Book, Newspaper } from 'lucide-react'
+import { Plus, Star, ChevronDown, X, BookOpen, ExternalLink, Tag, Sparkles, Link as LinkIcon, FileText, Loader2, AlertCircle, Headphones, Video, Book, Newspaper, Pencil } from 'lucide-react'
 import { XP } from '../../data/xpRewards'
 import { safeExternalUrl } from '../../lib/urlUtils'
 import { autoFetchLinkMetadata } from '../../lib/linkMetadataFetcher'
@@ -34,6 +35,7 @@ const MediaLog = () => {
   const { user, addXP } = useAuth()
   const [media, setMedia] = useState([])
   const [showModal, setShowModal] = useState(false)
+  const [editingItem, setEditingItem] = useState(null)
   const [modalInitialData, setModalInitialData] = useState(null)
   
   // Quick drop state
@@ -70,11 +72,13 @@ const MediaLog = () => {
 
     try {
       const { metadata, source } = await autoFetchLinkMetadata(quickDropUrl.trim())
+      setEditingItem(null)
       setModalInitialData({ ...metadata, source })
       setQuickDropUrl('')
       setShowModal(true)
     } catch (err) {
       setQuickError(err.message || 'Could not auto-fetch metadata. Opening manual form...')
+      setEditingItem(null)
       setModalInitialData({ full_review: `URL: ${quickDropUrl.trim()}` })
       setShowModal(true)
     } finally {
@@ -93,16 +97,44 @@ const MediaLog = () => {
     if (!payload.one_line_takeaway) delete payload.one_line_takeaway
     if (!payload.full_review) delete payload.full_review
     
-    await supabase.from('media_log').insert(payload)
+    await safeMutate(
+      supabase.from('media_log').insert(payload),
+      { throwOnError: true, context: 'MediaLog:saveMedia' }
+    )
     await addXP(XP.MEDIA_LOG)
     setShowModal(false)
+    setEditingItem(null)
+    setModalInitialData(null)
+    fetchMedia()
+  }
+
+  const updateMedia = async (id, form) => {
+    if (!user?.id) return
+    const payload = { ...form }
+    
+    // Clean empty fields for update
+    if (!payload.date_started) payload.date_started = null
+    if (!payload.date_finished) payload.date_finished = null
+    if (!payload.recommended_by) payload.recommended_by = null
+    if (!payload.one_line_takeaway) payload.one_line_takeaway = null
+    if (!payload.full_review) payload.full_review = null
+    
+    await safeMutate(
+      supabase.from('media_log').update(payload).eq('id', id).eq('user_id', user.id),
+      { throwOnError: true, context: 'MediaLog:updateMedia' }
+    )
+    setShowModal(false)
+    setEditingItem(null)
     setModalInitialData(null)
     fetchMedia()
   }
 
   const updateRating = async (id, rating) => {
     if (!user?.id) return
-    await supabase.from('media_log').update({ rating }).eq('id', id).eq('user_id', user.id)
+    await safeMutate(
+      supabase.from('media_log').update({ rating }).eq('id', id).eq('user_id', user.id),
+      { throwOnError: true, context: 'MediaLog:updateRating' }
+    )
     setMedia(prev => prev.map(m => m.id === id ? { ...m, rating } : m))
   }
 
@@ -111,13 +143,19 @@ const MediaLog = () => {
     const updates = { status }
     if (status === 'in_progress') updates.date_started = new Date().toISOString().slice(0, 10)
     if (status === 'done') updates.date_finished = new Date().toISOString().slice(0, 10)
-    await supabase.from('media_log').update(updates).eq('id', id).eq('user_id', user.id)
+    await safeMutate(
+      supabase.from('media_log').update(updates).eq('id', id).eq('user_id', user.id),
+      { throwOnError: true, context: 'MediaLog:updateStatus' }
+    )
     fetchMedia()
   }
 
   const deleteMedia = async (id) => {
     if (!user?.id) return
-    await supabase.from('media_log').delete().eq('id', id).eq('user_id', user.id)
+    await safeMutate(
+      supabase.from('media_log').delete().eq('id', id).eq('user_id', user.id),
+      { throwOnError: true, context: 'MediaLog:deleteMedia' }
+    )
     fetchMedia()
   }
 
@@ -256,7 +294,7 @@ const MediaLog = () => {
         {/* Type filter pills (only visible when in 'all' view) */}
         {activeSubView === 'all' && (
           <div className="flex flex-wrap gap-1">
-            {['All', ...MEDIA_TYPES].map(t => (
+            {['All', ...MEDIA_TYPES.map(m => m.id)].map(t => (
               <button
                 key={t}
                 onClick={() => setTypeFilter(t)}
@@ -429,14 +467,31 @@ const MediaLog = () => {
                   </div>
                 </div>
 
-                {/* Delete button */}
-                <button
-                  onClick={() => deleteMedia(m.id)}
-                  className="text-nova/60 hover:text-danger opacity-0 group-hover:opacity-100 transition-all self-start"
-                  title="Delete item"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
+                {/* Action buttons */}
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all self-start">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setEditingItem(m)
+                      setModalInitialData(m)
+                      setShowModal(true)
+                    }}
+                    className="p-1 rounded-lg text-nova/60 hover:text-amber-400 hover:bg-amber-500/10 transition-all"
+                    title="Edit entry"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      deleteMedia(m.id)
+                    }}
+                    className="p-1 rounded-lg text-nova/60 hover:text-danger hover:bg-danger/10 transition-all"
+                    title="Delete item"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
 
               {/* One-liner Takeaway */}
@@ -522,9 +577,11 @@ const MediaLog = () => {
       {showModal && (
         <AddMediaModal
           initialData={modalInitialData}
-          onSave={saveMedia}
+          isEdit={Boolean(editingItem)}
+          onSave={editingItem ? (data) => updateMedia(editingItem.id, data) : saveMedia}
           onClose={() => {
             setShowModal(false)
+            setEditingItem(null)
             setModalInitialData(null)
           }}
         />

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../../lib/supabase'
+import { safeMutate } from '../../lib/safeMutate'
 import { startOfMonth, endOfMonth, eachDayOfInterval, format, isToday, isBefore } from 'date-fns'
 import { Edit2, Check, X, Trash2 } from 'lucide-react'
 
@@ -47,7 +48,7 @@ const MonthlyHabitGrid = ({ habitTemplates, userId, selectedDate, addXP, trackXP
 
   const toggleDay = async (template, dateStr, e) => {
     const task = getTaskForTemplate(template.id)
-    if (!task) return
+    if (!task || !userId) return
 
     const dates = Array.isArray(task.completion_dates) ? [...task.completion_dates] : []
     const wasLogged = dates.includes(dateStr)
@@ -70,11 +71,14 @@ const MonthlyHabitGrid = ({ habitTemplates, userId, selectedDate, addXP, trackXP
       celebrate(e ? { x: e.clientX, y: e.clientY } : undefined)
     }
 
-    await supabase.from('tasks').update({
-      completion_dates: newDates,
-      completion_count: newCount,
-      status: newStatus
-    }).eq('id', task.id)
+    await safeMutate(
+      supabase.from('tasks').update({
+        completion_dates: newDates,
+        completion_count: newCount,
+        status: newStatus
+      }).eq('id', task.id).eq('user_id', userId),
+      { throwOnError: true, context: 'MonthlyHabitGrid:toggleDay' }
+    )
 
     // Update local state optimistically
     setHabitTasks(prev => prev.map(t => 
@@ -87,12 +91,18 @@ const MonthlyHabitGrid = ({ habitTemplates, userId, selectedDate, addXP, trackXP
   }
 
   const saveHabitTitle = async (templateId) => {
-    if (!editTitle.trim()) return
-    await supabase.from('recurring_task_templates').update({ title: editTitle.trim() }).eq('id', templateId)
+    if (!editTitle.trim() || !userId) return
+    await safeMutate(
+      supabase.from('recurring_task_templates').update({ title: editTitle.trim() }).eq('id', templateId).eq('user_id', userId),
+      { throwOnError: true, context: 'MonthlyHabitGrid:saveHabitTitle_template' }
+    )
     // Also update the corresponding task title
     const task = getTaskForTemplate(templateId)
     if (task) {
-      await supabase.from('tasks').update({ title: editTitle.trim() }).eq('id', task.id)
+      await safeMutate(
+        supabase.from('tasks').update({ title: editTitle.trim() }).eq('id', task.id).eq('user_id', userId),
+        { throwOnError: true, context: 'MonthlyHabitGrid:saveHabitTitle_task' }
+      )
     }
     setEditingHabit(null)
     onRefetch()

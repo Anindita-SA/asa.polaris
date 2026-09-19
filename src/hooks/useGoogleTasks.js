@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { safeMutate } from '../lib/safeMutate';
 import { useAuth } from './useAuth';
 import { useGoalCompletion } from './useGoalCompletion';
 
@@ -78,7 +79,10 @@ export const useGoogleTasks = () => {
       }
       
       if (toInsert.length > 0) {
-        await supabase.from('goals').insert(toInsert);
+        await safeMutate(
+          supabase.from('goals').insert(toInsert),
+          { throwOnError: true, context: 'useGoogleTasks:insertImportedGoals' }
+        );
       }
 
       // d. For each Google Task marked completed remotely: mark matching Polaris goal completed

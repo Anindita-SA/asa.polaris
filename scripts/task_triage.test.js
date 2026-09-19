@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { deduplicateTasks, deduplicateActiveTasks, resolveDuplicates, incrementSkipCounts, detectStaleParentTasks, handleStaleParentTasks, evaluateParentTaskQuadrant, triageParentTasksUrgency } from './task_triage.js';
+import { deduplicateTasks, deduplicateActiveTasks, resolveDuplicates, incrementSkipCounts, detectStaleParentTasks, handleStaleParentTasks, evaluateParentTaskQuadrant, triageParentTasksUrgency, filterTasksForTriage } from './task_triage.js';
 import { identifyDuplicatesAndMerge, runCleanup } from './cleanup_duplicates.js';
 
 describe('task_triage deduplication and skip_count', () => {
@@ -556,5 +556,21 @@ describe('task_triage parent task urgency inheritance', () => {
         uid: 'user-999'
       }
     ]);
+  });
+});
+
+describe('filterTasksForTriage precedence and exclusion logic', () => {
+  it('excludes parent tasks that have subtasks and habit tasks from unsorted triage', () => {
+    const parentTaskIdsWithChildren = new Set(['parent-with-kids', 'another-parent']);
+    const unsortedTasks = [
+      { id: 'parent-with-kids', title: 'Parent Task With Subtasks', category: 'career' },
+      { id: 'standalone-task-1', title: 'Standalone Task Without Children', category: 'career' },
+      { id: 'habit-task-1', title: 'Daily Workout', category: 'habits' },
+      { id: 'another-parent', title: 'Another Parent Project', category: 'general' },
+      { id: 'standalone-task-2', title: 'Read Research Paper', category: 'academic' }
+    ];
+
+    const filtered = filterTasksForTriage(unsortedTasks, parentTaskIdsWithChildren);
+    expect(filtered.map(t => t.id)).toEqual(['standalone-task-1', 'standalone-task-2']);
   });
 });
