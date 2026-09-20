@@ -903,5 +903,7 @@
 | `score` | `numeric` | Not Null |
 | `total` | `numeric` | Nullable |
 | `band` | `numeric` | Nullable |
+| `url` | `text` | Nullable |
 | `date` | `timestamptz` | Not Null, Default `now()` |
 | `created_at` | `timestamptz` | Not Null, Default `now()` |
+

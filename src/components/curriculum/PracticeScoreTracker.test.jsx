@@ -6,9 +6,12 @@ import PracticeScoreTracker, {
   calculateBand, 
   roundToIeltsBand, 
   calculateOverallBand, 
-  calculateModuleStats 
+  calculateModuleStats,
+  extractScoreReportUrl
 } from './PracticeScoreTracker';
+import { DEFAULT_IELTS_PRACTICE_SCORES } from '../../data/curriculumDefaults';
 import { supabase } from '../../lib/supabase';
+
 
 const mockUser = { id: 'user-ielts-123' };
 
@@ -373,4 +376,100 @@ describe('PracticeScoreTracker - Component UI, Persistence & Migration', () => {
       expect(supabase.from).toHaveBeenCalledWith('practice_scores');
     });
   });
+
+  it('extractScoreReportUrl correctly extracts URLs from item.url or item.title', () => {
+    expect(extractScoreReportUrl({ url: 'https://ieltsonlinetests.com/score/60136001' })).toBe('https://ieltsonlinetests.com/score/60136001');
+    expect(extractScoreReportUrl({ title: 'Mock Test https://ieltsonlinetests.com/score/12345' })).toBe('https://ieltsonlinetests.com/score/12345');
+    expect(extractScoreReportUrl({ title: 'Mock Test without URL' })).toBeNull();
+    expect(extractScoreReportUrl(null)).toBeNull();
+    expect(extractScoreReportUrl({ url: 'javascript:alert(1)' })).toBeNull();
+  });
+
+  it('initializes and seeds DEFAULT_IELTS_PRACTICE_SCORES when cache and database are empty', async () => {
+    supabase.from.mockImplementation(() => ({
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      order: vi.fn().mockResolvedValue({ data: [], error: null }),
+      insert: vi.fn().mockReturnValue({
+        select: vi.fn().mockResolvedValue({
+          data: DEFAULT_IELTS_PRACTICE_SCORES,
+          error: null
+        })
+      })
+    }));
+
+    render(<PracticeScoreTracker curriculumId="curr-ielts-2026" />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText('IELTS Online Tests - Mock Test 2026 January Listening Test 1').length).toBeGreaterThan(0);
+    });
+
+    expect(screen.getAllByText('IELTS Listening Practice Test 201').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('IELTS Reading Practice Test 313').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('IELTS Reading Practice Test 312').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('IELTS Reading Practice Test 311').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('IELTS Reading Practice Test 310').length).toBeGreaterThan(0);
+
+    // Check that external link chip is rendered for items with URL
+    const scoreReportLinks = screen.getAllByRole('link', { name: /Score Report/i });
+    expect(scoreReportLinks.length).toBeGreaterThan(0);
+    expect(scoreReportLinks[0].getAttribute('href')).toBe('https://ieltsonlinetests.com/score/60136001');
+
+    // Verify localStorage cache was populated
+    const cached = JSON.parse(localStorage.getItem('polaris_practice_scores_cache_user-ielts-123_curr-ielts-2026'));
+    expect(cached.length).toBe(6);
+  });
+
+  it('submits a new practice score log with optional URL', async () => {
+    let insertedPayload = null;
+    supabase.from.mockImplementation(() => ({
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      order: vi.fn().mockResolvedValue({ data: sampleScores, error: null }),
+      insert: vi.fn().mockImplementation((payload) => {
+        insertedPayload = payload;
+        return {
+          select: vi.fn().mockResolvedValue({
+            data: [{
+              id: 'score-new-url',
+              user_id: 'user-ielts-123',
+              curriculum_id: 'curr-ielts-2026',
+              title: 'Online Mock Test 2',
+              category: 'reading',
+              score: 38,
+              total: 40,
+              band: 8.5,
+              url: 'https://ieltsonlinetests.com/score/99999',
+              date: '2026-09-15T12:00:00Z'
+            }],
+            error: null
+          })
+        };
+      })
+    }));
+
+    render(<PracticeScoreTracker curriculumId="curr-ielts-2026" />);
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/Cambridge Book 18/)).toBeTruthy();
+    });
+
+    const titleInput = screen.getByPlaceholderText(/Cambridge Book 18/);
+    const scoreInput = screen.getByPlaceholderText('35');
+    const urlInput = screen.getByPlaceholderText(/ieltsonlinetests\.com\/score/);
+    const submitBtn = screen.getByRole('button', { name: /Log Score/i });
+
+    fireEvent.change(titleInput, { target: { value: 'Online Mock Test 2' } });
+    fireEvent.change(scoreInput, { target: { value: '38' } });
+    fireEvent.change(urlInput, { target: { value: 'https://ieltsonlinetests.com/score/99999' } });
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(insertedPayload).toBeTruthy();
+    });
+
+    expect(insertedPayload[0].url).toBe('https://ieltsonlinetests.com/score/99999');
+    expect(insertedPayload[0].title).toBe('Online Mock Test 2');
+  });
 });
+

@@ -1,3 +1,17 @@
+## [2026-09-20] IELTS Practice Mock Test Score Recovery & Interactive Report Links (v1.2.20)
+- **IELTS Practice Mock Tests Default Seeding**: Exported `DEFAULT_IELTS_PRACTICE_SCORES` with all 6 authentic mock test scores (2 Listening mock tests up to Band 8.5 and 4 Reading practice tests up to Band 8.0) in `src/data/curriculumDefaults.js`.
+- **Mock Question Banks & Report Resources**: Updated `SEED_CURRICULA` under IELTS 2026 Preparation Sprint to include authentic IELTS score report links and Cambridge IELTS Books 16-20 practice test links.
+- **PracticeScoreTracker Automated Seeding & Persistence**: Enhanced `PracticeScoreTracker.jsx` to initialize and seed default mock scores into state, cache in `localStorage`, and safely persist to Supabase `practice_scores` when both local cache and remote database are empty.
+- **Optional Report URL & External Link Chips**: Added optional score report URL input in the test logger form and sleek clickable external link chips with `ExternalLink` icon in both the chronological progression strip and score log cards.
+- **Database Schema & Test Suite**: Added `url` column migration `20260920205000_add_url_to_practice_scores.sql` and updated `docs/DATABASE_SCHEMA.md`. All 21 test suites passing (216/216 tests) and production build verified cleanly.
+
+## [2026-09-20] Weekly Audit Meal Cost Deprecation, Polaris Category Tagging & Parser Security Hardening (v1.2.19)
+- **Hostel Mess Dining & Meal Cost Check Deprecation**: Removed the meal cost anomaly check from both heuristic and AI routines in `scripts/weekly_audit.js`. Meals logged without individual prices (e.g., student hostel mess covered by semester fees) no longer trigger false-alarm audit tasks.
+- **Polaris Dev Category Tagging**: Configured all audit-generated tasks and milestone reviews in `scripts/weekly_audit.js` to automatically assign `category: 'polaris'`, isolating app maintenance tasks from personal and academic inbox items.
+- **AI Task Parser Security Hardening**: Upgraded `parseAITasks` and `insertTasks` in `scripts/weekly_audit.js` to handle both direct arrays and `{ tasks: [...] }` objects, strictly validate task title strings, coerce `estimated_minutes` integers with safe fallbacks, guard insertion calls against non-array inputs, and truncate error log previews to 200 characters to prevent log pollution.
+- **Stale Audit Task Cleanup**: Archived the stale "Audit Nutrition Logs" task (`8cb23611-693e-4301-8951-319c378abbbe`) in Supabase.
+- **Test Suite & Build Verification**: Expanded `scripts/weekly_audit.test.js` with 9 test cases covering cost exclusion, egg anomalies, category forwarding, object parsing, type coercion, and error truncation. All 213 unit tests passing across 21 files and production build verified cleanly.
+
 ## [2026-09-19] Complete Universal safeMutate Hardening & Multi-Tenant Isolation (v1.2.18)
 - **Universal safeMutate Rollout across 24 Files**: Fully hardened all remaining unhandled, unchecked, and silent try/catch Supabase mutations across the Polaris codebase by routing them through `safeMutate(queryPromise, { throwOnError, context })`.
 - **Multi-Tenant User Isolation Scoping**: Fixed missing `user_id` query scoping in `NodePanel.jsx` (nodes, goals, milestones), `TopicCard.jsx` (curriculum_topics), `MonthlyHabitGrid.jsx` (tasks, recurring templates), `StatsModal.jsx` (io_logs), and `CurriculumView.jsx` (curriculum_resources, curriculum_topics), ensuring airtight multi-tenant tenant isolation and RLS compliance.
