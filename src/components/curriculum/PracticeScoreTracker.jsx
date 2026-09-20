@@ -17,11 +17,14 @@ import {
   Sparkles, 
   ArrowRight,
   CheckCircle2,
-  Calendar
+  Calendar,
+  ExternalLink
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { safeMutate } from '../../lib/safeMutate';
 import { useAuth } from '../../hooks/useAuth';
+import { DEFAULT_IELTS_PRACTICE_SCORES } from '../../data/curriculumDefaults';
+import { safeExternalUrl } from '../../lib/urlUtils';
 
 // Official IELTS raw score to band conversion
 export const calculateBand = (score, category, total) => {
@@ -205,6 +208,20 @@ export const calculateModuleStats = (scores, category) => {
   };
 };
 
+export const extractScoreReportUrl = (item) => {
+  if (!item) return null;
+  if (item.url && typeof item.url === 'string' && item.url.trim()) {
+    return safeExternalUrl(item.url.trim());
+  }
+  if (item.title && typeof item.title === 'string') {
+    const match = item.title.match(/https?:\/\/[^\s)]+/i);
+    if (match) {
+      return safeExternalUrl(match[0]);
+    }
+  }
+  return null;
+};
+
 const MODULE_DEFS = [
   { id: 'listening', label: 'Listening', icon: Headphones, border: 'border-sky/30', text: 'text-sky', bg: 'bg-sky/5', badge: 'bg-sky/15 text-sky border-sky/30' },
   { id: 'reading', label: 'Reading', icon: BookOpen, border: 'border-emerald-500/30', text: 'text-emerald-400', bg: 'bg-emerald-500/5', badge: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' },
@@ -224,11 +241,12 @@ export default function PracticeScoreTracker({ curriculumId }) {
   const [scoreVal, setScoreVal] = useState('');
   const [totalVal, setTotalVal] = useState('40');
   const [category, setCategory] = useState('listening');
+  const [urlVal, setUrlVal] = useState('');
 
   const cacheKey = `polaris_practice_scores_cache_${user?.id || 'anon'}_${curriculumId || 'all'}`;
   const legacyKey = `polaris_practice_scores_${curriculumId}`;
 
-  // Fetch from Supabase and migrate legacy localStorage scores
+  // Fetch from Supabase and migrate legacy localStorage scores / seed defaults
   useEffect(() => {
     let isMounted = true;
 
@@ -237,16 +255,32 @@ export default function PracticeScoreTracker({ curriculumId }) {
 
       // Load cached local state immediately for instant feedback
       let initialScores = [];
+      let hasLocalCache = false;
       try {
         const cached = localStorage.getItem(cacheKey) || localStorage.getItem(legacyKey);
         if (cached) {
-          initialScores = JSON.parse(cached);
-          if (Array.isArray(initialScores) && isMounted) {
-            setScores(initialScores);
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed)) {
+            hasLocalCache = true;
+            initialScores = parsed;
+            if (parsed.length > 0 && isMounted) {
+              setScores(parsed);
+            }
           }
         }
       } catch (e) {
         // Ignore cache parsing errors
+      }
+
+      // If no local cache exists at all, initialize with defaults
+      if (!hasLocalCache || initialScores.length === 0) {
+        initialScores = DEFAULT_IELTS_PRACTICE_SCORES;
+        if (isMounted) {
+          setScores(DEFAULT_IELTS_PRACTICE_SCORES);
+        }
+        try {
+          localStorage.setItem(cacheKey, JSON.stringify(DEFAULT_IELTS_PRACTICE_SCORES));
+        } catch (storageErr) {}
       }
 
       if (!user?.id) {
@@ -269,6 +303,7 @@ export default function PracticeScoreTracker({ curriculumId }) {
                 score: parseFloat(item.score) || 0,
                 total: item.total ? parseFloat(item.total) : null,
                 band: item.band ? parseFloat(item.band) : calculateBand(item.score, item.category, item.total),
+                url: item.url || null,
                 date: item.date || new Date().toISOString(),
                 created_at: item.date || new Date().toISOString(),
               }));
@@ -300,11 +335,51 @@ export default function PracticeScoreTracker({ curriculumId }) {
         const { data, error } = await query.order('date', { ascending: false });
 
         if (!error && data && isMounted) {
-          setScores(data);
-          try {
-            localStorage.setItem(cacheKey, JSON.stringify(data));
-          } catch (storageErr) {
-            // Ignore storage quota errors
+          if (data.length > 0) {
+            setScores(data);
+            try {
+              localStorage.setItem(cacheKey, JSON.stringify(data));
+            } catch (storageErr) {
+              // Ignore storage quota errors
+            }
+          } else {
+            // Database returned 0 scores
+            // Check if local cache also had 0 scores or was seeded with defaults
+            if (!hasLocalCache || initialScores.length === 0 || initialScores === DEFAULT_IELTS_PRACTICE_SCORES) {
+              const seedPayload = DEFAULT_IELTS_PRACTICE_SCORES.map(item => ({
+                user_id: user.id,
+                curriculum_id: curriculumId || null,
+                title: item.title,
+                category: item.category,
+                score: item.score,
+                total: item.total || null,
+                band: item.band || calculateBand(item.score, item.category, item.total),
+                url: item.url || null,
+                date: item.date || new Date().toISOString(),
+                created_at: item.date || new Date().toISOString(),
+              }));
+
+              const { data: insertedData, error: seedError } = await safeMutate(
+                supabase.from('practice_scores').insert(seedPayload).select(),
+                { throwOnError: false, context: 'PracticeScoreTracker:seedDefaultScores' }
+              );
+
+              const seededResults = (!seedError && insertedData && insertedData.length > 0)
+                ? insertedData
+                : DEFAULT_IELTS_PRACTICE_SCORES;
+
+              if (isMounted) {
+                setScores(seededResults);
+              }
+              try {
+                localStorage.setItem(cacheKey, JSON.stringify(seededResults));
+              } catch (storageErr) {}
+            } else {
+              setScores(data);
+              try {
+                localStorage.setItem(cacheKey, JSON.stringify(data));
+              } catch (storageErr) {}
+            }
           }
         } else if (error && isMounted) {
           // If Supabase table is not yet created or returns error, keep local scores intact
@@ -322,7 +397,7 @@ export default function PracticeScoreTracker({ curriculumId }) {
     return () => {
       isMounted = false;
     };
-  }, [user?.id, curriculumId]);
+  }, [user?.id, curriculumId, cacheKey, legacyKey]);
 
   // Derived Module Stats
   const moduleStats = useMemo(() => {
@@ -390,6 +465,7 @@ export default function PracticeScoreTracker({ curriculumId }) {
     const numScore = parseFloat(scoreVal);
     const numTotal = totalVal ? parseFloat(totalVal) : null;
     const bandScore = calculateBand(numScore, category, numTotal);
+    const cleanUrl = urlVal.trim() || null;
 
     const newRecord = {
       title: title.trim(),
@@ -397,6 +473,7 @@ export default function PracticeScoreTracker({ curriculumId }) {
       score: numScore,
       total: numTotal,
       band: bandScore,
+      url: cleanUrl,
       date: new Date().toISOString(),
     };
 
@@ -442,6 +519,7 @@ export default function PracticeScoreTracker({ curriculumId }) {
 
     setTitle('');
     setScoreVal('');
+    setUrlVal('');
     if (category === 'listening' || category === 'reading') {
       setTotalVal('40');
     } else {
@@ -670,12 +748,24 @@ export default function PracticeScoreTracker({ curriculumId }) {
               <div className="flex items-center gap-2 overflow-x-auto pb-1 pt-1 scrollbar-hide">
                 {progressionList.map((item, idx) => {
                   const isLast = idx === progressionList.length - 1;
+                  const itemUrl = extractScoreReportUrl(item);
+                  const CardWrapper = itemUrl ? 'a' : 'div';
+                  const wrapperProps = itemUrl
+                    ? {
+                        href: itemUrl,
+                        target: '_blank',
+                        rel: 'noopener noreferrer',
+                        className: `flex items-center gap-2 px-2.5 py-1.5 rounded-lg border bg-stardust shrink-0 transition-all hover:border-gold/50 cursor-pointer ${getCategoryTheme(item.category)}`,
+                        title: `${item.title} - ${new Date(item.date || item.created_at).toLocaleDateString()} (Click to open report)`
+                      }
+                    : {
+                        className: `flex items-center gap-2 px-2.5 py-1.5 rounded-lg border bg-stardust shrink-0 transition-all ${getCategoryTheme(item.category)}`,
+                        title: `${item.title} - ${new Date(item.date || item.created_at).toLocaleDateString()}`
+                      };
+
                   return (
                     <React.Fragment key={item.id || idx}>
-                      <div 
-                        className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border bg-stardust shrink-0 transition-all ${getCategoryTheme(item.category)}`}
-                        title={`${item.title} - ${new Date(item.date).toLocaleDateString()}`}
-                      >
+                      <CardWrapper {...wrapperProps}>
                         <div className="flex flex-col">
                           <div className="flex items-center gap-1.5">
                             <span className="text-xs font-mono uppercase font-bold">
@@ -684,12 +774,13 @@ export default function PracticeScoreTracker({ curriculumId }) {
                             <span className="font-display text-sm font-bold text-starlight">
                               {item.calculatedBand !== null ? Number(item.calculatedBand).toFixed(1) : item.score}
                             </span>
+                            {itemUrl && <ExternalLink className="w-2.5 h-2.5 text-gold" />}
                           </div>
                           <span className="text-[9px] font-mono text-dim truncate max-w-[100px]">
                             {item.title}
                           </span>
                         </div>
-                      </div>
+                      </CardWrapper>
                       {!isLast && (
                         <ArrowRight className="w-3 h-3 text-cosmic shrink-0" />
                       )}
@@ -756,6 +847,17 @@ export default function PracticeScoreTracker({ curriculumId }) {
               </div>
             )}
 
+            <div className="flex-1 min-w-[140px]">
+              <label className="text-[10px] font-mono text-nova uppercase mb-1 block font-bold">Report URL (Optional)</label>
+              <input 
+                type="url" 
+                value={urlVal} 
+                onChange={e => setUrlVal(e.target.value)}
+                placeholder="https://ieltsonlinetests.com/score/..."
+                className="w-full bg-void border border-cosmic rounded-lg px-2.5 py-1.5 text-xs text-starlight outline-none focus:border-gold font-mono"
+              />
+            </div>
+
             <button 
               type="submit" 
               className="bg-gold hover:bg-gold-dim text-void font-bold text-xs px-4 py-2 rounded-lg flex items-center gap-1.5 transition-colors border border-gold shrink-0 cursor-pointer"
@@ -807,25 +909,41 @@ export default function PracticeScoreTracker({ curriculumId }) {
                   const band = s.band !== null && s.band !== undefined 
                     ? Number(s.band) 
                     : calculateBand(s.score, s.category, s.total);
+                  const reportUrl = extractScoreReportUrl(s);
 
                   return (
                     <div 
                       key={s.id} 
                       className="flex items-center justify-between p-3 bg-stardust border border-cosmic rounded-xl hover:border-nova/40 transition-colors"
                     >
-                      <div className="flex items-center gap-3">
-                        <div className={`px-2.5 py-1 rounded-md text-[10px] font-mono uppercase font-bold border ${getCategoryTheme(s.category)}`}>
+                      <div className="flex items-center gap-3 min-w-0 flex-1 mr-3">
+                        <div className={`px-2.5 py-1 rounded-md text-[10px] font-mono uppercase font-bold border shrink-0 ${getCategoryTheme(s.category)}`}>
                           {s.category}
                         </div>
-                        <div>
-                          <p className="text-sm font-body text-starlight font-medium leading-snug">{s.title}</p>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-sm font-body text-starlight font-medium leading-snug">{s.title}</p>
+                            {reportUrl && (
+                              <a
+                                href={reportUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-bold text-gold bg-gold/10 hover:bg-gold/20 border border-gold/30 transition-colors shrink-0"
+                                title="Open Official Score Report"
+                                onClick={e => e.stopPropagation()}
+                              >
+                                <ExternalLink className="w-3 h-3" />
+                                <span>Score Report</span>
+                              </a>
+                            )}
+                          </div>
                           <p className="text-[10px] font-mono text-dim mt-0.5">
                             {new Date(s.date || s.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
                           </p>
                         </div>
                       </div>
                       
-                      <div className="flex items-center gap-5">
+                      <div className="flex items-center gap-5 shrink-0">
                         <div className="flex flex-col items-end">
                           <div className="flex items-baseline gap-1">
                             <span className="text-xs font-mono text-nova font-medium">{s.score}</span>

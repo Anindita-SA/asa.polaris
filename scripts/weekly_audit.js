@@ -39,16 +39,14 @@ export function generateHeuristicAuditTasks(milestones = [], meals = []) {
     if (mealDesc.includes('egg') && protein > 12) {
       anomalies.push(`Meal "${mealDesc}" lists ${protein}g protein (>12g per egg average).`);
     }
-    if (meal.cost === null || meal.cost === undefined || meal.cost === '') {
-      anomalies.push(`Meal "${mealDesc || 'unnamed'}" on ${meal.log_date || 'recent date'} is missing cost data.`);
-    }
   }
 
   if (anomalies.length > 0) {
     tasks.push({
       title: "Audit Nutrition Logs",
       notes: `Anomalies detected in meal logs:\n- ${anomalies.slice(0, 5).join('\n- ')}`,
-      estimated_minutes: 15
+      estimated_minutes: 15,
+      category: 'polaris'
     });
   }
 
@@ -126,8 +124,7 @@ Rules for Tasks:
    - Generate 1-2 concrete, immediate sub-tasks to move forward on any milestone due within 14 days.
 2. Look at these Recent Meals: ${JSON.stringify(meals)}
    - Check if any single egg/egg-based meal has suspiciously high protein (>12g per egg).
-   - Check if any meals are missing cost data.
-   - If anomalies exist, create ONE task titled "Audit Nutrition Logs" and list the anomalies in the notes.
+   - If anomalies exist, create ONE task titled "Audit Nutrition Logs" with category "polaris" and list the anomalies in the notes.
 
 Generate the JSON array now:`;
 
@@ -148,19 +145,41 @@ Generate the JSON array now:`;
  * Parses the raw AI text into a JSON array safely.
  */
 export function parseAITasks(aiText) {
+  let parsed;
   try {
-    const cleanText = aiText.replace(/```json/g, '').replace(/```/g, '').trim();
-    return JSON.parse(cleanText);
+    const cleanText = (typeof aiText === 'string' ? aiText : '')
+      .replace(/```json/gi, '')
+      .replace(/```/g, '')
+      .trim();
+    parsed = JSON.parse(cleanText);
   } catch (e) {
-    throw new Error(`Failed to parse AI response as JSON. Output was: ${aiText}`);
+    const preview = (typeof aiText === 'string' ? aiText : String(aiText || '')).slice(0, 200);
+    throw new Error(`Failed to parse AI response as JSON. Output was: ${preview}`);
   }
+
+  let rawList = [];
+  if (Array.isArray(parsed)) {
+    rawList = parsed;
+  } else if (parsed && typeof parsed === 'object' && Array.isArray(parsed.tasks)) {
+    rawList = parsed.tasks;
+  } else {
+    return [];
+  }
+
+  return rawList
+    .filter(t => t && typeof t === 'object' && typeof t.title === 'string' && t.title.trim().length > 0)
+    .map(t => ({
+      ...t,
+      title: t.title.trim(),
+      estimated_minutes: parseInt(t.estimated_minutes, 10) || 15
+    }));
 }
 
 /**
  * Inserts parsed tasks into the database inbox.
  */
 export async function insertTasks(supabase, userId, newTasks) {
-  if (!newTasks || newTasks.length === 0) return 0;
+  if (!Array.isArray(newTasks) || newTasks.length === 0) return 0;
 
   const { data: existingTasks, error: fetchErr } = await supabase
     .from('tasks')
@@ -182,10 +201,11 @@ export async function insertTasks(supabase, userId, newTasks) {
     user_id: userId,
     title: t.title,
     notes: t.notes,
-    estimated_minutes: t.estimated_minutes || 15,
+    estimated_minutes: parseInt(t.estimated_minutes, 10) || 15,
     estimate_source: 'ai',
     status: 'inbox',
-    quadrant: null
+    quadrant: null,
+    category: t.category || (t.title?.toLowerCase().includes('audit') ? 'polaris' : 'normal')
   }));
 
   const { error } = await supabase.from('tasks').insert(insertData);
