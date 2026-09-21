@@ -84,6 +84,12 @@ export const SEED_CURRICULA = [
       { title: 'Week 2 Mon-Fri: Light Drilling - Alternate Reading/Writing & Listening/Speaking (30 min/day)', estimated_hours: 2.5 },
       { title: 'Week 3 Mon-Fri: Maintenance Only - 1 Essay + 1 Speaking Recording + Light Review (25 min/day)', estimated_hours: 2 },
       { title: 'Week 4 Mon-Fri: Full Timed Mock in IDP App + Light Review (20-25 min/day)', estimated_hours: 2 },
+      { title: 'IELTS Online Tests: Mock Test 2026 January Listening Test 1', estimated_hours: 1, notes: 'Score: 38/40, Band 8.5. Report: https://ieltsonlinetests.com/score/60136001', status: 'done' },
+      { title: 'IELTS Listening Practice Test 201', estimated_hours: 1, notes: 'Score: 38/40, Band 8.5', status: 'done' },
+      { title: 'IELTS Reading Practice Test 313', estimated_hours: 1, notes: 'Score: 36/40, Band 8.0. Question Bank: https://practicepteonline.com/official-ielts-tests-book-20/', status: 'done' },
+      { title: 'IELTS Reading Practice Test 312', estimated_hours: 1, notes: 'Score: 35/40, Band 8.0. Question Bank: https://practicepteonline.com/official-ielts-tests-book-20/', status: 'done' },
+      { title: 'IELTS Reading Practice Test 311', estimated_hours: 1, notes: 'Score: 35/40, Band 8.0. Question Bank: https://practicepteonline.com/official-ielts-tests-book-20/', status: 'done' },
+      { title: 'IELTS Reading Practice Test 310', estimated_hours: 1, notes: 'Score: 34/40, Band 7.5. Question Bank: https://practicepteonline.com/official-ielts-tests-book-20/', status: 'done' },
       { title: 'Mock Test 2026 January (ieltsonlinetests.com)', estimated_hours: 3 },
       { title: 'Mock Test 2025 December (ieltsonlinetests.com)', estimated_hours: 3 },
       { title: 'Mock Test 2025 November (ieltsonlinetests.com)', estimated_hours: 3 },
@@ -429,6 +435,7 @@ export const DEFAULT_IELTS_PRACTICE_SCORES = [
     total: 40,
     band: 8.0,
     date: '2026-09-06T10:00:00.000Z',
+    url: 'https://practicepteonline.com/official-ielts-tests-book-20/',
   },
   {
     id: 'ielts-mock-read-3',
@@ -438,6 +445,7 @@ export const DEFAULT_IELTS_PRACTICE_SCORES = [
     total: 40,
     band: 8.0,
     date: '2026-09-04T10:00:00.000Z',
+    url: 'https://practicepteonline.com/official-ielts-tests-book-20/',
   },
   {
     id: 'ielts-mock-read-2',
@@ -447,6 +455,7 @@ export const DEFAULT_IELTS_PRACTICE_SCORES = [
     total: 40,
     band: 8.0,
     date: '2026-09-02T10:00:00.000Z',
+    url: 'https://practicepteonline.com/official-ielts-tests-book-20/',
   },
   {
     id: 'ielts-mock-read-1',
@@ -456,6 +465,7 @@ export const DEFAULT_IELTS_PRACTICE_SCORES = [
     total: 40,
     band: 7.5,
     date: '2026-08-30T10:00:00.000Z',
+    url: 'https://practicepteonline.com/official-ielts-tests-book-20/',
   },
 ]
 

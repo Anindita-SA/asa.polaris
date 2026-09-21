@@ -1,9 +1,10 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useMemo } from 'react'
 import { supabase } from '../../lib/supabase'
 import { safeMutate } from '../../lib/safeMutate'
 import { useAuth } from '../../hooks/useAuth'
-import { Check, Circle, Clock, Zap, ChevronRight } from 'lucide-react'
+import { Check, Circle, Clock, Zap, ChevronRight, ExternalLink, Award } from 'lucide-react'
 import { XP } from '../../data/xpRewards'
+import { safeExternalUrl } from '../../lib/urlUtils'
 
 const STATUS_CFG = {
   not_started:  { icon: Circle, color: 'text-nova/60',     bg: 'border-blue-900/40 text-transparent hover:border-blue-900/60', label: 'Not Started' },
@@ -11,11 +12,45 @@ const STATUS_CFG = {
   done:         { icon: Check,  color: 'text-emerald', bg: 'border-emerald bg-emerald text-void', label: 'Done' },
 }
 
+const extractScoreInfo = (title, notes) => {
+  const combined = `${title || ''} ${notes || ''}`
+  if (!combined.trim()) return null
+
+  const bandMatch = combined.match(/\bBand:?\s*([0-9](?:\.[0-9])?)\b/i)
+  const band = bandMatch ? bandMatch[1] : null
+
+  const fracMatch = combined.match(/(?:Score:?\s*)?(\b\d{1,2}\s*\/\s*\d{1,2}\b)/i)
+  let rawScore = null
+  if (fracMatch) {
+    rawScore = fracMatch[1].replace(/\s+/g, '')
+  } else {
+    const numMatch = combined.match(/\bScore:?\s*(\d{1,2}(?:\.\d+)?)\b/i)
+    if (numMatch) {
+      rawScore = numMatch[1]
+    }
+  }
+
+  if (!band && !rawScore) return null
+  return { band, rawScore }
+}
+
+const extractUrlFromNotes = (notes) => {
+  if (!notes || typeof notes !== 'string') return null
+  const match = notes.match(/https?:\/\/[^\s),]+/i)
+  if (match) {
+    return safeExternalUrl(match[0])
+  }
+  return null
+}
+
 const TopicCard = ({ topic, accentColor, pomodoroMins = 0, onUpdate }) => {
   const { user, trackXP } = useAuth()
   const [notes, setNotes] = useState(topic.notes || '')
   const [saving, setSaving] = useState(false)
   const notesRef = useRef(null)
+
+  const scoreInfo = useMemo(() => extractScoreInfo(topic.title, notes), [topic.title, notes])
+  const extractedUrl = useMemo(() => extractUrlFromNotes(notes), [notes])
 
   const cfg = STATUS_CFG[topic.status] || STATUS_CFG.not_started
   const StatusIcon = cfg.icon
@@ -89,6 +124,36 @@ const TopicCard = ({ topic, accentColor, pomodoroMins = 0, onUpdate }) => {
                 <ChevronRight className="w-2.5 h-2.5" /> Start Here
               </span>
             )}
+
+            {scoreInfo?.band && (
+              <span className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold inline-flex items-center gap-1 ${
+                parseFloat(scoreInfo.band) >= 8.0
+                  ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-400'
+                  : 'bg-amber-500/15 border border-amber-500/30 text-amber-400'
+              }`}>
+                <Award className="w-3 h-3" /> Band {scoreInfo.band}
+              </span>
+            )}
+
+            {scoreInfo?.rawScore && (
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-gold/15 border border-gold/30 text-gold font-semibold">
+                Score: {scoreInfo.rawScore}
+              </span>
+            )}
+
+            {extractedUrl && (
+              <a
+                href={extractedUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-[10px] font-mono text-sky hover:text-starlight bg-sky/10 border border-sky/20 px-2 py-0.5 rounded transition-colors"
+                title="Open Link"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <span>{extractedUrl.toLowerCase().includes('score') ? 'Score Report ->' : 'Practice Link ->'}</span>
+                <ExternalLink className="w-2.5 h-2.5" />
+              </a>
+            )}
           </div>
 
           {/* Meta row */}
@@ -136,7 +201,7 @@ const TopicCard = ({ topic, accentColor, pomodoroMins = 0, onUpdate }) => {
             rows={1}
             className="topic-notes w-full mt-2 text-[11px] font-body text-nova/80 bg-transparent border border-transparent rounded-lg px-2 py-1.5 resize-none transition-all placeholder:text-nova/60/30"
           />
-          {saving && <span className="text-[9px] font-mono text-pulsar/50">saving…</span>}
+          {saving && <span className="text-[9px] font-mono text-pulsar/50">saving...</span>}
         </div>
       </div>
     </div>

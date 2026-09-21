@@ -169,10 +169,10 @@ const coldMailHeaders = [
 
 const coldMailRows = [
   [1, "Prof. Jan Carel Diehl", "TU Delft", "Group 1", "Design for Sustainability / Frugal Tech", "j.c.diehl@tudelft.nl", "Drafted", "", "", "IPD MSc thesis synergy, frugal off-grid hardware"],
-  [2, "Prof. Arno Smets", "TU Delft", "Group 1", "PVMD / Solar & Storage Dynamics", "a.h.m.smets@tudelft.nl", "Queued", "", "", "PV and battery longevity, Power Track / IPD (Scheduled)"],
+  [2, "Prof. Arno Smets", "TU Delft", "Group 1", "PVMD / Solar & Storage Dynamics", "a.h.m.smets@tudelft.nl", "Sent", "2026-09-16", "2026-09-23", "Sent Sep 16, 2026. Follow-up window opens Sep 23 (PV & storage dynamics)"],
   [3, "Prof. Angele Reinders", "TU/e Eindhoven", "Group 1", "Industrial Design / Smart Energy Systems", "a.h.m.e.reinders@tue.nl", "Drafted", "", "", "User-centric energy hardware, prototyping"],
   [4, "Prof. Peter Groot Koerkamp", "Wageningen Univ.", "Group 1", "Farm Technology / Biosystems", "peter.grootkoerkamp@wur.nl", "Drafted", "", "", "Agricultural electrification, solar irrigation EMS"],
-  [5, "Tilman", "TU Delft", "Group 1", "IPD Director", "", "Replied", "2026-08-15", "", "Responded previously with positive program guidance"],
+  [5, "Tilman", "TU Delft", "Group 1", "IPD Director", "", "Replied", "2026-08-15", "2026-09-28", "Responded previously with positive program guidance (follow-up Sep 28)"],
   [6, "Prof. Emanuela Colombo", "Politecnico di Milano", "Group 2", "Energy for Sustainable Development", "emanuela.colombo@polimi.it", "Drafted", "", "", "UNESCO Chair, off-grid microgrids, productive use in ag"],
   [7, "Prof. Francesco Fuso Nerini", "KTH Royal Institute", "Group 2", "Energy Systems & Climate Action", "francesco.fuso-nerini@energy.kth.se", "Drafted", "", "", "Rural electrification, decentralized mini-grids, SISGP target"],
   [8, "Dr. Richard Blanchard", "Loughborough Univ.", "Group 2", "CREST / Rural Energy & Agritech", "r.e.blanchard@lboro.ac.uk", "Drafted", "", "", "Solar water pumping, mini-grids, agritech hardware"],
