@@ -38,7 +38,7 @@ describe('CurriculumView - IELTS 2026 Preparation Sprint View', () => {
     cleanup()
   })
 
-  it('renders Recovered IELTS Mock Practice Tests & Score Reports section with 6 recovered tests', async () => {
+  it('renders IELTS preparation dashboard with PracticeScoreTracker and verified resources', async () => {
     const curriculum = {
       id: 'ielts-2026-sprint',
       title: 'IELTS 2026 Preparation Sprint',
@@ -49,28 +49,12 @@ describe('CurriculumView - IELTS 2026 Preparation Sprint View', () => {
     render(<CurriculumView curriculum={curriculum} accentColor="#3B82F6" onBack={() => {}} />)
 
     await waitFor(() => {
-      expect(screen.getByText('Recovered IELTS Mock Practice Tests & Score Reports')).toBeTruthy()
+      expect(screen.getByText('IELTS Module Average Bands & Score Predictor')).toBeTruthy()
     })
 
-    expect(screen.getByText('6 Tests Recovered')).toBeTruthy()
-    expect(screen.getAllByText('IELTS Online Tests: Mock Test 2026 January Listening Test 1').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('IELTS Listening Practice Test 201').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('IELTS Reading Practice Test 313').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('IELTS Reading Practice Test 312').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('IELTS Reading Practice Test 311').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('IELTS Reading Practice Test 310').length).toBeGreaterThan(0)
-
-    // Check external links
-    const reportLink = screen.getByRole('link', { name: /Score Report ->/i })
-    expect(reportLink).toBeTruthy()
-    expect(reportLink.getAttribute('href')).toBe('https://ieltsonlinetests.com/score/60136001')
-    expect(reportLink.getAttribute('target')).toBe('_blank')
-    expect(reportLink.getAttribute('rel')).toBe('noopener noreferrer')
-
-    const qbLinks = screen.getAllByRole('link', { name: /Question Bank ->/i })
-    expect(qbLinks.length).toBe(4)
-    expect(qbLinks[0].getAttribute('href')).toBe('https://practicepteonline.com/official-ielts-tests-book-20/')
-    expect(qbLinks[0].getAttribute('target')).toBe('_blank')
-    expect(qbLinks[0].getAttribute('rel')).toBe('noopener noreferrer')
+    expect(screen.getByText('IELTS 2026 Preparation Sprint - Sub-Calendar & GCal Links')).toBeTruthy()
+    expect(screen.getByText(/Current Verified 2026 Resources/)).toBeTruthy()
+    expect(screen.getByText(/Graded Mock Test Collections/)).toBeTruthy()
+    expect(screen.getByText(/28-Day De-Rusting/)).toBeTruthy()
   })
 })
