@@ -18,13 +18,65 @@ import {
   ArrowRight,
   CheckCircle2,
   Calendar,
-  ExternalLink
+  ExternalLink,
+  RefreshCw
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { safeMutate } from '../../lib/safeMutate';
 import { useAuth } from '../../hooks/useAuth';
 import { DEFAULT_IELTS_PRACTICE_SCORES } from '../../data/curriculumDefaults';
 import { safeExternalUrl } from '../../lib/urlUtils';
+
+export const mergeScoresWithDefaults = (currentScores = [], defaultScores = DEFAULT_IELTS_PRACTICE_SCORES) => {
+  const current = Array.isArray(currentScores) ? currentScores : [];
+  const defaults = Array.isArray(defaultScores) ? defaultScores : [];
+
+  const isMatchingScore = (s, def) => {
+    if (!s || !def) return false;
+    if (s.id && def.id && s.id === def.id) return true;
+    const sTitle = (s.title || '').toLowerCase().trim();
+    const defTitle = (def.title || '').toLowerCase().trim();
+    if (sTitle && defTitle && sTitle === defTitle) return true;
+
+    if (def.id === 'ielts-mock-listen-2') {
+      if (sTitle.includes('january listening test 1') || sTitle.includes('mock test 2026 january listening')) {
+        return true;
+      }
+    }
+    if (def.id === 'ielts-mock-listen-1') {
+      if (sTitle.includes('listening practice test 201')) {
+        return true;
+      }
+    }
+    if (def.id === 'ielts-mock-read-4') {
+      if (sTitle.includes('reading practice test 313')) {
+        return true;
+      }
+    }
+    if (def.id === 'ielts-mock-read-3') {
+      if (sTitle.includes('reading practice test 312')) {
+        return true;
+      }
+    }
+    if (def.id === 'ielts-mock-read-2') {
+      if (sTitle.includes('reading practice test 311')) {
+        return true;
+      }
+    }
+    if (def.id === 'ielts-mock-read-1') {
+      if (sTitle.includes('reading practice test 310')) {
+        return true;
+      }
+    }
+
+    return false;
+  };
+
+  const missingDefaults = defaults.filter(def => !current.some(s => isMatchingScore(s, def)));
+  const merged = [...current, ...missingDefaults];
+
+  return merged.sort((a, b) => new Date(b.date || b.created_at || 0) - new Date(a.date || a.created_at || 0));
+};
 
 // Official IELTS raw score to band conversion
 export const calculateBand = (score, category, total) => {
@@ -262,10 +314,14 @@ export default function PracticeScoreTracker({ curriculumId }) {
           const parsed = JSON.parse(cached);
           if (Array.isArray(parsed)) {
             hasLocalCache = true;
-            initialScores = parsed;
-            if (parsed.length > 0 && isMounted) {
-              setScores(parsed);
+            const merged = mergeScoresWithDefaults(parsed, DEFAULT_IELTS_PRACTICE_SCORES);
+            initialScores = merged;
+            if (isMounted) {
+              setScores(merged);
             }
+            try {
+              localStorage.setItem(cacheKey, JSON.stringify(merged));
+            } catch (storageErr) {}
           }
         }
       } catch (e) {
@@ -335,51 +391,33 @@ export default function PracticeScoreTracker({ curriculumId }) {
         const { data, error } = await query.order('date', { ascending: false });
 
         if (!error && data && isMounted) {
-          if (data.length > 0) {
-            setScores(data);
-            try {
-              localStorage.setItem(cacheKey, JSON.stringify(data));
-            } catch (storageErr) {
-              // Ignore storage quota errors
-            }
-          } else {
-            // Database returned 0 scores
-            // Check if local cache also had 0 scores or was seeded with defaults
-            if (!hasLocalCache || initialScores.length === 0 || initialScores === DEFAULT_IELTS_PRACTICE_SCORES) {
-              const seedPayload = DEFAULT_IELTS_PRACTICE_SCORES.map(item => ({
-                user_id: user.id,
-                curriculum_id: curriculumId || null,
-                title: item.title,
-                category: item.category,
-                score: item.score,
-                total: item.total || null,
-                band: item.band || calculateBand(item.score, item.category, item.total),
-                url: item.url || null,
-                date: item.date || new Date().toISOString(),
-                created_at: item.date || new Date().toISOString(),
-              }));
+          const mergedData = mergeScoresWithDefaults(data, DEFAULT_IELTS_PRACTICE_SCORES);
+          setScores(mergedData);
+          try {
+            localStorage.setItem(cacheKey, JSON.stringify(mergedData));
+          } catch (storageErr) {
+            // Ignore storage quota errors
+          }
 
-              const { data: insertedData, error: seedError } = await safeMutate(
-                supabase.from('practice_scores').insert(seedPayload).select(),
-                { throwOnError: false, context: 'PracticeScoreTracker:seedDefaultScores' }
-              );
+          // If database returned 0 scores and local cache had no custom scores, seed defaults
+          if (data.length === 0 && (!hasLocalCache || initialScores.length === 0 || initialScores === DEFAULT_IELTS_PRACTICE_SCORES)) {
+            const seedPayload = DEFAULT_IELTS_PRACTICE_SCORES.map(item => ({
+              user_id: user.id,
+              curriculum_id: curriculumId || null,
+              title: item.title,
+              category: item.category,
+              score: item.score,
+              total: item.total || null,
+              band: item.band || calculateBand(item.score, item.category, item.total),
+              url: item.url || null,
+              date: item.date || new Date().toISOString(),
+              created_at: item.date || new Date().toISOString(),
+            }));
 
-              const seededResults = (!seedError && insertedData && insertedData.length > 0)
-                ? insertedData
-                : DEFAULT_IELTS_PRACTICE_SCORES;
-
-              if (isMounted) {
-                setScores(seededResults);
-              }
-              try {
-                localStorage.setItem(cacheKey, JSON.stringify(seededResults));
-              } catch (storageErr) {}
-            } else {
-              setScores(data);
-              try {
-                localStorage.setItem(cacheKey, JSON.stringify(data));
-              } catch (storageErr) {}
-            }
+            await safeMutate(
+              supabase.from('practice_scores').insert(seedPayload).select(),
+              { throwOnError: false, context: 'PracticeScoreTracker:seedDefaultScores' }
+            );
           }
         } else if (error && isMounted) {
           // If Supabase table is not yet created or returns error, keep local scores intact
@@ -601,15 +639,25 @@ export default function PracticeScoreTracker({ curriculumId }) {
     }
   };
 
+  const handleSyncRecoveredScores = (e) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    const merged = mergeScoresWithDefaults(scores, DEFAULT_IELTS_PRACTICE_SCORES);
+    setScores(merged);
+    try {
+      localStorage.setItem(cacheKey, JSON.stringify(merged));
+    } catch (storageErr) {}
+  };
+
   return (
     <div className="bg-nebula border border-cosmic rounded-xl overflow-hidden mt-6 shadow-natural">
       {/* Header Bar */}
-      <button 
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between p-4 bg-stardust hover:bg-cosmic transition-colors text-left"
-        aria-expanded={isOpen}
-      >
-        <div className="flex items-center gap-3">
+      <div className="w-full flex items-center justify-between p-4 bg-stardust hover:bg-cosmic transition-colors">
+        <button 
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          className="flex items-center gap-3 text-left flex-1 cursor-pointer"
+          aria-expanded={isOpen}
+        >
           <div className="w-8 h-8 rounded-lg bg-gold/15 border border-gold/30 flex items-center justify-center">
             <Target className="w-4 h-4 text-gold" />
           </div>
@@ -624,11 +672,27 @@ export default function PracticeScoreTracker({ curriculumId }) {
               Official IELTS conversion matrix, rolling recent trends, and projected overall band.
             </p>
           </div>
+        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={handleSyncRecoveredScores}
+            title="Re-merge default practice tests with existing scores"
+            className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono text-gold bg-gold/10 hover:bg-gold/20 border border-gold/30 rounded-lg transition-colors cursor-pointer"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Sync Recovered Scores</span>
+          </button>
+          <button 
+            type="button"
+            onClick={() => setIsOpen(!isOpen)}
+            className="p-1 rounded bg-void border border-cosmic text-nova hover:text-starlight cursor-pointer"
+            aria-label={isOpen ? "Collapse tracker" : "Expand tracker"}
+          >
+            {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </button>
         </div>
-        <div className="p-1 rounded bg-void border border-cosmic text-nova">
-          {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-        </div>
-      </button>
+      </div>
 
       {isOpen && (
         <div className="p-4 border-t border-cosmic space-y-5">

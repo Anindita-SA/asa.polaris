@@ -7,7 +7,8 @@ import PracticeScoreTracker, {
   roundToIeltsBand, 
   calculateOverallBand, 
   calculateModuleStats,
-  extractScoreReportUrl
+  extractScoreReportUrl,
+  mergeScoresWithDefaults
 } from './PracticeScoreTracker';
 import { DEFAULT_IELTS_PRACTICE_SCORES } from '../../data/curriculumDefaults';
 import { supabase } from '../../lib/supabase';
@@ -190,6 +191,140 @@ describe('PracticeScoreTracker - Sub-3-Test Floor Trend Logic', () => {
     expect(stats.best).toBe(8.0);
     expect(stats.trendType).toBe('up');
     expect(stats.trendText).toBe('+1.5 vs baseline');
+  });
+});
+
+describe('PracticeScoreTracker - mergeScoresWithDefaults Helper', () => {
+  it('merging into empty array returns all default tests', () => {
+    const result = mergeScoresWithDefaults([]);
+    expect(result.length).toBe(DEFAULT_IELTS_PRACTICE_SCORES.length);
+    expect(result.some(s => s.id === 'ielts-mock-listen-2')).toBe(true);
+    expect(result.some(s => s.id === 'ielts-mock-listen-1')).toBe(true);
+    expect(result.some(s => s.id === 'ielts-mock-read-4')).toBe(true);
+    expect(result.some(s => s.id === 'ielts-mock-read-3')).toBe(true);
+    expect(result.some(s => s.id === 'ielts-mock-read-2')).toBe(true);
+    expect(result.some(s => s.id === 'ielts-mock-read-1')).toBe(true);
+  });
+
+  it('merging into null or undefined returns all default tests', () => {
+    expect(mergeScoresWithDefaults(null).length).toBe(DEFAULT_IELTS_PRACTICE_SCORES.length);
+    expect(mergeScoresWithDefaults(undefined).length).toBe(DEFAULT_IELTS_PRACTICE_SCORES.length);
+  });
+
+  it('merging into existing user tests preserves user tests AND includes missing default tests', () => {
+    const customUserTests = [
+      {
+        id: 'user-writing-1',
+        title: 'Task 1 Academic Graph Description',
+        category: 'writing',
+        score: 7.0,
+        band: 7.0,
+        date: '2026-09-18T10:00:00Z'
+      },
+      {
+        id: 'user-writing-2',
+        title: 'Task 2 Essay on Renewable Energy',
+        category: 'writing',
+        score: 7.5,
+        band: 7.5,
+        date: '2026-09-19T10:00:00Z'
+      },
+      {
+        id: 'user-speaking-1',
+        title: 'Speaking Part 2 Cue Card',
+        category: 'speaking',
+        score: 8.0,
+        band: 8.0,
+        date: '2026-09-20T10:00:00Z'
+      }
+    ];
+
+    const result = mergeScoresWithDefaults(customUserTests);
+    expect(result.length).toBe(3 + DEFAULT_IELTS_PRACTICE_SCORES.length);
+
+    // Preserves custom user tests
+    expect(result.find(s => s.id === 'user-writing-1')).toBeTruthy();
+    expect(result.find(s => s.id === 'user-writing-2')).toBeTruthy();
+    expect(result.find(s => s.id === 'user-speaking-1')).toBeTruthy();
+
+    // Includes all 6 default tests
+    expect(result.filter(s => s.category === 'reading').length).toBe(4);
+    expect(result.filter(s => s.category === 'listening').length).toBe(2);
+
+    // Sorted descending by date
+    for (let i = 0; i < result.length - 1; i++) {
+      const dateA = new Date(result[i].date || result[i].created_at || 0).getTime();
+      const dateB = new Date(result[i + 1].date || result[i + 1].created_at || 0).getTime();
+      expect(dateA).toBeGreaterThanOrEqual(dateB);
+    }
+  });
+
+  it('merging when defaults already exist does not duplicate items', () => {
+    const existingDefaults = [...DEFAULT_IELTS_PRACTICE_SCORES];
+    const result = mergeScoresWithDefaults(existingDefaults);
+    expect(result.length).toBe(DEFAULT_IELTS_PRACTICE_SCORES.length);
+  });
+
+  it('matches existing tests by title or key substrings to prevent duplicate recovery', () => {
+    const existingMatches = [
+      {
+        id: 'supabase-custom-id-1',
+        title: 'Mock Test 2026 January Listening Practice',
+        category: 'listening',
+        score: 38,
+        total: 40,
+        band: 8.5,
+        date: '2026-09-10T10:00:00Z'
+      },
+      {
+        id: 'supabase-custom-id-2',
+        title: 'IELTS Listening Practice Test 201',
+        category: 'listening',
+        score: 38,
+        total: 40,
+        band: 8.5,
+        date: '2026-09-08T10:00:00Z'
+      },
+      {
+        id: 'supabase-custom-id-3',
+        title: 'IELTS Reading Practice Test 313',
+        category: 'reading',
+        score: 36,
+        total: 40,
+        band: 8.0,
+        date: '2026-09-06T10:00:00Z'
+      },
+      {
+        id: 'supabase-custom-id-4',
+        title: 'IELTS Reading Practice Test 312',
+        category: 'reading',
+        score: 35,
+        total: 40,
+        band: 8.0,
+        date: '2026-09-04T10:00:00Z'
+      },
+      {
+        id: 'supabase-custom-id-5',
+        title: 'IELTS Reading Practice Test 311',
+        category: 'reading',
+        score: 35,
+        total: 40,
+        band: 8.0,
+        date: '2026-09-02T10:00:00Z'
+      },
+      {
+        id: 'supabase-custom-id-6',
+        title: 'IELTS Reading Practice Test 310',
+        category: 'reading',
+        score: 34,
+        total: 40,
+        band: 7.5,
+        date: '2026-08-30T10:00:00Z'
+      }
+    ];
+
+    const result = mergeScoresWithDefaults(existingMatches);
+    expect(result.length).toBe(6);
   });
 });
 
@@ -470,6 +605,105 @@ describe('PracticeScoreTracker - Component UI, Persistence & Migration', () => {
 
     expect(insertedPayload[0].url).toBe('https://ieltsonlinetests.com/score/99999');
     expect(insertedPayload[0].title).toBe('Online Mock Test 2');
+  });
+
+  it('merges DEFAULT_IELTS_PRACTICE_SCORES when localStorage contains custom user scores', async () => {
+    const customUserWritingScores = [
+      {
+        id: 'user-w1',
+        title: 'Writing Task 1 Process Diagram',
+        category: 'writing',
+        score: 7.0,
+        total: null,
+        band: 7.0,
+        date: '2026-09-15T09:00:00Z'
+      },
+      {
+        id: 'user-w2',
+        title: 'Writing Task 2 Technology Essay',
+        category: 'writing',
+        score: 7.5,
+        total: null,
+        band: 7.5,
+        date: '2026-09-16T09:00:00Z'
+      },
+      {
+        id: 'user-w3',
+        title: 'Writing Task 2 Education Essay',
+        category: 'writing',
+        score: 7.5,
+        total: null,
+        band: 7.5,
+        date: '2026-09-17T09:00:00Z'
+      }
+    ];
+
+    supabase.from.mockImplementation(() => ({
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      order: vi.fn().mockResolvedValue({ data: customUserWritingScores, error: null })
+    }));
+
+    const cacheKey = 'polaris_practice_scores_cache_user-ielts-123_curr-ielts-2026';
+    localStorage.setItem(cacheKey, JSON.stringify(customUserWritingScores));
+
+    render(<PracticeScoreTracker curriculumId="curr-ielts-2026" />);
+
+    // Custom writing tests should appear
+    await waitFor(() => {
+      expect(screen.getAllByText('Writing Task 1 Process Diagram').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Writing Task 2 Technology Essay').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Writing Task 2 Education Essay').length).toBeGreaterThan(0);
+    });
+
+    // Default reading tests (4 tests) and listening tests (2 tests) should immediately appear
+    expect(screen.getAllByText('IELTS Reading Practice Test 313').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('IELTS Reading Practice Test 312').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('IELTS Reading Practice Test 311').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('IELTS Reading Practice Test 310').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('IELTS Listening Practice Test 201').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('IELTS Online Tests - Mock Test 2026 January Listening Test 1').length).toBeGreaterThan(0);
+
+    // Reading module card should show 4 tests and Listening module card should show 2 tests
+    expect(screen.getByText('4 tests')).toBeTruthy();
+    expect(screen.getByText('2 tests')).toBeTruthy();
+
+    // Verify localStorage cache was updated with the merged 9 tests
+    const cached = JSON.parse(localStorage.getItem(cacheKey));
+    expect(cached.length).toBe(9);
+  });
+
+  it('manually triggers re-merge when Sync Recovered Scores button is clicked', async () => {
+    const onlyCustomScore = [
+      {
+        id: 'user-custom-only',
+        title: 'Single Custom Speaking Test',
+        category: 'speaking',
+        score: 8.0,
+        total: null,
+        band: 8.0,
+        date: '2026-09-18T09:00:00Z'
+      }
+    ];
+
+    supabase.from.mockImplementation(() => ({
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      order: vi.fn().mockResolvedValue({ data: onlyCustomScore, error: null })
+    }));
+
+    render(<PracticeScoreTracker curriculumId="curr-ielts-2026" />);
+
+    const syncButton = await screen.findByRole('button', { name: /Sync Recovered Scores/i });
+    expect(syncButton).toBeTruthy();
+
+    fireEvent.click(syncButton);
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Single Custom Speaking Test').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('IELTS Reading Practice Test 313').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('IELTS Online Tests - Mock Test 2026 January Listening Test 1').length).toBeGreaterThan(0);
+    });
   });
 });
 
