@@ -475,7 +475,8 @@ describe('PracticeScoreTracker - Component UI, Persistence & Migration', () => {
     expect(localStorage.getItem('polaris_practice_scores_curr-ielts-2026')).toBeNull();
   });
 
-  it('submits a new practice score log', async () => {
+  it('submits a new practice score log and updates both state and localStorage immediately', async () => {
+    const cacheKey = 'polaris_practice_scores_cache_user-ielts-123_curr-ielts-2026';
     render(<PracticeScoreTracker curriculumId="curr-ielts-2026" />);
 
     await waitFor(() => {
@@ -490,22 +491,37 @@ describe('PracticeScoreTracker - Component UI, Persistence & Migration', () => {
     fireEvent.change(scoreInput, { target: { value: '37' } });
     fireEvent.click(submitBtn);
 
+    // State is updated immediately
+    expect(screen.getAllByText('Cambridge 19 Test 1').length).toBeGreaterThan(0);
+
+    // Local storage is updated immediately
+    const cached = JSON.parse(localStorage.getItem(cacheKey));
+    expect(cached.some(s => s.title === 'Cambridge 19 Test 1')).toBe(true);
+
     await waitFor(() => {
       expect(supabase.from).toHaveBeenCalledWith('practice_scores');
     });
   });
 
-  it('handles score deletion on trash click', async () => {
+  it('handles score deletion on trash click and updates both state and localStorage immediately', async () => {
+    const cacheKey = 'polaris_practice_scores_cache_user-ielts-123_curr-ielts-2026';
     render(<PracticeScoreTracker curriculumId="curr-ielts-2026" />);
 
     await waitFor(() => {
-      expect(screen.getAllByText('Cambridge 18 Test 1 Listening').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Speaking Mock Interview').length).toBeGreaterThan(0);
     });
 
     const deleteButtons = screen.getAllByTitle('Delete test log');
     expect(deleteButtons.length).toBeGreaterThan(0);
 
     fireEvent.click(deleteButtons[0]);
+
+    // Speaking Mock Interview removed from view
+    expect(screen.queryAllByText('Speaking Mock Interview').length).toBe(0);
+
+    // Local storage updated immediately
+    const cached = JSON.parse(localStorage.getItem(cacheKey));
+    expect(cached.some(s => s.title === 'Speaking Mock Interview')).toBe(false);
 
     await waitFor(() => {
       expect(supabase.from).toHaveBeenCalledWith('practice_scores');
@@ -607,7 +623,25 @@ describe('PracticeScoreTracker - Component UI, Persistence & Migration', () => {
     expect(insertedPayload[0].title).toBe('Online Mock Test 2');
   });
 
-  it('merges DEFAULT_IELTS_PRACTICE_SCORES when localStorage contains custom user scores', async () => {
+  it('synchronously loads DEFAULT_IELTS_PRACTICE_SCORES on initial render when localStorage is empty', () => {
+    supabase.from.mockImplementation(() => ({
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      order: vi.fn().mockReturnValue(new Promise(() => {}))
+    }));
+
+    render(<PracticeScoreTracker curriculumId="curr-ielts-2026" />);
+
+    expect(screen.getAllByText('IELTS Reading Practice Test 313').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('IELTS Reading Practice Test 312').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('IELTS Reading Practice Test 311').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('IELTS Reading Practice Test 310').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('IELTS Listening Practice Test 201').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('IELTS Online Tests - Mock Test 2026 January Listening Test 1').length).toBeGreaterThan(0);
+    expect(screen.getByText('6 Tests Logged')).toBeTruthy();
+  });
+
+  it('synchronously merges DEFAULT_IELTS_PRACTICE_SCORES into pre-existing custom cached tests on frame 0', () => {
     const customUserWritingScores = [
       {
         id: 'user-w1',
@@ -638,25 +672,23 @@ describe('PracticeScoreTracker - Component UI, Persistence & Migration', () => {
       }
     ];
 
-    supabase.from.mockImplementation(() => ({
-      select: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockReturnThis(),
-      order: vi.fn().mockResolvedValue({ data: customUserWritingScores, error: null })
-    }));
-
     const cacheKey = 'polaris_practice_scores_cache_user-ielts-123_curr-ielts-2026';
     localStorage.setItem(cacheKey, JSON.stringify(customUserWritingScores));
 
+    supabase.from.mockImplementation(() => ({
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      order: vi.fn().mockReturnValue(new Promise(() => {}))
+    }));
+
     render(<PracticeScoreTracker curriculumId="curr-ielts-2026" />);
 
-    // Custom writing tests should appear
-    await waitFor(() => {
-      expect(screen.getAllByText('Writing Task 1 Process Diagram').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('Writing Task 2 Technology Essay').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('Writing Task 2 Education Essay').length).toBeGreaterThan(0);
-    });
+    // Custom writing tests appear immediately on frame 0
+    expect(screen.getAllByText('Writing Task 1 Process Diagram').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Writing Task 2 Technology Essay').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Writing Task 2 Education Essay').length).toBeGreaterThan(0);
 
-    // Default reading tests (4 tests) and listening tests (2 tests) should immediately appear
+    // Default reading tests (4 tests) and listening tests (2 tests) appear immediately on frame 0
     expect(screen.getAllByText('IELTS Reading Practice Test 313').length).toBeGreaterThan(0);
     expect(screen.getAllByText('IELTS Reading Practice Test 312').length).toBeGreaterThan(0);
     expect(screen.getAllByText('IELTS Reading Practice Test 311').length).toBeGreaterThan(0);
@@ -665,45 +697,14 @@ describe('PracticeScoreTracker - Component UI, Persistence & Migration', () => {
     expect(screen.getAllByText('IELTS Online Tests - Mock Test 2026 January Listening Test 1').length).toBeGreaterThan(0);
 
     // Reading module card should show 4 tests and Listening module card should show 2 tests
+    expect(screen.getByText('9 Tests Logged')).toBeTruthy();
     expect(screen.getByText('4 tests')).toBeTruthy();
     expect(screen.getByText('2 tests')).toBeTruthy();
+    expect(screen.getByText('3 tests')).toBeTruthy();
 
-    // Verify localStorage cache was updated with the merged 9 tests
+    // Verify localStorage cache was updated synchronously with the merged 9 tests
     const cached = JSON.parse(localStorage.getItem(cacheKey));
     expect(cached.length).toBe(9);
-  });
-
-  it('manually triggers re-merge when Sync Recovered Scores button is clicked', async () => {
-    const onlyCustomScore = [
-      {
-        id: 'user-custom-only',
-        title: 'Single Custom Speaking Test',
-        category: 'speaking',
-        score: 8.0,
-        total: null,
-        band: 8.0,
-        date: '2026-09-18T09:00:00Z'
-      }
-    ];
-
-    supabase.from.mockImplementation(() => ({
-      select: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockReturnThis(),
-      order: vi.fn().mockResolvedValue({ data: onlyCustomScore, error: null })
-    }));
-
-    render(<PracticeScoreTracker curriculumId="curr-ielts-2026" />);
-
-    const syncButton = await screen.findByRole('button', { name: /Sync Recovered Scores/i });
-    expect(syncButton).toBeTruthy();
-
-    fireEvent.click(syncButton);
-
-    await waitFor(() => {
-      expect(screen.getAllByText('Single Custom Speaking Test').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('IELTS Reading Practice Test 313').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('IELTS Online Tests - Mock Test 2026 January Listening Test 1').length).toBeGreaterThan(0);
-    });
   });
 });
 

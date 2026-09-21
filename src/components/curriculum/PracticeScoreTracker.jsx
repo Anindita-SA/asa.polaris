@@ -18,8 +18,7 @@ import {
   ArrowRight,
   CheckCircle2,
   Calendar,
-  ExternalLink,
-  RefreshCw
+  ExternalLink
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { safeMutate } from '../../lib/safeMutate';
@@ -284,7 +283,35 @@ const MODULE_DEFS = [
 export default function PracticeScoreTracker({ curriculumId }) {
   const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(true);
-  const [scores, setScores] = useState([]);
+
+  const cacheKey = `polaris_practice_scores_cache_${user?.id || 'anon'}_${curriculumId || 'all'}`;
+  const legacyKey = `polaris_practice_scores_${curriculumId}`;
+
+  const [scores, setScores] = useState(() => {
+    try {
+      const cacheKey = `polaris_practice_scores_cache_${user?.id || 'anon'}_${curriculumId || 'all'}`;
+      const legacyKey = `polaris_practice_scores_${curriculumId}`;
+      const cached = typeof window !== 'undefined' && (localStorage.getItem(cacheKey) || localStorage.getItem(legacyKey));
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const merged = mergeScoresWithDefaults(parsed, DEFAULT_IELTS_PRACTICE_SCORES);
+          try {
+            localStorage.setItem(cacheKey, JSON.stringify(merged));
+          } catch (e) {}
+          return merged;
+        }
+      }
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(cacheKey, JSON.stringify(DEFAULT_IELTS_PRACTICE_SCORES));
+        } catch (e) {}
+      }
+      return DEFAULT_IELTS_PRACTICE_SCORES;
+    } catch (err) {
+      return DEFAULT_IELTS_PRACTICE_SCORES;
+    }
+  });
   const [loading, setLoading] = useState(false);
   const [activeFilter, setActiveFilter] = useState('all'); // 'all', 'listening', 'reading', 'writing', 'speaking', 'other'
 
@@ -294,9 +321,6 @@ export default function PracticeScoreTracker({ curriculumId }) {
   const [totalVal, setTotalVal] = useState('40');
   const [category, setCategory] = useState('listening');
   const [urlVal, setUrlVal] = useState('');
-
-  const cacheKey = `polaris_practice_scores_cache_${user?.id || 'anon'}_${curriculumId || 'all'}`;
-  const legacyKey = `polaris_practice_scores_${curriculumId}`;
 
   // Fetch from Supabase and migrate legacy localStorage scores / seed defaults
   useEffect(() => {
@@ -504,8 +528,10 @@ export default function PracticeScoreTracker({ curriculumId }) {
     const numTotal = totalVal ? parseFloat(totalVal) : null;
     const bandScore = calculateBand(numScore, category, numTotal);
     const cleanUrl = urlVal.trim() || null;
+    const tempId = Date.now().toString();
 
     const newRecord = {
+      id: tempId,
       title: title.trim(),
       category,
       score: numScore,
@@ -513,47 +539,15 @@ export default function PracticeScoreTracker({ curriculumId }) {
       band: bandScore,
       url: cleanUrl,
       date: new Date().toISOString(),
+      user_id: user?.id || null,
+      curriculum_id: curriculumId || null,
     };
 
-    if (user?.id) {
-      try {
-        const dbPayload = {
-          ...newRecord,
-          user_id: user.id,
-          curriculum_id: curriculumId || null,
-        };
-
-        const { data, error } = await safeMutate(
-          supabase
-            .from('practice_scores')
-            .insert([dbPayload])
-            .select(),
-          { throwOnError: true, context: 'PracticeScoreTracker:addScore' }
-        );
-
-        const createdItem = data && data[0] ? data[0] : { ...dbPayload, id: Date.now().toString() };
-        const updated = [createdItem, ...scores];
-        setScores(updated);
-        try {
-          localStorage.setItem(cacheKey, JSON.stringify(updated));
-        } catch (storageErr) {}
-      } catch (err) {
-        // Fallback to local
-        const localItem = { ...newRecord, id: Date.now().toString(), user_id: user.id, curriculum_id: curriculumId || null };
-        const updated = [localItem, ...scores];
-        setScores(updated);
-        try {
-          localStorage.setItem(cacheKey, JSON.stringify(updated));
-        } catch (storageErr) {}
-      }
-    } else {
-      const localItem = { ...newRecord, id: Date.now().toString(), user_id: null, curriculum_id: curriculumId || null };
-      const updated = [localItem, ...scores];
-      setScores(updated);
-      try {
-        localStorage.setItem(cacheKey, JSON.stringify(updated));
-      } catch (storageErr) {}
-    }
+    const updated = [newRecord, ...scores];
+    setScores(updated);
+    try {
+      localStorage.setItem(cacheKey, JSON.stringify(updated));
+    } catch (storageErr) {}
 
     setTitle('');
     setScoreVal('');
@@ -563,9 +557,51 @@ export default function PracticeScoreTracker({ curriculumId }) {
     } else {
       setTotalVal('');
     }
+
+    if (user?.id) {
+      try {
+        const dbPayload = {
+          title: newRecord.title,
+          category: newRecord.category,
+          score: newRecord.score,
+          total: newRecord.total,
+          band: newRecord.band,
+          url: newRecord.url,
+          date: newRecord.date,
+          user_id: user.id,
+          curriculum_id: curriculumId || null,
+        };
+
+        const { data } = await safeMutate(
+          supabase
+            .from('practice_scores')
+            .insert([dbPayload])
+            .select(),
+          { throwOnError: false, context: 'PracticeScoreTracker:addScore' }
+        );
+
+        if (data && data[0]) {
+          setScores(prev => {
+            const next = prev.map(item => (item.id === tempId ? data[0] : item));
+            try {
+              localStorage.setItem(cacheKey, JSON.stringify(next));
+            } catch (storageErr) {}
+            return next;
+          });
+        }
+      } catch (err) {
+        console.error('Failed to sync new score to Supabase:', err);
+      }
+    }
   };
 
   const handleDelete = async (id) => {
+    const updated = scores.filter(s => s.id !== id);
+    setScores(updated);
+    try {
+      localStorage.setItem(cacheKey, JSON.stringify(updated));
+    } catch (storageErr) {}
+
     if (user?.id) {
       try {
         await safeMutate(
@@ -574,18 +610,12 @@ export default function PracticeScoreTracker({ curriculumId }) {
             .delete()
             .eq('id', id)
             .eq('user_id', user.id),
-          { throwOnError: true, context: 'PracticeScoreTracker:deleteScore' }
+          { throwOnError: false, context: 'PracticeScoreTracker:deleteScore' }
         );
       } catch (err) {
         console.error('Failed to delete score from Supabase:', err);
       }
     }
-
-    const updated = scores.filter(s => s.id !== id);
-    setScores(updated);
-    try {
-      localStorage.setItem(cacheKey, JSON.stringify(updated));
-    } catch (storageErr) {}
   };
 
   const getCategoryTheme = (cat) => {
@@ -639,25 +669,16 @@ export default function PracticeScoreTracker({ curriculumId }) {
     }
   };
 
-  const handleSyncRecoveredScores = (e) => {
-    if (e && e.stopPropagation) e.stopPropagation();
-    const merged = mergeScoresWithDefaults(scores, DEFAULT_IELTS_PRACTICE_SCORES);
-    setScores(merged);
-    try {
-      localStorage.setItem(cacheKey, JSON.stringify(merged));
-    } catch (storageErr) {}
-  };
-
   return (
     <div className="bg-nebula border border-cosmic rounded-xl overflow-hidden mt-6 shadow-natural">
       {/* Header Bar */}
-      <div className="w-full flex items-center justify-between p-4 bg-stardust hover:bg-cosmic transition-colors">
-        <button 
-          type="button"
-          onClick={() => setIsOpen(!isOpen)}
-          className="flex items-center gap-3 text-left flex-1 cursor-pointer"
-          aria-expanded={isOpen}
-        >
+      <button 
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-between p-4 bg-stardust hover:bg-cosmic transition-colors text-left cursor-pointer"
+        aria-expanded={isOpen}
+      >
+        <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-gold/15 border border-gold/30 flex items-center justify-center">
             <Target className="w-4 h-4 text-gold" />
           </div>
@@ -672,27 +693,11 @@ export default function PracticeScoreTracker({ curriculumId }) {
               Official IELTS conversion matrix, rolling recent trends, and projected overall band.
             </p>
           </div>
-        </button>
-        <div className="flex items-center gap-2 shrink-0">
-          <button
-            type="button"
-            onClick={handleSyncRecoveredScores}
-            title="Re-merge default practice tests with existing scores"
-            className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono text-gold bg-gold/10 hover:bg-gold/20 border border-gold/30 rounded-lg transition-colors cursor-pointer"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Sync Recovered Scores</span>
-          </button>
-          <button 
-            type="button"
-            onClick={() => setIsOpen(!isOpen)}
-            className="p-1 rounded bg-void border border-cosmic text-nova hover:text-starlight cursor-pointer"
-            aria-label={isOpen ? "Collapse tracker" : "Expand tracker"}
-          >
-            {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-          </button>
         </div>
-      </div>
+        <div className="flex items-center gap-2">
+          {isOpen ? <ChevronUp className="w-5 h-5 text-nova" /> : <ChevronDown className="w-5 h-5 text-nova" />}
+        </div>
+      </button>
 
       {isOpen && (
         <div className="p-4 border-t border-cosmic space-y-5">
