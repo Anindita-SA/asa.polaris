@@ -1,3 +1,7 @@
+## [2026-09-23] Automated Self-Healing Find and Patch System for Edge Functions (v1.2.24)
+- **Edge Function Auto-Patcher**: Created `scripts/auto_patcher.js` to automatically invoke and test `generate-morning-brief` and `scout-opportunities` Edge Functions. If an error is detected, the script utilizes a Gemini Pro LLM subagent to diagnose the error trace, and a Gemini Flash LLM subagent to write a patched TypeScript file, before automatically redeploying and retesting the function.
+- **LLM Subagent Architecture**: Upgraded `scripts/lib/llm_utils.js` to accept a `{ preferredModel }` parameter, allowing the auto-patcher to seamlessly route complex logic diagnostic tasks to `gemini-1.5-pro` and fast code-generation rewrites to `gemini-1.5-flash` while retaining fallback resilience.
+
 ## [2026-09-22] Synchronous Practice Score Cache Resolution & Architecture Refinement (v1.2.23)
 - **Synchronous Initial State Resolution**: Refactored `scores` state in `PracticeScoreTracker.jsx` to resolve synchronously during initial component render via lazy state initializer function. Seamlessly cross-references and merges `DEFAULT_IELTS_PRACTICE_SCORES` with any existing cached scores on frame 0, instantly populating Listening (2 tests) and Reading (4 tests) without flashing or requiring manual user interaction.
 - **Removed UI Shortcuts**: Completely removed the manual "Sync Recovered Scores" button and restored the clean original full-width header toggle button layout.

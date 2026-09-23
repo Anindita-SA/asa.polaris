@@ -43,7 +43,13 @@ serve(async (req) => {
 
     let resolvedUserId: string | null = null
 
-    if (token !== serviceRoleKey) {
+    let isServiceRole = false
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]))
+      if (payload.role === 'service_role') isServiceRole = true
+    } catch (e) {}
+
+    if (!isServiceRole && token !== serviceRoleKey) {
       const { data: { user: callerUser }, error: authErr } = await supabaseAdmin.auth.getUser(token)
       if (authErr || !callerUser) {
         return new Response(JSON.stringify({ error: 'Unauthorized' }), {
