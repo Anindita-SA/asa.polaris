@@ -39,6 +39,9 @@ node "$ScriptDir\task_triage.js"
 Write-Host "Executing Cloud Scouts..."
 node "$ScriptDir\run_cloud_scouts.js"
 
+Write-Host "Executing Audit Task Insertion..."
+node "$ScriptDir\weekly_audit.js"
+
 # 3. Cleanup if we started it
 if ($StartedByUs) {
     Write-Host "Cleaning up: Shutting down the headless Ollama server."
@@ -46,4 +49,3 @@ if ($StartedByUs) {
     Stop-Process -Name "llama-server" -Force -ErrorAction SilentlyContinue
 }
 Write-Host "Done."
-

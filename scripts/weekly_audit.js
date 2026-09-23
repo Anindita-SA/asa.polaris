@@ -1,4 +1,6 @@
 import 'dotenv/config';
+import fs from 'fs';
+import path from 'path';
 import { createSafeClient } from './lib/safe_supabase.js';
 import { generateWithFallbackNode } from './lib/llm_utils.js';
 
@@ -179,7 +181,7 @@ export function parseAITasks(aiText) {
  * Inserts parsed tasks into the database inbox.
  */
 export async function insertTasks(supabase, userId, newTasks) {
-  if (!Array.isArray(newTasks) || newTasks.length === 0) return 0;
+  if (!Array.isArray(newTasks) || newTasks.length === 0) return [];
 
   const { data: existingTasks, error: fetchErr } = await supabase
     .from('tasks')
@@ -195,7 +197,7 @@ export async function insertTasks(supabase, userId, newTasks) {
 
   const filteredTasks = newTasks.filter(t => t.title && !existingTitles.has(t.title.trim().toLowerCase()));
 
-  if (filteredTasks.length === 0) return 0;
+  if (filteredTasks.length === 0) return [];
 
   const insertData = filteredTasks.map(t => ({
     user_id: userId,
@@ -211,7 +213,7 @@ export async function insertTasks(supabase, userId, newTasks) {
   const { error } = await supabase.from('tasks').insert(insertData);
   if (error) throw error;
   
-  return insertData.length;
+  return insertData;
 }
 
 /**
@@ -233,7 +235,8 @@ export async function runAudit() {
   const rawAIText = await generateTasksFromAI(config.groqApiKey, milestones, meals);
   const parsedTasks = parseAITasks(rawAIText);
   
-  const insertedCount = await insertTasks(supabase, userId, parsedTasks);
+  const insertedTasks = await insertTasks(supabase, userId, parsedTasks);
+  const insertedCount = insertedTasks.length;
   console.log(`Successfully inserted ${insertedCount} tasks into the inbox.`);
 }
 

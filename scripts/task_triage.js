@@ -581,7 +581,7 @@ async function run() {
     if (triageReport.classifiedTasks.length > 0) {
       reportMd += `\n## Classified Tasks\n`;
       for (const ct of triageReport.classifiedTasks) {
-        reportMd += `- [${ct.quadrant}] ${ct.title}\n`;
+        reportMd += `- **[${ct.quadrant}]** ${ct.title}\n  > *Reasoning:* ${ct.reasoning}\n\n`;
       }
     }
     fs.writeFileSync(reportPath, reportMd, 'utf8');
@@ -624,7 +624,7 @@ async function run() {
     if (triageReport.classifiedTasks.length > 0) {
       reportMd += `\n## Classified Tasks\n`;
       for (const ct of triageReport.classifiedTasks) {
-        reportMd += `- [${ct.quadrant}] ${ct.title}\n`;
+        reportMd += `- **[${ct.quadrant}]** ${ct.title}\n  > *Reasoning:* ${ct.reasoning}\n\n`;
       }
     }
     fs.writeFileSync(reportPath, reportMd, 'utf8');
@@ -684,7 +684,7 @@ async function run() {
     ${JSON.stringify(unsortedTasks, null, 2)}
     
     Return ONLY valid JSON in this exact format, with no markdown formatting or backticks:
-    [{"id": "uuid-here", "quadrant": "quadrant-name"}]`;
+    [{"id": "uuid-here", "quadrant": "quadrant-name", "reasoning": "Brief 1-sentence explanation"}]`;
     
     if (isDryRun) {
       console.log('--- PROMPT SENT TO LLM ---');
@@ -758,7 +758,8 @@ async function run() {
       for (const t of missingTasks) {
         normalized.push({
           id: t.id,
-          quadrant: classifyTaskHeuristically(t, goalsRes?.data || [])
+          quadrant: classifyTaskHeuristically(t, goalsRes?.data || []),
+          reasoning: "Rule-based heuristic fallback"
         });
       }
     }
@@ -799,7 +800,8 @@ async function run() {
     const taskMap = new Map(unsortedTasks.map(t => [t.id, t.title]));
     triageReport.classifiedTasks = validItems.map(item => ({
       title: taskMap.get(item.id) || item.id,
-      quadrant: item.quadrant
+      quadrant: item.quadrant,
+      reasoning: item.reasoning || 'No reasoning provided.'
     }));
 
     // Log items that were skipped because they were invalid
@@ -858,7 +860,7 @@ async function run() {
     if (triageReport.classifiedTasks.length > 0) {
       reportMd += `\n## Classified Tasks\n`;
       for (const ct of triageReport.classifiedTasks) {
-        reportMd += `- [${ct.quadrant}] ${ct.title}\n`;
+        reportMd += `- **[${ct.quadrant}]** ${ct.title}\n  > *Reasoning:* ${ct.reasoning}\n\n`;
       }
     }
     fs.writeFileSync(reportPath, reportMd, 'utf8');
