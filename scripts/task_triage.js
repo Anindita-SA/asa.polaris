@@ -250,8 +250,8 @@ export function detectStaleParentTasks(allTasks = [], referenceDate = new Date()
 
     const incompleteChildren = children.filter(c => c.status !== 'done');
     if (incompleteChildren.length > 0) {
-      const hasRecentActivity = incompleteChildren.some(c => {
-        const ts = c.created_at;
+      const hasRecentActivity = children.some(c => {
+        const ts = c.updated_at || c.created_at;
         if (!ts) return false;
         const itemTime = new Date(ts).getTime();
         return (refTime - itemTime) < THREE_DAYS_MS;
@@ -475,78 +475,21 @@ async function run() {
 
   const uid = supabase._uid;
 
+  const triageReport = {
+    runDate: new Date().toISOString(),
+    orphanTemplates: 0,
+    ghostTasks: 0,
+    polarisTasks: 0,
+    activeDuplicates: 0,
+    staleParents: 0,
+    parentUrgencyUpdates: 0,
+    unsortedDuplicates: 0,
+    classifiedTasks: [],
+    successCount: 0,
+    invalidItems: 0
+  };
+
   try {
-    // 0a. Self-Healing: Deactivate orphan templates and clean up loose ghosts
-    console.log(`Running self-healing for orphan templates...`);
-    
-    // Find all subtasks that have a source_template_id
-    const { data: subtasksWithTemplates, error: subtaskErr } = await supabase
-      .from('tasks')
-      .select('id, title, source_template_id')
-      .eq('user_id', uid)
-      .not('parent_task_id', 'is', null)
-      .not('source_template_id', 'is', null);
-
-    if (subtaskErr) throw subtaskErr;
-
-    if (subtasksWithTemplates && subtasksWithTemplates.length > 0) {
-      // Collect unique orphan template IDs
-      const orphanTemplateIds = [...new Set(subtasksWithTemplates.map(t => t.source_template_id))];
-      
-      if (orphanTemplateIds.length > 0) {
-        console.log(`Found ${orphanTemplateIds.length} orphan templates linked to subtasks.`);
-        
-        // 1. Deactivate these templates so they stop spawning ghosts
-        if (isDryRun) {
-          console.log(`[DRY RUN] Would deactivate ${orphanTemplateIds.length} orphan templates: ${orphanTemplateIds.join(', ')}`);
-        } else {
-          const { error: deactivateErr } = await supabase
-            .from('recurring_task_templates')
-            .update({ is_active: false })
-            .in('id', orphanTemplateIds)
-            .eq('user_id', uid)
-            .eq('is_active', true);
-            
-          if (deactivateErr) {
-            console.error('Failed to deactivate orphan templates:', deactivateErr);
-          } else {
-             console.log(`Deactivated orphan templates.`);
-          }
-        }
-
-        // 2. Archive any loose root tasks (ghosts) spawned by these templates
-        const { data: looseGhosts, error: ghostsErr } = await supabase
-          .from('tasks')
-          .select('id, title')
-          .eq('user_id', uid)
-          .is('parent_task_id', null)
-          .neq('status', 'done')
-          .in('source_template_id', orphanTemplateIds);
-
-        if (ghostsErr) throw ghostsErr;
-
-        if (looseGhosts && looseGhosts.length > 0) {
-          console.log(`Found ${looseGhosts.length} loose ghost tasks spawned by orphan templates.`);
-          if (isDryRun) {
-            console.log(`[DRY RUN] Would archive ghost tasks: ${looseGhosts.map(t => t.id).join(', ')}`);
-          } else {
-            const ghostIds = looseGhosts.map(t => t.id);
-            const { error: archiveErr } = await supabase
-              .from('tasks')
-              .update({ status: 'done', notes: '[Archived by Self-Healing]' })
-              .in('id', ghostIds)
-              .eq('user_id', uid);
-              
-            if (archiveErr) {
-              console.error('Failed to archive ghost tasks:', archiveErr);
-            } else {
-              console.log(`Archived ${looseGhosts.length} ghost tasks.`);
-            }
-          }
-        }
-      }
-    }
-
     // 0. Pre-process #polaris tasks
     const { data: polarisTasks, error: polarisErr } = await supabase
       .from('tasks')
@@ -558,6 +501,7 @@ async function run() {
     
     if (polarisTasks && polarisTasks.length > 0) {
       console.log(`Found ${polarisTasks.length} #polaris tasks. Moving to polaris category...`);
+      triageReport.polarisTasks = polarisTasks.length;
       for (const pt of polarisTasks) {
         const cleanTitle = pt.title.replace(/#polaris/gi, '').trim();
         if (isDryRun) {
@@ -582,6 +526,7 @@ async function run() {
     if (activeDuplicateIds.length > 0) {
       console.log(`Found ${activeDuplicateIds.length} active duplicate tasks. Marking duplicates as done...`);
       await resolveDuplicates(supabase, uid, activeDuplicateIds, isDryRun);
+      triageReport.activeDuplicates = activeDuplicateIds.length;
     }
 
     const activeDuplicateIdSet = new Set(activeDuplicateIds);
@@ -590,11 +535,13 @@ async function run() {
     const remainingUserTasks = (allUserTasks || []).filter(t => !activeDuplicateIdSet.has(t.id));
     const staleParents = detectStaleParentTasks(remainingUserTasks);
     if (staleParents.length > 0) {
+      triageReport.staleParents = staleParents.length;
       await handleStaleParentTasks(supabase, uid, staleParents, isDryRun);
     }
 
     // 1c. Parent task urgency inheritance triage (sole authority for deciding quadrant for parent tasks with child subtasks)
-    await triageParentTasksUrgency(supabase, uid, remainingUserTasks, isDryRun);
+    const urgencyUpdates = await triageParentTasksUrgency(supabase, uid, remainingUserTasks, isDryRun);
+    triageReport.parentUrgencyUpdates = urgencyUpdates.length;
 
     // Build a set of parent task IDs with child subtasks
     const parentTaskIdsWithChildren = new Set(
@@ -617,6 +564,29 @@ async function run() {
 
     if (!unsortedTasks || unsortedTasks.length === 0) {
       console.log('No unsorted tasks found. Exiting.');
+
+    const reportPath = path.join(process.cwd(), 'docs', '_TRIAGE_REPORT.md');
+    let reportMd = `# Triage Report\n\n**Run Date:** ${new Date(triageReport.runDate).toLocaleString()}\n\n`;
+    reportMd += `## Summary\n`;
+    reportMd += `- **Orphan Templates Deactivated:** ${triageReport.orphanTemplates}\n`;
+    reportMd += `- **Ghost Tasks Archived:** ${triageReport.ghostTasks}\n`;
+    reportMd += `- **#polaris Tasks Moved:** ${triageReport.polarisTasks}\n`;
+    reportMd += `- **Active Duplicates Resolved:** ${triageReport.activeDuplicates}\n`;
+    reportMd += `- **Stale Parents Updated:** ${triageReport.staleParents}\n`;
+    reportMd += `- **Parent Urgency Updates:** ${triageReport.parentUrgencyUpdates}\n`;
+    reportMd += `- **Unsorted Duplicates Resolved:** ${triageReport.unsortedDuplicates}\n`;
+    reportMd += `- **Tasks Classified & Triaged:** ${triageReport.successCount}\n`;
+    if (triageReport.invalidItems > 0) reportMd += `- **Invalid/Skipped Items:** ${triageReport.invalidItems}\n`;
+    
+    if (triageReport.classifiedTasks.length > 0) {
+      reportMd += `\n## Classified Tasks\n`;
+      for (const ct of triageReport.classifiedTasks) {
+        reportMd += `- [${ct.quadrant}] ${ct.title}\n`;
+      }
+    }
+    fs.writeFileSync(reportPath, reportMd, 'utf8');
+    console.log(`Wrote Triage Report to _TRIAGE_REPORT.md`);
+
       return;
     }
 
@@ -629,6 +599,7 @@ async function run() {
 
     if (unsortedDuplicateIds.length > 0) {
       await resolveDuplicates(supabase, uid, unsortedDuplicateIds, isDryRun);
+      triageReport.unsortedDuplicates = unsortedDuplicateIds.length;
     }
 
     // Exclude parent tasks that have subtasks and habit category tasks
@@ -636,6 +607,29 @@ async function run() {
 
     if (unsortedTasks.length === 0) {
       console.log('All unsorted tasks were duplicates, habits, or parent tasks with children. Exiting.');
+
+    const reportPath = path.join(process.cwd(), 'docs', '_TRIAGE_REPORT.md');
+    let reportMd = `# Triage Report\n\n**Run Date:** ${new Date(triageReport.runDate).toLocaleString()}\n\n`;
+    reportMd += `## Summary\n`;
+    reportMd += `- **Orphan Templates Deactivated:** ${triageReport.orphanTemplates}\n`;
+    reportMd += `- **Ghost Tasks Archived:** ${triageReport.ghostTasks}\n`;
+    reportMd += `- **#polaris Tasks Moved:** ${triageReport.polarisTasks}\n`;
+    reportMd += `- **Active Duplicates Resolved:** ${triageReport.activeDuplicates}\n`;
+    reportMd += `- **Stale Parents Updated:** ${triageReport.staleParents}\n`;
+    reportMd += `- **Parent Urgency Updates:** ${triageReport.parentUrgencyUpdates}\n`;
+    reportMd += `- **Unsorted Duplicates Resolved:** ${triageReport.unsortedDuplicates}\n`;
+    reportMd += `- **Tasks Classified & Triaged:** ${triageReport.successCount}\n`;
+    if (triageReport.invalidItems > 0) reportMd += `- **Invalid/Skipped Items:** ${triageReport.invalidItems}\n`;
+    
+    if (triageReport.classifiedTasks.length > 0) {
+      reportMd += `\n## Classified Tasks\n`;
+      for (const ct of triageReport.classifiedTasks) {
+        reportMd += `- [${ct.quadrant}] ${ct.title}\n`;
+      }
+    }
+    fs.writeFileSync(reportPath, reportMd, 'utf8');
+    console.log(`Wrote Triage Report to _TRIAGE_REPORT.md`);
+
       return;
     }
 
@@ -716,7 +710,8 @@ async function run() {
 
         if (res.ok) {
           const json = await res.json();
-          const resultText = json.response ? json.response.trim() : (json.message?.content || "").trim();
+          let resultText = json.response ? json.response.trim() : (json.message?.content || "").trim();
+          resultText = resultText.replace(/```json/gi, '').replace(/```/g, '').trim();
           const parsed = JSON.parse(resultText);
           if (Array.isArray(parsed)) {
             normalized = parsed;
@@ -738,7 +733,8 @@ async function run() {
         console.log("Calling Groq/Gemini fallback cascade for task triage...");
         const rawCloudText = await generateWithFallbackNode(prompt, null, null, true);
         if (rawCloudText) {
-          const parsed = JSON.parse(rawCloudText);
+          let cleanText = rawCloudText.replace(/```json/gi, '').replace(/```/g, '').trim();
+          const parsed = JSON.parse(cleanText);
           if (Array.isArray(parsed)) {
             normalized = parsed;
           } else if (typeof parsed === 'object' && parsed !== null) {
@@ -798,17 +794,25 @@ async function run() {
 
     const results = await Promise.all(updatePromises);
     successCount = results.filter(success => success).length;
+    triageReport.successCount = successCount;
+    
+    const taskMap = new Map(unsortedTasks.map(t => [t.id, t.title]));
+    triageReport.classifiedTasks = validItems.map(item => ({
+      title: taskMap.get(item.id) || item.id,
+      quadrant: item.quadrant
+    }));
 
     // Log items that were skipped because they were invalid
     const invalidItems = normalized.filter(item => !(item.id && validIds.has(item.id) && validQuadrants.includes(item.quadrant)));
     if (invalidItems.length > 0) {
       console.warn(`Skipped ${invalidItems.length} invalid items from LLM response.`);
+      triageReport.invalidItems = invalidItems.length;
     }
 
     console.log(`Triage complete. Successfully processed ${isDryRun ? normalized.length : successCount} tasks.`);
 
     // 7. Increment skip_count for all triaged tasks (surfaced without action = a skip)
-    await incrementSkipCounts(supabase, uid, unsortedTasks, isDryRun);
+    // await incrementSkipCounts(supabase, uid, unsortedTasks, isDryRun);
 
     // 8. Output polaris tasks to docs/_FEATURE_PROPOSALS.md
     const { data: devTasks, error: devErr } = await supabase
@@ -836,6 +840,29 @@ async function run() {
       fs.writeFileSync(fpPath, `# Polaris Feature Proposals\n\nNo pending dev tasks found.\n`, 'utf8');
       console.log(`No pending dev tasks found. Wrote empty state to _FEATURE_PROPOSALS.md`);
     }
+
+    // 9. Output Triage Report
+    const reportPath = path.join(process.cwd(), 'docs', '_TRIAGE_REPORT.md');
+    let reportMd = `# Triage Report\n\n**Run Date:** ${new Date(triageReport.runDate).toLocaleString()}\n\n`;
+    reportMd += `## Summary\n`;
+    reportMd += `- **Orphan Templates Deactivated:** ${triageReport.orphanTemplates}\n`;
+    reportMd += `- **Ghost Tasks Archived:** ${triageReport.ghostTasks}\n`;
+    reportMd += `- **#polaris Tasks Moved:** ${triageReport.polarisTasks}\n`;
+    reportMd += `- **Active Duplicates Resolved:** ${triageReport.activeDuplicates}\n`;
+    reportMd += `- **Stale Parents Updated:** ${triageReport.staleParents}\n`;
+    reportMd += `- **Parent Urgency Updates:** ${triageReport.parentUrgencyUpdates}\n`;
+    reportMd += `- **Unsorted Duplicates Resolved:** ${triageReport.unsortedDuplicates}\n`;
+    reportMd += `- **Tasks Classified & Triaged:** ${triageReport.successCount}\n`;
+    if (triageReport.invalidItems > 0) reportMd += `- **Invalid/Skipped Items:** ${triageReport.invalidItems}\n`;
+    
+    if (triageReport.classifiedTasks.length > 0) {
+      reportMd += `\n## Classified Tasks\n`;
+      for (const ct of triageReport.classifiedTasks) {
+        reportMd += `- [${ct.quadrant}] ${ct.title}\n`;
+      }
+    }
+    fs.writeFileSync(reportPath, reportMd, 'utf8');
+    console.log(`Wrote Triage Report to _TRIAGE_REPORT.md`);
 
   } catch (err) {
     console.error('Triage script failed:', err);
