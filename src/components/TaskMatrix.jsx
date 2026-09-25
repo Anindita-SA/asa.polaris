@@ -154,6 +154,7 @@ export default function TaskMatrix() {
   const [highlightedTaskId, setHighlightedTaskId] = useState(null);
   const [editingTask, setEditingTask] = useState(null); // Task object for edit modal
   const [filterDone, setFilterDone] = useState(false);
+  const [viewMode, setViewMode] = useState('focus'); // 'focus' | 'planning'
 
   // Fetch tasks from Supabase
   const fetchTasks = useCallback(async () => {
@@ -431,10 +432,30 @@ Return ONLY a single valid JSON object in this exact format: {"minutes": 45, "me
     }
   };
 
-  // Filtered lists
-  const unsortedTasks = tasks.filter((t) => !t.parent_task_id && t.quadrant === null && (filterDone || t.status !== 'done'));
-  const getQuadrantTasks = (qId) =>
-    tasks.filter((t) => !t.parent_task_id && t.quadrant === qId && (filterDone || t.status !== 'done'));
+  // Process tasks based on viewMode (Focus vs Planning)
+  const processTasksForView = (qId, isUnsorted = false) => {
+    const rootTasks = tasks.filter((t) => !t.parent_task_id && (isUnsorted ? t.quadrant === null : t.quadrant === qId) && (filterDone || t.status !== 'done'));
+    
+    if (viewMode === 'planning') {
+      return rootTasks.map(root => {
+        const subtasks = tasks.filter(t => t.parent_task_id === root.id).sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
+        return { ...root, _subtasks: subtasks };
+      });
+    } else {
+      // Focus mode (Sequential Focus)
+      return rootTasks.map(root => {
+        const activeSubtasks = tasks.filter(t => t.parent_task_id === root.id && t.status !== 'done').sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
+        if (activeSubtasks.length > 0) {
+          // Replace parent with the next actionable subtask, injecting parent title for context
+          return { ...activeSubtasks[0], _parentTitle: root.title, quadrant: activeSubtasks[0].quadrant || root.quadrant };
+        }
+        return root;
+      });
+    }
+  };
+
+  const unsortedTasks = processTasksForView(null, true);
+  const getQuadrantTasks = (qId) => processTasksForView(qId, false);
 
   return (
     <div className="w-full min-h-screen bg-[#0c0f14] text-[#e8e6df] font-['Space_Grotesk',sans-serif] p-4 sm:p-6 md:p-8 selection:bg-[#f5a623] selection:text-black">
@@ -452,7 +473,17 @@ Return ONLY a single valid JSON object in this exact format: {"minutes": 45, "me
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            onClick={() => setViewMode(prev => prev === 'focus' ? 'planning' : 'focus')}
+            className={`px-3 py-1.5 rounded-full text-xs font-mono transition-all border ${
+              viewMode === 'focus'
+                ? 'bg-[#f5a623]/20 border-[#f5a623] text-[#f5a623]'
+                : 'bg-[#3ea8a0]/20 border-[#3ea8a0] text-[#3ea8a0]'
+            }`}
+          >
+            {viewMode === 'focus' ? 'Sequential Focus' : 'Planning View'}
+          </button>
           <button
             onClick={() => setFilterDone(!filterDone)}
             className={`px-3 py-1.5 rounded-full text-xs font-mono transition-all border ${
@@ -547,7 +578,7 @@ Return ONLY a single valid JSON object in this exact format: {"minutes": 45, "me
                     isHighlighted={highlightedTaskId === task.id}
                     isEstimating={estimatingId === task.id}
                     onDragStart={handleDragStart}
-                    onToggleDone={() => toggleTaskDone(task)}
+                    onToggleDone={() => toggleTaskDone(task)} onToggleSubtask={(sub) => toggleTaskDone(sub)}
                     onEstimate={() => estimateTimeWithAI(task)}
                     onHighlight={() => setHighlightedTaskId(highlightedTaskId === task.id ? null : task.id)}
                     onEdit={() => setEditingTask(task)}
@@ -635,7 +666,7 @@ Return ONLY a single valid JSON object in this exact format: {"minutes": 45, "me
                           isHighlighted={highlightedTaskId === task.id}
                           isEstimating={estimatingId === task.id}
                           onDragStart={handleDragStart}
-                          onToggleDone={() => toggleTaskDone(task)}
+                          onToggleDone={() => toggleTaskDone(task)} onToggleSubtask={(sub) => toggleTaskDone(sub)}
                           onEstimate={() => estimateTimeWithAI(task)}
                           onHighlight={() => setHighlightedTaskId(highlightedTaskId === task.id ? null : task.id)}
                           onEdit={() => setEditingTask(task)}
@@ -673,7 +704,7 @@ function TaskChip({
   isHighlighted,
   isEstimating,
   onDragStart,
-  onToggleDone,
+  onToggleDone, onToggleSubtask,
   onEstimate,
   onHighlight,
   onEdit,
@@ -718,8 +749,13 @@ function TaskChip({
 
       {/* Main Task Content */}
       <div className="flex-1 min-w-0" onClick={onEdit}>
+        {task._parentTitle && (
+          <div className="text-[9px] uppercase tracking-wider text-[#f5a623] mb-0.5 truncate pr-2 opacity-80 font-mono">
+            {task._parentTitle}
+          </div>
+        )}
         <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-xs font-medium text-white truncate max-w-[200px] sm:max-w-[280px]">
+          <span className={`text-xs font-medium text-white truncate max-w-[200px] sm:max-w-[280px] ${task._parentTitle ? 'text-lg' : ''}`}>
             {task.title}
           </span>
 
@@ -774,6 +810,25 @@ function TaskChip({
             </span>
           )}
         </div>
+
+        {/* Nested Subtasks (Planning Mode) */}
+        {task._subtasks && task._subtasks.length > 0 && (
+          <div className="w-full mt-2.5 pl-3 border-l border-[#2a3142]/60 space-y-1.5" onClick={(e) => e.stopPropagation()}>
+            {task._subtasks.map(sub => (
+              <div key={sub.id} className="flex items-start gap-1.5 group/sub">
+                <button 
+                  onClick={() => onToggleSubtask && onToggleSubtask(sub)} 
+                  className={`mt-0.5 shrink-0 ${sub.status === 'done' ? 'text-[#3ea8a0]' : 'text-[#8a91a3] hover:text-[#f5a623]'}`}
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                </button>
+                <span className={`text-[11px] leading-tight flex-1 ${sub.status === 'done' ? 'text-[#8a91a3] line-through' : 'text-[#e8e6df]'}`}>
+                  {sub.title}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Right Quick Actions */}

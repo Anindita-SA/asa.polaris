@@ -117,7 +117,14 @@ export async function flushQueue() {
       await markSynced(item.localId);
     } catch (error) {
       console.error(`Failed to sync operation ${item.localId} on ${item.table}:`, error);
-      // Stop flushing on error to maintain order
+      // If it's a hard database error from Supabase (e.g., constraint violation, bad data), discard it.
+      // Supabase errors typically have a 'code' or 'details' property, whereas network errors are usually TypeError.
+      if (error && (error.code || error.details || error.message?.includes('violates'))) {
+        console.warn(`Discarding unrecoverable poison pill operation ${item.localId} to unblock queue.`);
+        await markSynced(item.localId);
+        continue;
+      }
+      // Stop flushing on network error to maintain order
       break;
     }
   }

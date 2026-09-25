@@ -141,12 +141,17 @@ export function deduplicateActiveTasks(allActiveTasks = []) {
  */
 export function deduplicateTasks(unsortedTasks = [], allActiveTasks = []) {
   const unsortedIdSet = new Set(unsortedTasks.map(u => u.id));
-  const existingTitles = new Set(
-    (allActiveTasks || [])
-      .filter(t => !unsortedIdSet.has(t.id) && !t.parent_task_id)
-      .map(t => (t.title || '').trim().toLowerCase())
-      .filter(Boolean)
-  );
+  const existingTitles = new Set();
+  
+  if (allActiveTasks) {
+    for (const t of allActiveTasks) {
+      if (unsortedIdSet.has(t.id)) continue;
+      const cleanTitle = (t.title || '').trim().toLowerCase();
+      if (!cleanTitle) continue;
+      const key = t.parent_task_id ? `sub:${t.parent_task_id}:${cleanTitle}` : `root:${cleanTitle}`;
+      existingTitles.add(key);
+    }
+  }
 
   const seenTitles = new Set(existingTitles);
   const duplicateTaskIds = [];
@@ -154,10 +159,15 @@ export function deduplicateTasks(unsortedTasks = [], allActiveTasks = []) {
 
   for (const t of unsortedTasks) {
     const cleanTitle = (t.title || '').trim().toLowerCase();
-    if (seenTitles.has(cleanTitle)) {
+    if (!cleanTitle) {
+      uniqueTasks.push(t);
+      continue;
+    }
+    const key = t.parent_task_id ? `sub:${t.parent_task_id}:${cleanTitle}` : `root:${cleanTitle}`;
+    if (seenTitles.has(key)) {
       duplicateTaskIds.push(t.id);
     } else {
-      seenTitles.add(cleanTitle);
+      seenTitles.add(key);
       uniqueTasks.push(t);
     }
   }
@@ -784,11 +794,6 @@ async function run() {
           console.error(`Error updating task ${item.id}:`, error);
           return false;
         }
-        await supabase
-          .from('tasks')
-          .update({ quadrant: item.quadrant })
-          .eq('parent_task_id', item.id)
-          .eq('user_id', uid);
         return true;
       }
     });
