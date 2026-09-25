@@ -142,7 +142,7 @@ serve(async (req) => {
     let searchResults: any[] = []
 
     if (firecrawlApiKey) {
-      const query = "fully funded international travel OR global field expeditions OR conservation tech OR robotics OR UN programs grants funding opportunities"
+      const query = "fully funded fellowship OR grant application open call 2026 2027 conservation technology robotics -newsletter -roundup -listicle"
       try {
         const firecrawlRes = await fetch('https://api.firecrawl.dev/v1/search', {
           method: 'POST',
@@ -168,6 +168,25 @@ serve(async (req) => {
         console.error("Firecrawl fetch error:", crawlErr)
       }
     }
+
+    // Pre-filter: reject URLs that are obviously not application pages
+    const URL_BLOCKLIST_PATTERNS = [
+      /substack\.com/i,
+      /\/feed\/?$/i,
+      /\/category\//i,
+      /\/tag\//i,
+      /\/archives?\//i,
+      /\/listing\//i,
+      /grantwatch\.com/i,
+      /fws\.gov/i,
+      /grants\.gov/i,
+    ]
+
+    searchResults = searchResults.filter(r => {
+      const blocked = URL_BLOCKLIST_PATTERNS.some(p => p.test(r.url))
+      if (blocked) console.log(`Pre-filter rejected: ${r.url}`)
+      return !blocked
+    })
 
     // Multi-Source RSS Fallback if Firecrawl yielded no results
     if (searchResults.length === 0) {
@@ -233,28 +252,28 @@ serve(async (req) => {
       if (groqApiKey || geminiApiKey) {
         const parsed = await generateWithFallback(prompt, groqApiKey, geminiApiKey)
         parsedOpps = parsed?.opportunities || parsed?.items || []
+        
+        const rejectedItems = parsed?.rejected || []
+        if (rejectedItems.length > 0) {
+          console.log(`LLM rejected ${rejectedItems.length} items:`,
+            rejectedItems.map((r: any) => `${r.title}: ${r.reason}`).join('; '))
+        }
       }
     } catch (err) {
       console.error("Failed LLM generation or parsing for scout opportunities:", err)
     }
 
-    // Tier 3 Keyword fallback if LLM returned nothing
-    if (parsedOpps.length === 0 && searchResults.length > 0) {
-      console.log("Using Tier 3 keyword scoring fallback for scouted opportunities")
-      parsedOpps = searchResults.slice(0, 3).map((r: any) => ({
-        title: r.title || 'Funded Opportunity',
-        url: r.url,
-        deadline: null,
-        effort: 'med',
-        profile_match: 80,
-        acceptance_chance: 60,
-        project_fit: (r.description || r.title || 'Relevant opportunity matching research interests.').slice(0, 200),
-        what_offered: 'Travel and project funding'
-      }))
-    }
+    // Post-LLM gate: reject items with profile_match <= 20
+    parsedOpps = parsedOpps.filter(o => {
+      if (o.profile_match != null && o.profile_match <= 20) {
+        console.log(`LLM-rejected (low match): ${o.title} (${o.profile_match}%)`)
+        return false
+      }
+      return true
+    })
 
     if (parsedOpps.length === 0) {
-      return await appendPreviousOpps('LLM and keyword heuristic returned no opportunities')
+      return await appendPreviousOpps('LLM found no qualifying opportunities in today\'s pool')
     }
 
     // 3. Idempotency Check
@@ -286,8 +305,8 @@ serve(async (req) => {
       url: o.url,
       deadline: (o.deadline && String(o.deadline).match(/^\d{4}-\d{2}-\d{2}$/)) ? o.deadline : null,
       effort: o.effort || 'med',
-      profile_match: o.profile_match || 75,
-      acceptance_chance: o.acceptance_chance || 50,
+      profile_match: o.profile_match ?? 75,
+      acceptance_chance: o.acceptance_chance ?? 50,
       project_fit: o.project_fit || 'Scouted grant/fellowship opportunity',
       what_offered: o.what_offered || 'Grant funding',
       status: 'new'
