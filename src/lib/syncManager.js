@@ -148,6 +148,7 @@ export function initSyncManager(userId) {
         pullData('recurring_task_templates', userId);
         pullData('hardware_opportunities', userId);
         pullData('eulogies', userId);
+        pullData('practice_scores', userId);
         pullProfile(userId);
       }
     });
@@ -164,3 +165,4 @@ export function initSyncManager(userId) {
     window.removeEventListener('online', handleOnline);
   };
 }
+

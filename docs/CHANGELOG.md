@@ -1,3 +1,10 @@
+## [2026-09-26] Gated AI Task Refinement and Offline Practice Score Sync (v1.2.27)
+- **Gated Task Refinement**: Added an 'AI Task Auto-Refinement' toggle in SettingsPanel and updated 	ask_triage.js prompt to strictly obey this boolean, preventing the LLM from mutating user task titles unless explicitly permitted.
+- **Offline Practice Score Tracker Integration**: Refactored PracticeScoreTracker.jsx to utilize offlineInsert and offlineDelete from offlineApi.js, bridging IELTS scores into the IndexedDB offline sync queue (Dexie v5). Resolved critical bug where network drops erased optimistic cache state upon refresh.
+- **Zombie IELTS Task Fix**: Modified 
+est_ielts_tasks.js to omit the 'active' status flag for canonical parent and child tasks that already exist, permanently stopping them from being resurrected after the user marked them 'done'.
+- **Backup Support**: Added practice_scores to the manual JSON backup export scope in SettingsPanel.
+
 ## [2026-09-23] Automated Self-Healing Find and Patch System for Edge Functions (v1.2.24)
 - **Edge Function Auto-Patcher**: Created `scripts/auto_patcher.js` to automatically invoke and test `generate-morning-brief` and `scout-opportunities` Edge Functions. If an error is detected, the script utilizes a Gemini Pro LLM subagent to diagnose the error trace, and a Gemini Flash LLM subagent to write a patched TypeScript file, before automatically redeploying and retesting the function.
 - **LLM Subagent Architecture**: Upgraded `scripts/lib/llm_utils.js` to accept a `{ preferredModel }` parameter, allowing the auto-patcher to seamlessly route complex logic diagnostic tasks to `gemini-1.5-pro` and fast code-generation rewrites to `gemini-1.5-flash` while retaining fallback resilience.
@@ -548,6 +555,7 @@ All notable changes to Polaris will be documented in this file.
 - **Groq Rate Limit Fix**: Fixed an issue where the Scout would fail silently due to requesting 1024 max_tokens (Groq free tier limit is 1000). Reduced `max_tokens` to 800.-   * * B u g   F i x   ( H U D ) : * *   A d d e d   m i s s i n g   \ u s e r _ i d \   f i l t e r s   t o   t h e   \ m o r n i n g _ b r i e f s \   a n d   \ 	 a s k s \   q u e r i e s   i n   \ H U D . j s x \   t o   f i x   s c h e m a   d r i f t   w a r n i n g s   a n d   p r e v e n t   p o t e n t i a l   d a t a   l e a k s . 
  
  
+
 
 
 

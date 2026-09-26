@@ -48,6 +48,7 @@ const TABLES = [
   'subtasks',
   'tasks',
   'recurring_task_templates',
+  'practice_scores',
   'user_settings'
 ]
 
@@ -398,6 +399,15 @@ const SettingsPanel = ({ open, isOpen, onClose, initialSection = 'all' }) => {
             </div>
 
             <div className="space-y-2.5">
+              <ToggleRow
+                id="auto-refine-tasks-toggle"
+                label="AI Task Auto-Refinement"
+                description="Automatically fix typos and rephrase messy brain-dumps to be actionable during triage."
+                checked={featureFlags.auto_refine_tasks ?? true}
+                onChange={(val) => updateFeatureFlag('auto_refine_tasks', val)}
+                icon={Sparkles}
+                isDestructive={false}
+              />
               <ToggleRow
                 id="auto-quadrant-suggest-toggle"
                 label="Auto Quadrant Suggestions"
