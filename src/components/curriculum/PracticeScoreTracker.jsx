@@ -414,7 +414,6 @@ data.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
             // Ignore storage quota errors
           }
 
-          // If offline DB returned 0 scores, query remote to ensure it is actually empty before seeding
           if (data.length === 0 && (!hasLocalCache || initialScores.length === 0 || initialScores === DEFAULT_IELTS_PRACTICE_SCORES)) {
             const { count } = await supabase.from('practice_scores').select('*', { count: 'exact', head: true }).eq('user_id', user.id);
             if (count === 0) {
@@ -435,12 +434,6 @@ data.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
                 await offlineInsert('practice_scores', payload);
               }
             }
-          }));
-
-            await safeMutate(
-              supabase.from('practice_scores').insert(seedPayload).select(),
-              { throwOnError: false, context: 'PracticeScoreTracker:seedDefaultScores' }
-            );
           }
         } else if (error && isMounted) {
           // If Supabase table is not yet created or returns error, keep local scores intact
@@ -1021,6 +1014,7 @@ data.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
     </div>
   );
 }
+
 
 
 
