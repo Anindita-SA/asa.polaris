@@ -17,7 +17,7 @@ import {
   Zap,
   Dices,
   Sliders,
-  Target
+  Crosshair, AlertTriangle
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useNudgeScheduler } from '../../hooks/useNudgeScheduler'
@@ -506,7 +506,7 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
                 title="Choose Focus Task"
                 aria-label="Choose Focus Task"
               >
-                <Target className="w-3.5 h-3.5" />
+                <Crosshair className="w-3.5 h-3.5" />
               </button>
 
               {/* Task Randomiser Button */}
@@ -660,7 +660,7 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
           >
             <div className="flex items-center justify-between">
               <h4 className="text-xs uppercase tracking-wider font-mono text-red-400 font-bold flex items-center gap-2">
-                <Zap className="w-3 h-3 text-red-400" /> Needs Attention
+                <AlertTriangle className="w-3 h-3 text-red-400" /> Needs Attention
               </h4>
               {needsAttentionItems.length > 2 && (
                 <span className="text-[11px] font-mono text-nova/60">
@@ -892,3 +892,4 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
 }
 
 export default RemindersPanel
+
