@@ -1,3 +1,12 @@
+## [2026-09-26] Sync Architecture Hardening, Dead Letter Queue, and IELTS Lockdown (v1.2.28)
+- **Dead Letter Queue (DLQ)**: Implemented a \sync_errors\ table in IndexedDB (Dexie v6). The syncManager now safely intercepts unrecoverable poison pills and moves them to the DLQ instead of permanently deleting them, preserving your data while unblocking the queue.
+- **Sync Architecture Hardening**: Introduced a concurrency mutex (\isFlushing\) to \lushQueue\ to prevent double-inserts during rapid online events, and refactored \clearSynced\ to only target specific successfully processed payloads to eliminate race conditions.
+- **Component Offline Migration**: Deeply refactored \TopicCard\, \PlayView\, \CurriculumView\, \useGoogleCalendarSync\, and \useAuth\ to route all database mutations through the \offlineApi\ instead of direct Supabase calls, closing multiple critical offline data-loss vectors.
+- **PracticeScoreTracker Integrity Fix**: Removed the string-based ID from offline payloads (letting Supabase generate the UUID) to prevent queue-blocking type mismatch errors. Rewrote default data seeding and legacy migrations to utilize \offlineInsert\ and query the remote backend directly to prevent unbounded duplicate defaults across new devices.
+- **IELTS Script Lockdown**: Surgically dismantled the aggressive loose-task deletion and title-clobbering logic in \
+est_ielts_tasks.js\. The script now respects user-customized child task titles and leaves all other 'IELTS' tasks strictly alone. Additionally implemented a date-gate so the script gracefully retires after October 3, 2026.
+- **AI Duplicate Generation Fixed**: Added IELTS exclusion filters to \weekly_audit.js\ and \side_quests.js\ so they stop feeding generic AI-generated IELTS tasks into the inbox, successfully terminating the endless creation/destruction cycle between the background scripts.
+
 ## [2026-09-26] Gated AI Task Refinement and Offline Practice Score Sync (v1.2.27)
 - **Gated Task Refinement**: Added an 'AI Task Auto-Refinement' toggle in SettingsPanel and updated 	ask_triage.js prompt to strictly obey this boolean, preventing the LLM from mutating user task titles unless explicitly permitted.
 - **Offline Practice Score Tracker Integration**: Refactored PracticeScoreTracker.jsx to utilize offlineInsert and offlineDelete from offlineApi.js, bridging IELTS scores into the IndexedDB offline sync queue (Dexie v5). Resolved critical bug where network drops erased optimistic cache state upon refresh.
@@ -555,6 +564,7 @@ All notable changes to Polaris will be documented in this file.
 - **Groq Rate Limit Fix**: Fixed an issue where the Scout would fail silently due to requesting 1024 max_tokens (Groq free tier limit is 1000). Reduced `max_tokens` to 800.-   * * B u g   F i x   ( H U D ) : * *   A d d e d   m i s s i n g   \ u s e r _ i d \   f i l t e r s   t o   t h e   \ m o r n i n g _ b r i e f s \   a n d   \ 	 a s k s \   q u e r i e s   i n   \ H U D . j s x \   t o   f i x   s c h e m a   d r i f t   w a r n i n g s   a n d   p r e v e n t   p o t e n t i a l   d a t a   l e a k s . 
  
  
+
 
 
 

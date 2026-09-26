@@ -1,6 +1,6 @@
 import { useState, useRef, useMemo } from 'react'
 import { supabase } from '../../lib/supabase'
-import { safeMutate } from '../../lib/safeMutate'
+import { offlineUpdate } from '../../lib/offlineApi'
 import { useAuth } from '../../hooks/useAuth'
 import { Check, Circle, Clock, Zap, ChevronRight, ExternalLink, Award } from 'lucide-react'
 import { XP } from '../../data/xpRewards'
@@ -69,10 +69,7 @@ const TopicCard = ({ topic, accentColor, pomodoroMins = 0, onUpdate }) => {
       updates.date_completed = new Date().toISOString().slice(0, 10)
     }
 
-    await safeMutate(
-      supabase.from('curriculum_topics').update(updates).eq('id', topic.id).eq('user_id', user.id),
-      { throwOnError: true, context: 'TopicCard:cycleStatus' }
-    )
+    await offlineUpdate('curriculum_topics', topic.id, updates)
     trackXP(topic.status === 'done', newStatus === 'done', XP.TOPIC_COMPLETE)
     onUpdate()
   }
@@ -80,19 +77,13 @@ const TopicCard = ({ topic, accentColor, pomodoroMins = 0, onUpdate }) => {
   const saveNotes = async () => {
     if (!user?.id || notes === (topic.notes || '')) return
     setSaving(true)
-    await safeMutate(
-      supabase.from('curriculum_topics').update({ notes }).eq('id', topic.id).eq('user_id', user.id),
-      { throwOnError: true, context: 'TopicCard:saveNotes' }
-    )
+    await offlineUpdate('curriculum_topics', topic.id, { notes })
     setSaving(false)
   }
 
   const updateDate = async (field, value) => {
     if (!user?.id) return
-    await safeMutate(
-      supabase.from('curriculum_topics').update({ [field]: value || null }).eq('id', topic.id).eq('user_id', user.id),
-      { throwOnError: true, context: 'TopicCard:updateDate' }
-    )
+    await offlineUpdate('curriculum_topics', topic.id, { [field]: value || null })
     onUpdate()
   }
 

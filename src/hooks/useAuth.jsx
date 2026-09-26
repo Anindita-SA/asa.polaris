@@ -26,22 +26,17 @@ const seedUserData = async (userId) => {
       ])
 
       if (!existingMilestones?.length) {
-        await safeMutate(
-          supabase.from('milestones').insert(
-            DEFAULT_MILESTONES.map(m => ({ ...m, user_id: userId }))
-          ),
-          { context: 'useAuth:seedMilestones' }
-        )
+        await Promise.all(DEFAULT_MILESTONES.map(m => offlineInsert('milestones', { ...m, user_id: userId })))
       }
 
       if (!existingNodes?.length) {
-        const { data: insertedNodes, error } = await safeMutate(
-          supabase
-            .from('nodes')
-            .insert(DEFAULT_NODES.map(n => ({ ...n, user_id: userId })))
-            .select(),
-          { context: 'useAuth:seedNodes' }
-        )
+        const insertedNodes = []
+        let error = null
+        for (const n of DEFAULT_NODES) {
+          const res = await offlineInsert('nodes', { ...n, user_id: userId })
+          if (res?.error) error = res.error
+          else if (res?.data) insertedNodes.push(res.data)
+        }
 
         if (error || !insertedNodes?.length) {
           console.error('Node insert failed:', error)
@@ -51,66 +46,46 @@ const seedUserData = async (userId) => {
         const nodeMap = {}
         insertedNodes.forEach(n => { nodeMap[n.title] = n.id })
 
-        await safeMutate(
-          supabase.from('nodes').insert(
-            DEFAULT_SUBNODES.map(({ parentTitle, ...n }) => ({
-              ...n,
-              user_id: userId,
-              parent_id: nodeMap[parentTitle] || null,
-            }))
-          ),
-          { context: 'useAuth:seedSubnodes' }
-        )
+        await Promise.all(DEFAULT_SUBNODES.map(({ parentTitle, ...n }) => offlineInsert('nodes', {
+            ...n,
+            user_id: userId,
+            parent_id: nodeMap[parentTitle] || null,
+        })))
       }
 
       // 3. Seed Goals (only if none exist)
       const { data: existingGoals } = await supabase.from('goals').select('id').eq('user_id', userId).limit(1)
       if (!existingGoals?.length) {
-        await safeMutate(
-          supabase.from('goals').insert(DEFAULT_GOALS.map(({ node_title, ...g }) => ({ ...g, user_id: userId }))),
-          { context: 'useAuth:seedGoals' }
-        )
+        await Promise.all(DEFAULT_GOALS.map(({ node_title, ...g }) => offlineInsert('goals', { ...g, user_id: userId })))
       }
 
       // 4. Seed Habits (only if none exist)
       const { data: existingHabits } = await supabase.from('habits').select('id').eq('user_id', userId).limit(1)
       if (!existingHabits?.length) {
-        await safeMutate(
-          supabase.from('habits').insert(DEFAULT_HABITS.map(h => ({ ...h, user_id: userId }))),
-          { context: 'useAuth:seedHabits' }
-        )
+        await Promise.all(DEFAULT_HABITS.map(h => offlineInsert('habits', { ...h, user_id: userId })))
       }
 
       // 5. Seed Focus Items (only if none exist)
       const { data: existingFocus } = await supabase.from('focus_items').select('id').eq('user_id', userId).limit(1)
       if (!existingFocus?.length) {
-        await safeMutate(
-          supabase.from('focus_items').insert(DEFAULT_FOCUS_ITEMS.map(f => ({ ...f, user_id: userId, status: 'active' }))),
-          { context: 'useAuth:seedFocusItems' }
-        )
+        await Promise.all(DEFAULT_FOCUS_ITEMS.map(f => offlineInsert('focus_items', { ...f, user_id: userId, status: 'active' })))
       }
 
       // 6. Seed Backburner (only if none exist)
       const { data: existingBackburner } = await supabase.from('backburner').select('id').eq('user_id', userId).limit(1)
       if (!existingBackburner?.length) {
-        await safeMutate(
-          supabase.from('backburner').insert(DEFAULT_BACKBURNER.map(b => ({ ...b, user_id: userId }))),
-          { context: 'useAuth:seedBackburner' }
-        )
+        await Promise.all(DEFAULT_BACKBURNER.map(b => offlineInsert('backburner', { ...b, user_id: userId })))
       }
 
       // 7. Seed Eulogy (only if none exists)
       const { data: existingEulogies } = await supabase.from('eulogies').select('id').eq('user_id', userId)
       if (!existingEulogies?.length) {
-        await safeMutate(
-          supabase.from('eulogies').insert({
+        await offlineInsert('eulogies', {
             user_id: userId,
             content: DEFAULT_EULOGY.content,
             version_label: DEFAULT_EULOGY.version_label,
             written_date: DEFAULT_EULOGY.written_date
-          }),
-          { context: 'useAuth:seedEulogies' }
-        )
+        })
       }
 
       // 8. Seed Curriculum v2 (categories + curricula + topics + resources + media_log)
@@ -120,13 +95,10 @@ const seedUserData = async (userId) => {
         // Insert categories
         const catMap = {}
         for (const cat of CURRICULUM_CATEGORIES) {
-          const { data: inserted, error: catErr } = await safeMutate(
-            supabase.from('curriculum_categories').insert({
+          const { data: inserted, error: catErr } = await offlineInsert('curriculum_categories', {
               user_id: userId, title: cat.title, accent_color: cat.accent_color, position: cat.position,
-            }).select('id, title').single(),
-            { context: 'useAuth:seedCurriculumCategories' }
-          )
-          if (catErr) console.error('[Seed] category insert error:', cat.title, catErr.message)
+          })
+          if (catErr) console.error('[Seed] category insert error:', cat.title, catErr?.message)
           if (inserted) catMap[inserted.title] = inserted.id
         }
 
@@ -136,53 +108,35 @@ const seedUserData = async (userId) => {
           const categoryId = catMap[c.category]
           if (!categoryId) continue
 
-          const { data: curr } = await safeMutate(
-            supabase.from('curricula').insert({
+          const { data: curr } = await offlineInsert('curricula', {
               user_id: userId, category_id: categoryId, title: c.title,
               description: c.description, estimated_hours: c.estimated_hours, position: i,
-            }).select('id').single(),
-            { context: 'useAuth:seedCurricula' }
-          )
+          })
           if (!curr?.id) continue
 
           // Insert topics
           if (c.topics?.length) {
-            await safeMutate(
-              supabase.from('curriculum_topics').insert(
-                c.topics.map((t, idx) => ({
+            await Promise.all(c.topics.map((t, idx) => offlineInsert('curriculum_topics', {
                   user_id: userId, curriculum_id: curr.id, title: t.title,
                   estimated_hours: t.estimated_hours || null,
                   is_recommended_next: t.is_recommended_next || false,
                   position: idx,
-                }))
-              ),
-              { context: 'useAuth:seedCurriculumTopics' }
-            )
+            })))
           }
 
           // Insert resources
           if (c.resources?.length) {
-            await safeMutate(
-              supabase.from('curriculum_resources').insert(
-                c.resources.map(r => ({
+            await Promise.all(c.resources.map(r => offlineInsert('curriculum_resources', {
                   user_id: userId, curriculum_id: curr.id, title: r.title,
                   author: r.author || null, resource_type: r.resource_type || 'book',
                   url: r.url || null,
-                }))
-              ),
-              { context: 'useAuth:seedCurriculumResources' }
-            )
+            })))
           }
         }
 
         // Insert media log entries
         if (SEED_MEDIA_LOG?.length) {
-          await safeMutate(
-            supabase.from('media_log').insert(
-              SEED_MEDIA_LOG.map(m => ({ user_id: userId, ...m }))
-            ),
-            { context: 'useAuth:seedMediaLog' }
-          )
+          await Promise.all(SEED_MEDIA_LOG.map(m => offlineInsert('media_log', { user_id: userId, ...m })))
         }
       }
     } catch (e) {
@@ -210,18 +164,11 @@ export const AuthProvider = ({ children }) => {
       const { data, error } = await offlineSelect('profiles', { id: userId })
 
       if (!data || data.length === 0) {
-        const { data: newProfile, error: insertError } = await safeMutate(
-          supabase
-            .from('profiles')
-            .insert({ 
+        const { data: newProfile, error: insertError } = await offlineInsert('profiles', { 
               id: userId,
               clarity_anchor: DEFAULT_CLARITY_ANCHOR,
               current_chapter: DEFAULT_CURRENT_CHAPTER
-            })
-            .select()
-            .single(),
-          { context: 'useAuth:insertProfile' }
-        )
+        })
 
         if (insertError) { console.error('Profile insert error:', insertError); return }
         await seedUserData(userId)
@@ -298,10 +245,7 @@ export const AuthProvider = ({ children }) => {
 
   const updateProfile = useCallback(async (updates) => {
     if (!user?.id) return
-    const { data } = await safeMutate(
-      supabase.from('profiles').update(updates).eq('id', user.id).select().single(),
-      { throwOnError: true, context: 'useAuth:updateProfile' }
-    )
+    const { data } = await offlineUpdate('profiles', user.id, updates)
     if (data) setProfile(data)
   }, [user?.id])
 
