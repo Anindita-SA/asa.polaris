@@ -389,14 +389,10 @@ export default function PracticeScoreTracker({ curriculumId }) {
                 created_at: item.date || new Date().toISOString(),
               }));
 
-              const { error: insertError } = await safeMutate(
-                supabase.from('practice_scores').insert(migrationPayload),
-                { throwOnError: false, context: 'PracticeScoreTracker:migrateScores' }
-              );
-              // Only remove legacy key if database insert succeeded without error
-              if (!insertError) {
+              for (const payload of migrationPayload) {
+                  await offlineInsert('practice_scores', payload);
+                }
                 localStorage.removeItem(legacyKey);
-              }
             }
           } catch (migrateErr) {
             console.error('Error during practice scores migration:', migrateErr);
@@ -418,20 +414,28 @@ data.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
             // Ignore storage quota errors
           }
 
-          // If database returned 0 scores and local cache had no custom scores, seed defaults
+          // If offline DB returned 0 scores, query remote to ensure it is actually empty before seeding
           if (data.length === 0 && (!hasLocalCache || initialScores.length === 0 || initialScores === DEFAULT_IELTS_PRACTICE_SCORES)) {
-            const seedPayload = DEFAULT_IELTS_PRACTICE_SCORES.map(item => ({
-              user_id: user.id,
-              curriculum_id: curriculumId || null,
-              title: item.title,
-              category: item.category,
-              score: item.score,
-              total: item.total || null,
-              band: item.band || calculateBand(item.score, item.category, item.total),
-              url: item.url || null,
-              date: item.date || new Date().toISOString(),
-              created_at: item.date || new Date().toISOString(),
-            }));
+            const { count } = await supabase.from('practice_scores').select('*', { count: 'exact', head: true }).eq('user_id', user.id);
+            if (count === 0) {
+              const seedPayload = DEFAULT_IELTS_PRACTICE_SCORES.map(item => ({
+                user_id: user.id,
+                curriculum_id: curriculumId || null,
+                title: item.title,
+                category: item.category,
+                score: item.score,
+                total: item.total || null,
+                band: item.band || calculateBand(item.score, item.category, item.total),
+                url: item.url || null,
+                date: item.date || new Date().toISOString(),
+                created_at: item.date || new Date().toISOString(),
+              }));
+
+              for (const payload of seedPayload) {
+                await offlineInsert('practice_scores', payload);
+              }
+            }
+          }));
 
             await safeMutate(
               supabase.from('practice_scores').insert(seedPayload).select(),
@@ -555,7 +559,7 @@ data.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
 
     if (user?.id) {
       try {
-        const dbPayload = { id: tempId, 
+        const dbPayload = { 
           title: newRecord.title,
           category: newRecord.category,
           score: newRecord.score,
@@ -1017,6 +1021,9 @@ data.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
     </div>
   );
 }
+
+
+
 
 
 

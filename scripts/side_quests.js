@@ -44,9 +44,10 @@ export function extractNextQuests() {
   
   // Extract all lines containing [NEXT]
   const nextItems = content
-    .split('\n')
-    .filter(line => line.includes('[NEXT]'))
-    .map(line => line.replace('- **[NEXT]**', '').trim());
+    .split("\n")
+    .filter(line => line.includes("[NEXT]"))
+    .map(line => line.replace("- **[NEXT]**", "").trim())
+    .filter(line => !line.toLowerCase().includes("ielts"));
     
   return nextItems;
 }
@@ -169,3 +170,4 @@ if (process.argv[1] && process.argv[1] === __filename) {
     process.exit(1);
   });
 }
+

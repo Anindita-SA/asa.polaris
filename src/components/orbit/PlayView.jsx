@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { safeMutate } from '../../lib/safeMutate'
+import { offlineInsert } from '../../lib/offlineApi'
 import { useAuth } from '../../hooks/useAuth'
 import { Gamepad2, Plus, Sparkles, X, ExternalLink, Columns } from 'lucide-react'
 
@@ -39,10 +39,7 @@ export default function PlayView() {
       if (data && data.length === 0) {
         // Seed
         const seedData = DEFAULT_GAMES.map((g, i) => ({ ...g, user_id: user.id, sort_order: i }))
-        await safeMutate(
-          supabase.from('mini_games').insert(seedData),
-          { throwOnError: true, context: 'PlayView:seedMiniGames' }
-        )
+        await Promise.all(seedData.map(d => offlineInsert('mini_games', d)))
         
         // Refetch
         const { data: refetched } = await supabase
@@ -81,18 +78,15 @@ export default function PlayView() {
     e.preventDefault()
     if (!form.title || !form.url || !user?.id) return
     
-    await safeMutate(
-      supabase.from('mini_games').insert({
-        user_id: user.id,
-        title: form.title,
-        url: form.url,
-        type: form.type,
-        icon: form.icon,
-        category: form.category || null,
-        sort_order: games.length
-      }),
-      { throwOnError: true, context: 'PlayView:addMiniGame' }
-    )
+    await offlineInsert('mini_games', {
+      user_id: user.id,
+      title: form.title,
+      url: form.url,
+      type: form.type,
+      icon: form.icon,
+      category: form.category || null,
+      sort_order: games.length
+    })
     
     setForm({ title: '', url: '', type: 'link', icon: '🎲', category: '' })
     setShowAddModal(false)

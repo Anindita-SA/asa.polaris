@@ -46,6 +46,10 @@ const SUBTASKS_DEF = [
 
 export async function nestIeltsTasks(supabaseClient = null, isDryRun = false) {
   console.log('Starting IELTS task nesting and consolidation...');
+  if (new Date() > new Date('2026-10-04')) {
+    console.log('IELTS exam date has passed. Skipping.');
+    return { parentId: null, subtaskIds: [], looseTaskIds: [] };
+  }
   const supabase = supabaseClient || (await createSafeClient('nest_ielts_tasks', false, isDryRun));
   const uid = supabase._uid;
 
@@ -168,26 +172,18 @@ export async function nestIeltsTasks(supabaseClient = null, isDryRun = false) {
       );
     }
 
-    // Look for active/inbox/scheduled tasks matching keywords and 'ielts'
-    if (!candidate) {
-      candidate = tasks.find(t =>
-        t.id !== parentId &&
-        !claimedTaskIds.has(t.id) &&
-        t.status !== 'done' &&
-        t.title &&
-        t.title.toLowerCase().includes('ielts') &&
-        def.keywords.some(kw => t.title.toLowerCase().includes(kw))
-      );
-    }
+    
 
     const subtaskPayload = {
-      title: def.title,
       parent_task_id: parentId,
       time_estimate_minutes: def.time_estimate_minutes,
       mental_load: def.mental_load,
       category: def.category,
       quadrant: def.quadrant
     };
+    if (!candidate) {
+      subtaskPayload.title = def.title;
+    }
     if (!candidate) {
       subtaskPayload.status = def.status;
     }
@@ -230,36 +226,10 @@ export async function nestIeltsTasks(supabaseClient = null, isDryRun = false) {
     }
   }
 
-  // 5. Mark loose active duplicate IELTS tasks as done
-  const looseIeltsTasks = tasks.filter(t =>
-    t.status !== 'done' &&
-    t.id !== parentId &&
-    t.parent_task_id !== parentId &&
-    !claimedTaskIds.has(t.id) &&
-    (t.title || '').toLowerCase().includes('ielts')
-  );
-
-  const looseTaskIds = looseIeltsTasks.map(t => t.id);
-
-  if (looseTaskIds.length > 0) {
-    console.log(`Found ${looseTaskIds.length} loose active duplicate IELTS task(s). Marking as done...`);
-    if (!isDryRun) {
-      const { error: dErr } = await supabase
-        .from('tasks')
-        .update({ status: 'done' })
-        .in('id', looseTaskIds)
-        .eq('user_id', uid);
-      if (dErr) throw dErr;
-    }
-  } else {
-    console.log('No loose duplicate IELTS tasks found.');
-  }
-
   console.log('IELTS task nesting and consolidation completed successfully.');
   return {
     parentId,
-    subtaskIds,
-    looseTaskIds
+    subtaskIds
   };
 }
 
@@ -275,5 +245,9 @@ if (isDirectExecution) {
     process.exit(1);
   });
 }
+
+
+
+
 
 

@@ -36,9 +36,26 @@ db.version(4).stores({
   task_estimate_calibration: 'id, user_id, task_id, created_at',
 });
 
-export default db;
+
 
 db.version(5).stores({
   practice_scores: 'id, user_id, curriculum_id, category, date'
 });
+
+db.version(6).stores({
+  curriculum_topics: 'id, user_id, curriculum_id',
+  mini_games: 'id, user_id, sort_order',
+  calendar_events: 'id, user_id, gcal_event_id, start_time',
+  calendar_backups: 'id, user_id',
+  habits: 'id, user_id',
+  nodes: 'id, user_id, parent_id',
+  curricula: 'id, user_id, category_id',
+  curriculum_resources: 'id, user_id, curriculum_id',
+  curriculum_categories: 'id, user_id',
+  media_log: 'id, user_id',
+  sync_errors: '++localId, table, operation, error_code, created_at'
+});
+
+export default db;
+
 
