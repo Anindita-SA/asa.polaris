@@ -285,7 +285,7 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
 
   const saveEditResource = async () => {
     if (!editingResource?.title?.trim() || !user?.id) return
-    await offlineUpdate('curriculum_resources', editingResource.id, {
+    await offlineUpdate('curriculum_resources', { id: editingResource.id }, {
         title: editingResource.title,
         author: editingResource.author,
         url: editingResource.url,
@@ -297,13 +297,13 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
 
   const deleteTopic = async (id) => {
     if (!user?.id) return
-    await offlineDelete('curriculum_topics', id)
+    await offlineDelete('curriculum_topics', { id })
     fetchData()
   }
 
   const deleteResource = async (id) => {
     if (!user?.id) return
-    await offlineDelete('curriculum_resources', id)
+    await offlineDelete('curriculum_resources', { id })
     fetchData()
   }
 
@@ -735,3 +735,5 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
 }
 
 export default CurriculumView
+
+

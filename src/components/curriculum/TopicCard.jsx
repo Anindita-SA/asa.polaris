@@ -69,7 +69,7 @@ const TopicCard = ({ topic, accentColor, pomodoroMins = 0, onUpdate }) => {
       updates.date_completed = new Date().toISOString().slice(0, 10)
     }
 
-    await offlineUpdate('curriculum_topics', topic.id, updates)
+    await offlineUpdate('curriculum_topics', { id: topic.id }, updates)
     trackXP(topic.status === 'done', newStatus === 'done', XP.TOPIC_COMPLETE)
     onUpdate()
   }
@@ -77,13 +77,13 @@ const TopicCard = ({ topic, accentColor, pomodoroMins = 0, onUpdate }) => {
   const saveNotes = async () => {
     if (!user?.id || notes === (topic.notes || '')) return
     setSaving(true)
-    await offlineUpdate('curriculum_topics', topic.id, { notes })
+    await offlineUpdate('curriculum_topics', { id: topic.id }, { notes })
     setSaving(false)
   }
 
   const updateDate = async (field, value) => {
     if (!user?.id) return
-    await offlineUpdate('curriculum_topics', topic.id, { [field]: value || null })
+    await offlineUpdate('curriculum_topics', { id: topic.id }, { [field]: value || null })
     onUpdate()
   }
 
@@ -200,3 +200,4 @@ const TopicCard = ({ topic, accentColor, pomodoroMins = 0, onUpdate }) => {
 }
 
 export default TopicCard
+

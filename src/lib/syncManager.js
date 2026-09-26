@@ -49,14 +49,14 @@ export async function pullProfile(userId) {
   }
 }
 
-let isFlushing = false;
+let flushPromise = null;
 
-export async function flushQueue() {
-  if (!navigator.onLine) return;
-  if (isFlushing) return;
-  isFlushing = true;
+export function flushQueue() {
+  if (!navigator.onLine) return Promise.resolve();
+  if (flushPromise) return flushPromise;
 
-  try {
+  flushPromise = (async () => {
+    try {
     const pending = await getPending();
     if (pending.length === 0) return;
 
@@ -142,8 +142,11 @@ export async function flushQueue() {
       await clearSynced(successfulIds);
     }
   } finally {
-    isFlushing = false;
+    flushPromise = null;
   }
+  })();
+
+  return flushPromise;
 }
 
 export async function pruneDLQ() {
@@ -195,6 +198,7 @@ export function initSyncManager(userId) {
     window.removeEventListener('online', handleOnline);
   };
 }
+
 
 
 
