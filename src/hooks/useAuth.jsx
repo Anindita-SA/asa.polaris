@@ -245,7 +245,7 @@ export const AuthProvider = ({ children }) => {
 
   const updateProfile = useCallback(async (updates) => {
     if (!user?.id) return
-    const { data } = await offlineUpdate('profiles', user.id, updates)
+    const { data } = await offlineUpdate('profiles', { id: user.id }, updates)
     if (data) setProfile(data)
   }, [user?.id])
 

@@ -202,14 +202,14 @@ export function useGoogleCalendarSync() {
   // Approve a proposed event (Commit to confirmed status)
   const approveProposedEvent = async (eventId) => {
     if (!user?.id) return
-    await offlineUpdate('calendar_events', eventId, { status: 'confirmed', updated_at: new Date().toISOString() })
+    await offlineUpdate('calendar_events', { id: eventId }, { status: 'confirmed', updated_at: new Date().toISOString() })
     await fetchSupabaseSchedule()
   }
 
   // Reject a proposed event
   const rejectProposedEvent = async (eventId) => {
     if (!user?.id) return
-    await offlineDelete('calendar_events', eventId)
+    await offlineDelete('calendar_events', { id: eventId })
     await fetchSupabaseSchedule()
   }
 
@@ -239,3 +239,5 @@ export function useGoogleCalendarSync() {
     refetch: fetchSupabaseSchedule
   }
 }
+
+

@@ -26,6 +26,12 @@ vi.mock('../../lib/supabase', () => ({
   }
 }));
 
+vi.mock('../../lib/offlineApi', () => ({
+  offlineInsert: vi.fn().mockResolvedValue({ data: [], error: null }),
+  offlineSelect: vi.fn().mockResolvedValue({ data: [], error: null }),
+  offlineDelete: vi.fn().mockResolvedValue({ data: [], error: null })
+}));
+
 describe('PracticeScoreTracker - Band Calculation & Rounding Logic', () => {
   it('calculates official Listening band scores from raw score out of 40', () => {
     expect(calculateBand(40, 'listening', 40)).toBe(9.0);
@@ -707,4 +713,6 @@ describe('PracticeScoreTracker - Component UI, Persistence & Migration', () => {
     expect(cached.length).toBe(9);
   });
 });
+
+
 
