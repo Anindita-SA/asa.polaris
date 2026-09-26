@@ -37,3 +37,8 @@ db.version(4).stores({
 });
 
 export default db;
+
+db.version(5).stores({
+  practice_scores: 'id, user_id, curriculum_id, category, date'
+});
+

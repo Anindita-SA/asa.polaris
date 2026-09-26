@@ -181,7 +181,7 @@ export function parseAITasks(aiText) {
  * Inserts parsed tasks into the database inbox.
  */
 export async function insertTasks(supabase, userId, newTasks) {
-  if (!Array.isArray(newTasks) || newTasks.length === 0) return [];
+  if (!Array.isArray(newTasks) || newTasks.length === 0) return 0;
 
   const { data: existingTasks, error: fetchErr } = await supabase
     .from('tasks')
@@ -197,7 +197,7 @@ export async function insertTasks(supabase, userId, newTasks) {
 
   const filteredTasks = newTasks.filter(t => t.title && !existingTitles.has(t.title.trim().toLowerCase()));
 
-  if (filteredTasks.length === 0) return [];
+  if (filteredTasks.length === 0) return 0;
 
   const insertData = filteredTasks.map(t => ({
     user_id: userId,
@@ -213,7 +213,7 @@ export async function insertTasks(supabase, userId, newTasks) {
   const { error } = await supabase.from('tasks').insert(insertData);
   if (error) throw error;
   
-  return insertData;
+  return insertData.length;
 }
 
 /**
@@ -235,8 +235,7 @@ export async function runAudit() {
   const rawAIText = await generateTasksFromAI(config.groqApiKey, milestones, meals);
   const parsedTasks = parseAITasks(rawAIText);
   
-  const insertedTasks = await insertTasks(supabase, userId, parsedTasks);
-  const insertedCount = insertedTasks.length;
+  const insertedCount = await insertTasks(supabase, userId, parsedTasks);
   console.log(`Successfully inserted ${insertedCount} tasks into the inbox.`);
 }
 

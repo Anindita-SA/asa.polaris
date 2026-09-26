@@ -98,13 +98,15 @@ export async function nestIeltsTasks(supabaseClient = null, isDryRun = false) {
     title: CANONICAL_PARENT_TITLE,
     category: 'academic',
     quadrant: 'urgent_important',
-    status: 'active',
     time_estimate_minutes: 140,
     mental_load: 'high',
     deadline: '2026-10-03',
     notes: 'Canonical parent sprint task for computer-delivered IELTS exam on Oct 3, 2026.',
     parent_task_id: null
   };
+  if (!parentTask) {
+    parentPayload.status = 'active';
+  }
   if (ieltsMilestoneId) {
     parentPayload.milestone_id = ieltsMilestoneId;
   }
@@ -184,9 +186,11 @@ export async function nestIeltsTasks(supabaseClient = null, isDryRun = false) {
       time_estimate_minutes: def.time_estimate_minutes,
       mental_load: def.mental_load,
       category: def.category,
-      quadrant: def.quadrant,
-      status: def.status
+      quadrant: def.quadrant
     };
+    if (!candidate) {
+      subtaskPayload.status = def.status;
+    }
 
     if (candidate) {
       console.log(`Reparenting existing task "${candidate.title}" (${candidate.id}) -> "${def.title}"...`);
@@ -271,3 +275,5 @@ if (isDirectExecution) {
     process.exit(1);
   });
 }
+
+

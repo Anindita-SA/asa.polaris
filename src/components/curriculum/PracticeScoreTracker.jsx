@@ -25,6 +25,7 @@ import { safeMutate } from '../../lib/safeMutate';
 import { useAuth } from '../../hooks/useAuth';
 import { DEFAULT_IELTS_PRACTICE_SCORES } from '../../data/curriculumDefaults';
 import { safeExternalUrl } from '../../lib/urlUtils';
+import { offlineSelect, offlineInsert, offlineDelete } from '../../lib/offlineApi';
 
 export const mergeScoresWithDefaults = (currentScores = [], defaultScores = DEFAULT_IELTS_PRACTICE_SCORES) => {
   const current = Array.isArray(currentScores) ? currentScores : [];
@@ -403,16 +404,10 @@ export default function PracticeScoreTracker({ curriculumId }) {
         }
 
         // Query Supabase for canonical scores
-        let query = supabase
-          .from('practice_scores')
-          .select('*')
-          .eq('user_id', user.id);
-
-        if (curriculumId) {
-          query = query.eq('curriculum_id', curriculumId);
-        }
-
-        const { data, error } = await query.order('date', { ascending: false });
+        const { data: offlineData, error } = await offlineSelect('practice_scores', { user_id: user.id });
+let data = offlineData || [];
+if (curriculumId) { data = data.filter(d => d.curriculum_id === curriculumId); }
+data.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
 
         if (!error && data && isMounted) {
           const mergedData = mergeScoresWithDefaults(data, DEFAULT_IELTS_PRACTICE_SCORES);
@@ -560,7 +555,7 @@ export default function PracticeScoreTracker({ curriculumId }) {
 
     if (user?.id) {
       try {
-        const dbPayload = {
+        const dbPayload = { id: tempId, 
           title: newRecord.title,
           category: newRecord.category,
           score: newRecord.score,
@@ -572,23 +567,7 @@ export default function PracticeScoreTracker({ curriculumId }) {
           curriculum_id: curriculumId || null,
         };
 
-        const { data } = await safeMutate(
-          supabase
-            .from('practice_scores')
-            .insert([dbPayload])
-            .select(),
-          { throwOnError: false, context: 'PracticeScoreTracker:addScore' }
-        );
-
-        if (data && data[0]) {
-          setScores(prev => {
-            const next = prev.map(item => (item.id === tempId ? data[0] : item));
-            try {
-              localStorage.setItem(cacheKey, JSON.stringify(next));
-            } catch (storageErr) {}
-            return next;
-          });
-        }
+        await offlineInsert('practice_scores', dbPayload);
       } catch (err) {
         console.error('Failed to sync new score to Supabase:', err);
       }
@@ -604,14 +583,7 @@ export default function PracticeScoreTracker({ curriculumId }) {
 
     if (user?.id) {
       try {
-        await safeMutate(
-          supabase
-            .from('practice_scores')
-            .delete()
-            .eq('id', id)
-            .eq('user_id', user.id),
-          { throwOnError: false, context: 'PracticeScoreTracker:deleteScore' }
-        );
+        await offlineDelete('practice_scores', { id: id, user_id: user.id });
       } catch (err) {
         console.error('Failed to delete score from Supabase:', err);
       }
@@ -1045,3 +1017,7 @@ export default function PracticeScoreTracker({ curriculumId }) {
     </div>
   );
 }
+
+
+
+

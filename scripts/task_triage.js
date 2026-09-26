@@ -665,36 +665,46 @@ async function run() {
     }
 
     // 3. Fetch context
-    const [goalsRes, eulogyRes] = await Promise.all([
+    const [goalsRes, eulogyRes, settingsRes] = await Promise.all([
       supabase.from('goals').select('title, deadline').eq('user_id', uid).eq('completed', false),
-      supabase.from('eulogies').select('content').eq('user_id', uid).limit(1).maybeSingle()
+      supabase.from('eulogies').select('content').eq('user_id', uid).limit(1).maybeSingle(),
+      supabase.from('user_settings').select('feature_flags').eq('user_id', uid).limit(1).maybeSingle()
     ]);
 
-    const activeGoals = (goalsRes.data || []).map(g => `${g.title} (Target: ${g.deadline || 'None'})`).join('; ');
+    const activeGoals = (goalsRes.data || []).map(g => ` (Target: )`).join('; ');
     const eulogyText = eulogyRes.data?.content || 'No specific eulogy set.';
+    const autoRefineEnabled = settingsRes.data?.feature_flags?.auto_refine_tasks !== false;
 
     // 4. Build Prompt
     const currentDate = new Date().toISOString().split('T')[0];
+    const refineInstructions = autoRefineEnabled 
+      ? \n      - Auto-Refinement: The user brain-dumps messy tasks. You MAY fix typos, expand acronyms, or rephrase the title to be actionable. Add a 'title' property to your returned JSON object for that task if you refine it.
+      : \n      - STRICT POLICY: DO NOT alter or return the task title. Return ONLY the classification.;
+
+    const jsonExample = autoRefineEnabled 
+      ? [{"id": "uuid-here", "quadrant": "quadrant-name", "reasoning": "Brief 1-sentence explanation", "title": "Refined title here"}]
+      : [{"id": "uuid-here", "quadrant": "quadrant-name", "reasoning": "Brief 1-sentence explanation"}];
+
     const prompt = `You are a task triage assistant. Given the tasks below and the user's goals/mission, classify each into an Eisenhower quadrant.
-    
-    CURRENT DATE: ${currentDate}. Evaluate deadlines relative to this.
-    
-    QUADRANTS:
-    - urgent_important: Due within 3 days OR blocking a critical goal. For applications: High match + approaching deadline.
-    - important_not_urgent: Advances long-term goals (TU Delft, portfolio, engineering skills). For applications: High match + no immediate deadline.
-    - urgent_not_important: Quick admin/errands, < 15 min, no strategic value. For applications: Low match.
-    - neither: Nice-to-have, no deadline, no goal alignment.
-    
-    USER CONTEXT:
-    - Goals: ${activeGoals}
-    - Life mission: ${eulogyText.substring(0, 500)}
-    - Writing & Reflection: The user is an active Substack writer and needs to capture both good moments and challenges. Creative/writing blocks are highly important for their mental clarity and output, and should be prioritized (e.g., important_not_urgent, or urgent_important if there's a deadline).
-    
-    TASKS TO CLASSIFY:
-    ${JSON.stringify(unsortedTasks, null, 2)}
-    
-    Return ONLY valid JSON in this exact format, with no markdown formatting or backticks:
-    [{"id": "uuid-here", "quadrant": "quadrant-name", "reasoning": "Brief 1-sentence explanation"}]`;
+      
+      CURRENT DATE: . Evaluate deadlines relative to this.
+      
+      QUADRANTS:
+      - urgent_important: Due within 3 days OR blocking a critical goal. For applications: High match + approaching deadline.
+      - important_not_urgent: Advances long-term goals (TU Delft, portfolio, engineering skills). For applications: High match + no immediate deadline.
+      - urgent_not_important: Quick admin/errands, < 15 min, no strategic value. For applications: Low match.
+      - neither: Nice-to-have, no deadline, no goal alignment.
+      
+      USER CONTEXT:
+      - Goals: 
+      - Life mission: 
+      - Writing & Reflection: The user is an active Substack writer and needs to capture both good moments and challenges. Creative/writing blocks are highly important for their mental clarity and output, and should be prioritized.
+      
+      TASKS TO CLASSIFY:
+      
+      
+      Return ONLY valid JSON in this exact format, with no markdown formatting or backticks:
+      `;
     
     if (isDryRun) {
       console.log('--- PROMPT SENT TO LLM ---');
@@ -784,7 +794,11 @@ async function run() {
     const validItems = normalized.filter(item => item.id && validIds.has(item.id) && validQuadrants.includes(item.quadrant));
     
     const updatePromises = validItems.map(async (item) => {
-      const updateChain = supabase.from('tasks').update({ quadrant: item.quadrant });
+      const payload = { quadrant: item.quadrant };
+      if (autoRefineEnabled && item.title) {
+        payload.title = item.title;
+      }
+      const updateChain = supabase.from('tasks').update(payload);
       if (isDryRun) {
         updateChain.eq('id', item.id);
         return true;
@@ -887,3 +901,6 @@ const isDirectExecution = process.argv[1] && (
 if (isDirectExecution) {
   run();
 }
+
+
+
