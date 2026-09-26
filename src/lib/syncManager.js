@@ -146,9 +146,25 @@ export async function flushQueue() {
   }
 }
 
+export async function pruneDLQ() {
+  if (!db.sync_errors) return;
+  const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+  const cutoff = Date.now() - THIRTY_DAYS_MS;
+  try {
+    const oldErrors = await db.sync_errors.where('created_at').below(cutoff).primaryKeys();
+    if (oldErrors.length > 0) {
+      await db.sync_errors.bulkDelete(oldErrors);
+      console.log(`Pruned ${oldErrors.length} old entries from DLQ.`);
+    }
+  } catch (err) {
+    console.error('Failed to prune DLQ:', err);
+  }
+}
+
 export function initSyncManager(userId) {
   const handleOnline = () => {
     flushQueue().then(() => {
+      pruneDLQ();
       if (userId) {
         // Refresh critical tables when coming online
         pullData('tasks', userId);
@@ -179,6 +195,8 @@ export function initSyncManager(userId) {
     window.removeEventListener('online', handleOnline);
   };
 }
+
+
 
 
 
