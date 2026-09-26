@@ -25,6 +25,7 @@ import { useContactReminders } from '../../hooks/useContactReminders'
 import { useCelebration } from '../../hooks/useCelebration'
 import { supabase } from '../../lib/supabase'
 import { safeMutate } from '../../lib/safeMutate'
+import { offlineSelect, offlineUpdate, offlineInsert, offlineDelete } from '../../lib/offlineApi'
 import { computeWSJFScore } from '../../hooks/useWSJFScore'
 import SurpriseTaskModal from '../modals/SurpriseTaskModal'
 import TaskPickerModal from '../modals/TaskPickerModal'
@@ -116,11 +117,8 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
   // Fetch tasks sorted by WSJF score
   const fetchTasks = useCallback(async () => {
     if (!user) return
-    const { data } = await supabase
-      .from('tasks')
-      .select('*')
-      .eq('user_id', user.id)
-      .in('status', ['active', 'inbox'])
+    const { data: allTasks } = await offlineSelect('tasks', { user_id: user.id })
+      const data = (allTasks || []).filter(t => t.status === 'active' || t.status === 'inbox')
 
     const scored = (data || []).map(t => {
       const { score } = computeWSJFScore(t);
@@ -133,12 +131,8 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
   const fetchHabitTasks = useCallback(async () => {
     if (!user) return
     const todayStr = new Date().toLocaleDateString('en-CA')
-    const { data } = await supabase
-      .from('tasks')
-      .select('id, title, source_template_id, status, completion_dates, completion_count')
-      .eq('user_id', user.id)
-      .eq('category', 'habits')
-      .in('status', ['active', 'inbox'])
+    const { data: allHabits } = await offlineSelect('tasks', { user_id: user.id, category: 'habits' })
+      const data = (allHabits || []).filter(t => t.status === 'active' || t.status === 'inbox')
     setHabitTasks(data || [])
   }, [user?.id])
 
@@ -214,10 +208,7 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
     // If a subtask is started, update its status to in_progress to sync with matrix canvas & views
     if (task?.parent_task_id && user?.id) {
       try {
-        await safeMutate(
-          supabase.from('tasks').update({ status: 'in_progress' }).eq('id', task.id).eq('user_id', user.id),
-          { throwOnError: true, context: 'RemindersPanel:syncSubtaskInProgress' }
-        )
+        await offlineUpdate('tasks', { id: task.id }, { status: 'in_progress' })
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('polaris-tasks-changed', { detail: { table: 'tasks', operation: 'update' } }))
         }
@@ -229,10 +220,7 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
 
   const markTaskDone = async (taskId) => {
     if (!user?.id) return
-    const { error } = await safeMutate(
-      supabase.from('tasks').update({ status: 'done' }).eq('id', taskId).eq('user_id', user.id),
-      { throwOnError: true, context: 'RemindersPanel:markTaskDone' }
-    )
+    const { error } = await offlineUpdate('tasks', { id: taskId }, { status: 'done' })
     if (error) {
       console.error('Error marking task done:', error)
       return
@@ -252,14 +240,7 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
     if (dates.includes(todayStr)) return
     dates.push(todayStr)
     dates.sort()
-    const { error } = await safeMutate(
-      supabase.from('tasks').update({
-        completion_dates: dates,
-        completion_count: (task.completion_count || 0) + 1,
-        status: 'done'
-      }).eq('id', task.id).eq('user_id', user.id),
-      { throwOnError: true, context: 'RemindersPanel:completeHabitForToday' }
-    )
+    const { error } = await offlineUpdate('tasks', { id: task.id }, { completion_dates: dates, completion_count: (task.completion_count || 0) + 1, status: 'done' })
     if (error) {
       console.error('Error completing habit:', error)
       return
@@ -892,4 +873,6 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
 }
 
 export default RemindersPanel
+
+
 
