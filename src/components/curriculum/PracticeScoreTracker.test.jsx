@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import React from 'react';
-import { render, screen, waitFor, fireEvent, cleanup } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, cleanup, within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import PracticeScoreTracker, { 
   calculateBand, 
@@ -12,7 +12,7 @@ import PracticeScoreTracker, {
 } from './PracticeScoreTracker';
 import { DEFAULT_IELTS_PRACTICE_SCORES } from '../../data/curriculumDefaults';
 import { supabase } from '../../lib/supabase';
-
+import { offlineInsert, offlineSelect, offlineDelete, generateUUID } from '../../lib/offlineApi';
 
 const mockUser = { id: 'user-ielts-123' };
 
@@ -29,7 +29,8 @@ vi.mock('../../lib/supabase', () => ({
 vi.mock('../../lib/offlineApi', () => ({
   offlineInsert: vi.fn().mockResolvedValue({ data: [], error: null }),
   offlineSelect: vi.fn().mockResolvedValue({ data: [], error: null }),
-  offlineDelete: vi.fn().mockResolvedValue({ data: [], error: null })
+  offlineDelete: vi.fn().mockResolvedValue({ data: [], error: null }),
+  generateUUID: vi.fn().mockReturnValue('mocked-uuid-1234-5678-9012')
 }));
 
 describe('PracticeScoreTracker - Band Calculation & Rounding Logic', () => {
@@ -210,6 +211,8 @@ describe('PracticeScoreTracker - mergeScoresWithDefaults Helper', () => {
     expect(result.some(s => s.id === 'ielts-mock-read-3')).toBe(true);
     expect(result.some(s => s.id === 'ielts-mock-read-2')).toBe(true);
     expect(result.some(s => s.id === 'ielts-mock-read-1')).toBe(true);
+    expect(result.some(s => s.id === 'ielts-mock-write-2')).toBe(true);
+    expect(result.some(s => s.id === 'ielts-mock-write-1')).toBe(true);
   });
 
   it('merging into null or undefined returns all default tests', () => {
@@ -253,9 +256,10 @@ describe('PracticeScoreTracker - mergeScoresWithDefaults Helper', () => {
     expect(result.find(s => s.id === 'user-writing-2')).toBeTruthy();
     expect(result.find(s => s.id === 'user-speaking-1')).toBeTruthy();
 
-    // Includes all 6 default tests
+    // Includes all 8 default tests
     expect(result.filter(s => s.category === 'reading').length).toBe(4);
     expect(result.filter(s => s.category === 'listening').length).toBe(2);
+    expect(result.filter(s => s.category === 'writing').length).toBe(4); // 2 custom + 2 default
 
     // Sorted descending by date
     for (let i = 0; i < result.length - 1; i++) {
@@ -326,11 +330,38 @@ describe('PracticeScoreTracker - mergeScoresWithDefaults Helper', () => {
         total: 40,
         band: 7.5,
         date: '2026-08-30T10:00:00Z'
+      },
+      {
+        id: 'supabase-custom-id-7',
+        title: 'IELTS Academic Writing Practice Test 2 - Task 1 & 2',
+        category: 'writing',
+        score: 7.5,
+        total: null,
+        band: 7.5,
+        date: '2026-09-12T10:00:00Z'
+      },
+      {
+        id: 'supabase-custom-id-8',
+        title: 'IELTS Academic Writing Practice Test 1 - Task 1 & 2',
+        category: 'writing',
+        score: 7.0,
+        total: null,
+        band: 7.0,
+        date: '2026-09-05T10:00:00Z'
+      },
+      {
+        id: 'supabase-custom-id-9',
+        title: 'IELTS Speaking Practice Test 1 - Parts 1, 2 & 3',
+        category: 'speaking',
+        score: 7.5,
+        total: null,
+        band: 7.5,
+        date: '2026-09-14T10:00:00Z'
       }
     ];
 
     const result = mergeScoresWithDefaults(existingMatches);
-    expect(result.length).toBe(6);
+    expect(result.length).toBe(9);
   });
 });
 
@@ -390,14 +421,19 @@ describe('PracticeScoreTracker - Component UI, Persistence & Migration', () => {
     vi.clearAllMocks();
     localStorage.clear();
 
+    offlineSelect.mockResolvedValue({ data: sampleScores, error: null });
+    offlineInsert.mockResolvedValue({ data: [], error: null });
+    offlineDelete.mockResolvedValue({ data: [], error: null });
+    generateUUID.mockReturnValue('mocked-uuid-1234-5678-9012');
+
     supabase.from.mockImplementation(() => ({
       select: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockResolvedValue({ count: sampleScores.length, error: null }),
       order: vi.fn().mockResolvedValue({ data: sampleScores, error: null }),
       insert: vi.fn().mockReturnValue({
         select: vi.fn().mockResolvedValue({
           data: [{
-            id: 'score-new',
+            id: 'mocked-uuid-1234-5678-9012',
             user_id: 'user-ielts-123',
             curriculum_id: 'curr-ielts-2026',
             title: 'New Mock Test',
@@ -474,7 +510,10 @@ describe('PracticeScoreTracker - Component UI, Persistence & Migration', () => {
     render(<PracticeScoreTracker curriculumId="curr-ielts-2026" />);
 
     await waitFor(() => {
-      expect(supabase.from).toHaveBeenCalledWith('practice_scores');
+      expect(offlineInsert).toHaveBeenCalledWith('practice_scores', expect.objectContaining({
+        title: 'Legacy Test 1',
+        category: 'listening'
+      }));
     });
 
     // Verify legacy item was cleared after migration
@@ -505,7 +544,9 @@ describe('PracticeScoreTracker - Component UI, Persistence & Migration', () => {
     expect(cached.some(s => s.title === 'Cambridge 19 Test 1')).toBe(true);
 
     await waitFor(() => {
-      expect(supabase.from).toHaveBeenCalledWith('practice_scores');
+      expect(offlineInsert).toHaveBeenCalledWith('practice_scores', expect.objectContaining({
+        title: 'Cambridge 19 Test 1'
+      }));
     });
   });
 
@@ -514,7 +555,7 @@ describe('PracticeScoreTracker - Component UI, Persistence & Migration', () => {
     render(<PracticeScoreTracker curriculumId="curr-ielts-2026" />);
 
     await waitFor(() => {
-      expect(screen.getAllByText('Speaking Mock Interview').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('IELTS Speaking Practice Test 1 - Parts 1, 2 & 3').length).toBeGreaterThan(0);
     });
 
     const deleteButtons = screen.getAllByTitle('Delete test log');
@@ -522,15 +563,17 @@ describe('PracticeScoreTracker - Component UI, Persistence & Migration', () => {
 
     fireEvent.click(deleteButtons[0]);
 
-    // Speaking Mock Interview removed from view
-    expect(screen.queryAllByText('Speaking Mock Interview').length).toBe(0);
+    // IELTS Speaking Practice Test 1 removed from view
+    expect(screen.queryAllByText('IELTS Speaking Practice Test 1 - Parts 1, 2 & 3').length).toBe(0);
 
     // Local storage updated immediately
     const cached = JSON.parse(localStorage.getItem(cacheKey));
-    expect(cached.some(s => s.title === 'Speaking Mock Interview')).toBe(false);
+    expect(cached.some(s => s.title === 'IELTS Speaking Practice Test 1 - Parts 1, 2 & 3')).toBe(false);
 
     await waitFor(() => {
-      expect(supabase.from).toHaveBeenCalledWith('practice_scores');
+      expect(offlineDelete).toHaveBeenCalledWith('practice_scores', expect.objectContaining({
+        user_id: 'user-ielts-123'
+      }));
     });
   });
 
@@ -543,16 +586,10 @@ describe('PracticeScoreTracker - Component UI, Persistence & Migration', () => {
   });
 
   it('initializes and seeds DEFAULT_IELTS_PRACTICE_SCORES when cache and database are empty', async () => {
+    offlineSelect.mockResolvedValue({ data: [], error: null });
     supabase.from.mockImplementation(() => ({
       select: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockReturnThis(),
-      order: vi.fn().mockResolvedValue({ data: [], error: null }),
-      insert: vi.fn().mockReturnValue({
-        select: vi.fn().mockResolvedValue({
-          data: DEFAULT_IELTS_PRACTICE_SCORES,
-          error: null
-        })
-      })
+      eq: vi.fn().mockResolvedValue({ count: 0, error: null })
     }));
 
     render(<PracticeScoreTracker curriculumId="curr-ielts-2026" />);
@@ -570,41 +607,14 @@ describe('PracticeScoreTracker - Component UI, Persistence & Migration', () => {
     // Check that external link chip is rendered for items with URL
     const scoreReportLinks = screen.getAllByRole('link', { name: /Score Report/i });
     expect(scoreReportLinks.length).toBeGreaterThan(0);
-    expect(scoreReportLinks[0].getAttribute('href')).toBe('https://ieltsonlinetests.com/score/60136001');
+    expect(scoreReportLinks.some(l => l.getAttribute('href') === 'https://ieltsonlinetests.com/score/60136001')).toBe(true);
 
     // Verify localStorage cache was populated
     const cached = JSON.parse(localStorage.getItem('polaris_practice_scores_cache_user-ielts-123_curr-ielts-2026'));
-    expect(cached.length).toBe(6);
+    expect(cached.length).toBe(9);
   });
 
   it('submits a new practice score log with optional URL', async () => {
-    let insertedPayload = null;
-    supabase.from.mockImplementation(() => ({
-      select: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockReturnThis(),
-      order: vi.fn().mockResolvedValue({ data: sampleScores, error: null }),
-      insert: vi.fn().mockImplementation((payload) => {
-        insertedPayload = payload;
-        return {
-          select: vi.fn().mockResolvedValue({
-            data: [{
-              id: 'score-new-url',
-              user_id: 'user-ielts-123',
-              curriculum_id: 'curr-ielts-2026',
-              title: 'Online Mock Test 2',
-              category: 'reading',
-              score: 38,
-              total: 40,
-              band: 8.5,
-              url: 'https://ieltsonlinetests.com/score/99999',
-              date: '2026-09-15T12:00:00Z'
-            }],
-            error: null
-          })
-        };
-      })
-    }));
-
     render(<PracticeScoreTracker curriculumId="curr-ielts-2026" />);
 
     await waitFor(() => {
@@ -622,19 +632,15 @@ describe('PracticeScoreTracker - Component UI, Persistence & Migration', () => {
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
-      expect(insertedPayload).toBeTruthy();
+      expect(offlineInsert).toHaveBeenCalledWith('practice_scores', expect.objectContaining({
+        url: 'https://ieltsonlinetests.com/score/99999',
+        title: 'Online Mock Test 2'
+      }));
     });
-
-    expect(insertedPayload[0].url).toBe('https://ieltsonlinetests.com/score/99999');
-    expect(insertedPayload[0].title).toBe('Online Mock Test 2');
   });
 
   it('synchronously loads DEFAULT_IELTS_PRACTICE_SCORES on initial render when localStorage is empty', () => {
-    supabase.from.mockImplementation(() => ({
-      select: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockReturnThis(),
-      order: vi.fn().mockReturnValue(new Promise(() => {}))
-    }));
+    offlineSelect.mockReturnValue(new Promise(() => {}));
 
     render(<PracticeScoreTracker curriculumId="curr-ielts-2026" />);
 
@@ -644,7 +650,7 @@ describe('PracticeScoreTracker - Component UI, Persistence & Migration', () => {
     expect(screen.getAllByText('IELTS Reading Practice Test 310').length).toBeGreaterThan(0);
     expect(screen.getAllByText('IELTS Listening Practice Test 201').length).toBeGreaterThan(0);
     expect(screen.getAllByText('IELTS Online Tests - Mock Test 2026 January Listening Test 1').length).toBeGreaterThan(0);
-    expect(screen.getByText('6 Tests Logged')).toBeTruthy();
+    expect(screen.getByText('9 Tests Logged')).toBeTruthy();
   });
 
   it('synchronously merges DEFAULT_IELTS_PRACTICE_SCORES into pre-existing custom cached tests on frame 0', () => {
@@ -681,11 +687,7 @@ describe('PracticeScoreTracker - Component UI, Persistence & Migration', () => {
     const cacheKey = 'polaris_practice_scores_cache_user-ielts-123_curr-ielts-2026';
     localStorage.setItem(cacheKey, JSON.stringify(customUserWritingScores));
 
-    supabase.from.mockImplementation(() => ({
-      select: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockReturnThis(),
-      order: vi.fn().mockReturnValue(new Promise(() => {}))
-    }));
+    offlineSelect.mockReturnValue(new Promise(() => {}));
 
     render(<PracticeScoreTracker curriculumId="curr-ielts-2026" />);
 
@@ -702,15 +704,15 @@ describe('PracticeScoreTracker - Component UI, Persistence & Migration', () => {
     expect(screen.getAllByText('IELTS Listening Practice Test 201').length).toBeGreaterThan(0);
     expect(screen.getAllByText('IELTS Online Tests - Mock Test 2026 January Listening Test 1').length).toBeGreaterThan(0);
 
-    // Reading module card should show 4 tests and Listening module card should show 2 tests
-    expect(screen.getByText('9 Tests Logged')).toBeTruthy();
+    // Reading module card should show 4 tests, Listening module card should show 2 tests, Writing shows 5 tests
+    expect(screen.getByText('12 Tests Logged')).toBeTruthy();
     expect(screen.getByText('4 tests')).toBeTruthy();
     expect(screen.getByText('2 tests')).toBeTruthy();
-    expect(screen.getByText('3 tests')).toBeTruthy();
+    expect(screen.getByText('5 tests')).toBeTruthy();
 
-    // Verify localStorage cache was updated synchronously with the merged 9 tests
+    // Verify localStorage cache was updated synchronously with the merged 12 tests
     const cached = JSON.parse(localStorage.getItem(cacheKey));
-    expect(cached.length).toBe(9);
+    expect(cached.length).toBe(12);
   });
 });
 

@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { Check, X, Plus, Sparkles, RefreshCw } from 'lucide-react'
 import { playChime } from '../../lib/sound'
 import { XP } from '../../data/xpRewards'
 import { useCelebration } from '../../hooks/useCelebration'
+import { offlineSelect, offlineInsert, offlineUpdate, offlineDelete } from '../../lib/offlineApi'
 
 const DailyTasks = ({ dateStr }) => {
   const { user, trackXP } = useAuth()
@@ -13,74 +14,79 @@ const DailyTasks = ({ dateStr }) => {
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [isAdding, setIsAdding] = useState(false)
 
-  useEffect(() => {
-    if (user && dateStr) fetchTasks()
-  }, [user, dateStr])
-
-  const fetchTasks = async () => {
-    if (!user?.id) return
+  const fetchTasks = useCallback(async () => {
+    if (!user?.id || !dateStr) return
 
     // 1. Roll over unfinished recurring tasks to today
-    const { error: rolloverErr } = await supabase
-      .from('daily_tasks')
-      .update({ date: dateStr })
-      .eq('user_id', user.id)
-      .eq('recurring', true)
-      .eq('completed', false)
-      .lt('date', dateStr)
-
-    if (rolloverErr) {
-      console.error('Failed to rollover recurring daily tasks:', rolloverErr)
+    const { data: allUnfinished } = await offlineSelect('daily_tasks', { user_id: user.id, recurring: true, completed: false })
+    if (allUnfinished) {
+      for (const t of allUnfinished) {
+        if (t.date < dateStr) {
+          await offlineUpdate('daily_tasks', { id: t.id }, { date: dateStr })
+        }
+      }
     }
 
     // 2. Fetch tasks for this date
-    const { data, error } = await supabase
-      .from('daily_tasks')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('date', dateStr)
-      .order('created_at', { ascending: true })
-      
-    if (error) {
-      console.error('Failed to fetch daily tasks:', error)
-      return
-    }
+    const { data } = await offlineSelect('daily_tasks', { user_id: user.id, date: dateStr })
+    const sorted = [...(data || [])].sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0))
+    setTasks(sorted)
+  }, [user?.id, dateStr])
 
-    setTasks(data || [])
-  }
+  useEffect(() => {
+    fetchTasks()
+  }, [fetchTasks])
+
+  // Listen to polaris-tasks-changed events
+  useEffect(() => {
+    const handleChanged = (e) => {
+      if (e.detail?.table === 'daily_tasks') {
+        fetchTasks()
+      }
+    }
+    if (typeof window !== 'undefined') {
+      window.addEventListener('polaris-tasks-changed', handleChanged)
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('polaris-tasks-changed', handleChanged)
+      }
+    }
+  }, [fetchTasks])
 
   const addTask = async () => {
     if (!newTaskTitle.trim() || !user?.id) {
       setIsAdding(false)
       return
     }
-    const { data, error } = await supabase.from('daily_tasks').insert({
+    const newId = crypto.randomUUID()
+    const { data, error } = await offlineInsert('daily_tasks', {
+      id: newId,
       user_id: user.id,
       title: newTaskTitle.trim(),
       date: dateStr,
-      recurring: false
-    }).select().single()
-    
+      recurring: false,
+      completed: false
+    })
+
     if (error) {
       console.error('Failed to create daily task:', error)
       return
     }
 
-    if (data) {
-      setTasks(prev => [...prev, data])
-      setNewTaskTitle('')
-      setIsAdding(false)
+    if (data && data[0]) {
+      setTasks(prev => [...prev, data[0]])
+    } else {
+      setTasks(prev => [...prev, { id: newId, user_id: user.id, title: newTaskTitle.trim(), date: dateStr, recurring: false, completed: false }])
     }
+    setNewTaskTitle('')
+    setIsAdding(false)
   }
 
   const toggleTask = async (task) => {
     if (!user?.id) return
     const completed = !task.completed
-    const { error } = await supabase
-      .from('daily_tasks')
-      .update({ completed })
-      .eq('id', task.id)
-      .eq('user_id', user.id)
+    const { error } = await offlineUpdate('daily_tasks', { id: task.id }, { completed })
 
     if (error) {
       console.error('Failed to update daily task:', error)
@@ -98,14 +104,9 @@ const DailyTasks = ({ dateStr }) => {
   const toggleRecurring = async (task) => {
     if (!user?.id) return
     const recurring = !task.recurring
-    const { error } = await supabase
-      .from('daily_tasks')
-      .update({ recurring })
-      .eq('id', task.id)
-      .eq('user_id', user.id)
-
+    const { error } = await offlineUpdate('daily_tasks', { id: task.id }, { recurring })
     if (error) {
-      console.error('Failed to toggle recurring task:', error)
+      console.error('Failed to update recurring state on daily task:', error)
       return
     }
 
@@ -114,17 +115,11 @@ const DailyTasks = ({ dateStr }) => {
 
   const deleteTask = async (id) => {
     if (!user?.id) return
-    const { error } = await supabase
-      .from('daily_tasks')
-      .delete()
-      .eq('id', id)
-      .eq('user_id', user.id)
-
+    const { error } = await offlineDelete('daily_tasks', { id })
     if (error) {
       console.error('Failed to delete daily task:', error)
       return
     }
-
     setTasks(prev => prev.filter(t => t.id !== id))
   }
 

@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../../lib/supabase'
-import { safeMutate } from '../../lib/safeMutate'
+import { offlineSelect, offlineInsert, offlineDelete } from '../../lib/offlineApi'
 import { useAuth } from '../../hooks/useAuth'
 import { X, TrendingUp, Activity, Shield, Award, Plus, Trash2 } from 'lucide-react'
 import { getLevelInfo, TIERS } from '../../data/defaults'
@@ -28,13 +27,14 @@ const StatsModal = ({ onClose, systemAlerts = [] }) => {
       return d.toISOString().split('T')[0]
     }).reverse()
 
-    const { data } = await supabase.from('io_logs')
-      .select('*')
-      .eq('user_id', user.id)
-      .gte('date', dates[0])
+    const { data: allData } = await offlineSelect('io_logs', {
+      user_id: user.id
+    })
+
+    const filtered = (allData || []).filter(l => l.date >= dates[0])
 
     const history = dates.map(dateStr => {
-      const dayLogs = data?.filter(l => l.date === dateStr) || []
+      const dayLogs = filtered.filter(l => l.date === dateStr)
       const input = dayLogs.filter(l => l.type === 'input').reduce((s, l) => s + l.minutes, 0)
       const output = dayLogs.filter(l => l.type === 'output').reduce((s, l) => s + l.minutes, 0)
       const dateObj = new Date(dateStr)
@@ -43,37 +43,30 @@ const StatsModal = ({ onClose, systemAlerts = [] }) => {
     })
     setIoHistory(history)
 
-    const { data: allData } = await supabase.from('io_logs')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('date', { ascending: false })
-      .order('created_at', { ascending: false })
-      .limit(30)
-    setRawLogs(allData || [])
+    const sortedRaw = [...(allData || [])].sort((a, b) => {
+      const dateCmp = (b.date || '').localeCompare(a.date || '')
+      if (dateCmp !== 0) return dateCmp
+      return new Date(b.created_at || 0) - new Date(a.created_at || 0)
+    }).slice(0, 30)
+    setRawLogs(sortedRaw)
   }
 
   const addManualIO = async () => {
     if (!user || !ioForm.category || !ioForm.minutes || !ioForm.date) return
-    await safeMutate(
-      supabase.from('io_logs').insert({
-        user_id: user.id,
-        type: ioForm.type,
-        category: ioForm.category,
-        minutes: parseInt(ioForm.minutes),
-        date: ioForm.date,
-      }),
-      { throwOnError: true, context: 'StatsModal:addManualIO' }
-    )
+    await offlineInsert('io_logs', {
+      user_id: user.id,
+      type: ioForm.type,
+      category: ioForm.category,
+      minutes: parseInt(ioForm.minutes),
+      date: ioForm.date,
+    })
     setIoForm(f => ({ ...f, category: '', minutes: 25 }))
     fetchIOHistory()
   }
 
   const deleteIOLog = async (id) => {
     if (!user?.id) return
-    await safeMutate(
-      supabase.from('io_logs').delete().eq('id', id).eq('user_id', user.id),
-      { throwOnError: true, context: 'StatsModal:deleteIOLog' }
-    )
+    await offlineDelete('io_logs', { id, user_id: user.id })
     fetchIOHistory()
   }
 

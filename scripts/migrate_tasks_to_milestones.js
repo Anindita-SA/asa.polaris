@@ -17,7 +17,7 @@ async function main() {
 
   // Find the tasks we inserted (they start with "Master's App:" or are the specific manual ones)
   const titles = [
-    "Agri energy survey paper — Draft/Phase 1",
+    "Agri energy survey paper ï¿½ Draft/Phase 1",
     "Swedish Institute Scholarship Opens",
     "ISFiT27 Results",
     "IELTS Retake (Computer-delivered)",

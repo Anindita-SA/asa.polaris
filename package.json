@@ -1,7 +1,7 @@
 {
   "name": "asa-polaris",
   "private": true,
-  "version": "1.2.28",
+  "version": "1.2.34",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -42,4 +42,3 @@
     "xlsx": "^0.18.5"
   }
 }
-

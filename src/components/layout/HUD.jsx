@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../../lib/supabase'
+import { offlineSelect } from '../../lib/offlineApi'
 import { useAuth } from '../../hooks/useAuth'
 import { getLevelInfo } from '../../data/defaults'
 import { Star, Edit2, Check, Menu, X, PanelRightClose, PanelRightOpen, WifiOff, Settings, LogOut } from 'lucide-react'
@@ -25,16 +25,14 @@ const HUD = ({ activeView, setActiveView, rightPanelOpen, setRightPanelOpen }) =
       const alerts = [];
       const today = new Date().toLocaleDateString('en-CA');
       
-      const { data: brief } = await supabase.from('morning_briefs').select('id').eq('user_id', profile.id).eq('date', today).maybeSingle();
+      const { data: briefData } = await offlineSelect('morning_briefs', { user_id: profile.id, date: today });
+      const brief = briefData?.[0];
       if (!brief) alerts.push('Morning Brief Scout failed to run or has not run today.');
 
       const yesterday = new Date();
       yesterday.setHours(yesterday.getHours() - 24);
-      const { count: untriaged } = await supabase.from('tasks')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', profile.id)
-        .eq('status', 'inbox')
-        .lt('created_at', yesterday.toISOString());
+      const { data: allTasks } = await offlineSelect('tasks', { user_id: profile.id });
+      const untriaged = (allTasks || []).filter(t => t.status === 'inbox' && t.created_at && t.created_at < yesterday.toISOString()).length;
       
       if (untriaged > 0) alerts.push(`Task Triage offline or falling behind (${untriaged} old tasks in inbox).`);
 
@@ -72,10 +70,10 @@ const HUD = ({ activeView, setActiveView, rightPanelOpen, setRightPanelOpen }) =
     <>
       <div className="fixed top-0 left-0 right-0 z-50 glass border-b border-pulsar/30">
         {/* ── Row 1: Logo + Clarity Anchor + Nav (desktop) + Bars + Logout ── */}
-        <div className="flex items-center h-14 px-4 gap-3">
+        <div className="flex items-center h-14 px-3 sm:px-4 gap-2 sm:gap-3 justify-between sm:justify-start">
           {/* Logo */}
           <button 
-            className="flex items-center gap-2 min-w-fit cursor-pointer hover:opacity-80 transition-opacity"
+            className="flex items-center gap-2 min-w-fit shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
             onClick={() => window.location.reload()}
             title="Hard Refresh"
           >
@@ -144,27 +142,27 @@ const HUD = ({ activeView, setActiveView, rightPanelOpen, setRightPanelOpen }) =
           {/* Stacked bars: XP + IO */}
           <div 
             onClick={() => setIsStatsOpen(true)} 
-            className="relative flex flex-col gap-0.5 shrink min-w-0 max-w-[280px] sm:max-w-[340px] cursor-pointer group hover:bg-pulsar/10 p-1 rounded transition-colors -ml-1"
+            className="relative flex flex-col gap-0.5 shrink min-w-0 max-w-[200px] sm:max-w-[340px] ml-auto sm:ml-0 cursor-pointer group hover:bg-pulsar/10 p-1 rounded transition-colors"
           >
             {systemAlerts.length > 0 && (
               <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse z-10" />
             )}
             {/* XP row */}
-            <div className="flex items-center gap-2 min-w-0">
+            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
               <span 
                 className="text-xs font-mono uppercase tracking-widest text-gold truncate max-w-[110px] xl:max-w-[160px] hidden sm:inline group-hover:text-nova transition-colors shrink"
                 title={current.name}
               >
                 {current.name}
               </span>
-              <div className="flex-1 min-w-[32px] h-1.5 bg-stardust rounded-xl overflow-hidden shrink">
+              <div className="flex-1 min-w-[24px] sm:min-w-[32px] h-1.5 bg-stardust rounded-xl overflow-hidden shrink">
                 <div
                   className="h-full bg-gold rounded-xl xp-bar-fill transition-all duration-700"
                   style={{ width: `${progress}%` }}
                 />
               </div>
-              <span className="text-xs font-mono text-nova/60 whitespace-nowrap shrink-0">{xp}{next ? `/${next.minXp}` : ''}</span>
-              <span className="text-xs font-mono uppercase tracking-wider text-nova group-hover:text-gold transition-colors shrink-0">Lv.{current.level}</span>
+              <span className="text-[11px] sm:text-xs font-mono text-nova/60 whitespace-nowrap shrink-0">{xp}{next ? `/${next.minXp}` : ''}</span>
+              <span className="text-[11px] sm:text-xs font-mono uppercase tracking-wider text-nova group-hover:text-gold transition-colors shrink-0">Lv.{current.level}</span>
             </div>
             {/* IO row */}
             <div className="hidden md:block pointer-events-none min-w-0">
@@ -173,7 +171,7 @@ const HUD = ({ activeView, setActiveView, rightPanelOpen, setRightPanelOpen }) =
           </div>
 
           {/* Action Icons */}
-          <div className="flex items-center gap-1 shrink-0 ml-1">
+          <div className="flex items-center gap-1 shrink-0">
             <button 
               onClick={() => setIsSettingsOpen(true)} 
               className="text-nova/60 hover:text-gold transition-colors p-1.5 rounded hover:bg-pulsar/10 cursor-pointer" 

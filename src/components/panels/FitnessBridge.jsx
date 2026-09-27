@@ -1,13 +1,21 @@
 import { generateLlmResponse } from '../../lib/llm';
 import { useEffect, useState } from 'react'
-import { supabase } from '../../lib/supabase'
+import { offlineSelect } from '../../lib/offlineApi'
 import { useAuth } from '../../hooks/useAuth'
-import { Activity, Scale, Utensils, Zap } from 'lucide-react'
+import { Activity, Scale, Utensils, Zap, Users, Gamepad2, Compass, Send, ChevronDown } from 'lucide-react'
 import { format, subDays } from 'date-fns'
 import RelationshipsView from './RelationshipsView'
 import PlayView from '../orbit/PlayView'
 import HardwareScoutPanel from './HardwareScoutPanel'
 import ReachOutView from './ReachOutView'
+
+const FITNESS_SUB_TABS = [
+  { id: 'fitness', label: 'Fitness', icon: Activity },
+  { id: 'relationships', label: 'Social', icon: Users },
+  { id: 'play', label: 'Play', icon: Gamepad2 },
+  { id: 'scout', label: 'Scout', icon: Compass },
+  { id: 'reach_out', label: 'Reach Out', icon: Send },
+]
 
 const FitnessBridge = () => {
   const { user, addXP } = useAuth()
@@ -28,16 +36,28 @@ const FitnessBridge = () => {
     try {
       const since = format(subDays(new Date(), 14), 'yyyy-MM-dd')
       const [w, m, wt] = await Promise.all([
-        supabase.from('workout_logs').select('*').eq('user_id', user.id).gte('log_date', since).order('logged_at', { ascending: false }).limit(50),
-        supabase.from('meal_logs').select('*').eq('user_id', user.id).gte('log_date', since).order('logged_at', { ascending: false }).limit(30),
-        supabase.from('weight_logs').select('*').eq('user_id', user.id).order('logged_at', { ascending: false }).limit(14),
+        offlineSelect('workout_logs', { user_id: user.id }),
+        offlineSelect('meal_logs', { user_id: user.id }),
+        offlineSelect('weight_logs', { user_id: user.id }),
       ])
+
+      const wFiltered = (w.data || [])
+        .filter(r => !r.log_date || r.log_date >= since)
+        .sort((a, b) => new Date(b.logged_at || b.log_date || 0) - new Date(a.logged_at || a.log_date || 0))
+        .slice(0, 50)
+      const mFiltered = (m.data || [])
+        .filter(r => !r.log_date || r.log_date >= since)
+        .sort((a, b) => new Date(b.logged_at || b.log_date || 0) - new Date(a.logged_at || a.log_date || 0))
+        .slice(0, 30)
+      const wtFiltered = (wt.data || [])
+        .sort((a, b) => new Date(b.logged_at || b.log_date || 0) - new Date(a.logged_at || a.log_date || 0))
+        .slice(0, 14)
 
       // Group workout rows by date - each unique date = one session
       const mapDate = (arr) => (arr || []).map(r => ({ ...r, log_date: r.log_date || r.logged_at?.slice(0, 10) }))
-      const wData = mapDate(w.data)
-      const mData = mapDate(m.data)
-      const wtData = mapDate(wt.data)
+      const wData = mapDate(wFiltered)
+      const mData = mapDate(mFiltered)
+      const wtData = mapDate(wtFiltered)
 
       const sessionDates = [...new Set(wData.map(r => r.log_date))]
       setWorkouts(sessionDates.map(date => {
@@ -110,6 +130,10 @@ const FitnessBridge = () => {
     : null
 
   const [activeSubTab, setActiveSubTab] = useState('fitness')
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
+
+  const currentSubTab = FITNESS_SUB_TABS.find(t => t.id === activeSubTab) || FITNESS_SUB_TABS[0]
+  const CurrentSubIcon = currentSubTab.icon
 
   if (loading) {
     return (
@@ -133,38 +157,71 @@ const FitnessBridge = () => {
     <div className="h-full overflow-y-auto p-6">
       <div className="max-w-2xl mx-auto space-y-6">
         
-        {/* Navigation Pills */}
-        <div className="flex bg-void/70 p-1 rounded-lg border border-pulsar/30 max-w-lg mx-auto">
-          <button 
-            onClick={() => setActiveSubTab('fitness')}
-            className={`flex-1 py-1.5 text-xs font-mono uppercase tracking-wider rounded transition-colors ${activeSubTab === 'fitness' ? 'bg-stardust/80 text-starlight' : 'text-nova/60 hover:text-nova/80'}`}
+        {/* Navigation Pills (Desktop) */}
+        <div className="hidden md:flex bg-void/70 p-1 rounded-lg border border-pulsar/30 max-w-lg mx-auto overflow-x-auto scrollbar-hide shrink-0 gap-1">
+          {FITNESS_SUB_TABS.map(tab => {
+            const isActive = activeSubTab === tab.id
+            return (
+              <button 
+                key={tab.id}
+                onClick={() => setActiveSubTab(tab.id)}
+                className={`flex-1 min-w-[70px] shrink-0 px-3 py-1.5 text-xs font-mono uppercase tracking-wider rounded transition-colors cursor-pointer ${
+                  isActive ? 'bg-stardust/80 text-starlight font-bold' : 'text-nova/60 hover:text-nova/80'
+                }`}
+              >
+                {tab.label}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Navigation Dropdown (Mobile) */}
+        <div className="flex md:hidden relative justify-between items-center bg-void/70 p-2 rounded-lg border border-pulsar/30">
+          <div className="flex items-center gap-2">
+            <CurrentSubIcon className="w-4 h-4 text-amber-400" />
+            <span className="font-display text-sm text-starlight font-bold">{currentSubTab.label}</span>
+          </div>
+
+          <button
+            onClick={() => setIsMenuOpen(v => !v)}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono uppercase tracking-wider glass border border-pulsar/40 text-starlight hover:bg-pulsar/10 transition-all cursor-pointer active:scale-95"
+            aria-label="Toggle Orbit sub-tab menu"
           >
-            Fitness
+            <span className="text-[11px] text-nova/70 font-mono">Switch</span>
+            <ChevronDown className={`w-3.5 h-3.5 text-nova/60 transition-transform duration-200 ${isMenuOpen ? 'rotate-180' : ''}`} />
           </button>
-          <button 
-            onClick={() => setActiveSubTab('relationships')}
-            className={`flex-1 py-1.5 text-xs font-mono uppercase tracking-wider rounded transition-colors ${activeSubTab === 'relationships' ? 'bg-stardust/80 text-starlight' : 'text-nova/60 hover:text-nova/80'}`}
-          >
-            Social
-          </button>
-          <button 
-            onClick={() => setActiveSubTab('play')}
-            className={`flex-1 py-1.5 text-xs font-mono uppercase tracking-wider rounded transition-colors ${activeSubTab === 'play' ? 'bg-stardust/80 text-starlight' : 'text-nova/60 hover:text-nova/80'}`}
-          >
-            Play
-          </button>
-          <button 
-            onClick={() => setActiveSubTab('scout')}
-            className={`flex-1 py-1.5 text-xs font-mono uppercase tracking-wider rounded transition-colors ${activeSubTab === 'scout' ? 'bg-stardust/80 text-starlight' : 'text-nova/60 hover:text-nova/80'}`}
-          >
-            Scout
-          </button>
-          <button 
-            onClick={() => setActiveSubTab('reach_out')}
-            className={`flex-1 py-1.5 text-xs font-mono uppercase tracking-wider rounded transition-colors ${activeSubTab === 'reach_out' ? 'bg-stardust/80 text-starlight' : 'text-nova/60 hover:text-nova/80'}`}
-          >
-            Reach Out
-          </button>
+
+          {isMenuOpen && (
+            <>
+              <div 
+                className="fixed inset-0 z-40 bg-black/50 backdrop-blur-xs" 
+                onClick={() => setIsMenuOpen(false)} 
+              />
+              <div className="absolute right-2 top-full mt-2 z-50 w-48 glass border border-pulsar/40 rounded-xl p-1.5 shadow-2xl bg-[#030712]/95 backdrop-blur-xl space-y-1">
+                {FITNESS_SUB_TABS.map(tab => {
+                  const Icon = tab.icon
+                  const isActive = activeSubTab === tab.id
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => {
+                        setActiveSubTab(tab.id)
+                        setIsMenuOpen(false)
+                      }}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-mono uppercase tracking-wider text-left transition-all cursor-pointer ${
+                        isActive
+                          ? 'text-amber-400 font-bold bg-pulsar/20 border border-pulsar/40'
+                          : 'text-nova/70 hover:text-starlight hover:bg-white/5 border border-transparent'
+                      }`}
+                    >
+                      <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-amber-400' : 'text-nova/60'}`} />
+                      <span className="truncate">{tab.label}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </>
+          )}
         </div>
 
         {activeSubTab === 'relationships' ? (

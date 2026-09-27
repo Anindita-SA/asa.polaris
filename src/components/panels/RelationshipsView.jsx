@@ -3,7 +3,7 @@ import { Plus, Users, Settings, Check, Phone, Globe, Calendar, Edit2, Trash2, X 
 import { useAuth } from '../../hooks/useAuth'
 import { useContactReminders } from '../../hooks/useContactReminders'
 import { useCelebration } from '../../hooks/useCelebration'
-import { supabase } from '../../lib/supabase'
+import { offlineInsert, offlineUpdate, offlineDelete } from '../../lib/offlineApi'
 import { safeMutate } from '../../lib/safeMutate'
 
 const TIER_DEFAULTS = {
@@ -90,12 +90,12 @@ export default function RelationshipsView() {
     }
     if (editingContact) {
       await safeMutate(
-        supabase.from('contacts').update(payload).eq('id', editingContact.id).eq('user_id', user.id),
+        offlineUpdate('contacts', { id: editingContact.id, user_id: user.id }, payload),
         { throwOnError: true, context: 'RelationshipsView:saveContactUpdate' }
       )
     } else {
       await safeMutate(
-        supabase.from('contacts').insert(payload),
+        offlineInsert('contacts', payload),
         { throwOnError: true, context: 'RelationshipsView:saveContactInsert' }
       )
     }
@@ -107,7 +107,7 @@ export default function RelationshipsView() {
     if (!user?.id) return
     if (window.confirm("Delete this contact?")) {
       await safeMutate(
-        supabase.from('contacts').delete().eq('id', id).eq('user_id', user.id),
+        offlineDelete('contacts', { id, user_id: user.id }),
         { throwOnError: true, context: 'RelationshipsView:deleteContact' }
       )
       fetchContacts()
@@ -123,7 +123,7 @@ export default function RelationshipsView() {
     const toUpdate = contacts.filter(c => c.category === oldCat)
     for (const c of toUpdate) {
       await safeMutate(
-        supabase.from('contacts').update({ category: cleanNew || null }).eq('id', c.id).eq('user_id', user.id),
+        offlineUpdate('contacts', { id: c.id, user_id: user.id }, { category: cleanNew || null }),
         { throwOnError: true, context: 'RelationshipsView:renameCategory' }
       )
     }

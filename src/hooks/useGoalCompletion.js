@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabase';
 import { safeMutate } from '../lib/safeMutate';
 import { useAuth } from './useAuth';
 import { useCelebration } from './useCelebration';
+import { offlineSelect, offlineUpdate } from '../lib/offlineApi';
 
 export const useGoalCompletion = () => {
   const { user, trackXP, providerToken } = useAuth();
@@ -23,6 +24,51 @@ export const useGoalCompletion = () => {
     }
   };
 
+  const performRollup = async (goalId, userId) => {
+    let currentId = goalId;
+    while (currentId) {
+      const { data: goalDataList } = await offlineSelect('goals', { id: currentId, user_id: userId });
+      const goalData = goalDataList && goalDataList[0];
+      if (!goalData || !goalData.parent_goal_id) break;
+
+      const parentId = goalData.parent_goal_id;
+
+      const { data: siblings } = await offlineSelect('goals', { parent_goal_id: parentId, user_id: userId });
+      if (!siblings || siblings.length === 0) break;
+
+      let sum = 0;
+      for (const sib of siblings) {
+        const t = sib.target || 1;
+        sum += Math.min(sib.current / t, 1);
+      }
+      const avgProgress = sum / siblings.length;
+
+      const { data: parentGoalList } = await offlineSelect('goals', { id: parentId, user_id: userId });
+      const parentGoal = parentGoalList && parentGoalList[0];
+      if (!parentGoal) break;
+
+      const parentTarget = parentGoal.target || 1;
+      // Round to 2 decimal places to avoid float precision issues, or just use it directly
+      const newCurrent = Math.round(parentTarget * avgProgress * 100) / 100;
+      const completed = newCurrent >= parentTarget;
+      const wasCompleted = parentGoal.completed;
+
+      await offlineUpdate('goals', { id: parentId, user_id: userId }, { current: newCurrent, completed });
+
+      if (completed && !wasCompleted) {
+        trackXP(wasCompleted, completed, parentGoal.xp_reward || 50);
+      }
+
+      if (completed && !wasCompleted && parentGoal.google_task_id) {
+        patchGoogleTask(parentGoal.google_task_id, 'completed');
+      } else if (!completed && wasCompleted && parentGoal.google_task_id) {
+        patchGoogleTask(parentGoal.google_task_id, 'needsAction');
+      }
+
+      currentId = parentId;
+    }
+  };
+
   const toggleGoal = async (goal, onUpdate, e) => {
     if (!user?.id) return;
     const completed = !goal.completed;
@@ -33,10 +79,7 @@ export const useGoalCompletion = () => {
       onUpdate({ ...goal, current: newCurrent, completed });
     }
 
-    await safeMutate(
-      supabase.from('goals').update({ current: newCurrent, completed }).eq('id', goal.id).eq('user_id', user.id),
-      { throwOnError: true, context: 'useGoalCompletion:toggleGoal' }
-    );
+    await offlineUpdate('goals', { id: goal.id, user_id: user.id }, { current: newCurrent, completed });
 
     if (completed && !wasCompleted) celebrate(e ? { x: e.clientX, y: e.clientY } : undefined);
     trackXP(wasCompleted, completed, goal.xp_reward || 50);
@@ -46,6 +89,8 @@ export const useGoalCompletion = () => {
     } else if (!completed && goal.google_task_id) {
       patchGoogleTask(goal.google_task_id, 'needsAction');
     }
+
+    await performRollup(goal.id, user.id);
   };
 
   const updateGoalProgress = async (goal, delta, onUpdate, e) => {
@@ -58,10 +103,7 @@ export const useGoalCompletion = () => {
       onUpdate({ ...goal, current: newCurrent, completed });
     }
 
-    await safeMutate(
-      supabase.from('goals').update({ current: newCurrent, completed }).eq('id', goal.id).eq('user_id', user.id),
-      { throwOnError: true, context: 'useGoalCompletion:updateGoalProgress' }
-    );
+    await offlineUpdate('goals', { id: goal.id, user_id: user.id }, { current: newCurrent, completed });
 
     if (completed && !wasCompleted) celebrate(e ? { x: e.clientX, y: e.clientY } : undefined);
     trackXP(wasCompleted, completed, goal.xp_reward || 50);
@@ -71,7 +113,10 @@ export const useGoalCompletion = () => {
     } else if (!completed && wasCompleted && goal.google_task_id) {
       patchGoogleTask(goal.google_task_id, 'needsAction');
     }
+
+    await performRollup(goal.id, user.id);
   };
 
   return { toggleGoal, updateGoalProgress };
 };
+

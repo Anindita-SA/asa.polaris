@@ -2,7 +2,7 @@
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import DailyTasks from './DailyTasks'
-import { supabase } from '../../lib/supabase'
+import { offlineSelect, offlineInsert, offlineUpdate, offlineDelete } from '../../lib/offlineApi'
 
 const mockUser = { id: 'user-456' }
 const mockTrackXP = vi.fn()
@@ -20,50 +20,33 @@ vi.mock('../../lib/sound', () => ({
   playChime: vi.fn()
 }))
 
+vi.mock('../../lib/offlineApi', () => ({
+  offlineSelect: vi.fn(),
+  offlineInsert: vi.fn(),
+  offlineUpdate: vi.fn(),
+  offlineDelete: vi.fn()
+}))
+
 vi.mock('../../lib/supabase', () => ({
   supabase: {
     from: vi.fn()
   }
 }))
 
-const createChainableBuilder = (resolvedValue = { data: null, error: null }) => {
-  const builder = {}
-  const methods = ['select', 'insert', 'update', 'delete', 'eq', 'neq', 'lt', 'lte', 'gt', 'gte', 'order', 'limit']
-  methods.forEach(m => {
-    builder[m] = vi.fn(() => builder)
-  })
-  builder.single = vi.fn(() => Promise.resolve(resolvedValue))
-  builder.maybeSingle = vi.fn(() => Promise.resolve(resolvedValue))
-  builder.then = (onFulfilled, onRejected) => Promise.resolve(resolvedValue).then(onFulfilled, onRejected)
-  return builder
-}
-
 describe('DailyTasks component', () => {
   const initialTasks = [
-    { id: 'task-1', title: 'Write unit tests', completed: false, recurring: false, date: '2026-09-19' }
+    { id: 'task-1', title: 'Write unit tests', completed: false, recurring: false, date: '2026-09-19', created_at: '2026-09-19T08:00:00Z' }
   ]
 
   beforeEach(() => {
     vi.clearAllMocks()
-    supabase.from.mockImplementation((table) => {
-      if (table === 'daily_tasks') {
-        const selectBuilder = createChainableBuilder({ data: initialTasks, error: null })
-        const updateBuilder = createChainableBuilder({ data: null, error: null })
-        const insertBuilder = createChainableBuilder({
-          data: { id: 'task-2', title: 'New target task', completed: false, recurring: false, date: '2026-09-19' },
-          error: null
-        })
-        const deleteBuilder = createChainableBuilder({ data: null, error: null })
-
-        return {
-          select: selectBuilder.select,
-          update: updateBuilder.update,
-          insert: insertBuilder.insert,
-          delete: deleteBuilder.delete
-        }
-      }
-      return createChainableBuilder()
-    })
+    offlineSelect.mockResolvedValue({ data: initialTasks, error: null })
+    offlineInsert.mockImplementation(async (table, payload) => ({
+      data: [{ ...payload, id: payload.id || 'task-2' }],
+      error: null
+    }))
+    offlineUpdate.mockResolvedValue({ data: [], error: null })
+    offlineDelete.mockResolvedValue({ data: [], error: null })
   })
 
   afterEach(() => {
@@ -76,22 +59,10 @@ describe('DailyTasks component', () => {
     await waitFor(() => {
       expect(screen.getByText('Write unit tests')).toBeDefined()
     })
+    expect(offlineSelect).toHaveBeenCalledWith('daily_tasks', { user_id: 'user-456', date: '2026-09-19' })
   })
 
   it('toggles task completion and grants XP on success', async () => {
-    const updateBuilder = createChainableBuilder({ data: null, error: null })
-    const selectBuilder = createChainableBuilder({ data: initialTasks, error: null })
-
-    supabase.from.mockImplementation((table) => {
-      if (table === 'daily_tasks') {
-        return {
-          select: selectBuilder.select,
-          update: updateBuilder.update
-        }
-      }
-      return createChainableBuilder()
-    })
-
     render(<DailyTasks dateStr="2026-09-19" />)
 
     await waitFor(() => {
@@ -103,7 +74,7 @@ describe('DailyTasks component', () => {
     fireEvent.click(buttons[1])
 
     await waitFor(() => {
-      expect(updateBuilder.update).toHaveBeenCalledWith({ completed: true })
+      expect(offlineUpdate).toHaveBeenCalledWith('daily_tasks', { id: 'task-1' }, { completed: true })
       expect(mockCelebrate).toHaveBeenCalled()
       expect(mockTrackXP).toHaveBeenCalled()
     })
@@ -111,18 +82,7 @@ describe('DailyTasks component', () => {
 
   it('does NOT update local state or grant XP if toggleTask encounters database error', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    const updateBuilder = createChainableBuilder({ data: null, error: { message: 'Database failure' } })
-    const selectBuilder = createChainableBuilder({ data: initialTasks, error: null })
-
-    supabase.from.mockImplementation((table) => {
-      if (table === 'daily_tasks') {
-        return {
-          select: selectBuilder.select,
-          update: updateBuilder.update
-        }
-      }
-      return createChainableBuilder()
-    })
+    offlineUpdate.mockResolvedValueOnce({ data: null, error: { message: 'Database failure' } })
 
     render(<DailyTasks dateStr="2026-09-19" />)
 
@@ -134,7 +94,7 @@ describe('DailyTasks component', () => {
     fireEvent.click(buttons[1])
 
     await waitFor(() => {
-      expect(updateBuilder.update).toHaveBeenCalled()
+      expect(offlineUpdate).toHaveBeenCalled()
       expect(consoleSpy).toHaveBeenCalledWith('Failed to update daily task:', { message: 'Database failure' })
       expect(mockCelebrate).not.toHaveBeenCalled()
       expect(mockTrackXP).not.toHaveBeenCalled()
@@ -145,19 +105,8 @@ describe('DailyTasks component', () => {
 
   it('does not add task to local list if createTask encounters database error', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    const selectBuilder = createChainableBuilder({ data: [], error: null })
-    const insertBuilder = createChainableBuilder({ data: null, error: { message: 'Insert failed' } })
-
-    supabase.from.mockImplementation((table) => {
-      if (table === 'daily_tasks') {
-        return {
-          select: selectBuilder.select,
-          insert: insertBuilder.insert,
-          update: createChainableBuilder().update
-        }
-      }
-      return createChainableBuilder()
-    })
+    offlineSelect.mockResolvedValue({ data: [], error: null })
+    offlineInsert.mockResolvedValueOnce({ data: null, error: { message: 'Insert failed' } })
 
     render(<DailyTasks dateStr="2026-09-19" />)
 

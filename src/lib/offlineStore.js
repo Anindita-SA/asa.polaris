@@ -56,6 +56,26 @@ db.version(6).stores({
   sync_errors: '++localId, table, operation, error_code, created_at'
 });
 
+db.version(7).stores({
+  nudges: 'id, user_id, active',
+  contacts: 'id, user_id, category'
+});
+
+db.version(8).stores({
+  wins: 'id, user_id, log_date',
+  mood_logs: 'id, user_id, log_date',
+  highlights: 'id, user_id, date',
+  io_logs: 'id, user_id, date',
+  pomodoro_logs: 'id, user_id, date',
+  morning_briefs: 'id, user_id, date',
+  user_settings: 'id, user_id',
+  outreach_targets: 'id, user_id, status',
+  habit_logs: 'id, user_id, habit_id, date',
+  meal_logs: 'id, user_id, log_date',
+  workout_logs: 'id, user_id, log_date',
+  weight_logs: 'id, user_id, log_date'
+});
+
 export default db;
 
 

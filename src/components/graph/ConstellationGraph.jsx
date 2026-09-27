@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { safeMutate } from '../../lib/safeMutate'
 import { useAuth } from '../../hooks/useAuth'
 import { Plus, X } from 'lucide-react'
+import { offlineSelect, offlineInsert, offlineUpdate, generateUUID } from '../../lib/offlineApi'
 
 const COLORS = {
   root:     '#f59e0b',
@@ -34,19 +35,16 @@ const ConstellationGraph = forwardRef(({ onNodeSelect, isActive = true }, ref) =
   // -- fetch --
   const fetchNodes = useCallback(async () => {
     if (!user?.id) return
-    const { data, error } = await supabase.from('nodes').select('*').eq('user_id', user.id)
-    if (error) return
+    const { data } = await offlineSelect('nodes', { user_id: user.id })
 
     let rows = data || []
     if (!rows.some(n => n.type === 'root')) {
-      const { data: root } = await safeMutate(
-        supabase.from('nodes').insert({
-          user_id: user.id, title: 'Polaris', type: 'root',
-          description: 'Your North Star', x_pos: 0.5, y_pos: 0.5,
-        }).select().single(),
-        { throwOnError: false, context: 'ConstellationGraph:insertRoot' }
-      )
-      if (root) rows = [root, ...rows]
+      const { data: root } = await offlineInsert('nodes', {
+        id: generateUUID(),
+        user_id: user.id, title: 'Polaris', type: 'root',
+        description: 'Your North Star', x_pos: 0.5, y_pos: 0.5,
+      })
+      if (root && root[0]) rows = [root[0], ...rows]
     }
 
     setNodes(rows)
@@ -183,11 +181,9 @@ const ConstellationGraph = forwardRef(({ onNodeSelect, isActive = true }, ref) =
         .on('end',   async (e, d) => {
           if (!e.active) sim.alphaTarget(0)
           d.fx = null; d.fy = null
-          if (isFinite(d.x) && isFinite(d.y) && user?.id)
-            await safeMutate(
-              supabase.from('nodes').update({ x_pos: d.x / w, y_pos: d.y / h }).eq('id', d.id).eq('user_id', user.id),
-              { throwOnError: false, context: 'ConstellationGraph:updatePosition' }
-            )
+          if (isFinite(d.x) && isFinite(d.y) && user?.id) {
+            await offlineUpdate('nodes', { id: d.id, user_id: user.id }, { x_pos: d.x / w, y_pos: d.y / h })
+          }
         })
     )
 
@@ -221,14 +217,12 @@ const ConstellationGraph = forwardRef(({ onNodeSelect, isActive = true }, ref) =
   const addNode = async () => {
     if (!form.title.trim() || !user?.id) return
     const root = nodes.find(n => n.type === 'root')
-    await safeMutate(
-      supabase.from('nodes').insert({
-        user_id: user.id, title: form.title.trim(), type: form.type,
-        description: form.description, parent_id: root?.id ?? null,
-        x_pos: 0.45 + Math.random() * 0.1, y_pos: 0.45 + Math.random() * 0.1,
-      }),
-      { throwOnError: true, context: 'ConstellationGraph:addNode' }
-    )
+    await offlineInsert('nodes', {
+      id: generateUUID(),
+      user_id: user.id, title: form.title.trim(), type: form.type,
+      description: form.description, parent_id: root?.id ?? null,
+      x_pos: 0.45 + Math.random() * 0.1, y_pos: 0.45 + Math.random() * 0.1,
+    })
     setForm({ title: '', type: 'career', description: '' })
     setShowModal(false)
     fetchNodes()
@@ -241,7 +235,7 @@ const ConstellationGraph = forwardRef(({ onNodeSelect, isActive = true }, ref) =
   )
 
   return (
-    <div ref={containerRef} className="pl-16 md:pl-0" style={{ position: 'absolute', inset: 0 }}>
+    <div ref={containerRef} className="w-full h-full" style={{ position: 'absolute', inset: 0 }}>
       <svg ref={svgRef} style={{ display: 'block', touchAction: 'none' }} />
 
       <button onClick={() => setShowModal(true)}
@@ -252,7 +246,7 @@ const ConstellationGraph = forwardRef(({ onNodeSelect, isActive = true }, ref) =
       {showModal && (
         <div className="modal-overlay fixed inset-0 bg-void/80 z-50 flex items-end md:items-center justify-center p-0 md:p-4"
           onClick={e => e.target === e.currentTarget && setShowModal(false)}>
-          <div className="modal-content glass border border-pulsar/40 rounded-t-2xl rounded-b-none md:rounded-xl p-6 w-full w-full max-w-full md:max-w-sm space-y-4">
+          <div className="modal-content glass border border-pulsar/40 rounded-t-2xl rounded-b-none md:rounded-xl p-6 w-full max-w-full md:max-w-sm space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-display text-starlight">New Star</h3>
               <button onClick={() => setShowModal(false)}><X className="w-4 h-4 text-nova/60" /></button>

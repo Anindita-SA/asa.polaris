@@ -1,4 +1,5 @@
 import db from './offlineStore';
+import { supabase } from './supabase';
 import { enqueue } from './syncQueue';
 import { flushQueue } from './syncManager';
 
@@ -12,6 +13,22 @@ export const TABLES_REQUIRING_TITLE = [
   'nudges',
   'recurring_task_templates'
 ];
+
+export function generateUUID() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
+export function isValidUUID(str) {
+  if (typeof str !== 'string') return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str);
+}
 
 export function validateRowPayload(table, row) {
   if (!row || typeof row !== 'object' || Array.isArray(row)) {
@@ -42,13 +59,16 @@ export function validateRowPayload(table, row) {
   }
 
   const validatedRow = { ...row };
-  if (!validatedRow.id) {
-    validatedRow.id = typeof crypto !== 'undefined' && crypto.randomUUID
-      ? crypto.randomUUID()
-      : `id-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+  const isInvalidId = !validatedRow.id ||
+    typeof validatedRow.id === 'number' ||
+    /^\d+$/.test(String(validatedRow.id)) ||
+    (typeof validatedRow.id === 'string' && (validatedRow.id.startsWith('temp') || validatedRow.id.startsWith('ielts-mock-')));
+
+  if (isInvalidId) {
+    validatedRow.id = generateUUID();
   }
 
-  if (!row.id) {
+  if (!row.id || typeof row.id === 'number' || /^\d+$/.test(String(row.id)) || (typeof row.id === 'string' && (row.id.startsWith('temp') || row.id.startsWith('ielts-mock-')))) {
     row.id = validatedRow.id;
   }
 
@@ -62,7 +82,7 @@ export function validateRowPayload(table, row) {
 // Return data structure `{ data, error }` to match Supabase
 export async function offlineSelect(table, match = {}) {
   try {
-    if (!db[table]) {
+    if (!db || !db[table]) {
       return { data: [], error: null };
     }
 
@@ -105,7 +125,20 @@ export async function offlineSelect(table, match = {}) {
     return { data: cleanData, error: null };
   } catch (error) {
     console.error(`offlineSelect error on ${table}:`, error);
-    return { data: null, error };
+    // Fallback to Supabase if IndexedDB / Dexie is missing or throwing
+    if (typeof navigator !== 'undefined' && navigator.onLine && supabase?.from) {
+      try {
+        let query = supabase.from(table).select('*');
+        for (const key in match) {
+          query = query.eq(key, match[key]);
+        }
+        const { data: sbData, error: sbErr } = await query;
+        if (!sbErr && sbData) {
+          return { data: sbData, error: null };
+        }
+      } catch (sbEx) {}
+    }
+    return { data: [], error };
   }
 }
 

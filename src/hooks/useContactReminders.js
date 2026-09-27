@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../lib/supabase';
+import { offlineSelect, offlineUpdate } from '../lib/offlineApi';
 import { useAuth } from './useAuth';
 
 export const useContactReminders = () => {
@@ -9,16 +9,16 @@ export const useContactReminders = () => {
   const fetchContacts = useCallback(async () => {
     if (!user) return;
     
-    const { data, error } = await supabase
-      .from('contacts')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('active', true);
+    const { data: rawData, error } = await offlineSelect('contacts', {
+      user_id: user.id
+    });
 
     if (error) {
       console.error('Error fetching contacts:', error);
       return;
     }
+
+    const data = (rawData || []).filter(c => c.active !== false);
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -74,11 +74,9 @@ export const useContactReminders = () => {
     if (!user?.id) return;
     const today = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
     
-    const { error } = await supabase
-      .from('contacts')
-      .update({ last_contacted_at: today })
-      .eq('id', id)
-      .eq('user_id', user.id);
+    const { error } = await offlineUpdate('contacts', { id, user_id: user.id }, {
+      last_contacted_at: today
+    });
 
     if (error) {
       console.error('Error updating contact:', error);

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { useTodaysTasks } from '../../hooks/useTodaysTasks'
+import { offlineSelect, offlineInsert, offlineUpdate } from '../../lib/offlineApi'
 import { Settings, X, Maximize2, Minimize2, RotateCcw, ChevronDown, ChevronUp, Music, CheckCircle2, Target, ExternalLink } from 'lucide-react'
 
 import Starfield from '../layout/Starfield'
@@ -181,33 +182,39 @@ const PomodoroTimer = ({ mobilePill = false }) => {
 
   useEffect(() => {
     if (!user) return
-    supabase.from('nodes').select('id, title').eq('user_id', user.id).then(({ data }) => {
+    offlineSelect('nodes', { user_id: user.id }).then(({ data }) => {
       if (data) setNodes(data)
     })
-    supabase.from('goals').select('id, title, current, target, unit, completed').eq('user_id', user.id).eq('completed', false).then(({ data }) => {
+    offlineSelect('goals', { user_id: user.id, completed: false }).then(({ data }) => {
       if (data) setGoals(data)
     })
 
     const fetchMatrixTasks = async () => {
-      const { data } = await supabase
-        .from('tasks')
-        .select('*')
-        .eq('user_id', user.id)
-        .neq('status', 'done')
-        .not('quadrant', 'is', null)
+      const { data } = await offlineSelect('tasks', { user_id: user.id })
       if (data) {
-        setMatrixTasks(data.map(t => ({ ...t, completed: t.status === 'done' })))
+        const filtered = data
+          .filter(t => t.status !== 'done' && t.quadrant !== null && t.quadrant !== undefined)
+          .map(t => ({ ...t, completed: t.status === 'done' }))
+        setMatrixTasks(filtered)
       }
     }
     fetchMatrixTasks()
     
+    const handleTasksChanged = () => {
+      fetchMatrixTasks()
+    }
+    window.addEventListener('polaris-tasks-changed', handleTasksChanged)
+
     const channelName = `pomodoro-tasks-${Math.random().toString(36).slice(2, 9)}`
     const channel = supabase.channel(channelName)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => {
         fetchMatrixTasks()
       }).subscribe()
       
-    return () => supabase.removeChannel(channel)
+    return () => {
+      window.removeEventListener('polaris-tasks-changed', handleTasksChanged)
+      supabase.removeChannel(channel)
+    }
   }, [user])
 
   // Persistence effect
@@ -277,10 +284,7 @@ const PomodoroTimer = ({ mobilePill = false }) => {
   useEffect(() => {
     if (isRunning && timeLeft > 0) {
       if (currentTask && currentTask.id) {
-        supabase.from('tasks')
-          .update({ skip_count: 0 })
-          .eq('id', currentTask.id)
-          .eq('user_id', user.id)
+        offlineUpdate('tasks', { id: currentTask.id, user_id: user.id }, { skip_count: 0 })
           .then(({ error }) => {
             if (error) console.error('Failed to reset skip_count:', error)
             else console.log(`Reset skip_count for task ${currentTask.id}`)
@@ -318,25 +322,22 @@ const PomodoroTimer = ({ mobilePill = false }) => {
 
         const handleFocusCompletion = async () => {
           try {
-            const { error: focusErr } = await supabase.from('focus_sessions').insert({
+            const { error: pomoErr } = await offlineInsert('pomodoro_logs', {
               user_id: user.id,
+              task_id: currentTask?.id || null,
               duration_minutes: mins,
-              mode: 'focus',
-              io_type: ioType,
-              comment: finalTitle,
-              node_title: linkedItem || null,
-              goal_id: linkedGoal || null,
-              created_at: new Date().toISOString()
+              completed_at: new Date().toISOString(),
+              xp_earned: xpEarned
             })
 
-            if (focusErr) {
-              console.error('Failed to save focus session:', focusErr)
+            if (pomoErr) {
+              console.error('Failed to save pomodoro log:', pomoErr)
             } else if (addXP) {
               addXP(xpEarned)
             }
 
             // Sync with IO Tracker automatically
-            const { error: ioErr } = await supabase.from('io_logs').insert({
+            const { error: ioErr } = await offlineInsert('io_logs', {
               user_id: user.id,
               type: ioType,
               category: ioType === 'input' ? 'reading' : 'creating',
@@ -350,7 +351,7 @@ const PomodoroTimer = ({ mobilePill = false }) => {
               window.dispatchEvent(new CustomEvent('polaris-io-logs-changed'))
             }
           } catch (err) {
-            console.error('Error saving focus session or IO log:', err)
+            console.error('Error saving pomodoro log or IO log:', err)
           }
         }
 

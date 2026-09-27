@@ -1,6 +1,5 @@
 import { useState, useCallback } from 'react';
-import { supabase } from '../lib/supabase';
-import { safeMutate } from '../lib/safeMutate';
+import { offlineSelect, offlineInsert } from '../lib/offlineApi';
 import { useAuth } from './useAuth';
 import { useGoalCompletion } from './useGoalCompletion';
 
@@ -45,14 +44,11 @@ export const useGoogleTasks = () => {
       // a. Fetch all Google Tasks
       const gTasks = await fetchGoogleTasks(providerToken);
 
-      // b. Fetch today's daily goals from Supabase
-      const { data: currentGoals, error } = await supabase
-        .from('goals')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('scope', 'daily');
+      // b. Fetch today's daily goals from Dexie / offline store
+      const { data: allGoals, error } = await offlineSelect('goals', { user_id: user.id });
 
       if (error) throw error;
+      const currentGoals = (allGoals || []).filter(g => g.scope === 'daily');
 
       const gTaskMap = new Map(gTasks.map(t => [t.id, t]));
       const goalMapByGTaskId = new Map(
@@ -78,11 +74,8 @@ export const useGoogleTasks = () => {
         }
       }
       
-      if (toInsert.length > 0) {
-        await safeMutate(
-          supabase.from('goals').insert(toInsert),
-          { throwOnError: true, context: 'useGoogleTasks:insertImportedGoals' }
-        );
+      for (const item of toInsert) {
+        await offlineInsert('goals', item);
       }
 
       // d. For each Google Task marked completed remotely: mark matching Polaris goal completed

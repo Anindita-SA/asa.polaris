@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../../lib/supabase'
-import { safeMutate } from '../../lib/safeMutate'
+import { offlineSelect, offlineInsert } from '../../lib/offlineApi'
 import { useAuth } from '../../hooks/useAuth'
 import { Plus, X } from 'lucide-react'
 import { XP } from '../../data/xpRewards'
@@ -23,11 +22,10 @@ const IOBalanceBar = () => {
   }, [user?.id])
 
   const fetchLogs = async () => {
-    const { data } = await supabase
-      .from('io_logs')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('date', today)
+    const { data } = await offlineSelect('io_logs', {
+      user_id: user.id,
+      date: today
+    })
     setLogs(data || [])
   }
 
@@ -43,16 +41,13 @@ const IOBalanceBar = () => {
 
   const addLog = async () => {
     if (!user?.id || logMins <= 0) return
-    await safeMutate(
-      supabase.from('io_logs').insert({
-        user_id: user.id,
-        type: logType,
-        category: logCategory,
-        minutes: logMins,
-        date: today,
-      }),
-      { throwOnError: true, context: 'IOBalanceBar:addLog' }
-    )
+    await offlineInsert('io_logs', {
+      user_id: user.id,
+      type: logType,
+      category: logCategory,
+      minutes: logMins,
+      date: today,
+    })
     // XP for output
     if (logType === 'output') await addXP(XP.IO_OUTPUT_LOG)
     const newOutputMins = outputMins + (logType === 'output' ? logMins : 0)

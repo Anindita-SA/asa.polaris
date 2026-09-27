@@ -5,6 +5,7 @@ import { safeMutate } from '../../lib/safeMutate'
 import { useAuth } from '../../hooks/useAuth'
 import { Check, Flag, Clock, AlertCircle, ChevronDown, ChevronUp, Zap, Plus, X, Compass, Edit2, Trash2 } from 'lucide-react'
 import { XP } from '../../data/xpRewards'
+import { offlineSelect, offlineInsert, offlineUpdate, offlineDelete } from '../../lib/offlineApi'
 
 const statusConfig = {
   upcoming: { color: 'text-nova/60 border-pulsar/40 bg-stardust/30', icon: Clock, label: 'Upcoming' },
@@ -34,9 +35,10 @@ const Timeline = ({ filterNodeId, onJumpToNode }) => {
 
   const fetchMilestones = async () => {
     if (!user?.id) return;
-    const { data } = await supabase.from('milestones').select('*').eq('user_id', user.id).order('deadline')
+    const { data } = await offlineSelect('milestones', { user_id: user.id })
+    const sortedData = [...(data || [])].sort((a, b) => new Date(a.deadline || 0) - new Date(b.deadline || 0))
     
-    let processed = data || []
+    let processed = sortedData
     if (filterNodeId) {
       processed = processed.filter(m => m.note?.includes(`[Node: ${filterNodeId}]`))
     }
@@ -49,15 +51,13 @@ const Timeline = ({ filterNodeId, onJumpToNode }) => {
     }))
     setMilestones(processed)
 
-    const { data: nodeData } = await supabase.from('nodes').select('*').eq('user_id', user.id)
+    const { data: nodeData } = await offlineSelect('nodes', { user_id: user.id })
     setNodes(nodeData || [])
 
-    const { data: milestoneTasks } = await supabase
-      .from('tasks')
-      .select('*')
-      .eq('user_id', user.id)
-      .not('milestone_id', 'is', null)
-      .order('created_at', { ascending: true })
+    const { data: allTasks } = await offlineSelect('tasks', { user_id: user.id })
+    const milestoneTasks = (allTasks || [])
+      .filter(t => t.milestone_id)
+      .sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0))
 
     const grouped = {}
     ;(milestoneTasks || []).forEach(row => {
@@ -92,26 +92,20 @@ const Timeline = ({ filterNodeId, onJumpToNode }) => {
     const note = addForm.linkedNode ? `[Node: ${addForm.linkedNode}]` : ''
     
     if (editingMilestone) {
-      await safeMutate(
-        supabase.from('milestones').update({
-          title: addForm.title,
-          deadline: addForm.deadline,
-          note: note || editingMilestone.note?.replace(/\[Node: .*?\]/, '') || ''
-        }).eq('id', editingMilestone.id).eq('user_id', user.id),
-        { throwOnError: true, context: 'Timeline:saveMilestoneUpdate' }
-      )
+      await offlineUpdate('milestones', { id: editingMilestone.id, user_id: user.id }, {
+        title: addForm.title,
+        deadline: addForm.deadline,
+        note: note || editingMilestone.note?.replace(/\[Node: .*?\]/, '') || ''
+      })
     } else {
-      await safeMutate(
-        supabase.from('milestones').insert({
-          user_id: user.id,
-          title: addForm.title,
-          deadline: addForm.deadline,
-          status: 'upcoming',
-          xp_reward: 100,
-          note,
-        }),
-        { throwOnError: true, context: 'Timeline:saveMilestoneInsert' }
-      )
+      await offlineInsert('milestones', {
+        user_id: user.id,
+        title: addForm.title,
+        deadline: addForm.deadline,
+        status: 'upcoming',
+        xp_reward: 100,
+        note,
+      })
     }
     
     setAddForm({ title: '', deadline: '', linkedNode: '' })
@@ -123,30 +117,21 @@ const Timeline = ({ filterNodeId, onJumpToNode }) => {
   const deleteMilestone = async (id) => {
     if (!user?.id) return
     if (window.confirm("Are you sure you want to delete this milestone?")) {
-      await safeMutate(
-        supabase.from('milestones').delete().eq('id', id).eq('user_id', user.id),
-        { throwOnError: true, context: 'Timeline:deleteMilestone' }
-      )
+      await offlineDelete('milestones', { id, user_id: user.id })
       fetchMilestones()
     }
   }
 
   const updateStatus = async (ms, status) => {
     if (!user?.id) return
-    await safeMutate(
-      supabase.from('milestones').update({ status }).eq('id', ms.id).eq('user_id', user.id),
-      { throwOnError: true, context: 'Timeline:updateStatus' }
-    )
+    await offlineUpdate('milestones', { id: ms.id, user_id: user.id }, { status })
     trackXP(ms.status === 'done', status === 'done', ms.xp_reward || XP.MILESTONE_COMPLETE)
     fetchMilestones()
   }
 
   const updateNote = async (id, note) => {
     if (!user?.id) return
-    await safeMutate(
-      supabase.from('milestones').update({ note }).eq('id', id).eq('user_id', user.id),
-      { throwOnError: true, context: 'Timeline:updateNote' }
-    )
+    await offlineUpdate('milestones', { id, user_id: user.id }, { note })
   }
 
   const getDaysUntil = (deadline) => {
@@ -212,8 +197,8 @@ Rules:
 
   const saveSubtasks = async () => {
     if (!generatedSteps.length || !breakdownTarget || !user?.id) return
-    await safeMutate(
-      supabase.from('tasks').insert(generatedSteps.map(title => ({
+    for (const title of generatedSteps) {
+      await offlineInsert('tasks', {
         id: crypto.randomUUID(),
         user_id: user.id,
         milestone_id: breakdownTarget.id,
@@ -222,47 +207,37 @@ Rules:
         quadrant: 'important_not_urgent',
         category: 'academic',
         created_at: new Date().toISOString()
-      }))),
-      { throwOnError: true, context: 'Timeline:saveSubtasks' }
-    )
+      })
+    }
     setGeneratedSteps([])
     fetchMilestones()
   }
 
   const addManualSubtask = async () => {
     if (!newSubtask.trim() || !breakdownTarget || !user?.id) return
-    await safeMutate(
-      supabase.from('tasks').insert({
-        id: crypto.randomUUID(),
-        user_id: user.id,
-        milestone_id: breakdownTarget.id,
-        title: newSubtask.trim(),
-        status: 'active',
-        quadrant: 'important_not_urgent',
-        category: 'academic',
-        created_at: new Date().toISOString()
-      }),
-      { throwOnError: true, context: 'Timeline:addManualSubtask' }
-    )
+    await offlineInsert('tasks', {
+      id: crypto.randomUUID(),
+      user_id: user.id,
+      milestone_id: breakdownTarget.id,
+      title: newSubtask.trim(),
+      status: 'active',
+      quadrant: 'important_not_urgent',
+      category: 'academic',
+      created_at: new Date().toISOString()
+    })
     setNewSubtask('')
     fetchMilestones()
   }
 
   const toggleSubtask = async (task) => {
     if (!user?.id) return
-    await safeMutate(
-      supabase.from('tasks').update({ status: task.status === 'done' ? 'active' : 'done' }).eq('id', task.id).eq('user_id', user.id),
-      { throwOnError: true, context: 'Timeline:toggleSubtask' }
-    )
+    await offlineUpdate('tasks', { id: task.id, user_id: user.id }, { status: task.status === 'done' ? 'active' : 'done' })
     fetchMilestones()
   }
 
   const deleteSubtask = async (id) => {
     if (!user?.id) return
-    await safeMutate(
-      supabase.from('tasks').delete().eq('id', id).eq('user_id', user.id),
-      { throwOnError: true, context: 'Timeline:deleteSubtask' }
-    )
+    await offlineDelete('tasks', { id: id, user_id: user.id })
     fetchMilestones()
   }
 
@@ -364,7 +339,7 @@ Rules:
                                   {task.title}
                                 </span>
                               </button>
-                              <button onClick={() => deleteSubtask(task.id)} className="text-nova/60 hover:text-danger opacity-0 group-hover/task:opacity-100 transition-opacity p-0.5">
+                              <button onClick={() => deleteSubtask(task.id)} className="text-nova/60 hover:text-danger opacity-80 md:opacity-0 md:group-hover/task:opacity-100 transition-opacity p-0.5">
                                 <X className="w-3 h-3" />
                               </button>
                             </div>
@@ -372,7 +347,7 @@ Rules:
                         </div>
                       )}
 
-                      <button onClick={() => { setBreakdownTarget(ms); setTaskDescription(ms.title); setGeneratedSteps([]); setNewSubtask(''); }} className="text-xs text-gold mt-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => { setBreakdownTarget(ms); setTaskDescription(ms.title); setGeneratedSteps([]); setNewSubtask(''); }} className="text-xs text-gold mt-2 flex items-center gap-1 opacity-80 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                         <Zap className="w-3 h-3" /> Add tasks / Break it down
                       </button>
 
@@ -386,7 +361,7 @@ Rules:
                     </div>
 
                     {/* Status toggle and Actions */}
-                    <div className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-end gap-2">
+                    <div className="flex-shrink-0 opacity-80 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex flex-col items-end gap-2">
                       <select
                         value={ms.status === 'overdue' ? 'upcoming' : ms.status}
                         onChange={e => updateStatus(ms, e.target.value)}
@@ -422,7 +397,7 @@ Rules:
 
       {breakdownTarget && (
         <div className="modal-overlay fixed inset-0 bg-void/80 z-50 flex items-end md:items-center justify-center p-0 md:p-4" onClick={e => e.target === e.currentTarget && setBreakdownTarget(null)}>
-          <div className="modal-content glass border border-pulsar/40 rounded-t-2xl rounded-b-none md:rounded-xl p-6 w-full w-full max-w-full md:max-w-lg space-y-4">
+          <div className="modal-content glass border border-pulsar/40 rounded-t-2xl rounded-b-none md:rounded-xl p-6 w-full max-w-full md:max-w-lg space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-display text-starlight">Tasks for: {breakdownTarget.title}</h3>
               <button onClick={() => setBreakdownTarget(null)}><X className="w-4 h-4 text-nova/60 hover:text-starlight" /></button>
@@ -464,7 +439,7 @@ Rules:
 
       {showAddModal && (
         <div className="modal-overlay fixed inset-0 bg-void/80 z-50 flex items-end md:items-center justify-center p-0 md:p-4" onClick={e => e.target === e.currentTarget && setShowAddModal(false)}>
-          <div className="modal-content glass border border-pulsar/40 rounded-t-2xl rounded-b-none md:rounded-xl p-6 w-full w-full max-w-full md:max-w-sm space-y-4">
+          <div className="modal-content glass border border-pulsar/40 rounded-t-2xl rounded-b-none md:rounded-xl p-6 w-full max-w-full md:max-w-sm space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-display text-starlight">{editingMilestone ? 'Edit Milestone' : 'New Milestone'}</h3>
               <button onClick={() => setShowAddModal(false)}><X className="w-4 h-4 text-nova/60 hover:text-starlight" /></button>

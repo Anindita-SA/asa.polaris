@@ -3,10 +3,12 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { safeMutate } from '../../lib/safeMutate'
 import { useAuth } from '../../hooks/useAuth'
-import { Plus, X, Check, Trophy, Compass, Edit2, Info, Calendar, Zap, MessageSquare, RefreshCw } from 'lucide-react'
+import { Plus, X, Check, Trophy, Compass, Edit2, Info, Calendar, Zap, MessageSquare, RefreshCw, LayoutList, Map } from 'lucide-react'
 import { playChime } from '../../lib/sound'
 import { useCelebration } from '../../hooks/useCelebration'
 import { useGoalCompletion } from '../../hooks/useGoalCompletion'
+import GoalConstellation from '../graph/GoalConstellation'
+import { offlineSelect, offlineInsert, offlineUpdate, offlineDelete } from '../../lib/offlineApi'
 
 const SCOPES = ['daily', 'weekly', 'monthly', 'quarterly', 'yearly', '5yr']
 
@@ -32,6 +34,7 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
   const { updateGoalProgress } = useGoalCompletion()
   const [goalCategory, setGoalCategory] = useState('campaign') // 'campaign' | 'side_quest'
   const [activeScope, setActiveScope] = useState('daily')
+  const [viewMode, setViewMode] = useState('list') // 'list' | 'canvas'
   const [goals, setGoals] = useState([])
   const [showModal, setShowModal] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
@@ -45,23 +48,23 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
   const [allGoals, setAllGoals] = useState([])
   const [allNodes, setAllNodes] = useState([])
 
+
   useEffect(() => { fetchGoals() }, [activeScope, goalCategory, filterNodeId])
 
   const fetchGoals = async () => {
     if (!user?.id) return
     const scopeToFetch = goalCategory === 'side_quest' ? 'side_quest' : activeScope
     
-    let query = supabase.from('goals').select('*').eq('user_id', user.id).eq('scope', scopeToFetch)
-    if (filterNodeId) query = query.eq('node_id', filterNodeId)
+    const { data: userGoals } = await offlineSelect('goals', { user_id: user.id })
+    let filtered = (userGoals || []).filter(g => g.scope === scopeToFetch)
+    if (filterNodeId) filtered = filtered.filter(g => g.node_id === filterNodeId)
     
-    const { data } = await query.order('created_at', { ascending: false })
-    setGoals(data || [])
+    filtered.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
+    setGoals(filtered)
     
-    const { data: all } = await supabase.from('goals')
-      .select('id, title, scope').eq('user_id', user.id)
-    setAllGoals(all || [])
+    setAllGoals((userGoals || []).map(g => ({ id: g.id, title: g.title, scope: g.scope })))
 
-    const { data: nodes } = await supabase.from('nodes').select('id, title').eq('user_id', user.id)
+    const { data: nodes } = await offlineSelect('nodes', { user_id: user.id })
     setAllNodes(nodes || [])
   }
 
@@ -139,17 +142,18 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
     let savedGoal = { ...payload }
 
     if (isEditing && form.id) {
-      await safeMutate(
-        supabase.from('goals').update(payload).eq('id', form.id).eq('user_id', user.id),
-        { throwOnError: true, context: 'GoalsPanel:saveGoalUpdate' }
-      )
+      await offlineUpdate('goals', { id: form.id, user_id: user.id }, payload)
       savedGoal.id = form.id
     } else {
-      const { data } = await safeMutate(
-        supabase.from('goals').insert(payload).select().single(),
-        { throwOnError: true, context: 'GoalsPanel:saveGoalInsert' }
-      )
-      if (data) savedGoal = data
+      const newId = crypto.randomUUID()
+      const { data } = await offlineInsert('goals', {
+        id: newId,
+        ...payload,
+        current: 0,
+        completed: false
+      })
+      if (data && data[0]) savedGoal = data[0]
+      else savedGoal.id = newId
       
       // Auto-sync new goals if we have a token
       if (providerToken && savedGoal.id) {
@@ -189,10 +193,7 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
 
   const deleteGoal = async (id) => {
     if (!user?.id) return
-    await safeMutate(
-      supabase.from('goals').delete().eq('id', id).eq('user_id', user.id),
-      { throwOnError: true, context: 'GoalsPanel:deleteGoal' }
-    )
+    await offlineDelete('goals', { id: id, user_id: user.id })
     fetchGoals()
   }
 
@@ -235,10 +236,7 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
   const migrateGoal = async (id) => {
     if (!user?.id) return
     const today = new Date().toISOString().slice(0, 10)
-    await safeMutate(
-      supabase.from('goals').update({ deadline: today }).eq('id', id).eq('user_id', user.id),
-      { throwOnError: true, context: 'GoalsPanel:migrateGoal' }
-    )
+    await offlineUpdate('goals', { id: id, user_id: user.id }, { deadline: today })
     fetchGoals()
   }
 
@@ -264,15 +262,25 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
       <div className="max-w-2xl mx-auto space-y-6">
 
         {/* Top Category Toggle */}
-        <div className="flex gap-6 border-b border-pulsar/30 pb-2">
-          <button onClick={() => setGoalCategory('campaign')} 
-            className={`text-lg font-display pb-2 transition-colors ${goalCategory === 'campaign' ? 'text-starlight border-b-2 border-nova' : 'text-nova/60 hover:text-starlight'}`}>
-            Main Campaign
-          </button>
-          <button onClick={() => setGoalCategory('side_quest')} 
-            className={`text-lg font-display pb-2 flex items-center gap-2 transition-colors ${goalCategory === 'side_quest' ? 'text-starlight border-b-2 border-gold' : 'text-nova/60 hover:text-starlight'}`}>
-            Side Quests <Compass className="w-4 h-4 text-gold" />
-          </button>
+        <div className="flex justify-between items-center border-b border-pulsar/30 pb-2">
+          <div className="flex gap-6">
+            <button onClick={() => setGoalCategory('campaign')} 
+              className={`text-lg font-display pb-2 transition-colors ${goalCategory === 'campaign' ? 'text-starlight border-b-2 border-nova' : 'text-nova/60 hover:text-starlight'}`}>
+              Main Campaign
+            </button>
+            <button onClick={() => setGoalCategory('side_quest')} 
+              className={`text-lg font-display pb-2 flex items-center gap-2 transition-colors ${goalCategory === 'side_quest' ? 'text-starlight border-b-2 border-gold' : 'text-nova/60 hover:text-starlight'}`}>
+              Side Quests <Compass className="w-4 h-4 text-gold" />
+            </button>
+          </div>
+          <div className="flex items-center bg-stardust/40 rounded-lg p-1 border border-pulsar/30 mb-2">
+            <button onClick={() => setViewMode('list')} className={`p-1.5 rounded transition-colors ${viewMode === 'list' ? 'bg-pulsar/20 text-starlight' : 'text-nova/60 hover:text-starlight'}`} title="List View">
+              <LayoutList className="w-4 h-4" />
+            </button>
+            <button onClick={() => setViewMode('canvas')} className={`p-1.5 rounded transition-colors ${viewMode === 'canvas' ? 'bg-pulsar/20 text-starlight' : 'text-nova/60 hover:text-starlight'}`} title="Canvas View">
+              <Map className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Scope tabs (Campaign only) */}
@@ -332,7 +340,12 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
           </div>
         )}
 
-        {/* Goals list */}
+        {/* Goals list or Canvas */}
+        {viewMode === 'canvas' ? (
+          <div className="glass rounded-xl overflow-hidden border border-pulsar/30 flex flex-col h-[500px]">
+             <GoalConstellation onGoalSelect={openEditModal} />
+          </div>
+        ) : (
         <div className="space-y-4">
           {filteredGoals.map(goal => {
             const pct = goal.target > 0 ? Math.min((goal.current / goal.target) * 100, 100) : 0
@@ -441,6 +454,7 @@ const GoalsPanel = ({ filterNodeId, onJumpToNode }) => {
             </div>
           )}
         </div>
+        )}
 
         {/* Add button */}
         <button onClick={() => { 

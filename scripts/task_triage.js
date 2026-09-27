@@ -122,7 +122,27 @@ export function deduplicateActiveTasks(allActiveTasks = []) {
         return (b.id || '').localeCompare(a.id || '');
       });
 
-      keptTasks.push(sorted[0]);
+      const keeper = { ...sorted[0] };
+      const allDates = new Set();
+      let maxCount = keeper.completion_count || 0;
+
+      for (const t of sorted) {
+        if (Array.isArray(t.completion_dates)) {
+          t.completion_dates.forEach(d => { if (d) allDates.add(d); });
+        }
+        if (typeof t.completion_count === 'number' && t.completion_count > maxCount) {
+          maxCount = t.completion_count;
+        }
+        if (!keeper.source_template_id && t.source_template_id) {
+          keeper.source_template_id = t.source_template_id;
+        }
+      }
+
+      const mergedDates = Array.from(allDates).sort();
+      keeper.completion_dates = mergedDates;
+      keeper.completion_count = Math.max(maxCount, mergedDates.length);
+
+      keptTasks.push(keeper);
       for (let i = 1; i < sorted.length; i++) {
         duplicateTaskIds.push(sorted[i].id);
       }
@@ -525,18 +545,37 @@ async function run() {
     // 1. Fetch user tasks for deduplication, stale parent detection, and urgency inheritance
     const { data: allUserTasks, error: userTasksErr } = await supabase
       .from('tasks')
-      .select('id, title, notes, source_template_id, status, quadrant, created_at, parent_task_id, skip_count, deadline')
+      .select('id, title, notes, source_template_id, status, quadrant, created_at, parent_task_id, skip_count, deadline, completion_count, completion_dates')
       .eq('user_id', uid);
 
     if (userTasksErr) throw userTasksErr;
 
     const allActiveTasks = (allUserTasks || []).filter(t => t.status !== 'done');
 
-    const { duplicateTaskIds: activeDuplicateIds } = deduplicateActiveTasks(allActiveTasks || []);
+    const { keptTasks, duplicateTaskIds: activeDuplicateIds } = deduplicateActiveTasks(allActiveTasks || []);
     if (activeDuplicateIds.length > 0) {
       console.log(`Found ${activeDuplicateIds.length} active duplicate tasks. Marking duplicates as done...`);
       await resolveDuplicates(supabase, uid, activeDuplicateIds, isDryRun);
       triageReport.activeDuplicates = activeDuplicateIds.length;
+
+      if (!isDryRun) {
+        for (const kept of keptTasks) {
+          const orig = allActiveTasks.find(t => t.id === kept.id);
+          const origDates = Array.isArray(orig?.completion_dates) ? orig.completion_dates : [];
+          const keptDates = Array.isArray(kept.completion_dates) ? kept.completion_dates : [];
+          const datesChanged = origDates.length !== keptDates.length || origDates.some((d, idx) => d !== keptDates[idx]);
+          const countChanged = (orig?.completion_count || 0) !== (kept.completion_count || 0);
+          const tplChanged = orig?.source_template_id !== kept.source_template_id;
+
+          if (datesChanged || countChanged || tplChanged) {
+            await supabase.from('tasks').update({
+              completion_dates: kept.completion_dates,
+              completion_count: kept.completion_count,
+              source_template_id: kept.source_template_id || null
+            }).eq('id', kept.id).eq('user_id', uid);
+          }
+        }
+      }
     }
 
     const activeDuplicateIdSet = new Set(activeDuplicateIds);
@@ -671,23 +710,31 @@ async function run() {
       supabase.from('user_settings').select('feature_flags').eq('user_id', uid).limit(1).maybeSingle()
     ]);
 
-    const activeGoals = (goalsRes.data || []).map(g => ` (Target: )`).join('; ');
+    const activeGoals = (goalsRes.data || []).map(g => `${g.title} (Target: ${g.deadline || 'None'})`).join('; ');
     const eulogyText = eulogyRes.data?.content || 'No specific eulogy set.';
     const autoRefineEnabled = settingsRes.data?.feature_flags?.auto_refine_tasks !== false;
 
     // 4. Build Prompt
     const currentDate = new Date().toISOString().split('T')[0];
     const refineInstructions = autoRefineEnabled 
-      ? \n      - Auto-Refinement: The user brain-dumps messy tasks. You MAY fix typos, expand acronyms, or rephrase the title to be actionable. Add a 'title' property to your returned JSON object for that task if you refine it.
-      : \n      - STRICT POLICY: DO NOT alter or return the task title. Return ONLY the classification.;
+      ? `\n      - Auto-Refinement: The user brain-dumps messy tasks. You MAY fix typos, expand acronyms, or rephrase the title to be actionable. Add a 'title' property to your returned JSON object for that task if you refine it.`
+      : `\n      - STRICT POLICY: DO NOT alter or return the task title. Return ONLY the classification.`;
 
     const jsonExample = autoRefineEnabled 
-      ? [{"id": "uuid-here", "quadrant": "quadrant-name", "reasoning": "Brief 1-sentence explanation", "title": "Refined title here"}]
-      : [{"id": "uuid-here", "quadrant": "quadrant-name", "reasoning": "Brief 1-sentence explanation"}];
+      ? `[{"id": "uuid-here", "quadrant": "quadrant-name", "reasoning": "Brief 1-sentence explanation", "title": "Refined title here"}]`
+      : `[{"id": "uuid-here", "quadrant": "quadrant-name", "reasoning": "Brief 1-sentence explanation"}]`;
+
+    const tasksToClassify = unsortedTasks.map(t => ({
+      id: t.id,
+      title: t.title,
+      notes: t.notes || null,
+      deadline: t.deadline || null,
+      context: t.context || null
+    }));
 
     const prompt = `You are a task triage assistant. Given the tasks below and the user's goals/mission, classify each into an Eisenhower quadrant.
       
-      CURRENT DATE: . Evaluate deadlines relative to this.
+      CURRENT DATE: ${currentDate}. Evaluate deadlines relative to this.
       
       QUADRANTS:
       - urgent_important: Due within 3 days OR blocking a critical goal. For applications: High match + approaching deadline.
@@ -696,15 +743,16 @@ async function run() {
       - neither: Nice-to-have, no deadline, no goal alignment.
       
       USER CONTEXT:
-      - Goals: 
-      - Life mission: 
+      - Goals: ${activeGoals || 'No active goals'}
+      - Life mission: ${eulogyText}
       - Writing & Reflection: The user is an active Substack writer and needs to capture both good moments and challenges. Creative/writing blocks are highly important for their mental clarity and output, and should be prioritized.
+      ${refineInstructions}
       
       TASKS TO CLASSIFY:
-      
+      ${JSON.stringify(tasksToClassify, null, 2)}
       
       Return ONLY valid JSON in this exact format, with no markdown formatting or backticks:
-      `;
+      ${jsonExample}`;
     
     if (isDryRun) {
       console.log('--- PROMPT SENT TO LLM ---');

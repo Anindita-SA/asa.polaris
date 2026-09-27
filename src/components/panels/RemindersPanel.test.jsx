@@ -5,6 +5,7 @@ import RemindersPanel from "./RemindersPanel";
 import { supabase } from "../../lib/supabase";
 import { useNudgeScheduler } from "../../hooks/useNudgeScheduler";
 import { useContactReminders } from "../../hooks/useContactReminders";
+import { offlineSelect, offlineUpdate, offlineInsert, offlineDelete } from "../../lib/offlineApi";
 
 const mockUser = { id: "test-user" };
 // Mock the hooks
@@ -28,6 +29,14 @@ vi.mock("../../hooks/useWSJFScore", () => ({
   computeWSJFScore: (task) => ({ score: task?.wsjfScore ?? 2.0 })
 }));
 
+vi.mock("../../lib/offlineApi", () => ({
+  offlineSelect: vi.fn(),
+  offlineUpdate: vi.fn().mockResolvedValue({ data: [], error: null }),
+  offlineInsert: vi.fn().mockResolvedValue({ data: [], error: null }),
+  offlineDelete: vi.fn().mockResolvedValue({ data: [], error: null }),
+  generateUUID: vi.fn().mockReturnValue("mock-uuid")
+}));
+
 vi.mock("../../lib/supabase", () => ({
   supabase: {
     from: vi.fn(),
@@ -43,6 +52,16 @@ describe("RemindersPanel", () => {
   let mockChannel;
 
   const setupSupabaseMock = (tasksData = [], habitTasksData = []) => {
+    offlineSelect.mockImplementation(async (table, match = {}) => {
+      if (table === 'tasks') {
+        if (match.category === 'habits') {
+          return { data: habitTasksData, error: null };
+        }
+        return { data: tasksData, error: null };
+      }
+      return { data: [], error: null };
+    });
+
     supabase.from.mockImplementation((table) => ({
       select: vi.fn().mockImplementation(() => {
         const eqFilters = {};
@@ -452,10 +471,10 @@ describe("RemindersPanel", () => {
     render(<RemindersPanel onOpenDayGuide={vi.fn()} />);
 
     await waitFor(() => {
-      expect(supabase.from).toHaveBeenCalledWith("tasks");
+      expect(offlineSelect).toHaveBeenCalledWith("tasks", { user_id: mockUser.id });
     });
 
-    const initialCalls = supabase.from.mock.calls.length;
+    const initialCalls = offlineSelect.mock.calls.length;
 
     // Dispatch custom event
     fireEvent(window, new CustomEvent("polaris-tasks-changed", {
@@ -463,7 +482,7 @@ describe("RemindersPanel", () => {
     }));
 
     await waitFor(() => {
-      expect(supabase.from.mock.calls.length).toBeGreaterThan(initialCalls);
+      expect(offlineSelect.mock.calls.length).toBeGreaterThan(initialCalls);
       expect(mockFetchNudges).toHaveBeenCalled();
     });
   });

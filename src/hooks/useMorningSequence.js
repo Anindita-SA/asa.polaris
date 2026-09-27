@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase } from '../lib/supabase'
+import { offlineSelect, offlineUpdate } from '../lib/offlineApi'
 import { useAuth } from './useAuth'
 
 export function useMorningSequence() {
@@ -24,28 +24,27 @@ export function useMorningSequence() {
     }
 
     // Check morning briefs table
-    const { data, error } = await supabase
-      .from('morning_briefs')
-      .select('id, seen, items')
-      .eq('user_id', user.id)
-      .eq('date', today)
-      .maybeSingle()
+    const { data, error } = await offlineSelect('morning_briefs', {
+      user_id: user.id,
+      date: today
+    })
 
     if (error) {
       console.error('Error fetching morning brief for sequence:', error)
       return
     }
 
-    if (!data) {
+    const brief = (data || [])[0]
+    if (!brief) {
       setStage('loading')
       console.log('Morning Sequence Stage:', 'loading')
       return
     }
 
-    setBriefId(data.id)
-    setBriefItems(data.items || [])
+    setBriefId(brief.id)
+    setBriefItems(brief.items || [])
 
-    if (!data.seen) {
+    if (!brief.seen) {
       setStage('spark')
       console.log('Morning Sequence Stage:', 'spark')
     } else {
@@ -61,11 +60,11 @@ export function useMorningSequence() {
   const markSparkSeen = async () => {
     if (!user?.id || !briefId) return
     
-    const { error } = await supabase
-      .from('morning_briefs')
-      .update({ seen: true })
-      .eq('id', briefId)
-      .eq('user_id', user.id)
+    const { error } = await offlineUpdate(
+      'morning_briefs',
+      { id: briefId, user_id: user.id },
+      { seen: true }
+    )
       
     if (!error) {
       setStage('brief')

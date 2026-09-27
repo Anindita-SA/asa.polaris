@@ -1,7 +1,6 @@
 import { useEffect, useState, useMemo } from 'react'
 import { createPortal } from 'react-dom'
-import { supabase } from '../../lib/supabase'
-import { safeMutate } from '../../lib/safeMutate'
+import { offlineSelect, offlineInsert, offlineDelete } from '../../lib/offlineApi'
 import { format, startOfYear, eachDayOfInterval, endOfYear } from 'date-fns'
 
 const MOODS = [
@@ -34,13 +33,11 @@ const YearInPixels = ({ userId, onDateSelect, selectedDate }) => {
 
   const fetchMoods = async () => {
     if (!userId) return
-    const { data } = await supabase
-      .from('mood_logs')
-      .select('log_date, mood')
-      .eq('user_id', userId)
-      .gte('log_date', `${year}-01-01`)
-      .lte('log_date', `${year}-12-31`)
-    setMoodLogs(data || [])
+    const { data } = await offlineSelect('mood_logs', { user_id: userId })
+    const startStr = `${year}-01-01`
+    const endStr = `${year}-12-31`
+    const filtered = (data || []).filter(l => l.log_date >= startStr && l.log_date <= endStr)
+    setMoodLogs(filtered)
   }
 
   useEffect(() => {
@@ -72,21 +69,8 @@ const YearInPixels = ({ userId, onDateSelect, selectedDate }) => {
     const { dateStr } = popover
 
     // Delete any existing entry for this date first, then insert fresh
-    await safeMutate(
-      supabase
-        .from('mood_logs')
-        .delete()
-        .eq('log_date', dateStr)
-        .eq('user_id', userId),
-      { throwOnError: false, context: 'YearInPixels:deleteExistingMood' }
-    )
-
-    await safeMutate(
-      supabase
-        .from('mood_logs')
-        .insert({ log_date: dateStr, mood: moodId, user_id: userId }),
-      { throwOnError: true, context: 'YearInPixels:insertMood' }
-    )
+    await offlineDelete('mood_logs', { log_date: dateStr, user_id: userId })
+    await offlineInsert('mood_logs', { log_date: dateStr, mood: moodId, user_id: userId })
 
     setSaving(false)
     setPopover(null)
@@ -96,14 +80,7 @@ const YearInPixels = ({ userId, onDateSelect, selectedDate }) => {
   const clearMood = async () => {
     if (!popover || saving || !userId) return
     setSaving(true)
-    await safeMutate(
-      supabase
-        .from('mood_logs')
-        .delete()
-        .eq('log_date', popover.dateStr)
-        .eq('user_id', userId),
-      { throwOnError: true, context: 'YearInPixels:clearMood' }
-    )
+    await offlineDelete('mood_logs', { log_date: popover.dateStr, user_id: userId })
     setSaving(false)
     setPopover(null)
     fetchMoods()

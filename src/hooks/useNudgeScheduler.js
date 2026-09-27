@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { safeMutate } from '../lib/safeMutate';
+import { offlineSelect, offlineInsert, offlineUpdate } from '../lib/offlineApi';
 import { useAuth } from './useAuth';
 import { getNotificationSettings, NOTIFICATION_SETTINGS_EVENT } from './useNotificationSettings';
 
@@ -18,20 +19,14 @@ export const useNudgeScheduler = () => {
     
     const seedNudges = async () => {
       hasSeededRef.current = true;
-      const { count } = await supabase
-        .from('nudges')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id);
+      const { data: existingNudges } = await offlineSelect('nudges', { user_id: user.id });
 
-      if (count === 0) {
-        await safeMutate(
-          supabase.from('nudges').insert([
-            { user_id: user.id, title: "Drink water", interval_minutes: 120, active: true },
-            { user_id: user.id, title: "Posture check", interval_minutes: 60, active: true },
-            { user_id: user.id, title: "Take a break", interval_minutes: 90, active: true }
-          ]),
-          { context: 'useNudgeScheduler:seedDefaultNudges' }
-        );
+      if (!existingNudges || existingNudges.length === 0) {
+        await Promise.all([
+          offlineInsert('nudges', { user_id: user.id, title: "Drink water", interval_minutes: 120, active: true }),
+          offlineInsert('nudges', { user_id: user.id, title: "Posture check", interval_minutes: 60, active: true }),
+          offlineInsert('nudges', { user_id: user.id, title: "Take a break", interval_minutes: 90, active: true })
+        ]);
         fetchNudges();
       }
     };
@@ -70,37 +65,31 @@ export const useNudgeScheduler = () => {
       return;
     }
 
-    const { data, error } = await supabase
-      .from('nudges')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('active', true);
+    const { data: allNudgesData, error } = await offlineSelect('nudges', { user_id: user.id });
 
     if (error) {
       console.error('Error fetching nudges:', error);
       return;
     }
 
+    const data = (allNudgesData || []).filter(n => n.active);
+
     // Filter system habit nudges based on settings
     const systemNudges = settings.habitNudgesEnabled ? (data || []) : [];
 
     const today = new Date().toISOString().split('T')[0];
-    const { data: overdueData, error: overdueError } = await supabase
-      .from('tasks')
-      .select('id, title, deadline, skip_count, category')
-      .eq('user_id', user.id)
-      .neq('status', 'done')
-      .or(`deadline.lt.${today},skip_count.gte.3,category.eq.reminders`);
+    const { data: allTasksData, error: overdueError } = await offlineSelect('tasks', { user_id: user.id });
 
     if (overdueError) {
       console.error('Error fetching overdue tasks:', overdueError);
     }
 
-    const rawOverdueTasks = (overdueData || []).filter(task => {
+    const rawOverdueTasks = (allTasksData || []).filter(task => {
+      if (task.status === 'done') return false;
       if (task.category === 'reminders') {
         return !task.deadline || task.deadline <= today;
       }
-      return task.deadline < today || task.skip_count >= 3;
+      return (task.deadline && task.deadline < today) || (task.skip_count >= 3);
     });
 
     // Sort overdue tasks: earliest deadline first, then highest skip_count
@@ -300,23 +289,11 @@ export const useNudgeScheduler = () => {
     const nudge = allNudges.find(n => n.id === id) || nudges.find(n => n.id === id);
     if (nudge?.isTask && user?.id) {
       try {
-        const { data: taskData, error: fetchErr } = await supabase
-          .from('tasks')
-          .select('skip_count')
-          .eq('id', id)
-          .eq('user_id', user.id)
-          .single();
+        const { data: taskData, error: fetchErr } = await offlineSelect('tasks', { id, user_id: user.id });
 
-        if (!fetchErr && taskData) {
-          const currentSkipCount = taskData.skip_count || 0;
-          await safeMutate(
-            supabase
-              .from('tasks')
-              .update({ skip_count: currentSkipCount + 1 })
-              .eq('id', id)
-              .eq('user_id', user.id),
-            { context: 'useNudgeScheduler:incrementSkipCount' }
-          );
+        if (!fetchErr && taskData && taskData.length > 0) {
+          const currentSkipCount = taskData[0].skip_count || 0;
+          await offlineUpdate('tasks', { id, user_id: user.id }, { skip_count: currentSkipCount + 1 });
         }
       } catch (err) {
         console.error('Error incrementing skip_count on dismiss:', err);

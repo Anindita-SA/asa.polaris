@@ -3,6 +3,7 @@ import React from 'react'
 import { render, screen, waitFor, fireEvent, cleanup } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import MediaLog from './MediaLog'
+import * as offlineApi from '../../lib/offlineApi'
 import { supabase } from '../../lib/supabase'
 import * as linkFetcher from '../../lib/linkMetadataFetcher'
 
@@ -11,6 +12,14 @@ const mockAddXP = vi.fn()
 
 vi.mock('../../hooks/useAuth', () => ({
   useAuth: () => ({ user: mockUser, addXP: mockAddXP })
+}))
+
+vi.mock('../../lib/offlineApi', () => ({
+  offlineSelect: vi.fn(),
+  offlineInsert: vi.fn(),
+  offlineUpdate: vi.fn(),
+  offlineDelete: vi.fn(),
+  generateUUID: () => 'mock-media-uuid-1'
 }))
 
 vi.mock('../../lib/supabase', () => ({
@@ -70,6 +79,11 @@ describe('MediaLog', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+
+    offlineApi.offlineSelect.mockResolvedValue({ data: sampleData, error: null })
+    offlineApi.offlineInsert.mockImplementation(async (table, row) => ({ data: [{ ...row, id: row.id || 'media-new' }], error: null }))
+    offlineApi.offlineUpdate.mockResolvedValue({ data: [], error: null })
+    offlineApi.offlineDelete.mockResolvedValue({ data: [], error: null })
 
     supabase.from.mockImplementation(() => ({
       select: vi.fn().mockReturnThis(),

@@ -255,15 +255,9 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
     const interval = parseInt(newNudgeInterval) || 60
     
     if (editingNudge) {
-      await safeMutate(
-        supabase.from('nudges').update({ title: newNudgeTitle, interval_minutes: interval }).eq('id', editingNudge.id).eq('user_id', user.id),
-        { throwOnError: true, context: 'RemindersPanel:updateNudge' }
-      )
+      await offlineUpdate('nudges', { id: editingNudge.id, user_id: user.id }, { title: newNudgeTitle, interval_minutes: interval })
     } else {
-      await safeMutate(
-        supabase.from('nudges').insert({ user_id: user.id, title: newNudgeTitle, interval_minutes: interval }),
-        { throwOnError: true, context: 'RemindersPanel:insertNudge' }
-      )
+      await offlineInsert('nudges', { user_id: user.id, title: newNudgeTitle, interval_minutes: interval, active: true })
     }
     
     setNewNudgeTitle('')
@@ -274,19 +268,13 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
 
   const toggleNudgeActive = async (nudge) => {
     if (!user?.id) return
-    await safeMutate(
-      supabase.from('nudges').update({ active: !nudge.active }).eq('id', nudge.id).eq('user_id', user.id),
-      { throwOnError: true, context: 'RemindersPanel:toggleNudgeActive' }
-    )
+    await offlineUpdate('nudges', { id: nudge.id, user_id: user.id }, { active: !nudge.active })
     fetchNudges()
   }
 
   const deleteNudge = async (id) => {
     if (!user?.id) return
-    await safeMutate(
-      supabase.from('nudges').delete().eq('id', id).eq('user_id', user.id),
-      { throwOnError: true, context: 'RemindersPanel:deleteNudge' }
-    )
+    await offlineDelete('nudges', { id, user_id: user.id })
     fetchNudges()
   }
 

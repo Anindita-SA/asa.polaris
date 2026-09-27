@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../../lib/supabase'
+import { offlineSelect, offlineInsert } from '../../lib/offlineApi'
 import { useAuth } from '../../hooks/useAuth'
 import { useCelebration } from '../../hooks/useCelebration'
 import { Trophy, Plus, Sparkles } from 'lucide-react'
@@ -24,18 +24,15 @@ const WinsBook = ({ dateStr }) => {
   }, [user])
 
   const fetchNodes = async () => {
-    const { data } = await supabase.from('nodes').select('id, title').eq('user_id', user.id).order('title')
-    if (data) setNodes(data)
+    const { data } = await offlineSelect('nodes', { user_id: user.id })
+    const sorted = [...(data || [])].sort((a, b) => (a.title || '').localeCompare(b.title || ''))
+    setNodes(sorted)
   }
 
   const fetchWins = async () => {
-    const { data } = await supabase
-      .from('wins')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(50)
-    if (data) setWins(data)
+    const { data } = await offlineSelect('wins', { user_id: user.id })
+    const sorted = [...(data || [])].sort((a, b) => new Date(b.created_at || b.log_date || 0) - new Date(a.created_at || a.log_date || 0)).slice(0, 50)
+    setWins(sorted)
   }
 
   const handleSubmit = async (e) => {
@@ -50,10 +47,11 @@ const WinsBook = ({ dateStr }) => {
       log_date: dateStr // Maps to the selected date in Journal
     }
 
-    const { data, error } = await supabase.from('wins').insert(newWin).select().single()
+    const { data, error } = await offlineInsert('wins', newWin)
+    const inserted = data?.[0] || data
     
-    if (data) {
-      setWins(prev => [data, ...prev])
+    if (inserted && !error) {
+      setWins(prev => [inserted, ...prev])
       setText('')
       setSize('micro')
       setNodeId('')
