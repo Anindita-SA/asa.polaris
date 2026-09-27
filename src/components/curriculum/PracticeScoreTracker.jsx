@@ -20,12 +20,10 @@ import {
   Calendar,
   ExternalLink
 } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
-import { safeMutate } from '../../lib/safeMutate';
 import { useAuth } from '../../hooks/useAuth';
 import { DEFAULT_IELTS_PRACTICE_SCORES } from '../../data/curriculumDefaults';
 import { safeExternalUrl } from '../../lib/urlUtils';
-import { offlineSelect, offlineInsert, offlineDelete } from '../../lib/offlineApi';
+import { offlineSelect, offlineInsert, offlineDelete, generateUUID } from '../../lib/offlineApi';
 
 export const mergeScoresWithDefaults = (currentScores = [], defaultScores = DEFAULT_IELTS_PRACTICE_SCORES) => {
   const current = Array.isArray(currentScores) ? currentScores : [];
@@ -65,6 +63,21 @@ export const mergeScoresWithDefaults = (currentScores = [], defaultScores = DEFA
     }
     if (def.id === 'ielts-mock-read-1') {
       if (sTitle.includes('reading practice test 310')) {
+        return true;
+      }
+    }
+    if (def.id === 'ielts-mock-write-2') {
+      if (sTitle.includes('writing practice test 2') || sTitle.includes('academic writing practice test 2')) {
+        return true;
+      }
+    }
+    if (def.id === 'ielts-mock-write-1') {
+      if (sTitle.includes('writing practice test 1') || sTitle.includes('academic writing practice test 1')) {
+        return true;
+      }
+    }
+    if (def.id === 'ielts-mock-speak-1') {
+      if (sTitle.includes('speaking practice test 1') || sTitle.includes('academic speaking practice test 1')) {
         return true;
       }
     }
@@ -377,6 +390,7 @@ export default function PracticeScoreTracker({ curriculumId }) {
             const legacyItems = JSON.parse(legacyRaw);
             if (Array.isArray(legacyItems) && legacyItems.length > 0) {
               const migrationPayload = legacyItems.map(item => ({
+                id: generateUUID(),
                 user_id: user.id,
                 curriculum_id: curriculumId || null,
                 title: item.title || 'Practice Test',
@@ -402,7 +416,7 @@ export default function PracticeScoreTracker({ curriculumId }) {
         // Query Supabase for canonical scores
         const { data: offlineData, error } = await offlineSelect('practice_scores', { user_id: user.id });
 let data = offlineData || [];
-if (curriculumId) { data = data.filter(d => d.curriculum_id === curriculumId); }
+if (curriculumId) { data = data.filter(d => d.curriculum_id === curriculumId || d.curriculum_id === null); }
 data.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
 
         if (!error && data && isMounted) {
@@ -414,25 +428,24 @@ data.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
             // Ignore storage quota errors
           }
 
-          if (data.length === 0 && (!hasLocalCache || initialScores.length === 0 || initialScores === DEFAULT_IELTS_PRACTICE_SCORES)) {
-            const { count } = await supabase.from('practice_scores').select('*', { count: 'exact', head: true }).eq('user_id', user.id);
-            if (count === 0) {
-              const seedPayload = DEFAULT_IELTS_PRACTICE_SCORES.map(item => ({
-                user_id: user.id,
-                curriculum_id: curriculumId || null,
-                title: item.title,
-                category: item.category,
-                score: item.score,
-                total: item.total || null,
-                band: item.band || calculateBand(item.score, item.category, item.total),
-                url: item.url || null,
-                date: item.date || new Date().toISOString(),
-                created_at: item.date || new Date().toISOString(),
-              }));
+          const missingDefaults = DEFAULT_IELTS_PRACTICE_SCORES.filter(def => mergedData.includes(def));
+          if (missingDefaults.length > 0) {
+            const seedPayload = missingDefaults.map(item => ({
+              id: item.id || generateUUID(),
+              user_id: user.id,
+              curriculum_id: curriculumId || null,
+              title: item.title,
+              category: item.category,
+              score: item.score,
+              total: item.total || null,
+              band: item.band || calculateBand(item.score, item.category, item.total),
+              url: item.url || null,
+              date: item.date || new Date().toISOString(),
+              created_at: item.date || new Date().toISOString(),
+            }));
 
-              for (const payload of seedPayload) {
-                await offlineInsert('practice_scores', payload);
-              }
+            for (const payload of seedPayload) {
+              await offlineInsert('practice_scores', payload);
             }
           }
         } else if (error && isMounted) {
@@ -520,10 +533,10 @@ data.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
     const numTotal = totalVal ? parseFloat(totalVal) : null;
     const bandScore = calculateBand(numScore, category, numTotal);
     const cleanUrl = urlVal.trim() || null;
-    const tempId = Date.now().toString();
+    const newId = generateUUID();
 
     const newRecord = {
-      id: tempId,
+      id: newId,
       title: title.trim(),
       category,
       score: numScore,
@@ -553,6 +566,7 @@ data.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
     if (user?.id) {
       try {
         const dbPayload = { 
+          id: newId,
           title: newRecord.title,
           category: newRecord.category,
           score: newRecord.score,

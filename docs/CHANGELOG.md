@@ -1,3 +1,36 @@
+## [2026-09-27] Supabase Schema Cache Resilience & Pomodoro Table Alignment (v1.2.33)
+- **Pomodoro Table Mapping**: Fixed `PomodoroTimer.jsx` to write focus timer completion records to the canonical `pomodoro_logs` table (`user_id`, `task_id`, `duration_minutes`, `completed_at`, `xp_earned`) instead of the non-existent `focus_sessions` table.
+- **PGRST205 Schema Cache Resilience**: Updated `pullData` in `syncManager.js` to gracefully suppress console errors when encountering `PGRST205` / `42P01` / `schema cache` errors for un-migrated tables (such as `practice_scores`).
+- **DLQ Mutation Protection**: Configured `flushQueue` in `syncManager.js` to divert un-migrated remote table mutations directly to the Dead Letter Queue (`sync_errors`) with diagnostic reasons, preventing sync queue stalls.
+- **Dexie Schema Cleanup**: Removed `focus_sessions` from Dexie v8 schema and `initSyncManager`.
+- **Quality Gates & Tests**: Verified all 25 test suites (257 unit tests) passing with 100% reliability and clean production build.
+
+## [2026-09-27] Slide-and-Tap Bottom Navigation & Panel Sub-Menu Architecture (v1.2.32)
+- **Slide-and-Tap Bottom Navigation**: Restored the horizontal scrollable slide-and-tap bottom navigation bar in `BottomNav.jsx` with smooth auto-centering on tap, amber active highlight, safe-area inset padding, and direct 1-tap access to all 11 views and utility tools (Day Guide, Constellation, Focus, Goals, Timeline, Journal, Calendar, Curriculum, Orbit, Anchor, Reminders).
+- **Sub-Panel Mobile Popup Menus**: Replaced crowded horizontal pill sub-nav strips in multi-view panels (`DayGuideView.jsx` and `FitnessBridge.jsx`) with sleek, dedicated mobile popup menus triggered by a compact active-badge menu button, preserving full desktop horizontal pills.
+- **Dashboard Direct Route Integration**: Connected Anchor and Reminders sheet triggers directly to bottom navigation items in `Dashboard.jsx`.
+- **Quality Gates & Tests**: Verified 25 test files (255 unit tests) passing with 100% reliability and clean production build.
+
+## [2026-09-27] Mobile Interface Overhaul & Responsive Architecture (v1.2.31)
+- **Global CSS Button Override Removed**: Eliminated the destructive blanket media query forcing 44px min-dimensions on all button elements in `global.css`, resolving table blowouts and distortion across MonthlyHabitGrid, YearInPixels, and inline badges.
+- **Dynamic Viewport Height & Safe Areas**: Upgraded root layout containers (`App.jsx`, `Dashboard.jsx`, `global.css`) to `100dvh` dynamic viewport height and integrated `env(safe-area-inset-bottom)` / `env(safe-area-inset-top)` for native mobile browser toolbar compatibility.
+- **4-Tab Mobile Navigation & Quick Hub**: Redesigned `BottomNav.jsx` with 4 core views (Day Guide, Constellation, Focus, Goals) and a dedicated "More" slide-up drawer hub providing 1-tap access to secondary views (Timeline, Journal, Calendar, Curriculum, Orbit) and tools (Clarity Anchor, Reminders, Focus Timer).
+- **Floating Triggers Clutter Removed**: Eliminated raw overlapping floating buttons (`top-20` and `top-32`) from `Dashboard.jsx`, moving Clarity Anchor and Reminders into clean slide-up bottom sheets.
+- **Layout & Touch Accessibility Fixes**: Repaired malformed drag handle in `BottomSheet.jsx`, made `AnchorPanel.jsx` fluid (`w-full max-w-full sm:min-w-[384px]`), removed mobile canvas offset in `ConstellationGraph.jsx`, enabled touchscreen-visible action controls in `Timeline.jsx`, and added horizontal scroll safety to `FitnessBridge.jsx`, `DayGuideView.jsx`, and `CurriculumShelf.jsx`.
+- **Quality Gates & Build Verification**: Verified 25 test suites (255 unit tests) passing cleanly and verified zero build errors in Vite bundle creation.
+
+## [2026-09-27] Complete Offline Store Coverage, Schema Drift Prevention and Universal offlineApi Migration (v1.2.30)
+- **Universal offlineApi Migration**: Completed migration of all remaining features, panels, hooks, and widgets (PomodoroTimer, FitnessBridge, RelationshipsView, BatchImportModal, PlayView, useMorningSequence, useMorningBrief, DayGuideView, useGoogleCalendarSync) to use offlineApi (offlineSelect, offlineInsert, offlineUpdate, offlineDelete).
+- **Dexie v8 Schema Expansion**: Added focus_sessions store to Dexie schema v8 and updated initSyncManager with pullData for focus_sessions, workout_logs, meal_logs, weight_logs, and contacts.
+- **5-Round Vitest Verification**: Added comprehensive test coverage in src/lib/syncResilience.test.js for focus_sessions, contacts, and offlineSelect filtering. Verified 5 consecutive rounds of 25 test files and 255 tests passing with 100% reliability.
+- **Production Build**: Verified clean Vite production bundle and PWA service worker precache generation.
+
+## [2026-09-27] Data Loss Prevention, Universal Offline Mutation Routing and Multi-Round Test Bench (v1.2.29)
+- **Universal Offline Migration**: Refactored Timeline.jsx, NodePanel.jsx, DayBriefView.jsx, GoalsPanel.jsx, Journal.jsx, DailyTasks.jsx, PomodoroTimer.jsx, and useGoalCompletion.js to route all database reads and writes through offlineApi (offlineSelect, offlineInsert, offlineUpdate, offlineDelete). Eliminated split-brain mutations where direct Supabase writes bypassed local Dexie state and were overwritten by background sync.
+- **IELTS Defaults Seeding**: Added seeded IELTS writing and speaking mock tests (ielts-mock-write-1, ielts-mock-write-2, ielts-mock-speak-1) into DEFAULT_IELTS_PRACTICE_SCORES in curriculumDefaults.js. Updated mergeScoresWithDefaults to match speaking and writing tests without duplications.
+- **Sync Resilience and Non-Destructive Ingestion**: Verified non-destructive differential bulkPut in pullData (preventing remote empty responses from wiping local records), added RFC4122 v4 UUID validation across all offline mutations, and expanded initSyncManager to cover all offline tables.
+- **Automated Test Bench and 5-Round Verification**: Implemented src/lib/syncResilience.test.js with 15 test suites covering sync lifecycle, poison pill DLQ routing, UUID enforcement, task deduplication history preservation, and parent task quadrant evaluation. Successfully executed 5 consecutive rounds of the full 25-suite / 252-test test suite with 100% pass rate.
+
 ## [2026-09-26] Sync Architecture Hardening, Dead Letter Queue, and IELTS Lockdown (v1.2.28)
 - **Dead Letter Queue (DLQ)**: Implemented a \sync_errors\ table in IndexedDB (Dexie v6). The syncManager now safely intercepts unrecoverable poison pills and moves them to the DLQ instead of permanently deleting them, preserving your data while unblocking the queue.
 - **Sync Architecture Hardening**: Introduced a concurrency mutex (\isFlushing\) to \lushQueue\ to prevent double-inserts during rapid online events, and refactored \clearSynced\ to only target specific successfully processed payloads to eliminate race conditions.
@@ -570,3 +603,8 @@ All notable changes to Polaris will be documented in this file.
 
 
 
+
+### [Unreleased]
+- Fixed missing IELTS writing/speaking default topics by updating `SEED_CURRICULA`.
+- Fixed auto-seeding bug in `PracticeScoreTracker.jsx` by inserting missing default mock tests individually rather than relying on an empty length check.
+- Resolved IDOR vulnerability by adding `user_id` filters to all `offlineSelect` calls in `CurriculumShelf.jsx`.

@@ -8,7 +8,7 @@ import {
   AlertCircle,
 } from 'lucide-react'
 import { SAMPLE_BATCH_TEMPLATE, STATUS_KEYS } from './reachOutConstants'
-import { supabase } from '../../../lib/supabase'
+import { offlineInsert } from '../../../lib/offlineApi'
 
 export default function BatchImportModal({ isOpen, onToggle, user, onImportSuccess }) {
   const [batchInput, setBatchInput] = useState('')
@@ -67,8 +67,10 @@ export default function BatchImportModal({ isOpen, onToggle, user, onImportSucce
     }))
 
     try {
-      const { error: insErr } = await supabase.from('outreach_targets').insert(rows)
-      if (insErr) throw insErr
+      for (const row of rows) {
+        const { error: insErr } = await offlineInsert('outreach_targets', row)
+        if (insErr) throw insErr
+      }
 
       setBatchMessage({
         type: 'success',

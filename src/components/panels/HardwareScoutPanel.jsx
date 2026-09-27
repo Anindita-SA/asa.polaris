@@ -5,6 +5,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { Cpu, ExternalLink, Plus, Check, Edit2, X, Save } from 'lucide-react'
 import DismissFeedbackModal from '../modals/DismissFeedbackModal'
 import { safeExternalUrl } from '../../lib/urlUtils'
+import { offlineSelect, offlineInsert, offlineUpdate, generateUUID } from '../../lib/offlineApi'
 
 const HardwareScoutPanel = () => {
   const { user } = useAuth()
@@ -60,43 +61,28 @@ const HardwareScoutPanel = () => {
     let newTaskId = opp.task_id
 
     if (opp.task_id) {
-      await safeMutate(
-        supabase
-          .from('tasks')
-          .update({ status: 'active', quadrant: 'important_not_urgent' })
-          .eq('id', opp.task_id)
-          .eq('user_id', user.id),
-        { throwOnError: true, context: 'HardwareScoutPanel:activateExistingTask' }
-      )
+      await offlineUpdate('tasks', { id: opp.task_id, user_id: user.id }, {
+        status: 'active',
+        quadrant: 'important_not_urgent'
+      })
     } else {
-      const { data: taskData } = await safeMutate(
-        supabase
-          .from('tasks')
-          .insert({
-            title: `Apply for: ${opp.title}`,
-            notes: `URL: ${opp.url}\n\nDraft:\n${opp.application_draft || ''}`,
-            status: 'active',
-            quadrant: 'important_not_urgent',
-            user_id: user.id
-          })
-          .select()
-          .single(),
-        { throwOnError: true, context: 'HardwareScoutPanel:insertTask' }
-      )
+      const newId = generateUUID()
+      const { data: taskData } = await offlineInsert('tasks', {
+        id: newId,
+        title: `Apply for: ${opp.title}`,
+        notes: `URL: ${opp.url}\n\nDraft:\n${opp.application_draft || ''}`,
+        status: 'active',
+        quadrant: 'important_not_urgent',
+        user_id: user.id
+      })
       
-      if (taskData) {
-        newTaskId = taskData.id
-      }
+      newTaskId = (taskData && taskData[0]) ? taskData[0].id : newId
     }
 
-    await safeMutate(
-      supabase
-        .from('hardware_opportunities')
-        .update({ status: 'applied', task_id: newTaskId })
-        .eq('id', opp.id)
-        .eq('user_id', user.id),
-      { throwOnError: true, context: 'HardwareScoutPanel:applyOpportunity' }
-    )
+    await offlineUpdate('hardware_opportunities', { id: opp.id, user_id: user.id }, {
+      status: 'applied',
+      task_id: newTaskId
+    })
 
     if (newTaskId) {
       supabase.functions.invoke('generate-application-subtasks', {
@@ -123,18 +109,11 @@ const HardwareScoutPanel = () => {
     // Optimistic update
     setOpportunities(prev => prev.filter(o => o.id !== opp.id))
 
-    await safeMutate(
-      supabase
-        .from('hardware_opportunities')
-        .update({ 
-          status: 'rejected',
-          rejection_reason: reason || 'Dismissed by user',
-          rejected_at: new Date().toISOString()
-        })
-        .eq('id', opp.id)
-        .eq('user_id', user.id),
-      { throwOnError: true, context: 'HardwareScoutPanel:rejectOpportunity' }
-    )
+    await offlineUpdate('hardware_opportunities', { id: opp.id, user_id: user.id }, {
+      status: 'rejected',
+      rejection_reason: reason || 'Dismissed by user',
+      rejected_at: new Date().toISOString()
+    })
     
     // Ensure state remains synchronized with backend
     fetchOpportunities()
@@ -147,24 +126,17 @@ const HardwareScoutPanel = () => {
 
   const saveEdit = async () => {
     if (!user?.id) return
-    await safeMutate(
-      supabase
-        .from('hardware_opportunities')
-        .update({
-          title: editForm.title,
-          url: editForm.url,
-          deadline: editForm.deadline,
-          what_offered: editForm.what_offered,
-          project_fit: editForm.project_fit,
-          effort: editForm.effort,
-          application_draft: editForm.application_draft,
-          profile_match: editForm.profile_match,
-          acceptance_chance: editForm.acceptance_chance
-        })
-        .eq('id', editingId)
-        .eq('user_id', user.id),
-      { throwOnError: true, context: 'HardwareScoutPanel:saveEdit' }
-    )
+    await offlineUpdate('hardware_opportunities', { id: editingId, user_id: user.id }, {
+      title: editForm.title,
+      url: editForm.url,
+      deadline: editForm.deadline,
+      what_offered: editForm.what_offered,
+      project_fit: editForm.project_fit,
+      effort: editForm.effort,
+      application_draft: editForm.application_draft,
+      profile_match: editForm.profile_match,
+      acceptance_chance: editForm.acceptance_chance
+    })
     
     setEditingId(null)
     fetchOpportunities()

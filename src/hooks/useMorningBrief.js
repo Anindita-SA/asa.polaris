@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { offlineSelect } from '../lib/offlineApi'
 import { useAuth } from './useAuth'
 
 export function useMorningBrief({ autoRun = true } = {}) {
@@ -16,18 +17,16 @@ export function useMorningBrief({ autoRun = true } = {}) {
     try {
       if (!force) {
         // 1. Check if a row exists in morning_briefs for today's date and current user
-        const { data: existingBrief, error: checkError } = await supabase
-          .from('morning_briefs')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('date', today)
-          .maybeSingle()
+        const { data: existingBriefs, error: checkError } = await offlineSelect('morning_briefs', {
+          user_id: user.id,
+          date: today
+        })
 
         if (checkError) {
           console.error('Morning Brief: Existing check error:', checkError)
         }
 
-        if (existingBrief) {
+        if (existingBriefs && existingBriefs.length > 0) {
           console.log('Morning Brief: Brief already exists for today. Skipping generation.')
           setIsGenerating(false)
           return

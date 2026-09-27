@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { offlineSelect, offlineInsert, offlineUpdate } from '../lib/offlineApi'
+import { offlineSelect, offlineInsert, offlineUpdate, generateUUID } from '../lib/offlineApi'
 import { useAuth } from './useAuth'
 
 export function useRecurringTasks() {
@@ -106,16 +106,31 @@ export function useRecurringTasks() {
 
             const canonicalTask = completedTasks[0]
 
-            // Recycle the single canonical row
-            const pastDates = Array.isArray(canonicalTask.completion_dates) ? canonicalTask.completion_dates : []
+            // Merge completion dates and count from all matching completed tasks to prevent history loss
+            const allMatchingPastDates = new Set()
+            let maxRecordedCount = canonicalTask.completion_count || 0
+
+            completedTasks.forEach(t => {
+              if (Array.isArray(t.completion_dates)) {
+                t.completion_dates.forEach(d => { if (d) allMatchingPastDates.add(d) })
+              }
+              if (typeof t.completion_count === 'number' && t.completion_count > maxRecordedCount) {
+                maxRecordedCount = t.completion_count
+              }
+            })
+
+            const mergedPastDates = Array.from(allMatchingPastDates).sort()
             const dateCompleted = template.last_generated_date || today
+
+            const nextDates = mergedPastDates.includes(dateCompleted) ? mergedPastDates : [...mergedPastDates, dateCompleted]
+            const nextCount = maxRecordedCount + 1
 
             const updatePayload = {
               status: 'active',
               deadline: today,
               source_template_id: template.id,
-              completion_count: (canonicalTask.completion_count || 0) + 1,
-              completion_dates: pastDates.includes(dateCompleted) ? pastDates : [...pastDates, dateCompleted],
+              completion_count: nextCount,
+              completion_dates: nextDates,
               skip_count: 0
             }
             if (template.is_habit) {
@@ -156,7 +171,7 @@ export function useRecurringTasks() {
             }
 
             const insertPayload = {
-              id: crypto.randomUUID(),
+              id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : generateUUID(),
               user_id: user.id,
               title: template.title,
               notes: template.notes,

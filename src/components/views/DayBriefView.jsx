@@ -7,7 +7,7 @@ import { Flame, Check, Target, ChevronRight, Zap, Sparkles, RefreshCw, Rocket, X
 import { motion, AnimatePresence } from 'framer-motion';
 import DismissFeedbackModal from '../modals/DismissFeedbackModal';
 import { safeExternalUrl } from '../../lib/urlUtils';
-import { safeMutate } from '../../lib/safeMutate';
+import { offlineSelect, offlineInsert, offlineUpdate } from '../../lib/offlineApi';
 
 export default function DayBriefView() {
   const { user } = useAuth();
@@ -35,23 +35,21 @@ export default function DayBriefView() {
   const fetchExtras = async () => {
     const today = new Date().toLocaleDateString('en-CA');
     const [briefRes, goalRes] = await Promise.all([
-      supabase.from('morning_briefs').select('id, items').eq('user_id', user.id).eq('date', today).maybeSingle(),
-      supabase.from('goals').select('title').eq('user_id', user.id).eq('scope', 'weekly').eq('completed', false).order('created_at', { ascending: true }).limit(1).maybeSingle()
+      offlineSelect('morning_briefs', { user_id: user.id, date: today }),
+      offlineSelect('goals', { user_id: user.id })
     ]);
     
-    let items = briefRes.data?.items || [];
+    let items = briefRes.data?.[0]?.items || [];
     let oppItems = items.filter(i => i.type === 'opportunity' || i.hardware_opportunity_id);
     let noNewOpp = false;
 
     // Tweak: if no opportunities fetched, get top previous ones
     if (oppItems.length === 0) {
-      const { data: pastOpps } = await supabase
-        .from('hardware_opportunities')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('status', 'new')
-        .order('created_at', { ascending: false })
-        .limit(3);
+      const { data: allOpps } = await offlineSelect('hardware_opportunities', { user_id: user.id });
+      const pastOpps = (allOpps || [])
+        .filter(o => o.status === 'new')
+        .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
+        .slice(0, 3);
       
       if (pastOpps && pastOpps.length > 0) {
         noNewOpp = true;
@@ -72,29 +70,24 @@ export default function DayBriefView() {
       }
     }
 
-    const hwIds = items.filter(i => i.hardware_opportunity_id).map(i => i.hardware_opportunity_id);
+    const hwIds = new Set(items.filter(i => i.hardware_opportunity_id).map(i => i.hardware_opportunity_id));
     
     let appliedIds = new Set();
     let rejectedIds = new Set();
-    if (hwIds.length > 0) {
-      const { data: hwData } = await supabase
-        .from('hardware_opportunities')
-        .select('id, status')
-        .in('id', hwIds)
-        .eq('user_id', user.id);
+    if (hwIds.size > 0) {
+      const { data: hwData } = await offlineSelect('hardware_opportunities', { user_id: user.id });
       if (hwData) {
         hwData.forEach(h => {
-          if (h.status === 'applied') appliedIds.add(h.id);
-          if (h.status === 'rejected') rejectedIds.add(h.id);
+          if (hwIds.has(h.id)) {
+            if (h.status === 'applied') appliedIds.add(h.id);
+            if (h.status === 'rejected') rejectedIds.add(h.id);
+          }
         });
       }
     }
 
     // Query media_log to accurately reflect saved reading articles
-    const { data: mediaItems } = await supabase
-      .from('media_log')
-      .select('title, full_review')
-      .eq('user_id', user.id);
+    const { data: mediaItems } = await offlineSelect('media_log', { user_id: user.id });
 
     const savedTitles = new Set((mediaItems || []).map(m => m.title?.toLowerCase().trim()));
     const savedUrls = new Set(
@@ -126,8 +119,12 @@ export default function DayBriefView() {
       return { ...item, isApplied, isSaved };
     });
 
+    const weeklyGoals = (goalRes.data || [])
+      .filter(g => g.scope === 'weekly' && !g.completed)
+      .sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
+
     setBriefItems(enhancedItems);
-    setWeeklyGoal(goalRes.data?.title || 'None');
+    setWeeklyGoal(weeklyGoals[0]?.title || 'None');
     setNoNewOpp(noNewOpp);
     setLoadingExtras(false);
   };
@@ -145,54 +142,31 @@ export default function DayBriefView() {
 
     // 1. Mark in hardware_opportunities if ID exists
     if (oppId) {
-      await safeMutate(
-        supabase
-          .from('hardware_opportunities')
-          .update({
-            status: 'rejected',
-            rejection_reason: reason || 'Dismissed by user',
-            rejected_at: new Date().toISOString()
-          })
-          .eq('id', oppId)
-          .eq('user_id', user.id),
-        { throwOnError: true, context: 'DayBriefView:dismissOpportunityById' }
-      );
+      await offlineUpdate('hardware_opportunities', { id: oppId, user_id: user.id }, {
+        status: 'rejected',
+        rejection_reason: reason || 'Dismissed by user',
+        rejected_at: new Date().toISOString()
+      });
     } else if (oppUrl) {
-      await safeMutate(
-        supabase
-          .from('hardware_opportunities')
-          .update({
-            status: 'rejected',
-            rejection_reason: reason || 'Dismissed by user',
-            rejected_at: new Date().toISOString()
-          })
-          .eq('url', oppUrl)
-          .eq('user_id', user.id),
-        { throwOnError: true, context: 'DayBriefView:dismissOpportunityByUrl' }
-      );
+      await offlineUpdate('hardware_opportunities', { url: oppUrl, user_id: user.id }, {
+        status: 'rejected',
+        rejection_reason: reason || 'Dismissed by user',
+        rejected_at: new Date().toISOString()
+      });
     }
 
     // 2. Remove from today's morning_briefs
     const today = new Date().toLocaleDateString('en-CA');
-    const { data: currentBrief } = await supabase
-      .from('morning_briefs')
-      .select('id, items')
-      .eq('user_id', user.id)
-      .eq('date', today)
-      .maybeSingle();
+    const { data: currentBriefData } = await offlineSelect('morning_briefs', { user_id: user.id, date: today });
+    const currentBrief = currentBriefData?.[0];
 
     if (currentBrief && Array.isArray(currentBrief.items)) {
       const filtered = currentBrief.items.filter(i => 
         (oppId && i.hardware_opportunity_id === oppId) || (oppUrl && i.url === oppUrl) ? false : true
       );
-      await safeMutate(
-        supabase
-          .from('morning_briefs')
-          .update({ items: filtered })
-          .eq('id', currentBrief.id)
-          .eq('user_id', user.id),
-        { throwOnError: true, context: 'DayBriefView:updateMorningBriefItems' }
-      );
+      await offlineUpdate('morning_briefs', { id: currentBrief.id, user_id: user.id }, {
+        items: filtered
+      });
     }
 
     await fetchExtras();
@@ -203,27 +177,24 @@ export default function DayBriefView() {
     setApplyingIds(prev => new Set(prev).add(index));
     
     let newTaskId;
-    const { data: taskData } = await safeMutate(
-      supabase.from('tasks').insert({
-        title: `Apply for: ${item.title}`,
-        notes: `URL: ${item.url || ''}\nDeadline: ${item.deadline || 'Unknown'}`,
-        status: 'active',
-        quadrant: 'important_not_urgent',
-        deadline: item.deadline || null,
-        user_id: user.id
-      }).select().single(),
-      { throwOnError: true, context: 'DayBriefView:flagToApplyInsertTask' }
-    );
+    const newId = crypto.randomUUID();
+    const { data: taskData } = await offlineInsert('tasks', {
+      id: newId,
+      title: `Apply for: ${item.title}`,
+      notes: `URL: ${item.url || ''}\nDeadline: ${item.deadline || 'Unknown'}`,
+      status: 'active',
+      quadrant: 'important_not_urgent',
+      deadline: item.deadline || null,
+      user_id: user.id
+    });
     
-    if (taskData) newTaskId = taskData.id;
+    if (taskData && taskData[0]) newTaskId = taskData[0].id;
+    else newTaskId = newId;
 
     if (newTaskId) {
-      await safeMutate(
-        supabase.from('hardware_opportunities')
-          .update({ status: 'applied', task_id: newTaskId })
-          .eq('id', item.hardware_opportunity_id)
-          .eq('user_id', user.id),
-        { throwOnError: true, context: 'DayBriefView:flagToApplyUpdateOpportunity' }
+      await offlineUpdate('hardware_opportunities', 
+        { id: item.hardware_opportunity_id, user_id: user.id },
+        { status: 'applied', task_id: newTaskId }
       );
         
       // Fire-and-forget subtask generation
@@ -255,20 +226,18 @@ export default function DayBriefView() {
     setSavingNewsIds(prev => new Set(prev).add(index));
 
     try {
-      await safeMutate(
-        supabase.from('media_log').insert({
-          title: item.title,
-          author_or_creator: item.source_name || 'Morning Brief',
-          media_type: 'article',
-          status: 'want_to',
-          recommended_by: 'Morning Brief',
-          one_line_takeaway: item.summary || null,
-          full_review: item.url ? `URL: ${item.url}` : null,
-          tags: ['morning-brief', 'article'],
-          user_id: user.id
-        }),
-        { throwOnError: true, context: 'DayBriefView:saveNewsToMediaLog' }
-      );
+      await offlineInsert('media_log', {
+        id: crypto.randomUUID(),
+        title: item.title,
+        author_or_creator: item.source_name || 'Morning Brief',
+        media_type: 'article',
+        status: 'want_to',
+        recommended_by: 'Morning Brief',
+        one_line_takeaway: item.summary || null,
+        full_review: item.url ? `URL: ${item.url}` : null,
+        tags: ['morning-brief', 'article'],
+        user_id: user.id
+      });
 
       const updatedBriefItems = briefItems.map((bi, i) => {
         if (i === index || (bi.title === item.title && (bi.url === item.url || bi.source_name === item.source_name))) {
@@ -279,12 +248,8 @@ export default function DayBriefView() {
       setBriefItems(updatedBriefItems);
 
       const today = new Date().toLocaleDateString('en-CA');
-      const { data: currentBrief } = await supabase
-        .from('morning_briefs')
-        .select('id, items')
-        .eq('user_id', user.id)
-        .eq('date', today)
-        .maybeSingle();
+      const { data: currentBriefData } = await offlineSelect('morning_briefs', { user_id: user.id, date: today });
+      const currentBrief = currentBriefData?.[0];
 
       if (currentBrief && Array.isArray(currentBrief.items)) {
         const briefUpdatedItems = currentBrief.items.map(bi => {
@@ -293,14 +258,9 @@ export default function DayBriefView() {
           }
           return bi;
         });
-        await safeMutate(
-          supabase
-            .from('morning_briefs')
-            .update({ items: briefUpdatedItems })
-            .eq('id', currentBrief.id)
-            .eq('user_id', user.id),
-          { throwOnError: true, context: 'DayBriefView:updateMorningBriefSavedStatus' }
-        );
+        await offlineUpdate('morning_briefs', { id: currentBrief.id, user_id: user.id }, {
+          items: briefUpdatedItems
+        });
       }
     } catch (err) {
       console.error('Error saving news item to curriculum media log:', err);

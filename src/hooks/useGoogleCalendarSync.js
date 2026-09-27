@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from './useAuth'
-import { supabase } from '../lib/supabase'
-import { offlineUpsert, offlineInsert, offlineUpdate, offlineDelete } from '../lib/offlineApi'
+import { offlineSelect, offlineUpsert, offlineInsert, offlineUpdate, offlineDelete } from '../lib/offlineApi'
 
 export function useGoogleCalendarSync() {
   const { user, providerToken } = useAuth()
@@ -22,22 +21,19 @@ export function useGoogleCalendarSync() {
     localStorage.setItem('polaris_auto_sync_gcal', enabled ? 'true' : 'false')
   }
 
-  // Fetch events stored in Supabase
+  // Fetch events stored locally / offline
   const fetchSupabaseSchedule = useCallback(async () => {
     if (!user?.id) return
     try {
-      const { data, error } = await supabase
-        .from('calendar_events')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('start_time', { ascending: true })
+      const { data, error } = await offlineSelect('calendar_events', { user_id: user.id })
 
       if (!error && data) {
-        setSyncedEvents(data.filter(e => e.status === 'confirmed'))
-        setProposedEvents(data.filter(e => e.status === 'proposed'))
+        const sorted = [...data].sort((a, b) => new Date(a.start_time || 0) - new Date(b.start_time || 0))
+        setSyncedEvents(sorted.filter(e => e.status === 'confirmed'))
+        setProposedEvents(sorted.filter(e => e.status === 'proposed'))
       }
     } catch (e) {
-      console.error('Failed to fetch schedule from Supabase:', e)
+      console.error('Failed to fetch schedule:', e)
     }
   }, [user?.id])
 
@@ -45,14 +41,11 @@ export function useGoogleCalendarSync() {
   const fetchBackups = useCallback(async () => {
     if (!user?.id) return
     try {
-      const { data, error } = await supabase
-        .from('calendar_backups')
-        .select('id, snapshot_name, event_count, created_at')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
+      const { data, error } = await offlineSelect('calendar_backups', { user_id: user.id })
 
       if (!error && data) {
-        setBackups(data)
+        const sorted = [...data].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
+        setBackups(sorted)
       }
     } catch (e) {
       console.error('Failed to fetch backups:', e)
@@ -144,10 +137,7 @@ export function useGoogleCalendarSync() {
   const createBackup = useCallback(async (customName) => {
     if (!user?.id) return
 
-    const { data: allEvents } = await supabase
-      .from('calendar_events')
-      .select('*')
-      .eq('user_id', user.id)
+    const { data: allEvents } = await offlineSelect('calendar_events', { user_id: user.id })
 
     const name = customName || `Schedule Snapshot ${new Date().toLocaleDateString('en-GB')} ${new Date().toLocaleTimeString()}`
     const events = allEvents || []
@@ -202,14 +192,14 @@ export function useGoogleCalendarSync() {
   // Approve a proposed event (Commit to confirmed status)
   const approveProposedEvent = async (eventId) => {
     if (!user?.id) return
-    await offlineUpdate('calendar_events', { id: eventId }, { status: 'confirmed', updated_at: new Date().toISOString() })
+    await offlineUpdate('calendar_events', { id: eventId, user_id: user.id }, { status: 'confirmed', updated_at: new Date().toISOString() })
     await fetchSupabaseSchedule()
   }
 
   // Reject a proposed event
   const rejectProposedEvent = async (eventId) => {
     if (!user?.id) return
-    await offlineDelete('calendar_events', { id: eventId })
+    await offlineDelete('calendar_events', { id: eventId, user_id: user.id })
     await fetchSupabaseSchedule()
   }
 

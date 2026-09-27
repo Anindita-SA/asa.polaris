@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from './useAuth';
-import { supabase } from '../lib/supabase';
+import { offlineSelect } from '../lib/offlineApi';
 
 /**
  * Quadrant weight map:
@@ -99,14 +99,13 @@ export function useWSJFScore() {
       setLoading(true);
       setError(null);
 
-      const { data, error: fetchError } = await supabase
-        .from('tasks')
-        .select('*')
-        .in('status', ['inbox', 'active']).eq('user_id', user.id);
+      const { data, error: fetchError } = await offlineSelect('tasks', { user_id: user.id });
 
       if (fetchError) throw fetchError;
 
-      const scored = (data || []).map((t) => {
+      const activeTasks = (data || []).filter(t => t.status === 'inbox' || t.status === 'active');
+
+      const scored = activeTasks.map((t) => {
         const { score, breakdown } = computeWSJFScore(t);
         return {
           ...t,

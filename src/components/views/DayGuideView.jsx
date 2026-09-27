@@ -1,5 +1,6 @@
 import { generateLlmResponse } from '../../lib/llm';
 import React, { useState, useCallback, useEffect, lazy, Suspense } from 'react';
+import { offlineSelect, offlineInsert, offlineUpdate, offlineDelete, offlineUpsert, generateUUID } from '../../lib/offlineApi';
 
 function estimateDurationHeuristic(title) {
   const t = (title || '').toLowerCase();
@@ -49,11 +50,10 @@ function estimateDurationHeuristic(title) {
 import { useAuth } from '../../hooks/useAuth';
 import { supabase } from '../../lib/supabase';
 import { safeMutate } from '../../lib/safeMutate';
-import { offlineSelect, offlineInsert, offlineUpdate, offlineDelete, offlineUpsert } from '../../lib/offlineApi';
 import { computeWSJFScore } from '../../hooks/useWSJFScore';
 import {
   Sparkles, Star, Network, Bot, CheckCircle2, Clock, AlertTriangle,
-  Zap, Target, Flame, Archive, RefreshCw, ChevronRight, BarChart2
+  Zap, Target, Flame, Archive, RefreshCw, ChevronRight, ChevronDown, BarChart2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -112,14 +112,10 @@ function AuditorPanel({ onAuditDone }) {
     console.log('[AuditorPanel] fetchTasks called (Data loading triggered)');
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('tasks')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(100);
+      const { data, error } = await offlineSelect('tasks', { user_id: user.id });
       if (error) throw error;
-      setTasks(data || []);
+      const sorted = (data || []).sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)).slice(0, 100);
+      setTasks(sorted);
     } catch (err) {
       console.error('AuditorPanel fetchTasks:', err);
     } finally {
@@ -188,11 +184,7 @@ function AuditorPanel({ onAuditDone }) {
       }
 
       pushLog('Scoring all tasks with WSJF algorithm...', 'info');
-      const { data: updatedData } = await supabase
-        .from('tasks')
-        .select('*')
-        .eq('user_id', user.id)
-        .limit(100);
+      const { data: updatedData } = await offlineSelect('tasks', { user_id: user.id });
       const scored = (updatedData || [])
         .map(t => ({ ...t, score: computeWSJFScore(t).score }))
         .sort((a, b) => b.score - a.score);
@@ -222,27 +214,20 @@ function AuditorPanel({ onAuditDone }) {
         const todayStr = new Date().toLocaleDateString('en-CA');
         const pickedFull = scored.filter(t => todayPickIds.includes(t.id));
         for (const t of pickedFull) {
-          const { data: existing } = await safeMutate(
-            supabase
-              .from('daily_tasks')
-              .select('id')
-              .eq('user_id', userId)
-              .eq('date', todayStr)
-              .eq('title', t.title)
-              .maybeSingle(),
-            { throwOnError: true, context: 'DayGuideView:checkExistingDailyTask' }
-          );
-          if (!existing) {
-            await safeMutate(
-              supabase.from('daily_tasks').insert({
-                user_id: userId,
-                title: t.title,
-                date: todayStr,
-                recurring: false,
-                completed: false,
-              }),
-              { throwOnError: true, context: 'DayGuideView:insertDailyTaskBridge' }
-            );
+          const { data: existingDaily } = await offlineSelect('daily_tasks', {
+            user_id: userId,
+            date: todayStr,
+            title: t.title
+          });
+          if (!existingDaily || existingDaily.length === 0) {
+            await offlineInsert('daily_tasks', {
+              id: generateUUID(),
+              user_id: userId,
+              title: t.title,
+              date: todayStr,
+              recurring: false,
+              completed: false,
+            });
           }
         }
       } catch (e) { console.warn('daily_tasks bridge (AuditorPanel):', e); }
@@ -404,6 +389,7 @@ function AuditorPanel({ onAuditDone }) {
 // Day Guide View
 export default function DayGuideView() {
   const [activeSubTab, setActiveSubTab] = useState('spatial');
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   useEffect(() => {
     const handleNav = () => setActiveSubTab('brief');
@@ -463,27 +449,30 @@ export default function DayGuideView() {
     },
   ];
 
+  const currentTab = tabs.find(t => t.id === activeSubTab) || tabs[0];
+  const CurrentIcon = currentTab.icon;
+
   return (
     <div className="w-full h-full text-starlight font-body flex flex-col overflow-hidden relative">
       {/* Compact Sub-Header */}
-      <div className="glass border-b border-pulsar/30 pl-4 sm:pl-12 pr-4 sm:pr-14 py-2.5 backdrop-blur-md sticky top-0 z-20 flex items-center justify-between gap-3 shadow-xl shrink-0">
+      <div className="glass border-b border-pulsar/30 pl-3 sm:pl-12 pr-3 sm:pr-14 py-2 backdrop-blur-md sticky top-0 z-20 flex items-center justify-between gap-2 shadow-xl shrink-0">
         {/* Title */}
-        <div className="flex items-center gap-2.5 min-w-0">
+        <div className="flex items-center gap-2 min-w-fit shrink-0">
           <div className="w-7 h-7 rounded-full bg-gold/15 border border-gold/40 flex items-center justify-center text-gold shrink-0">
             <Star className="w-3.5 h-3.5 fill-current" />
           </div>
           <div className="min-w-0">
-            <h1 className="font-display text-xl font-bold text-starlight truncate">
+            <h1 className="font-display text-lg sm:text-xl font-bold text-starlight truncate">
               Day Guide
             </h1>
-            <p className="text-xs text-nova/60 font-body italic truncate hidden sm:block">
+            <p className="text-xs text-nova/60 font-body italic truncate hidden md:block">
               Constellation matrix * WSJF picks * AI auditor
             </p>
           </div>
         </div>
 
-        {/* Pill Sub-Navigation */}
-        <div className="glass border border-pulsar/40 p-0.5 rounded-xl flex items-center gap-0.5 shrink-0">
+        {/* Desktop Pill Sub-Navigation */}
+        <div className="hidden md:flex glass border border-pulsar/40 p-0.5 rounded-xl items-center gap-0.5 shrink-0">
           {tabs.map(tab => {
             const Icon = tab.icon;
             const isActive = activeSubTab === tab.id;
@@ -492,7 +481,7 @@ export default function DayGuideView() {
                 key={tab.id}
                 onClick={() => setActiveSubTab(tab.id)}
                 title={tab.fullLabel}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-mono uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-mono uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                   isActive
                     ? `text-starlight ${tab.activeStyle} font-bold`
                     : 'text-nova/60 hover:text-starlight hover:bg-pulsar/10'
@@ -503,6 +492,51 @@ export default function DayGuideView() {
               </button>
             );
           })}
+        </div>
+
+        {/* Mobile Sub-Nav Popup Menu */}
+        <div className="relative flex md:hidden shrink-0">
+          <button
+            onClick={() => setIsMenuOpen(v => !v)}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-mono uppercase tracking-wider glass border border-pulsar/40 text-starlight hover:bg-pulsar/10 transition-all cursor-pointer active:scale-95"
+            aria-label="Toggle sub-navigation menu"
+          >
+            <CurrentIcon className={`w-3.5 h-3.5 ${currentTab.iconColor}`} />
+            <span className="font-bold text-[11px]">{currentTab.label}</span>
+            <ChevronDown className={`w-3.5 h-3.5 text-nova/60 transition-transform duration-200 ${isMenuOpen ? 'rotate-180' : ''}`} />
+          </button>
+
+          {isMenuOpen && (
+            <>
+              <div 
+                className="fixed inset-0 z-40 bg-black/50 backdrop-blur-xs" 
+                onClick={() => setIsMenuOpen(false)} 
+              />
+              <div className="absolute right-0 top-full mt-2 z-50 w-48 glass border border-pulsar/40 rounded-xl p-1.5 shadow-2xl bg-[#030712]/95 backdrop-blur-xl space-y-1">
+                {tabs.map(tab => {
+                  const Icon = tab.icon;
+                  const isActive = activeSubTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => {
+                        setActiveSubTab(tab.id);
+                        setIsMenuOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-mono uppercase tracking-wider text-left transition-all cursor-pointer ${
+                        isActive
+                          ? 'text-amber-400 font-bold bg-pulsar/20 border border-pulsar/40'
+                          : 'text-nova/70 hover:text-starlight hover:bg-white/5 border border-transparent'
+                      }`}
+                    >
+                      <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-amber-400' : tab.iconColor}`} />
+                      <span className="truncate">{tab.fullLabel || tab.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </div>
       </div>
 

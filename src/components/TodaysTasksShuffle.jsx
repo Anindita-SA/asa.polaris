@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useWSJFScore } from '../hooks/useWSJFScore';
 import { supabase } from '../lib/supabase';
+import { offlineUpdate } from '../lib/offlineApi';
 import { useAuth } from '../hooks/useAuth';
 import DayChunker from './DayChunker';
 import { 
@@ -151,10 +152,7 @@ export default function TodaysTasksShuffle() {
 
   const handleMarkDone = async (task) => {
     try {
-      const { error } = await supabase
-        .from('tasks')
-        .update({ status: 'done' })
-        .eq('id', task.id).eq('user_id', user?.id);
+      const { error } = await offlineUpdate('tasks', { id: task.id, user_id: user?.id }, { status: 'done' });
 
       if (error) throw error;
 

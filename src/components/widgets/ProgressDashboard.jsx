@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../../lib/supabase'
+import { offlineSelect } from '../../lib/offlineApi'
 import { useAuth } from '../../hooks/useAuth'
 import { getLevelInfo } from '../../data/defaults'
 import { format, subDays, eachDayOfInterval } from 'date-fns'
@@ -16,21 +16,24 @@ const ProgressDashboard = () => {
 
     useEffect(() => {
         if (!user?.id) return
+        const habitCutoff = format(subDays(new Date(), 365), 'yyyy-MM-dd')
+        const pomoCutoff = format(subDays(new Date(), 7), 'yyyy-MM-dd')
+
         Promise.all([
-            supabase.from('milestones').select('*').eq('user_id', user.id),
-            supabase.from('goals').select('*').eq('user_id', user.id),
-            supabase.from('habits').select('*').eq('user_id', user.id),
-            supabase.from('habit_logs').select('*').eq('user_id', user.id)
-                .gte('date', format(subDays(new Date(), 365), 'yyyy-MM-dd')),
-            supabase.from('pomodoro_logs').select('*').eq('user_id', user.id)
-                .gte('date', format(subDays(new Date(), 7), 'yyyy-MM-dd'))
-                .order('date'),
+            offlineSelect('milestones', { user_id: user.id }),
+            offlineSelect('goals', { user_id: user.id }),
+            offlineSelect('habits', { user_id: user.id }),
+            offlineSelect('habit_logs', { user_id: user.id }),
+            offlineSelect('pomodoro_logs', { user_id: user.id }),
         ]).then(([m, g, h, hl, p]) => {
             setMilestones(m.data || [])
             setGoals(g.data || [])
             setHabits(h.data || [])
-            setHabitLogs(hl.data || [])
-            setPomodoroLogs(p.data || [])
+            setHabitLogs((hl.data || []).filter(l => l.date >= habitCutoff))
+            const sortedPomo = (p.data || [])
+                .filter(l => l.date >= pomoCutoff)
+                .sort((a, b) => (a.date || '').localeCompare(b.date || ''))
+            setPomodoroLogs(sortedPomo)
             setLoading(false)
         })
     }, [user?.id])

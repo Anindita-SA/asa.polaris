@@ -5,6 +5,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { X, Target, Flag, Plus, Check, Zap, ChevronRight, ChevronDown, Pencil, Trash2 } from 'lucide-react'
 import { XP } from '../../data/xpRewards'
 import { generateLlmResponse } from '../../lib/llm'
+import { offlineSelect, offlineInsert, offlineUpdate, offlineDelete, generateUUID } from '../../lib/offlineApi'
 
 // ─── Colours ────────────────────────────────────────────────────────────────
 const TYPE_META = {
@@ -54,14 +55,15 @@ const NodePanel = ({ node, onClose, onRefreshGraph }) => {
   const fetchAll = useCallback(async () => {
     if (!node) return
     const [g, m, s, c] = await Promise.all([
-      supabase.from('goals').select('*').eq('node_id', node.id).eq('user_id', user.id),
-      supabase.from('milestones').select('*').eq('user_id', user.id),
-      supabase.from('tasks').select('*').eq('user_id', user.id).eq('parent_task_id', node.id).order('created_at'),
-      supabase.from('nodes').select('*').eq('user_id', user.id),
+      offlineSelect('goals', { node_id: node.id, user_id: user.id }),
+      offlineSelect('milestones', { user_id: user.id }),
+      offlineSelect('tasks', { user_id: user.id, parent_task_id: node.id }),
+      offlineSelect('nodes', { user_id: user.id }),
     ])
     setGoals(g.data || [])
     setMilestones(m.data || [])
-    setSubtasks((s.data || []).map(row => ({
+    const sortedTasks = [...(s.data || [])].sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0))
+    setSubtasks(sortedTasks.map(row => ({
       ...row,
       completed: row.status === 'done'
     })))
@@ -82,19 +84,13 @@ const NodePanel = ({ node, onClose, onRefreshGraph }) => {
 
   // ── Node edits ──────────────────────────────────────────────────────────────
   const updateNodeField = async (field, value) => {
-    await safeMutate(
-      supabase.from('nodes').update({ [field]: value }).eq('id', node.id).eq('user_id', user.id),
-      { throwOnError: true, context: 'NodePanel:updateNodeField' }
-    )
+    await offlineUpdate('nodes', { id: node.id, user_id: user.id }, { [field]: value })
     onRefreshGraph && onRefreshGraph()
   }
 
   const deleteNode = async (id) => {
     if (!confirm('Delete this node and all its children? This cannot be undone.')) return
-    await safeMutate(
-      supabase.from('nodes').delete().eq('id', id).eq('user_id', user.id),
-      { throwOnError: true, context: 'NodePanel:deleteNode' }
-    )
+    await offlineDelete('nodes', { id: id, user_id: user.id })
     onRefreshGraph && onRefreshGraph()
     fetchAll()
   }
@@ -103,17 +99,15 @@ const NodePanel = ({ node, onClose, onRefreshGraph }) => {
   const addChild = async () => {
     if (!newChildTitle.trim() || !addingChild) return
     const { parentId, level } = addingChild
-    await safeMutate(
-      supabase.from('nodes').insert({
-        user_id: user.id,
-        title: newChildTitle.trim(),
-        type: level,          // 'subnode' or 'topic'
-        parent_id: parentId,
-        x_pos: 0.4 + Math.random() * 0.2,
-        y_pos: 0.4 + Math.random() * 0.2,
-      }),
-      { throwOnError: true, context: 'NodePanel:addChild' }
-    )
+    await offlineInsert('nodes', {
+      id: generateUUID(),
+      user_id: user.id,
+      title: newChildTitle.trim(),
+      type: level,          // 'subnode' or 'topic'
+      parent_id: parentId,
+      x_pos: 0.4 + Math.random() * 0.2,
+      y_pos: 0.4 + Math.random() * 0.2,
+    })
     setNewChildTitle('')
     setAddingChild(null)
     onRefreshGraph && onRefreshGraph()
@@ -123,10 +117,15 @@ const NodePanel = ({ node, onClose, onRefreshGraph }) => {
   // ── Goals ───────────────────────────────────────────────────────────────────
   const addGoal = async () => {
     if (!newGoal.title || !newGoal.target) return
-    await safeMutate(
-      supabase.from('goals').insert({ ...newGoal, node_id: node.id, user_id: user.id, target: parseFloat(newGoal.target) }),
-      { throwOnError: true, context: 'NodePanel:addGoal' }
-    )
+    await offlineInsert('goals', {
+      id: generateUUID(),
+      ...newGoal,
+      node_id: node.id,
+      user_id: user.id,
+      target: parseFloat(newGoal.target),
+      current: 0,
+      completed: false,
+    })
     setNewGoal({ title: '', scope: 'weekly', target: '', unit: '' })
     setAddingGoal(false)
     fetchAll()
@@ -135,20 +134,14 @@ const NodePanel = ({ node, onClose, onRefreshGraph }) => {
   const incrementGoal = async (goal) => {
     const newCurrent = Math.min(goal.current + 1, goal.target)
     const completed = newCurrent >= goal.target
-    await safeMutate(
-      supabase.from('goals').update({ current: newCurrent, completed }).eq('id', goal.id).eq('user_id', user.id),
-      { throwOnError: true, context: 'NodePanel:incrementGoal' }
-    )
+    await offlineUpdate('goals', { id: goal.id, user_id: user.id }, { current: newCurrent, completed })
     if (completed && !goal.completed) await addXP(goal.xp_reward || XP.GOAL_COMPLETE)
     fetchAll()
   }
 
   // ── Milestones ──────────────────────────────────────────────────────────────
   const completeMilestone = async (ms) => {
-    await safeMutate(
-      supabase.from('milestones').update({ status: 'done' }).eq('id', ms.id).eq('user_id', user.id),
-      { throwOnError: true, context: 'NodePanel:completeMilestone' }
-    )
+    await offlineUpdate('milestones', { id: ms.id, user_id: user.id }, { status: 'done' })
     await addXP(ms.xp_reward || XP.MILESTONE_COMPLETE)
     fetchAll()
   }
@@ -193,9 +186,9 @@ const NodePanel = ({ node, onClose, onRefreshGraph }) => {
   }
 
   const saveSubtasks = async () => {
-    await safeMutate(
-      supabase.from('tasks').insert(generatedSteps.map((title) => ({
-        id: crypto.randomUUID(),
+    for (const title of generatedSteps) {
+      await offlineInsert('tasks', {
+        id: generateUUID(),
         user_id: user.id,
         parent_task_id: node.id,
         title,
@@ -207,18 +200,14 @@ const NodePanel = ({ node, onClose, onRefreshGraph }) => {
         mental_load: 'medium',
         estimate_source: 'ai',
         created_at: new Date().toISOString(),
-      }))),
-      { throwOnError: true, context: 'NodePanel:saveSubtasks' }
-    )
+      })
+    }
     setShowBreakdown(false); setGeneratedSteps([]); setTaskDescription(''); fetchAll()
   }
 
   const toggleSubtask = async (task) => {
     const nextStatus = task.status === 'done' ? 'active' : 'done'
-    await safeMutate(
-      supabase.from('tasks').update({ status: nextStatus }).eq('id', task.id).eq('user_id', user.id),
-      { throwOnError: true, context: 'NodePanel:toggleSubtask' }
-    )
+    await offlineUpdate('tasks', { id: task.id, user_id: user.id }, { status: nextStatus })
     fetchAll()
   }
 
@@ -286,10 +275,7 @@ const NodePanel = ({ node, onClose, onRefreshGraph }) => {
                     <div className={`w-2 h-2 rounded-full flex-shrink-0 ${meta('subnode').dot}`} />
                     <InlineEdit value={sub.title} className="text-xs text-starlight flex-1 min-w-0"
                       onSave={async v => {
-                        await safeMutate(
-                          supabase.from('nodes').update({ title: v }).eq('id', sub.id).eq('user_id', user.id),
-                          { throwOnError: true, context: 'NodePanel:updateSubnodeTitle' }
-                        )
+                        await offlineUpdate('nodes', { id: sub.id, user_id: user.id }, { title: v })
                         fetchAll()
                         onRefreshGraph && onRefreshGraph()
                       }} />
@@ -318,10 +304,7 @@ const NodePanel = ({ node, onClose, onRefreshGraph }) => {
                       <div className="w-1.5 h-1.5 rounded-full bg-stardust/50 flex-shrink-0 ml-0.5" />
                       <InlineEdit value={topic.title} className="text-xs text-nova/60 flex-1 min-w-0"
                         onSave={async v => {
-                          await safeMutate(
-                            supabase.from('nodes').update({ title: v }).eq('id', topic.id).eq('user_id', user.id),
-                            { throwOnError: true, context: 'NodePanel:updateTopicTitle' }
-                          )
+                          await offlineUpdate('nodes', { id: topic.id, user_id: user.id }, { title: v })
                           fetchAll()
                           onRefreshGraph && onRefreshGraph()
                         }} />
@@ -340,10 +323,7 @@ const NodePanel = ({ node, onClose, onRefreshGraph }) => {
                   <div className="w-1.5 h-1.5 rounded-full bg-stardust/50 flex-shrink-0 ml-1" />
                   <InlineEdit value={topic.title} className="text-xs text-nova/60 flex-1 min-w-0"
                     onSave={async v => {
-                      await safeMutate(
-                        supabase.from('nodes').update({ title: v }).eq('id', topic.id).eq('user_id', user.id),
-                        { throwOnError: true, context: 'NodePanel:updateDirectTopicTitle' }
-                      )
+                      await offlineUpdate('nodes', { id: topic.id, user_id: user.id }, { title: v })
                       fetchAll()
                       onRefreshGraph && onRefreshGraph()
                     }} />

@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../../lib/supabase'
-import { offlineInsert } from '../../lib/offlineApi'
+import { offlineSelect, offlineInsert } from '../../lib/offlineApi'
 import { useAuth } from '../../hooks/useAuth'
 import { Gamepad2, Plus, Sparkles, X, ExternalLink, Columns } from 'lucide-react'
 
@@ -22,36 +21,35 @@ export default function PlayView() {
 
   useEffect(() => {
     fetchGames()
-  }, [])
+  }, [user?.id])
 
   const fetchGames = async () => {
+    if (!user?.id) return
     try {
-      const { data, error } = await supabase
-        .from('mini_games')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('active', true)
-        .order('sort_order', { ascending: true })
-        .order('created_at', { ascending: false })
+      const { data: rawData, error } = await offlineSelect('mini_games', {
+        user_id: user.id
+      })
 
       if (error) throw error
 
-      if (data && data.length === 0) {
+      const activeGames = (rawData || [])
+        .filter(g => g.active !== false)
+        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+
+      if (activeGames.length === 0) {
         // Seed
-        const seedData = DEFAULT_GAMES.map((g, i) => ({ ...g, user_id: user.id, sort_order: i }))
+        const seedData = DEFAULT_GAMES.map((g, i) => ({ ...g, user_id: user.id, sort_order: i, active: true }))
         await Promise.all(seedData.map(d => offlineInsert('mini_games', d)))
         
         // Refetch
-        const { data: refetched } = await supabase
-          .from('mini_games')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('active', true)
-          .order('sort_order', { ascending: true })
+        const { data: refetched } = await offlineSelect('mini_games', { user_id: user.id })
+        const activeRefetched = (refetched || [])
+          .filter(g => g.active !== false)
+          .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
         
-        setGames(refetched || [])
+        setGames(activeRefetched)
       } else {
-        setGames(data || [])
+        setGames(activeGames)
       }
     } catch (e) {
       console.error('Error fetching games:', e)

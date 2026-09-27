@@ -7,6 +7,7 @@ import { XP } from '../../data/xpRewards'
 import { safeExternalUrl } from '../../lib/urlUtils'
 import { autoFetchLinkMetadata } from '../../lib/linkMetadataFetcher'
 import AddMediaModal, { MEDIA_TYPES } from './AddMediaModal'
+import { offlineSelect, offlineInsert, offlineUpdate, offlineDelete, generateUUID } from '../../lib/offlineApi'
 
 const SUB_VIEWS = [
   { id: 'all', label: 'All Items', icon: BookOpen },
@@ -57,12 +58,9 @@ const MediaLog = () => {
 
   const fetchMedia = async () => {
     if (!user?.id) return
-    const { data } = await supabase
-      .from('media_log')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-    setMedia(data || [])
+    const { data } = await offlineSelect('media_log', { user_id: user.id })
+    const sorted = [...(data || [])].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
+    setMedia(sorted)
   }
 
   const handleQuickDrop = async () => {
@@ -88,7 +86,11 @@ const MediaLog = () => {
 
   const saveMedia = async (form) => {
     if (!user?.id) return
-    const payload = { ...form, user_id: user.id }
+    const payload = { 
+      id: generateUUID(),
+      ...form, 
+      user_id: user.id 
+    }
     
     // Clean empty fields
     if (!payload.date_started) delete payload.date_started
@@ -97,10 +99,7 @@ const MediaLog = () => {
     if (!payload.one_line_takeaway) delete payload.one_line_takeaway
     if (!payload.full_review) delete payload.full_review
     
-    await safeMutate(
-      supabase.from('media_log').insert(payload),
-      { throwOnError: true, context: 'MediaLog:saveMedia' }
-    )
+    await offlineInsert('media_log', payload)
     await addXP(XP.MEDIA_LOG)
     setShowModal(false)
     setEditingItem(null)
@@ -119,10 +118,7 @@ const MediaLog = () => {
     if (!payload.one_line_takeaway) payload.one_line_takeaway = null
     if (!payload.full_review) payload.full_review = null
     
-    await safeMutate(
-      supabase.from('media_log').update(payload).eq('id', id).eq('user_id', user.id),
-      { throwOnError: true, context: 'MediaLog:updateMedia' }
-    )
+    await offlineUpdate('media_log', { id, user_id: user.id }, payload)
     setShowModal(false)
     setEditingItem(null)
     setModalInitialData(null)
@@ -131,10 +127,7 @@ const MediaLog = () => {
 
   const updateRating = async (id, rating) => {
     if (!user?.id) return
-    await safeMutate(
-      supabase.from('media_log').update({ rating }).eq('id', id).eq('user_id', user.id),
-      { throwOnError: true, context: 'MediaLog:updateRating' }
-    )
+    await offlineUpdate('media_log', { id, user_id: user.id }, { rating })
     setMedia(prev => prev.map(m => m.id === id ? { ...m, rating } : m))
   }
 
@@ -143,19 +136,13 @@ const MediaLog = () => {
     const updates = { status }
     if (status === 'in_progress') updates.date_started = new Date().toISOString().slice(0, 10)
     if (status === 'done') updates.date_finished = new Date().toISOString().slice(0, 10)
-    await safeMutate(
-      supabase.from('media_log').update(updates).eq('id', id).eq('user_id', user.id),
-      { throwOnError: true, context: 'MediaLog:updateStatus' }
-    )
+    await offlineUpdate('media_log', { id, user_id: user.id }, updates)
     fetchMedia()
   }
 
   const deleteMedia = async (id) => {
     if (!user?.id) return
-    await safeMutate(
-      supabase.from('media_log').delete().eq('id', id).eq('user_id', user.id),
-      { throwOnError: true, context: 'MediaLog:deleteMedia' }
-    )
+    await offlineDelete('media_log', { id, user_id: user.id })
     fetchMedia()
   }
 

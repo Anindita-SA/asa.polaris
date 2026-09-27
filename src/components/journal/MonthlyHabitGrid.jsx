@@ -1,6 +1,5 @@
-import { useState, useEffect, useMemo } from 'react'
-import { supabase } from '../../lib/supabase'
-import { safeMutate } from '../../lib/safeMutate'
+import { useState, useEffect, useMemo, useCallback } from 'react'
+import { offlineSelect, offlineUpdate } from '../../lib/offlineApi'
 import { startOfMonth, endOfMonth, eachDayOfInterval, format, isToday, isBefore } from 'date-fns'
 import { Edit2, Check, X, Trash2 } from 'lucide-react'
 
@@ -17,23 +16,82 @@ const MonthlyHabitGrid = ({ habitTemplates, userId, selectedDate, addXP, trackXP
   const monthEnd = endOfMonth(selectedDate)
   const days = useMemo(() => eachDayOfInterval({ start: monthStart, end: monthEnd }), [monthStart.getTime()])
 
-  useEffect(() => {
-    fetchHabitTasks()
-  }, [userId, habitTemplates, monthStart.getTime()])
-
-  const fetchHabitTasks = async () => {
-    if (!habitTemplates || habitTemplates.length === 0) {
+  const fetchHabitTasks = useCallback(async () => {
+    if (!habitTemplates || habitTemplates.length === 0 || !userId) {
       setHabitTasks([])
       return
     }
-    const templateIds = habitTemplates.map(t => t.id)
-    const { data } = await supabase
-      .from('tasks')
-      .select('id, title, source_template_id, status, completion_count, completion_dates')
-      .eq('user_id', userId)
-      .in('source_template_id', templateIds)
-    setHabitTasks(data || [])
-  }
+    const templateIds = new Set(habitTemplates.map(t => t.id))
+    const { data } = await offlineSelect('tasks', { user_id: userId })
+    const allUserTasks = (data || []).filter(t => t.user_id === userId && t.source_template_id && templateIds.has(t.source_template_id))
+    
+    // Group tasks by source_template_id, merge duplicate histories, and pick the primary/active task
+    const tasksByTemplate = new Map()
+    for (const t of allUserTasks) {
+      const tplId = t.source_template_id
+      if (!tasksByTemplate.has(tplId)) {
+        tasksByTemplate.set(tplId, [])
+      }
+      tasksByTemplate.get(tplId).push(t)
+    }
+
+    const consolidated = []
+    for (const tpl of habitTemplates) {
+      const list = tasksByTemplate.get(tpl.id) || []
+      if (list.length === 0) continue
+
+      // Sort: active tasks first, then by created_at descending
+      const sorted = [...list].sort((a, b) => {
+        if (a.status !== 'done' && b.status === 'done') return -1
+        if (a.status === 'done' && b.status !== 'done') return 1
+        const timeA = a.created_at ? new Date(a.created_at).getTime() : 0
+        const timeB = b.created_at ? new Date(b.created_at).getTime() : 0
+        return timeB - timeA
+      })
+
+      const primary = { ...sorted[0] }
+      // Merge completion_dates from all rows belonging to this template
+      const allDates = new Set()
+      let maxCount = primary.completion_count || 0
+
+      for (const item of sorted) {
+        if (Array.isArray(item.completion_dates)) {
+          item.completion_dates.forEach(d => { if (d) allDates.add(d) })
+        }
+        if (typeof item.completion_count === 'number' && item.completion_count > maxCount) {
+          maxCount = item.completion_count
+        }
+      }
+
+      const mergedDates = Array.from(allDates).sort()
+      primary.completion_dates = mergedDates
+      primary.completion_count = Math.max(maxCount, mergedDates.length)
+      consolidated.push(primary)
+    }
+
+    setHabitTasks(consolidated)
+  }, [userId, habitTemplates])
+
+  useEffect(() => {
+    fetchHabitTasks()
+  }, [fetchHabitTasks, monthStart.getTime()])
+
+  // Listen to polaris-tasks-changed events to refresh grid when sync or tasks change
+  useEffect(() => {
+    const handleChanged = (e) => {
+      if (e.detail?.table === 'tasks' || e.detail?.table === 'recurring_task_templates') {
+        fetchHabitTasks()
+      }
+    }
+    if (typeof window !== 'undefined') {
+      window.addEventListener('polaris-tasks-changed', handleChanged)
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('polaris-tasks-changed', handleChanged)
+      }
+    }
+  }, [fetchHabitTasks])
 
   const getTaskForTemplate = (templateId) => {
     return habitTasks.find(t => t.source_template_id === templateId)
@@ -58,27 +116,25 @@ const MonthlyHabitGrid = ({ habitTemplates, userId, selectedDate, addXP, trackXP
       // Remove date
       newDates = dates.filter(d => d !== dateStr)
       newCount = Math.max((task.completion_count || 1) - 1, 0)
-      // If we're un-toggling today and the task was done, set it back to active
+      // If un-toggling today and task was done, set back to active
       const todayStr = format(new Date(), 'yyyy-MM-dd')
       newStatus = dateStr === todayStr ? 'active' : task.status
     } else {
       // Add date
       newDates = [...dates, dateStr].sort()
       newCount = (task.completion_count || 0) + 1
-      // If toggling today, mark the task as done
+      // If toggling today, mark task as done
       const todayStr = format(new Date(), 'yyyy-MM-dd')
       newStatus = dateStr === todayStr ? 'done' : task.status
       celebrate(e ? { x: e.clientX, y: e.clientY } : undefined)
     }
 
-    await safeMutate(
-      supabase.from('tasks').update({
-        completion_dates: newDates,
-        completion_count: newCount,
-        status: newStatus
-      }).eq('id', task.id).eq('user_id', userId),
-      { throwOnError: true, context: 'MonthlyHabitGrid:toggleDay' }
-    )
+    // Persist via offlineUpdate to keep Dexie and Supabase synchronized
+    await offlineUpdate('tasks', { id: task.id, user_id: userId }, {
+      completion_dates: newDates,
+      completion_count: newCount,
+      status: newStatus
+    })
 
     // Update local state optimistically
     setHabitTasks(prev => prev.map(t => 
@@ -92,20 +148,15 @@ const MonthlyHabitGrid = ({ habitTemplates, userId, selectedDate, addXP, trackXP
 
   const saveHabitTitle = async (templateId) => {
     if (!editTitle.trim() || !userId) return
-    await safeMutate(
-      supabase.from('recurring_task_templates').update({ title: editTitle.trim() }).eq('id', templateId).eq('user_id', userId),
-      { throwOnError: true, context: 'MonthlyHabitGrid:saveHabitTitle_template' }
-    )
+    await offlineUpdate('recurring_task_templates', { id: templateId, user_id: userId }, { title: editTitle.trim() })
+    
     // Also update the corresponding task title
     const task = getTaskForTemplate(templateId)
     if (task) {
-      await safeMutate(
-        supabase.from('tasks').update({ title: editTitle.trim() }).eq('id', task.id).eq('user_id', userId),
-        { throwOnError: true, context: 'MonthlyHabitGrid:saveHabitTitle_task' }
-      )
+      await offlineUpdate('tasks', { id: task.id, user_id: userId }, { title: editTitle.trim() })
     }
     setEditingHabit(null)
-    onRefetch()
+    if (onRefetch) onRefetch()
   }
 
   const getCompletionRate = (templateId) => {

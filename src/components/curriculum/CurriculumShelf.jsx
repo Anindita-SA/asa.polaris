@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { supabase } from '../../lib/supabase'
-import { safeMutate } from '../../lib/safeMutate'
+import { offlineSelect, offlineInsert } from '../../lib/offlineApi'
 import { useAuth } from '../../hooks/useAuth'
 import { BookOpen, Plus, Sparkles } from 'lucide-react'
 import BookSpine from './BookSpine'
@@ -60,54 +59,44 @@ const CurriculumShelf = () => {
     try {
       const catMap = {}
       for (const cat of CURRICULUM_CATEGORIES) {
-        const { data: ins } = await safeMutate(
-          supabase.from('curriculum_categories').insert({
-            user_id: user.id, title: cat.title, accent_color: cat.accent_color, position: cat.position,
-          }).select('id, title').single(),
-          { throwOnError: true, context: 'CurriculumShelf:seedCategories' }
-        )
-        if (ins) catMap[ins.title] = ins.id
+        const { data: ins } = await offlineInsert('curriculum_categories', {
+          user_id: user.id, title: cat.title, accent_color: cat.accent_color, position: cat.position,
+        })
+        const insItem = ins?.[0] || ins
+        if (insItem) catMap[insItem.title] = insItem.id
       }
       for (let i = 0; i < SEED_CURRICULA.length; i++) {
         const c = SEED_CURRICULA[i]
         const categoryId = catMap[c.category]
         if (!categoryId) continue
-        const { data: curr } = await safeMutate(
-          supabase.from('curricula').insert({
-            user_id: user.id, category_id: categoryId, title: c.title,
-            description: c.description, estimated_hours: c.estimated_hours, position: i,
-          }).select('id').single(),
-          { throwOnError: true, context: 'CurriculumShelf:seedCurricula' }
-        )
-        if (!curr?.id) continue
+        const { data: curr } = await offlineInsert('curricula', {
+          user_id: user.id, category_id: categoryId, title: c.title,
+          description: c.description, estimated_hours: c.estimated_hours, position: i,
+        })
+        const currItem = curr?.[0] || curr
+        if (!currItem?.id) continue
         if (c.topics?.length) {
-          await safeMutate(
-            supabase.from('curriculum_topics').insert(
-              c.topics.map((t, idx) => ({
-                user_id: user.id, curriculum_id: curr.id, title: t.title,
-                estimated_hours: t.estimated_hours || null,
-                is_recommended_next: t.is_recommended_next || false, position: idx,
-              }))
-            ),
-            { throwOnError: true, context: 'CurriculumShelf:seedTopics' }
-          )
+          for (let idx = 0; idx < c.topics.length; idx++) {
+            const t = c.topics[idx]
+            await offlineInsert('curriculum_topics', {
+              user_id: user.id, curriculum_id: currItem.id, title: t.title,
+              estimated_hours: t.estimated_hours || null,
+              is_recommended_next: t.is_recommended_next || false, position: idx,
+            })
+          }
         }
         if (c.resources?.length) {
-          await safeMutate(
-            supabase.from('curriculum_resources').insert(
-              c.resources.map(r => ({
-                user_id: user.id, curriculum_id: curr.id, title: r.title,
-                author: r.author || null, resource_type: r.resource_type || 'book', url: r.url || null,
-              }))
-            ),
-            { throwOnError: true, context: 'CurriculumShelf:seedResources' }
-          )
+          for (const r of c.resources) {
+            await offlineInsert('curriculum_resources', {
+              user_id: user.id, curriculum_id: currItem.id, title: r.title,
+              author: r.author || null, resource_type: r.resource_type || 'book', url: r.url || null,
+            })
+          }
         }
       }
-      await safeMutate(
-        supabase.from('media_log').insert(SEED_MEDIA_LOG.map(m => ({ user_id: user.id, ...m }))),
-        { throwOnError: true, context: 'CurriculumShelf:seedMediaLog' }
-      )
+      for (const m of SEED_MEDIA_LOG) {
+        await offlineInsert('media_log', { user_id: user.id, ...m })
+      }
       fetchAll()
     } catch (e) { console.error('Seed error:', e) }
     finally { setSeeding(false) }
@@ -118,74 +107,93 @@ const CurriculumShelf = () => {
   }, [user?.id, activeTab])
 
   const fetchAll = async () => {
-    const { data: cats } = await supabase.from('curriculum_categories')
-      .select('*').eq('user_id', user.id).order('position')
+    const { data: catsData } = await offlineSelect('curriculum_categories', { user_id: user.id })
+    const cats = [...(catsData || [])].sort((a, b) => (a.position || 0) - (b.position || 0))
     setCategories(cats || [])
 
     const cat = (cats || []).find(c => c.title === activeTab)
     if (!cat) { setCurricula([]); return }
 
-    let { data: currs } = await supabase.from('curricula')
-      .select('*').eq('category_id', cat.id).order('position')
+    const { data: currsData } = await offlineSelect('curricula', { category_id: cat.id, user_id: user.id })
+    let currs = [...(currsData || [])].sort((a, b) => (a.position || 0) - (b.position || 0))
 
-    // Auto-seed IELTS 2026 Preparation Sprint if missing under Career
-    if (activeTab === 'Career' && cat.id && (!currs || !currs.some(c => c.title?.includes('IELTS')))) {
-      try {
-        const ieltsSeed = SEED_CURRICULA.find(c => c.title.includes('IELTS'))
-        if (ieltsSeed) {
-          const { data: newCurr } = await safeMutate(
-            supabase.from('curricula').insert({
+    // Auto-seed or reconcile IELTS 2026 Preparation Sprint under Career
+    if (activeTab === 'Career' && cat.id) {
+      const existingIelts = currs?.find(c => c.title?.includes('IELTS'));
+      if (!existingIelts) {
+        try {
+          const ieltsSeed = SEED_CURRICULA.find(c => c.title.includes('IELTS'))
+          if (ieltsSeed) {
+            const { data: newCurr } = await offlineInsert('curricula', {
               user_id: user.id,
               category_id: cat.id,
               title: ieltsSeed.title,
               description: ieltsSeed.description,
               estimated_hours: ieltsSeed.estimated_hours,
               position: (currs?.length || 0)
-            }).select('*').single(),
-            { throwOnError: true, context: 'CurriculumShelf:autoSeedIELTSCurriculum' }
-          )
+            })
+            const currItem = newCurr?.[0] || newCurr
 
-          if (newCurr?.id) {
-            if (ieltsSeed.topics?.length) {
-              await safeMutate(
-                supabase.from('curriculum_topics').insert(
-                  ieltsSeed.topics.map((t, idx) => ({
-                    user_id: user.id, curriculum_id: newCurr.id, title: t.title,
+            if (currItem?.id) {
+              if (ieltsSeed.topics?.length) {
+                for (let idx = 0; idx < ieltsSeed.topics.length; idx++) {
+                  const t = ieltsSeed.topics[idx]
+                  await offlineInsert('curriculum_topics', {
+                    user_id: user.id, curriculum_id: currItem.id, title: t.title,
                     estimated_hours: t.estimated_hours || null,
                     is_recommended_next: t.is_recommended_next || false, position: idx,
-                  }))
-                ),
-                { throwOnError: true, context: 'CurriculumShelf:autoSeedIELTSTopics' }
-              )
-            }
-            if (ieltsSeed.resources?.length) {
-              await safeMutate(
-                supabase.from('curriculum_resources').insert(
-                  ieltsSeed.resources.map(r => ({
-                    user_id: user.id, curriculum_id: newCurr.id, title: r.title,
+                  })
+                }
+              }
+              if (ieltsSeed.resources?.length) {
+                for (const r of ieltsSeed.resources) {
+                  await offlineInsert('curriculum_resources', {
+                    user_id: user.id, curriculum_id: currItem.id, title: r.title,
                     author: r.author || null, resource_type: r.resource_type || 'book', url: r.url || null,
-                  }))
-                ),
-                { throwOnError: true, context: 'CurriculumShelf:autoSeedIELTSResources' }
-              )
+                  })
+                }
+              }
+              // Refetch after insertion
+              const { data: refetched } = await offlineSelect('curricula', { category_id: cat.id, user_id: user.id })
+              currs = [...(refetched || [])].sort((a, b) => (a.position || 0) - (b.position || 0))
             }
-            // Refetch after insertion
-            const { data: refetched } = await supabase.from('curricula')
-              .select('*').eq('category_id', cat.id).order('position')
-            currs = refetched
           }
+        } catch (e) {
+          console.warn('Auto-seed IELTS error:', e)
         }
-      } catch (e) {
-        console.warn('Auto-seed IELTS error:', e)
+      } else {
+        // Reconcile topics if the curriculum already exists
+        try {
+          const ieltsSeed = SEED_CURRICULA.find(c => c.title.includes('IELTS'))
+          if (ieltsSeed && ieltsSeed.topics?.length) {
+            const { data: existingTopicsData } = await offlineSelect('curriculum_topics', { curriculum_id: existingIelts.id, user_id: user.id })
+            const existingTopics = existingTopicsData || []
+            const existingTitles = new Set(existingTopics.map(t => t.title.toLowerCase().trim()))
+            
+            let currentPosition = existingTopics.length > 0 ? Math.max(...existingTopics.map(t => t.position || 0)) + 1 : 0;
+            
+            for (const t of ieltsSeed.topics) {
+              if (!existingTitles.has(t.title.toLowerCase().trim())) {
+                await offlineInsert('curriculum_topics', {
+                  user_id: user.id, curriculum_id: existingIelts.id, title: t.title,
+                  estimated_hours: t.estimated_hours || null,
+                  is_recommended_next: t.is_recommended_next || false, position: currentPosition++,
+                })
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('IELTS topic reconciliation error:', e)
+        }
       }
     }
 
     if (currs?.length) {
-      const currIds = currs.map(c => c.id)
-      const { data: topics } = await supabase.from('curriculum_topics')
-        .select('curriculum_id, status').in('curriculum_id', currIds)
+      const currIds = new Set(currs.map(c => c.id))
+      const { data: topicsData } = await offlineSelect('curriculum_topics', { user_id: user.id })
+      const topics = (topicsData || []).filter(t => currIds.has(t.curriculum_id))
       const topicMap = {}
-      ;(topics || []).forEach(t => {
+      topics.forEach(t => {
         if (!topicMap[t.curriculum_id]) topicMap[t.curriculum_id] = { total: 0, done: 0 }
         topicMap[t.curriculum_id].total++
         if (t.status === 'done') topicMap[t.curriculum_id].done++
@@ -210,15 +218,12 @@ const CurriculumShelf = () => {
     if (!newForm.title.trim() || !user?.id) return
     const cat = categories.find(c => c.title === activeTab)
     if (!cat) return
-    await safeMutate(
-      supabase.from('curricula').insert({
-        user_id: user.id, category_id: cat.id, title: newForm.title,
-        description: newForm.description || null,
-        estimated_hours: parseInt(newForm.estimated_hours) || null,
-        position: curricula.length,
-      }),
-      { throwOnError: true, context: 'CurriculumShelf:addCurriculum' }
-    )
+    await offlineInsert('curricula', {
+      user_id: user.id, category_id: cat.id, title: newForm.title,
+      description: newForm.description || null,
+      estimated_hours: parseInt(newForm.estimated_hours) || null,
+      position: curricula.length,
+    })
     setNewForm({ title: '', description: '', estimated_hours: '' })
     setAddingCurriculum(false)
     fetchAll()
@@ -258,12 +263,12 @@ const CurriculumShelf = () => {
       </div>
 
       {/* Tabs */}
-      <div className="px-6 pt-4">
-        <div className="max-w-4xl mx-auto flex border-b border-pulsar/30">
+      <div className="px-4 sm:px-6 pt-4">
+        <div className="max-w-4xl mx-auto flex border-b border-pulsar/30 overflow-x-auto scrollbar-hide">
           {TABS.map(tab => (
             <button key={tab.id} onClick={() => { setActiveTab(tab.id); setSelectedCurriculum(null) }}
-              className={`flex-1 py-3 text-lg font-display transition-all border-b-2 ${
-                activeTab === tab.id ? 'text-starlight' : 'text-nova/60 hover:text-starlight border-transparent'
+              className={`flex-1 min-w-[80px] shrink-0 py-3 text-base sm:text-lg font-display transition-all border-b-2 ${
+                activeTab === tab.id ? 'text-starlight font-bold' : 'text-nova/60 hover:text-starlight border-transparent'
               }`}
               style={activeTab === tab.id ? { borderBottomColor: tab.color, color: tab.color } : {}}>
               {tab.label}
@@ -275,7 +280,7 @@ const CurriculumShelf = () => {
       {/* Content */}
       <div className="flex-1 overflow-hidden flex flex-col">
         {activeTab === 'Media & Lit' ? (
-          <div className="flex-1 overflow-y-auto p-6">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6">
             <div className="max-w-4xl mx-auto">
               <MediaLog />
             </div>
@@ -284,7 +289,7 @@ const CurriculumShelf = () => {
           <div className="flex-1 flex flex-col justify-center">
             {/* Add curriculum form */}
             {addingCurriculum && (
-              <div className="px-6">
+              <div className="px-4 sm:px-6">
                 <div className="max-w-4xl mx-auto glass border border-dashed border-pulsar/40 rounded-xl p-4 space-y-3 mb-4">
                   <input type="text" placeholder="Curriculum title..." value={newForm.title}
                     onChange={e => setNewForm(p => ({ ...p, title: e.target.value }))}
@@ -295,8 +300,8 @@ const CurriculumShelf = () => {
                     className="w-full bg-transparent border-b border-pulsar/30 text-xs text-nova/60 outline-none font-body pb-1" />
                   <div className="flex gap-3 items-center">
                     <input type="number" placeholder="Est. hours" value={newForm.estimated_hours}
-                      onChange={e => setNewForm(p => ({ ...p, estimated_hours: e.target.value }))}
-                      className="w-24 bg-transparent border-b border-pulsar/30 text-xs text-nova/60 outline-none font-mono pb-1" />
+                    onChange={e => setNewForm(p => ({ ...p, estimated_hours: e.target.value }))}
+                    className="w-24 bg-transparent border-b border-pulsar/30 text-xs text-nova/60 outline-none font-mono pb-1" />
                     <button onClick={addCurriculum} className="px-4 py-1.5 text-xs font-mono uppercase tracking-wider rounded-lg" style={{ background: `${tabColor}20`, color: tabColor, border: `1px solid ${tabColor}40` }}>Add</button>
                     <button onClick={() => setAddingCurriculum(false)} className="text-nova/60 text-xs hover:text-starlight transition-colors">Cancel</button>
                   </div>
@@ -312,7 +317,7 @@ const CurriculumShelf = () => {
                   className="w-full overflow-x-auto scrollbar-hide"
                   style={{ scrollBehavior: 'smooth' }}
                 >
-                  <div className="flex gap-8 px-16 py-10 w-max">
+                  <div className="flex gap-8 px-4 sm:px-16 py-10 w-max">
                     {curricula.map(c => (
                       <BookSpine
                         key={c.id}
@@ -326,7 +331,7 @@ const CurriculumShelf = () => {
                 </div>
 
                 {/* Shelf edge - decorative line */}
-                <div className="w-full max-w-4xl mx-auto px-16">
+                <div className="w-full max-w-4xl mx-auto px-4 sm:px-16">
                   <div className="h-[2px] rounded-full" style={{ backgroundColor: `${tabColor}25` }} />
                 </div>
               </div>

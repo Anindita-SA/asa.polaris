@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../../lib/supabase'
-import { offlineInsert, offlineUpdate, offlineDelete } from '../../lib/offlineApi'
+import { offlineSelect, offlineInsert, offlineUpdate, offlineDelete } from '../../lib/offlineApi'
 import { useAuth } from '../../hooks/useAuth'
 import { safeExternalUrl } from '../../lib/urlUtils'
 import { ArrowLeft, Plus, X, BookOpen, Link as LinkIcon, Trash2, ChevronDown, Download, ExternalLink, Calendar, CheckCircle, Sparkles, ShieldCheck, Award } from 'lucide-react'
@@ -232,16 +231,17 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
 
   const fetchData = async () => {
     const [topicRes, resourceRes] = await Promise.all([
-      supabase.from('curriculum_topics').select('*').eq('curriculum_id', curriculum.id).order('position'),
-      supabase.from('curriculum_resources').select('*').eq('curriculum_id', curriculum.id).order('created_at'),
+      offlineSelect('curriculum_topics', { curriculum_id: curriculum.id }),
+      offlineSelect('curriculum_resources', { curriculum_id: curriculum.id }),
     ])
-    setTopics(topicRes.data || [])
-    setResources(resourceRes.data || [])
+    const sortedTopics = [...(topicRes.data || [])].sort((a, b) => (a.position || 0) - (b.position || 0))
+    const sortedResources = [...(resourceRes.data || [])].sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0))
+    setTopics(sortedTopics)
+    setResources(sortedResources)
 
-    const titles = (topicRes.data || []).map(t => t.title)
+    const titles = sortedTopics.map(t => t.title)
     if (titles.length && user?.id) {
-      const { data: pomo } = await supabase
-        .from('pomodoro_logs').select('label, duration_minutes').eq('user_id', user.id)
+      const { data: pomo } = await offlineSelect('pomodoro_logs', { user_id: user.id })
       if (pomo) {
         const map = {}
         pomo.forEach(p => {

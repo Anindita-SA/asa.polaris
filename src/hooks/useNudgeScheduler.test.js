@@ -2,12 +2,19 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { useNudgeScheduler } from './useNudgeScheduler';
-import { supabase } from '../lib/supabase';
+import * as offlineApi from '../lib/offlineApi';
 import { NOTIFICATION_SETTINGS_STORAGE_KEY, NOTIFICATION_SETTINGS_EVENT } from './useNotificationSettings';
 
 const mockUser = { id: 'test-user-id' };
 vi.mock('./useAuth', () => ({
   useAuth: () => ({ user: mockUser })
+}));
+
+vi.mock('../lib/offlineApi', () => ({
+  offlineSelect: vi.fn(),
+  offlineInsert: vi.fn(),
+  offlineUpdate: vi.fn(),
+  generateUUID: () => 'mock-uuid-1'
 }));
 
 vi.mock('../lib/supabase', () => ({
@@ -21,57 +28,24 @@ describe('useNudgeScheduler', () => {
   let mockUpdate;
 
   const setupMock = (nudgesData = [], tasksData = []) => {
-    mockUpdate = vi.fn().mockImplementation(() => ({
-      eq: vi.fn().mockImplementation(() => ({
-        eq: vi.fn().mockResolvedValue({ data: null, error: null })
-      }))
-    }));
+    mockUpdate = vi.fn().mockResolvedValue({ data: null, error: null });
+    offlineApi.offlineUpdate.mockImplementation(mockUpdate);
 
-    supabase.from.mockImplementation((table) => {
+    offlineApi.offlineSelect.mockImplementation((table, match = {}) => {
       if (table === 'nudges') {
-        return {
-          select: vi.fn().mockImplementation((cols, opts) => {
-            if (opts?.head) {
-              const headBuilder = {
-                eq: vi.fn().mockImplementation(() => headBuilder),
-                then: (resolve) => resolve({ count: nudgesData.length, data: null, error: null })
-              };
-              return headBuilder;
-            }
-            const builder = {
-              eq: vi.fn().mockImplementation(() => builder),
-              then: (resolve) => resolve({ data: nudgesData, error: null })
-            };
-            return builder;
-          }),
-          insert: vi.fn().mockResolvedValue({ data: null, error: null }),
-          update: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              eq: vi.fn().mockResolvedValue({ data: null, error: null })
-            })
-          }),
-          delete: vi.fn().mockReturnValue({
-            eq: vi.fn().mockResolvedValue({ data: null, error: null })
-          })
-        };
+        return Promise.resolve({ data: nudgesData, error: null });
       }
       if (table === 'tasks') {
-        return {
-          select: vi.fn().mockImplementation(() => {
-            const builder = {
-              eq: vi.fn().mockImplementation(() => builder),
-              neq: vi.fn().mockImplementation(() => builder),
-              or: vi.fn().mockResolvedValue({ data: tasksData, error: null }),
-              single: vi.fn().mockResolvedValue({ data: { skip_count: 2 }, error: null }),
-              then: (resolve) => resolve({ data: tasksData, error: null })
-            };
-            return builder;
-          }),
-          update: mockUpdate
-        };
+        if (match.id) {
+          const matched = tasksData.filter(t => t.id === match.id);
+          return Promise.resolve({ data: matched, error: null });
+        }
+        return Promise.resolve({ data: tasksData, error: null });
       }
-      return {};
+      return Promise.resolve({ data: [], error: null });
     });
+
+    offlineApi.offlineInsert.mockResolvedValue({ data: null, error: null });
   };
 
   beforeEach(() => {
@@ -342,7 +316,7 @@ describe('useNudgeScheduler', () => {
     });
 
     expect(localStorage.getItem('nudge_last_dismissed_task-1')).toBeTruthy();
-    expect(mockUpdate).toHaveBeenCalledWith({ skip_count: 3 });
+    expect(mockUpdate).toHaveBeenCalledWith('tasks', { id: 'task-1', user_id: 'test-user-id' }, { skip_count: 3 });
 
     unmount();
   });

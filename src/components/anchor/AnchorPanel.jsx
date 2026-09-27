@@ -49,8 +49,8 @@ const AnchorPanel = ({ collapsed, onToggle, mobile = false }) => {
           <ChevronRight className="w-4 h-4" />
         </button>
       )}
-      <div className={mobile ? "flex-1 overflow-y-auto" : `hidden md:flex flex-col z-30 glass border-pulsar/30 overflow-hidden transition-all duration-300 ${collapsed ? 'w-0 opacity-0 border-r-0' : 'w-96 border-r'}`}>
-        <div className="p-4 space-y-5 min-w-[384px] h-full overflow-y-auto">
+      <div className={mobile ? "flex-1 overflow-y-auto w-full max-w-full" : `hidden md:flex flex-col z-30 glass border-pulsar/30 overflow-hidden transition-all duration-300 ${collapsed ? 'w-0 opacity-0 border-r-0' : 'w-96 border-r'}`}>
+        <div className="p-4 space-y-5 w-full max-w-full sm:min-w-[384px] h-full overflow-y-auto">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-display text-starlight">Anchor</h3>
             {!mobile && <button onClick={onToggle} className="text-nova/60 hover:text-starlight"><ChevronLeft className="w-4 h-4" /></button>}

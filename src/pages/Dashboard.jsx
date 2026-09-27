@@ -1,10 +1,10 @@
 import { useState, useRef, lazy, Suspense } from 'react'
-import { ChevronLeft, ChevronRight, Anchor, Bell } from 'lucide-react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useRecurringTasks } from '../hooks/useRecurringTasks'
 import { useMorningBrief } from '../hooks/useMorningBrief'
 import { useMorningSequence } from '../hooks/useMorningSequence'
 import { useAuth } from '../hooks/useAuth'
-import { supabase } from '../lib/supabase'
+import { offlineSelect } from '../lib/offlineApi'
 import HUD from '../components/layout/HUD'
 import Starfield from '../components/layout/Starfield'
 import ConstellationGraph from '../components/graph/ConstellationGraph'
@@ -36,7 +36,7 @@ const ViewFallback = () => (
 )
 
 const Dashboard = () => {
-  const { user } = useAuth();
+  const { user } = useAuth()
   useRecurringTasks()
   useMorningBrief()
   const { stage, briefItems, markSparkSeen } = useMorningSequence()
@@ -57,14 +57,15 @@ const Dashboard = () => {
   const [rightPanelOpen, setRightPanelOpen] = useState(true)
   const [selectedNode, setSelectedNode] = useState(null)
   const [anchorCollapsed, setAnchorCollapsed] = useState(true)
-  const [mobileSheet, setMobileSheet] = useState(null) // 'reminders', 'anchor', null
+  const [mobileSheet, setMobileSheet] = useState(null) // 'reminders', 'anchor', 'timer', null
   const graphRef = useRef(null)
   const refreshGraph = () => graphRef.current?.refresh()
 
   const jumpToNode = async (nodeId) => {
-    const { data } = await supabase.from('nodes').select('*').eq('id', nodeId).eq('user_id', user?.id).single()
-    if (data) {
-      setSelectedNode(data)
+    const { data } = await offlineSelect('nodes', { id: nodeId, user_id: user?.id })
+    const node = data?.[0]
+    if (node) {
+      setSelectedNode(node)
       setActiveView('graph')
     }
   }
@@ -90,7 +91,7 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden flex flex-col">
+    <div className="relative h-[100dvh] min-h-[100dvh] w-full overflow-hidden flex flex-col">
       <Starfield />
       <div className="relative z-50">
         <HUD activeView={activeView} setActiveView={setActiveView} />
@@ -143,22 +144,23 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Mobile Floating Triggers (Top Right) */}
-        <button onClick={() => setMobileSheet('anchor')} className="fixed top-20 right-4 z-50 md:hidden glass border border-pulsar/40 rounded-full flex items-center justify-center text-nova/60 hover:text-starlight shadow-lg">
-          <Anchor className="w-5 h-5" />
-        </button>
-        <button onClick={() => setMobileSheet('reminders')} className="fixed top-32 right-4 z-50 md:hidden glass border border-pulsar/40 rounded-full flex items-center justify-center text-nova/60 hover:text-starlight shadow-lg">
-          <Bell className="w-5 h-5" />
-        </button>
-
-        {/* Mobile Bottom Sheet Backdrop */}
+        {/* Mobile Detail Drawers */}
         <BottomSheet 
-          isOpen={!!mobileSheet} 
+          isOpen={Boolean(mobileSheet)} 
           onClose={() => setMobileSheet(null)}
-          title={mobileSheet === 'reminders' ? 'Reminders' : mobileSheet === 'anchor' ? 'Anchor' : ''}
+          title={mobileSheet === 'reminders' ? 'Reminders & Daily Tasks' : mobileSheet === 'anchor' ? 'Clarity Anchor' : mobileSheet === 'timer' ? 'Focus Timer' : ''}
         >
-          {mobileSheet === 'reminders' && <RemindersPanel />}
-          {mobileSheet === 'anchor' && <AnchorPanel mobile={true} />}
+          {mobileSheet === 'reminders' && (
+            <RemindersPanel onOpenDayGuide={() => { setMobileSheet(null); setActiveView('day_guide'); }} />
+          )}
+          {mobileSheet === 'anchor' && (
+            <AnchorPanel mobile={true} onOpenDayGuide={() => { setMobileSheet(null); setActiveView('day_guide'); }} />
+          )}
+          {mobileSheet === 'timer' && (
+            <div className="py-2">
+              <PomodoroTimer />
+            </div>
+          )}
         </BottomSheet>
 
       </div>
@@ -174,7 +176,12 @@ const Dashboard = () => {
         />
       )}
 
-      <BottomNav activeView={activeView} setActiveView={setActiveView} />
+      <BottomNav 
+        activeView={activeView} 
+        setActiveView={setActiveView} 
+        onOpenAnchor={() => setMobileSheet('anchor')}
+        onOpenReminders={() => setMobileSheet('reminders')}
+      />
     </div>
   )
 }

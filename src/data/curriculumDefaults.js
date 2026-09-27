@@ -90,6 +90,9 @@ export const SEED_CURRICULA = [
       { title: 'IELTS Reading Practice Test 312', estimated_hours: 1, notes: 'Score: 35/40, Band 8.0. Question Bank: https://practicepteonline.com/official-ielts-tests-book-20/', status: 'done' },
       { title: 'IELTS Reading Practice Test 311', estimated_hours: 1, notes: 'Score: 35/40, Band 8.0. Question Bank: https://practicepteonline.com/official-ielts-tests-book-20/', status: 'done' },
       { title: 'IELTS Reading Practice Test 310', estimated_hours: 1, notes: 'Score: 34/40, Band 7.5. Question Bank: https://practicepteonline.com/official-ielts-tests-book-20/', status: 'done' },
+      { title: 'IELTS Academic Writing Practice Test 1 - Task 1 & 2', estimated_hours: 1 },
+      { title: 'IELTS Academic Writing Practice Test 2 - Task 1 & 2', estimated_hours: 1 },
+      { title: 'IELTS Speaking Practice Test 1 - Parts 1, 2 & 3', estimated_hours: 1 },
       { title: 'Mock Test 2026 January (ieltsonlinetests.com)', estimated_hours: 3 },
       { title: 'Mock Test 2025 December (ieltsonlinetests.com)', estimated_hours: 3 },
       { title: 'Mock Test 2025 November (ieltsonlinetests.com)', estimated_hours: 3 },
@@ -467,5 +470,37 @@ export const DEFAULT_IELTS_PRACTICE_SCORES = [
     date: '2026-08-30T10:00:00.000Z',
     url: 'https://practicepteonline.com/official-ielts-tests-book-20/',
   },
+  {
+    id: 'ielts-mock-write-2',
+    title: 'IELTS Academic Writing Practice Test 2 - Task 1 & 2',
+    category: 'writing',
+    score: 7.5,
+    total: null,
+    band: 7.5,
+    date: '2026-09-12T10:00:00.000Z',
+    url: 'https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-practice-tests/writing-practice-tests',
+  },
+  {
+    id: 'ielts-mock-write-1',
+    title: 'IELTS Academic Writing Practice Test 1 - Task 1 & 2',
+    category: 'writing',
+    score: 7.0,
+    total: null,
+    band: 7.0,
+    date: '2026-09-05T10:00:00.000Z',
+    url: 'https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-practice-tests/writing-practice-tests',
+  },
+  {
+    id: 'ielts-mock-speak-1',
+    title: 'IELTS Speaking Practice Test 1 - Parts 1, 2 & 3',
+    category: 'speaking',
+    score: 7.5,
+    total: null,
+    band: 7.5,
+    date: '2026-09-14T10:00:00.000Z',
+    url: 'https://ieltsliz.com',
+  },
 ]
+
+
 
