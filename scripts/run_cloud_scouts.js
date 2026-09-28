@@ -12,16 +12,6 @@ async function run() {
 
     const supabase = createClient(url, key, { auth: { persistSession: false } });
 
-    console.log('Invoking generate-morning-brief...');
-    const { data: mbData, error: mbErr } = await supabase.functions.invoke('generate-morning-brief', {
-      body: { force: true }
-    });
-    if (mbErr) {
-      console.error('generate-morning-brief failed:', mbErr);
-    } else {
-      console.log('generate-morning-brief success:', mbData);
-    }
-
     console.log('Invoking scout-opportunities...');
     const { data: scoutData, error: scoutErr } = await supabase.functions.invoke('scout-opportunities', {
       body: { force: true }
@@ -30,6 +20,16 @@ async function run() {
       console.error('scout-opportunities failed:', scoutErr);
     } else {
       console.log('scout-opportunities success:', scoutData);
+    }
+
+    console.log('Invoking generate-morning-brief...');
+    const { data: mbData, error: mbErr } = await supabase.functions.invoke('generate-morning-brief', {
+      body: { force: true }
+    });
+    if (mbErr) {
+      console.error('generate-morning-brief failed:', mbErr);
+    } else {
+      console.log('generate-morning-brief success:', mbData);
     }
 
     console.log('Cloud scouts executed successfully.');

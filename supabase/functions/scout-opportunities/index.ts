@@ -142,7 +142,7 @@ serve(async (req) => {
     let searchResults: any[] = []
 
     if (firecrawlApiKey) {
-      const query = "fully funded fellowship OR grant application open call 2026 2027 conservation technology robotics -newsletter -roundup -listicle"
+      const query = "(\"fully funded\" OR stipend OR paid) (internship OR grant OR \"seed funding\" OR \"open call\" OR fellowship OR \"job listing\") (\"agritech\" OR \"off-grid\" OR \"impact hardware\" OR \"product design\" OR \"power electronics\" OR \"climate tech\") 2026 2027 -newsletter -roundup"
       try {
         const firecrawlRes = await fetch('https://api.firecrawl.dev/v1/search', {
           method: 'POST',
@@ -152,8 +152,8 @@ serve(async (req) => {
           },
           body: JSON.stringify({
             query: query,
-            limit: 5,
-            tbs: 'qdr:w',
+            limit: 8,
+            tbs: 'qdr:m', // past month
             scrapeOptions: { formats: ["markdown"] }
           })
         })
@@ -180,6 +180,9 @@ serve(async (req) => {
       /grantwatch\.com/i,
       /fws\.gov/i,
       /grants\.gov/i,
+      /opportunitydesk\.org/i,
+      /fundsforngos\.org/i,
+      /unv\.org/i
     ]
 
     searchResults = searchResults.filter(r => {
@@ -195,8 +198,8 @@ serve(async (req) => {
         headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
       })
       const opportunityFeeds = [
-        { name: 'Opportunity Desk', url: 'https://opportunitydesk.org/feed/' },
-        { name: 'FundsForNGOs', url: 'https://www.fundsforngos.org/feed/' }
+        { name: 'EIT InnoEnergy', url: 'https://www.innoenergy.com/feed/' },
+        { name: 'Hardware Massive', url: 'https://hardwaremassive.com/feed/' }
       ]
 
       for (const feedConfig of opportunityFeeds) {
