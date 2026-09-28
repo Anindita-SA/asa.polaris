@@ -613,3 +613,22 @@ All notable changes to Polaris will be documented in this file.
 ### Added
 - Rewrote the Edge Function scout-opportunities to prioritize grants/jobs over academic programs and heavily filter for impact hardware.
 - Upgraded the Matrix hide far scheduled button into a dynamic 3-way toggle (7 Days / 14 Days / Show All). This gives finer control over the Overlook Mechanic horizon to reduce backlog visual clutter.
+
+ # #   [ 1 . 2 . 3 6 ]   -   
+ # # #   A d d e d 
+ -   C r e a t e d   d a t a b a s e   m i g r a t i o n   ( 2 0 2 6 0 9 2 8 2 0 4 5 0 0 _ o p t i m i z e _ d i s k _ i o _ i n d e x e s . s q l )   t o   a d d   m i s s i n g   u s e r _ i d   a n d   c o m p o s i t e   i n d e x e s   t o   a l l   t a b l e s ,   f i x i n g   s e v e r e   D i s k   I O   s e q u e n t i a l   s c a n s . 
+ -   C r e a t e d   d a t a b a s e   m i g r a t i o n   ( 2 0 2 6 0 9 2 8 2 0 4 6 0 0 _ c r e a t e _ s y n c _ r p c . s q l )   f o r   a   s e r v e r - s i d e   d a t a   a g g r e g a t i o n   R P C . 
+ 
+ # # #   C h a n g e d 
+ -   R e f a c t o r e d   \ s r c / l i b / s y n c M a n a g e r . j s \   t o   b a t c h   3 6   t a b l e   s y n c   q u e r i e s   i n t o   c h u n k s   o f   1 0   v i a   t h e   n e w   \ g e t _ u s e r _ d a t a \   R P C ,   p r e v e n t i n g   c l i e n t - s i d e   H T T P   b l a s t   a n d   D B   c o n n e c t i o n   p o o l   e x h a u s t i o n   o n   l o a d . 
+  
+ 
+ # #   [ 1 . 2 . 3 6 ]   -   2 0 2 6 - 0 9 - 2 8 
+ # # #   A d d e d 
+ -   C r e a t e d   d a t a b a s e   m i g r a t i o n   ( 2 0 2 6 0 9 2 8 2 0 4 5 0 0 _ o p t i m i z e _ d i s k _ i o _ i n d e x e s . s q l )   t o   a d d   m i s s i n g   u s e r _ i d   a n d   c o m p o s i t e   i n d e x e s   t o   a l l   t a b l e s ,   f i x i n g   s e v e r e   D i s k   I O   s e q u e n t i a l   s c a n s . 
+ -   C r e a t e d   d a t a b a s e   m i g r a t i o n   ( 2 0 2 6 0 9 2 8 2 0 4 6 0 0 _ c r e a t e _ s y n c _ r p c . s q l )   f o r   a   s e r v e r - s i d e   d a t a   a g g r e g a t i o n   R P C . 
+ 
+ # # #   C h a n g e d 
+ -   R e f a c t o r e d   \ s r c / l i b / s y n c M a n a g e r . j s \   t o   b a t c h   3 6   t a b l e   s y n c   q u e r i e s   i n t o   c h u n k s   o f   1 0   v i a   t h e   n e w   \ g e t _ u s e r _ d a t a \   R P C ,   p r e v e n t i n g   c l i e n t - s i d e   H T T P   b l a s t   a n d   D B   c o n n e c t i o n   p o o l   e x h a u s t i o n   o n   l o a d . 
+  
+ 

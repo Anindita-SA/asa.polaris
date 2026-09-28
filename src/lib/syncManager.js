@@ -182,47 +182,69 @@ export async function pruneDLQ() {
 
 export function initSyncManager(userId) {
   const handleOnline = () => {
-    flushQueue().then(() => {
+    flushQueue().then(async () => {
       pruneDLQ();
       if (userId) {
-        // Refresh critical tables when coming online
-        pullData('tasks', userId);
-        pullData('daily_tasks', userId);
-        pullData('goals', userId);
-        pullData('milestones', userId);
-        pullData('day_plan_blocks', userId);
-        pullData('focus_items', userId);
-        pullData('backburner', userId);
-        pullData('subtasks', userId);
-        pullData('recurring_task_templates', userId);
-        pullData('hardware_opportunities', userId);
-        pullData('eulogies', userId);
-        pullData('practice_scores', userId);
-        pullData('curricula', userId);
-        pullData('curriculum_topics', userId);
-        pullData('curriculum_resources', userId);
-        pullData('curriculum_categories', userId);
-        pullData('media_log', userId);
-        pullData('habits', userId);
-        pullData('nodes', userId);
-        pullData('mini_games', userId);
-        pullData('calendar_events', userId);
-        pullData('calendar_backups', userId);
-        pullData('nudges', userId);
-        pullData('contacts', userId);
-        pullData('wins', userId);
-        pullData('mood_logs', userId);
-        pullData('highlights', userId);
-        pullData('io_logs', userId);
-        pullData('pomodoro_logs', userId);
-        pullData('morning_briefs', userId);
-        pullData('user_settings', userId);
-        pullData('outreach_targets', userId);
-        pullData('habit_logs', userId);
-        pullData('meal_logs', userId);
-        pullData('workout_logs', userId);
-        pullData('weight_logs', userId);
-        pullProfile(userId);
+        // Fetch all tables at once via RPC to save connection pool
+        const tables = [
+          'tasks', 'daily_tasks', 'goals', 'milestones', 'day_plan_blocks',
+          'focus_items', 'backburner', 'subtasks', 'recurring_task_templates',
+          'hardware_opportunities', 'eulogies', 'practice_scores', 'curricula',
+          'curriculum_topics', 'curriculum_resources', 'curriculum_categories',
+          'media_log', 'habits', 'nodes', 'mini_games', 'calendar_events',
+          'calendar_backups', 'nudges', 'contacts', 'wins', 'mood_logs',
+          'highlights', 'io_logs', 'pomodoro_logs', 'morning_briefs',
+          'user_settings', 'outreach_targets', 'habit_logs', 'meal_logs',
+          'workout_logs', 'weight_logs'
+        ];
+
+        try {
+          const rpcChunkSize = 10;
+          let rpcFailed = false;
+
+          for (let i = 0; i < tables.length; i += rpcChunkSize) {
+            const chunk = tables.slice(i, i + rpcChunkSize);
+            const { data, error } = await supabase.rpc('get_user_data', { p_user_id: userId, p_tables: chunk });
+            
+            if (error) {
+              console.warn(`RPC batch fetch failed for chunk ${i}:`, error);
+              rpcFailed = true;
+              break;
+            }
+            
+            for (const table of chunk) {
+              if (!db || !db[table]) continue;
+              const records = data[table];
+              if (records && records.length > 0) {
+                const validRecords = records.filter(item => {
+                  const { valid } = validateRowPayload(table, item);
+                  return valid;
+                });
+                if (validRecords.length > 0) {
+                  if (typeof db.transaction === 'function') {
+                    await db.transaction('rw', db[table], async () => {
+                      await db[table].bulkPut(validRecords);
+                    });
+                  } else {
+                    await db[table].bulkPut(validRecords);
+                  }
+                }
+              }
+            }
+          }
+          
+          if (rpcFailed) throw new Error('RPC batch fetch partially failed');
+          
+        } catch (err) {
+          console.warn('RPC batch fetch failed or unavailable, falling back to chunked sync', err);
+          const chunkSize = 5;
+          for (let i = 0; i < tables.length; i += chunkSize) {
+            const chunk = tables.slice(i, i + chunkSize);
+            await Promise.all(chunk.map(table => pullData(table, userId)));
+          }
+        }
+
+        await pullProfile(userId);
       }
     });
   };
@@ -238,3 +260,4 @@ export function initSyncManager(userId) {
     window.removeEventListener('online', handleOnline);
   };
 }
+
