@@ -301,12 +301,14 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [showCompleted, setShowCompleted] = useState(false);
-  const [hideFarScheduled, setHideFarScheduled] = useState(() => {
+  const [overlookDays, setOverlookDays] = useState(() => {
     try {
-      const saved = localStorage.getItem('polaris_matrix_hide_far_scheduled');
-      return saved !== null ? saved === 'true' : true;
+      const saved = localStorage.getItem('polaris_matrix_overlook_days');
+      if (saved !== null) return parseInt(saved, 10);
+      const old = localStorage.getItem('polaris_matrix_hide_far_scheduled');
+      return (old === 'false') ? 0 : 7;
     } catch (e) {
-      return true;
+      return 7;
     }
   });
   const [hideReminders, setHideReminders] = useState(() => {
@@ -328,9 +330,9 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
 
   useEffect(() => {
     try {
-      localStorage.setItem('polaris_matrix_hide_far_scheduled', hideFarScheduled.toString());
+      localStorage.setItem('polaris_matrix_overlook_days', overlookDays.toString());
     } catch (e) {}
-  }, [hideFarScheduled]);
+  }, [overlookDays]);
 
   useEffect(() => {
     try {
@@ -848,18 +850,23 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
   // Active matrix tasks (Finished tasks `status === 'done'` are hidden from matrix plane)
   const matrixTasks = useMemo(() => {
     const now = new Date();
-    const oneWeekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    now.setHours(0, 0, 0, 0);
     return tasks.filter((t) => {
       if (t.parent_task_id || t.quadrant === null || t.status === 'done') return false;
       if (hideReminders && t.category === 'reminders') return false;
       if (hidePolaris && (t.category === 'polaris' || (t.title || '').toLowerCase().includes('polaris'))) return false;
-      if (hideFarScheduled && t.status === 'scheduled' && t.deadline) {
-        const deadlineDate = new Date(t.deadline);
-        if (deadlineDate > oneWeekFromNow) return false;
+      if (overlookDays > 0 && t.status === 'scheduled' && t.deadline) {
+        let deadlineDate = new Date(t.deadline);
+        if (typeof t.deadline === 'string' && !t.deadline.includes('T')) {
+          deadlineDate = new Date(t.deadline + 'T00:00:00');
+        }
+        deadlineDate.setHours(0, 0, 0, 0);
+        const diffDays = Math.ceil((deadlineDate - now) / (1000 * 60 * 60 * 24));
+        if (diffDays > overlookDays) return false;
       }
       return true;
     });
-  }, [tasks, hideFarScheduled, hideReminders, hidePolaris]);
+  }, [tasks, overlookDays, hideReminders, hidePolaris]);
 
   // Unsorted Brain Dump tasks (`quadrant === null` and `status !== 'done'`)
   const brainDumpTasks = useMemo(() => {
@@ -1066,13 +1073,17 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
             {hideReminders ? <BellOff className="w-3.5 h-3.5" /> : <Bell className="w-3.5 h-3.5" />}
           </button>
           <button
-            onClick={() => setHideFarScheduled(!hideFarScheduled)}
-            className={`flex items-center justify-center w-[26px] h-[26px] rounded-lg transition-colors ${
-              hideFarScheduled ? 'bg-pulsar/20 text-pulsar border border-pulsar/40' : 'glass border border-pulsar/20 text-nova/60 hover:text-starlight'
+            onClick={() => {
+              if (overlookDays === 7) setOverlookDays(14);
+              else if (overlookDays === 14) setOverlookDays(0);
+              else setOverlookDays(7);
+            }}
+            className={`flex items-center justify-center min-w-[26px] h-[26px] px-1.5 rounded-lg transition-colors text-[10px] font-mono font-bold ${
+              overlookDays > 0 ? 'bg-pulsar/20 text-pulsar border border-pulsar/40' : 'glass border border-pulsar/20 text-nova/60 hover:text-starlight'
             }`}
-            title="Hide Scheduled Tasks (> 1 week away)"
+            title="Toggle Scheduled Tasks Overlook Horizon (7 Days / 14 Days / Show All)"
           >
-            {hideFarScheduled ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+            {overlookDays > 0 ? `${overlookDays}D` : <Eye className="w-3.5 h-3.5" />}
           </button>
         </div>
         {/* 2D Canvas Surface */}

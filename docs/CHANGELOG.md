@@ -608,3 +608,8 @@ All notable changes to Polaris will be documented in this file.
 - Fixed missing IELTS writing/speaking default topics by updating `SEED_CURRICULA`.
 - Fixed auto-seeding bug in `PracticeScoreTracker.jsx` by inserting missing default mock tests individually rather than relying on an empty length check.
 - Resolved IDOR vulnerability by adding `user_id` filters to all `offlineSelect` calls in `CurriculumShelf.jsx`.
+
+## [1.2.35] - 2026-09-28
+### Added
+- Rewrote the Edge Function scout-opportunities to prioritize grants/jobs over academic programs and heavily filter for impact hardware.
+- Upgraded the Matrix hide far scheduled button into a dynamic 3-way toggle (7 Days / 14 Days / Show All). This gives finer control over the Overlook Mechanic horizon to reduce backlog visual clutter.

@@ -72,3 +72,6 @@ The following is the complete inventory of distinct premium features currently d
 * **Clickable Top Nav Analytics:** Wrap the top XP and I/O bars in a clickable dashboard trigger.
 * **Ascension Path:** Visually layouts the specific roadmap and progress gap to your next Rank upgrade.
 * **The I/O Chronology:** Fetches historical `io_logs` to display a beautiful 7-day summary of input vs output balance history.
+
+### Component 16: The 14-Day Overlook Mechanic
+* **Matrix Filtering:** Tasks with a \deadline\ greater than 14 days in the future are automatically hidden from the active Day Guide matrix. This organically controls backlog flooding, allowing future tasks to trickle into view as they cross the two-week horizon.

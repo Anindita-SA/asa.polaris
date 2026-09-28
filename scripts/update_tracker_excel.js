@@ -169,14 +169,23 @@ const coldMailHeaders = [
 
 const coldMailRows = [
   [1, "Prof. Jan Carel Diehl", "TU Delft", "Group 1", "Design for Sustainability / Frugal Tech", "j.c.diehl@tudelft.nl", "Drafted", "", "", "IPD MSc thesis synergy, frugal off-grid hardware"],
-  [2, "Prof. Arno Smets", "TU Delft", "Group 1", "PVMD / Solar & Storage Dynamics", "a.h.m.smets@tudelft.nl", "Sent", "2026-09-16", "2026-09-23", "Sent Sep 16, 2026. Follow-up window opens Sep 23 (PV & storage dynamics)"],
+  [2, "Prof. Arno Smets", "TU Delft", "Group 1", "PVMD / Solar & Storage Dynamics", "a.h.m.smets@tudelft.nl", "Sent", "2026-09-16", "", "Opened follow-up but no reply. Closed to avoid pushing."],
   [3, "Prof. Angele Reinders", "TU/e Eindhoven", "Group 1", "Industrial Design / Smart Energy Systems", "a.h.m.e.reinders@tue.nl", "Drafted", "", "", "User-centric energy hardware, prototyping"],
   [4, "Prof. Peter Groot Koerkamp", "Wageningen Univ.", "Group 1", "Farm Technology / Biosystems", "peter.grootkoerkamp@wur.nl", "Drafted", "", "", "Agricultural electrification, solar irrigation EMS"],
-  [5, "Tilman", "TU Delft", "Group 1", "IPD Director", "", "Replied", "2026-08-15", "2026-09-28", "Responded previously with positive program guidance (follow-up Sep 28)"],
+  [5, "Tilman", "TU Delft", "Group 1", "IPD Director", "", "Replied", "2026-08-15", "2026-11-25", "Responded previously. Next follow-up late Nov after portfolio submission."],
   [6, "Prof. Emanuela Colombo", "Politecnico di Milano", "Group 2", "Energy for Sustainable Development", "emanuela.colombo@polimi.it", "Drafted", "", "", "UNESCO Chair, off-grid microgrids, productive use in ag"],
   [7, "Prof. Francesco Fuso Nerini", "KTH Royal Institute", "Group 2", "Energy Systems & Climate Action", "francesco.fuso-nerini@energy.kth.se", "Drafted", "", "", "Rural electrification, decentralized mini-grids, SISGP target"],
   [8, "Dr. Richard Blanchard", "Loughborough Univ.", "Group 2", "CREST / Rural Energy & Agritech", "r.e.blanchard@lboro.ac.uk", "Drafted", "", "", "Solar water pumping, mini-grids, agritech hardware"],
-  [9, "Dr. Philip Sandwell", "Imperial College London", "Group 2", "Energy Futures Lab / Mini-grids", "philip.sandwell@imperial.ac.uk", "Drafted", "", "", "Battery degradation in off-grid solar, open-source microgrids"]
+  [9, "Dr. Philip Sandwell", "Imperial College London", "Group 2", "Energy Futures Lab / Mini-grids", "philip.sandwell@imperial.ac.uk", "Drafted", "", "", "Battery degradation in off-grid solar, open-source microgrids"],
+  [10, "Dr. Jeremy Faludi", "TU Delft", "Group 1", "Asst. Prof. Design for Sustainability", "j.faludi@tudelft.nl", "Drafted", "", "", "Assistant Professor focus. Sustainable design methods and physical prototyping."],
+  [11, "Dr. Lenneke Kuijer", "TU/e Eindhoven", "Group 1", "Asst. Prof. Industrial Design", "s.c.kuijer@tue.nl", "Drafted", "", "", "Assistant Professor focus. Domestic energy demand and interactive smart systems."],
+  [12, "Dr. Marjolein Derks", "Wageningen Univ.", "Group 1", "Asst. Prof. Farm Technology", "marjolein.derks@wur.nl", "Drafted", "", "", "Assistant Professor focus. Farm technology design and biosystems."],
+  [13, "Dr. Diana Shendrikova", "Politecnico di Milano", "Group 2", "Asst. Prof. Energy / Off-Grid Systems", "diana.shendrikova@polimi.it", "Drafted", "", "", "Matches M-KOPA / Conservation Engine goals perfectly. Rural electrification."],
+  [14, "Dr. Xiaozhe Wang", "McGill Univ.", "Group 1", "Assoc. Prof. Power Engineering", "xiaozhe.wang2@mcgill.ca", "Drafted", "", "", "Power engineering. Target for fully funded M.Eng (Thesis) lab opening."],
+  [15, "Dr. Shangpeng Sun", "McGill Univ.", "Group 1", "Asst. Prof. Bioresource Eng", "shangpeng.sun@mcgill.ca", "Drafted", "", "", "Bioresource hardware. UAVs, sensors, smart agriculture. Target for fully funded thesis."],
+  [16, "Prof. Mark Lefsrud", "McGill Univ.", "Group 1", "Prof. Bioresource Eng", "mark.lefsrud@mcgill.ca", "Drafted", "", "", "Biomass Production Lab. Energy efficiency systems, LED lighting, agritech."],
+  [17, "Prof. Geza Joos", "McGill Univ.", "Group 1", "Prof. Power Engineering", "geza.joos@mcgill.ca", "Drafted", "", "", "Microgrid control, converters. Match for DAB research."],
+  [18, "Prof. Benoit Boulet", "McGill Univ.", "Group 1", "Prof. ECE (IALab)", "benoit.boulet@mcgill.ca", "Drafted", "", "", "Sustainable energy management, EV charging. Embedded systems & power electronics."]
 ];
 
 const coldMailSheetData = [
