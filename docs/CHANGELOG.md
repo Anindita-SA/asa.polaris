@@ -632,3 +632,14 @@ All notable changes to Polaris will be documented in this file.
  -   R e f a c t o r e d   \ s r c / l i b / s y n c M a n a g e r . j s \   t o   b a t c h   3 6   t a b l e   s y n c   q u e r i e s   i n t o   c h u n k s   o f   1 0   v i a   t h e   n e w   \ g e t _ u s e r _ d a t a \   R P C ,   p r e v e n t i n g   c l i e n t - s i d e   H T T P   b l a s t   a n d   D B   c o n n e c t i o n   p o o l   e x h a u s t i o n   o n   l o a d . 
   
  
+
+## [1.2.36] - 2026-09-29
+### Added
+- Created database migration (20260928204500_optimize_disk_io_indexes.sql) to add missing user_id and composite indexes to all tables, fixing severe Disk IO sequential scans.
+- Created database migration (20260928204600_create_sync_rpc.sql) for a server-side data aggregation RPC.
+- Upgraded the Matrix Overlook Mechanic toggle into a 4-way cycle (1 Day / 7 Days / 14 Days / Show All) to support daily task views.
+
+### Changed
+- Refactored src/lib/syncManager.js to batch 36 table sync queries into chunks of 10 via the new get_user_data RPC, preventing client-side HTTP blast and DB connection pool exhaustion on load.
+- Updated DayBriefView.jsx to show Today's Agenda rather than Do First/Strategic splits.
+- Cleaned up obsolete ML curricula from the database.

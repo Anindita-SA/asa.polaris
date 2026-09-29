@@ -1074,14 +1074,15 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
           </button>
           <button
             onClick={() => {
-              if (overlookDays === 7) setOverlookDays(14);
+              if (overlookDays === 1) setOverlookDays(7);
+              else if (overlookDays === 7) setOverlookDays(14);
               else if (overlookDays === 14) setOverlookDays(0);
-              else setOverlookDays(7);
+              else setOverlookDays(1);
             }}
             className={`flex items-center justify-center min-w-[26px] h-[26px] px-1.5 rounded-lg transition-colors text-[10px] font-mono font-bold ${
               overlookDays > 0 ? 'bg-pulsar/20 text-pulsar border border-pulsar/40' : 'glass border border-pulsar/20 text-nova/60 hover:text-starlight'
             }`}
-            title="Toggle Scheduled Tasks Overlook Horizon (7 Days / 14 Days / Show All)"
+            title="Toggle Scheduled Tasks Overlook Horizon (1 Day / 7 Days / 14 Days / Show All)"
           >
             {overlookDays > 0 ? `${overlookDays}D` : <Eye className="w-3.5 h-3.5" />}
           </button>
