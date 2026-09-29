@@ -3,7 +3,8 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
 import { useTodaysTasks } from '../../hooks/useTodaysTasks';
 import { useMorningBrief } from '../../hooks/useMorningBrief';
-import { Flame, Check, Target, ChevronRight, Zap, Sparkles, RefreshCw, Rocket, X, Bookmark } from 'lucide-react';
+import { generateLlmResponse } from '../../lib/llm';
+import { Flame, Check, Target, ChevronRight, Zap, Sparkles, RefreshCw, Rocket, X, Bookmark, AlignLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import DismissFeedbackModal from '../modals/DismissFeedbackModal';
 import { safeExternalUrl } from '../../lib/urlUtils';
@@ -23,7 +24,7 @@ export default function DayBriefView() {
   const [savingNewsIds, setSavingNewsIds] = useState(new Set());
   const [dismissTargetOpp, setDismissTargetOpp] = useState(null);
   const [noNewOpp, setNoNewOpp] = useState(false);
-
+  const [dailyGoals, setDailyGoals] = useState([]);
   const fetchedRef = React.useRef(false);
   useEffect(() => {
     if (user?.id && !fetchedRef.current) {
@@ -123,8 +124,13 @@ export default function DayBriefView() {
       .filter(g => g.scope === 'weekly' && !g.completed)
       .sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
 
+    const dailyGoals = (goalRes.data || [])
+      .filter(g => g.scope === 'daily' && !g.completed)
+      .sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
+
     setBriefItems(enhancedItems);
     setWeeklyGoal(weeklyGoals[0]?.title || 'None');
+    setDailyGoals(dailyGoals);
     setNoNewOpp(noNewOpp);
     setLoadingExtras(false);
   };
@@ -388,7 +394,7 @@ export default function DayBriefView() {
                   <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-2">
                     <h4 className="text-lg font-display text-starlight leading-tight">{item.title}</h4>
                     <div className="shrink-0 flex items-center gap-2">
-                      <span className="text-xs font-mono text-pulsar/80 border border-pulsar/20 bg-pulsar/10 px-2 py-1 rounded">{item.source_name}</span>
+                      <span className="text-xs font-mono text-pulsar/80 border border-pulsar/20 bg-pulsar/10 px-2 py-1 rounded">{item.source_name || item.source || 'News'}</span>
                       <button
                         onClick={() => handleSaveNewsItem(item, originalIndex)}
                         disabled={item.isSaved || isSaving}
@@ -416,15 +422,20 @@ export default function DayBriefView() {
         Today: <span className="text-orange-400 font-bold">{urgent.length}</span> urgent, <span className="text-pulsar font-bold">{strategic.length}</span> strategic. <br/>This week's push: <span className="text-nova font-bold">{weeklyGoal}</span>.
       </div>
       
-      <div className="grid md:grid-cols-2 gap-6">
-        <div className="glass border border-orange-500/30 rounded-xl p-6 space-y-4">
-          <h3 className="text-lg font-display text-orange-400 flex items-center gap-2"><Flame className="w-5 h-5" /> Do First</h3>
-          {urgent.length === 0 ? <p className="text-nova/60 italic">Clear skies.</p> : <div className="space-y-2">{urgent.map(t => <div key={t.id} className="flex items-start gap-3 glass bg-void/70 p-3 rounded-xl border border-pulsar/30"><ChevronRight className="w-4 h-4 text-orange-400 mt-0.5 shrink-0" /><span className="text-starlight font-body">{t.title}</span></div>)}</div>}
-        </div>
-        <div className="glass border border-blue-500/30 rounded-xl p-6 space-y-4">
-          <h3 className="text-lg font-display text-pulsar flex items-center gap-2"><Target className="w-5 h-5" /> Strategic</h3>
-          {strategic.length === 0 ? <p className="text-nova/60 italic">No targets defined.</p> : <div className="space-y-2">{strategic.map(t => <div key={t.id} className="flex items-start gap-3 glass bg-void/70 p-3 rounded-xl border border-pulsar/30"><ChevronRight className="w-4 h-4 text-pulsar mt-0.5 shrink-0" /><span className="text-starlight font-body">{t.title}</span></div>)}</div>}
-        </div>
+      <div className="glass border border-amber-500/30 rounded-xl p-6 space-y-4">
+        <h3 className="text-lg font-display text-starlight flex items-center gap-2"><AlignLeft className="w-5 h-5 text-amber-500" /> Today's Agenda</h3>
+        {dailyGoals.length === 0 ? (
+          <p className="text-nova/60 italic">No daily goals defined.</p>
+        ) : (
+          <ul className="space-y-2">
+            {dailyGoals.map(g => (
+              <li key={g.id} className="flex items-start gap-3 text-starlight font-body">
+                <ChevronRight className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+                {g.title}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       <AnimatePresence>
