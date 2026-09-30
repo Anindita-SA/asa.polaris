@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "check:schema": "node scripts/schema_drift_check.js",
-    "test": "vitest run"
+    "test": "vitest run",
+    "scout:report": "node scripts/generate_starred_report.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
