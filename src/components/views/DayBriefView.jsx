@@ -4,7 +4,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useTodaysTasks } from '../../hooks/useTodaysTasks';
 import { useMorningBrief } from '../../hooks/useMorningBrief';
 import { generateLlmResponse } from '../../lib/llm';
-import { Flame, Check, Target, ChevronRight, Zap, Sparkles, RefreshCw, Rocket, X, Bookmark, AlignLeft } from 'lucide-react';
+import { Flame, Check, Target, ChevronRight, Zap, Sparkles, RefreshCw, Rocket, X, Bookmark, AlignLeft, Star } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import DismissFeedbackModal from '../modals/DismissFeedbackModal';
 import { safeExternalUrl } from '../../lib/urlUtils';
@@ -75,6 +75,7 @@ export default function DayBriefView() {
     
     let appliedIds = new Set();
     let rejectedIds = new Set();
+    let starredIds = new Set();
     if (hwIds.size > 0) {
       const { data: hwData } = await offlineSelect('hardware_opportunities', { user_id: user.id });
       if (hwData) {
@@ -82,6 +83,7 @@ export default function DayBriefView() {
           if (hwIds.has(h.id)) {
             if (h.status === 'applied') appliedIds.add(h.id);
             if (h.status === 'rejected') rejectedIds.add(h.id);
+            if (h.is_starred) starredIds.add(h.id);
           }
         });
       }
@@ -106,9 +108,13 @@ export default function DayBriefView() {
     const enhancedItems = activeItems.map(item => {
       let isApplied = false;
       let isSaved = item.isSaved || false;
+      let isStarred = false;
 
       if (item.hardware_opportunity_id && appliedIds.has(item.hardware_opportunity_id)) {
         isApplied = true;
+      }
+      if (item.hardware_opportunity_id && starredIds.has(item.hardware_opportunity_id)) {
+        isStarred = true;
       }
       if (item.title && savedTitles.has(item.title.toLowerCase().trim())) {
         isSaved = true;
@@ -117,7 +123,7 @@ export default function DayBriefView() {
         isSaved = true;
       }
 
-      return { ...item, isApplied, isSaved };
+      return { ...item, isApplied, isSaved, isStarred };
     });
 
     const weeklyGoals = (goalRes.data || [])
@@ -174,6 +180,21 @@ export default function DayBriefView() {
         items: filtered
       });
     }
+
+    await fetchExtras();
+  };
+
+  const toggleStar = async (item) => {
+    if (!item.hardware_opportunity_id || !user?.id) return;
+    
+    const newVal = !item.isStarred;
+    await offlineUpdate('hardware_opportunities', 
+      { id: item.hardware_opportunity_id, user_id: user.id },
+      { is_starred: newVal }
+    );
+    
+    // Automatic task generation removed per user feedback. 
+    // Agent will generate a consolidated report and a single reminder.
 
     await fetchExtras();
   };
@@ -357,17 +378,29 @@ export default function DayBriefView() {
                         <X className="w-3.5 h-3.5" /> Dismiss
                       </button>
                       {item.hardware_opportunity_id && (
-                        <button
-                          onClick={() => flagToApply(item, originalIndex)}
-                          disabled={item.isApplied || isApplying}
-                          className={`flex items-center gap-2 px-3 py-1.5 text-xs font-display rounded-lg transition-colors border ${
-                            item.isApplied 
-                              ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30 opacity-70'
-                              : 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 border-amber-500/40'
-                          }`}
-                        >
-                          {item.isApplied ? <><Check className="w-3.5 h-3.5" /> Added to Tasks</> : <><Target className="w-3.5 h-3.5" /> Flag to Apply</>}
-                        </button>
+                        <>
+                          <button
+                            onClick={() => toggleStar(item)}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-display rounded-lg transition-colors border ${
+                              item.isStarred
+                                ? 'bg-amber-500/20 text-amber-400 border-amber-500/40'
+                                : 'border-pulsar/30 text-nova/60 hover:text-amber-400 hover:border-amber-500/40 hover:bg-amber-500/10'
+                            }`}
+                          >
+                            <Star className={`w-3.5 h-3.5 ${item.isStarred ? 'fill-amber-400' : ''}`} /> {item.isStarred ? 'Starred' : 'Star'}
+                          </button>
+                          <button
+                            onClick={() => flagToApply(item, originalIndex)}
+                            disabled={item.isApplied || isApplying}
+                            className={`flex items-center gap-2 px-3 py-1.5 text-xs font-display rounded-lg transition-colors border ${
+                              item.isApplied 
+                                ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30 opacity-70'
+                                : 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 border-amber-500/40'
+                            }`}
+                          >
+                            {item.isApplied ? <><Check className="w-3.5 h-3.5" /> Added to Tasks</> : <><Target className="w-3.5 h-3.5" /> Flag to Apply</>}
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>
