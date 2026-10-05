@@ -1,3 +1,9 @@
+## [2026-10-05] LLM Hallucination Fix in Weekly Audit (v1.2.34)
+- **Prompt Constriction**: Updated weekly_audit.js prompt to explicitly forbid LLMs from hallucinating corporate marketing tasks (like brand guidelines) for personal DIY hardware projects.
+- **Actionable Notes**: Updated JSON schema in weekly_audit.js to prompt the LLM to output actionable instructions and convenience links within the task 
+otes field.
+- **Cleanup**: Purged old unused scripts from tracking.
+
 ## [2026-09-27] Supabase Schema Cache Resilience & Pomodoro Table Alignment (v1.2.33)
 - **Pomodoro Table Mapping**: Fixed `PomodoroTimer.jsx` to write focus timer completion records to the canonical `pomodoro_logs` table (`user_id`, `task_id`, `duration_minutes`, `completed_at`, `xp_earned`) instead of the non-existent `focus_sessions` table.
 - **PGRST205 Schema Cache Resilience**: Updated `pullData` in `syncManager.js` to gracefully suppress console errors when encountering `PGRST205` / `42P01` / `schema cache` errors for un-migrated tables (such as `practice_scores`).
@@ -643,3 +649,4 @@ All notable changes to Polaris will be documented in this file.
 - Refactored src/lib/syncManager.js to batch 36 table sync queries into chunks of 10 via the new get_user_data RPC, preventing client-side HTTP blast and DB connection pool exhaustion on load.
 - Updated DayBriefView.jsx to show Today's Agenda rather than Do First/Strategic splits.
 - Cleaned up obsolete ML curricula from the database.
+

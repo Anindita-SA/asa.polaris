@@ -112,18 +112,22 @@ export async function generateTasksFromAI(groqApiKey, milestones, meals) {
   const prompt = `
 You are a productivity and nutrition auditor.
 Analyze the following user data and generate actionable tasks.
+These are personal, DIY hardware and engineering projects, NOT commercial corporate work. 
+Do NOT hallucinate tasks like "gathering brand guidelines", "official logos", or "marketing assets".
+
 Output ONLY a raw JSON array of task objects. No markdown formatting, no backticks, no explanations.
 
 Schema for each task object:
 {
   "title": "Clear action-oriented task title",
-  "notes": "Reasoning or details for the task",
+  "notes": "Actionable instructions, next steps, or a detailed description (include relevant links for convenience if applicable)",
   "estimated_minutes": 15
 }
 
 Rules for Tasks:
 1. Look at these Upcoming Milestones: ${JSON.stringify(milestones)}
    - Generate 1-2 concrete, immediate sub-tasks to move forward on any milestone due within 14 days.
+   - For physical hardware projects (like Concrete Speaker, CHAARG), tasks must reflect raw DIY engineering (e.g., wiring, coding, molding, sketching), not corporate marketing.
 2. Look at these Recent Meals: ${JSON.stringify(meals)}
    - Check if any single egg/egg-based meal has suspiciously high protein (>12g per egg).
    - If anomalies exist, create ONE task titled "Audit Nutrition Logs" with category "polaris" and list the anomalies in the notes.
