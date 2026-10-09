@@ -590,6 +590,120 @@ describe("RemindersPanel", () => {
       expect(screen.getByText("Draft Matrix Architectural Overview")).toBeDefined();
     });
   });
+
+  it("should strictly deduplicate Needs Attention items by title even when multiple due nudges with different IDs exist", async () => {
+    // 3 duplicate nudges with different IDs but the same title
+    useNudgeScheduler.mockReturnValue({
+      nudges: [
+        { id: "nudge-1", title: "Drink water", active: true, isDue: true, isTask: false },
+        { id: "nudge-2", title: "drink water", active: true, isDue: true, isTask: false },
+        { id: "nudge-3", title: "Drink water ", active: true, isDue: true, isTask: false },
+        { id: "nudge-4", title: "Posture check", active: true, isDue: true, isTask: false }
+      ],
+      dismissNudge: vi.fn(),
+      fetchNudges: vi.fn()
+    });
+
+    setupSupabaseMock([], []);
+
+    render(<RemindersPanel onOpenDayGuide={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Needs Attention/)).toBeDefined();
+    });
+
+    const needsAttentionHeading = screen.getByText(/Needs Attention/);
+    const needsAttentionSection = needsAttentionHeading.closest(".rounded-xl");
+
+    // "Drink water" should appear exactly once, and "Posture check" once
+    const drinkWaterItems = within(needsAttentionSection).getAllByText(/Drink water/i);
+    expect(drinkWaterItems.length).toBe(1);
+
+    expect(within(needsAttentionSection).getByText("Posture check")).toBeDefined();
+    // Total visible items in Needs Attention must be 2, without duplicate cards
+    expect(needsAttentionSection.querySelectorAll(".bg-void\\/60").length).toBe(2);
+  });
+
+  it("should deduplicate between due nudges and tasks sharing the exact same title", async () => {
+    useNudgeScheduler.mockReturnValue({
+      nudges: [
+        { id: "nudge-1", title: "Submit Tax Document", active: true, isDue: true, isTask: false }
+      ],
+      dismissNudge: vi.fn(),
+      fetchNudges: vi.fn()
+    });
+
+    const duplicateTask = {
+      id: "task-99",
+      title: "Submit Tax Document",
+      category: "reminders",
+      deadline: "2020-01-01",
+      status: "active",
+      wsjfScore: 2.0
+    };
+
+    setupSupabaseMock([duplicateTask], []);
+
+    render(<RemindersPanel onOpenDayGuide={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Needs Attention/)).toBeDefined();
+    });
+
+    const needsAttentionHeading = screen.getByText(/Needs Attention/);
+    const needsAttentionSection = needsAttentionHeading.closest(".rounded-xl");
+
+    const matchedTitles = within(needsAttentionSection).getAllByText("Submit Tax Document");
+    expect(matchedTitles.length).toBe(1);
+  });
+
+  it("should preserve the higher-score item when a task and nudge share the same title", async () => {
+    useNudgeScheduler.mockReturnValue({
+      nudges: [
+        { id: "nudge-1", title: "Urgent Review", active: true, isDue: true, isTask: false }
+      ],
+      dismissNudge: vi.fn(),
+      fetchNudges: vi.fn()
+    });
+
+    const focus1 = {
+      id: "focus-1",
+      title: "Focus 1",
+      category: "work",
+      status: "active",
+      wsjfScore: 10.0
+    };
+    const focus2 = {
+      id: "focus-2",
+      title: "Focus 2",
+      category: "work",
+      status: "active",
+      wsjfScore: 9.0
+    };
+    const highPriorityTask = {
+      id: "task-top",
+      title: "Urgent Review",
+      category: "work",
+      deadline: "2020-01-01",
+      status: "active",
+      wsjfScore: 5.0
+    };
+
+    setupSupabaseMock([focus1, focus2, highPriorityTask], []);
+
+    render(<RemindersPanel onOpenDayGuide={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Needs Attention/)).toBeDefined();
+    });
+
+    const needsAttentionHeading = screen.getByText(/Needs Attention/);
+    const needsAttentionSection = needsAttentionHeading.closest(".rounded-xl");
+
+    const matchedTitles = within(needsAttentionSection).getAllByText("Urgent Review");
+    expect(matchedTitles.length).toBe(1);
+    expect(within(needsAttentionSection).getByText("T")).toBeDefined();
+  });
 });
 
 

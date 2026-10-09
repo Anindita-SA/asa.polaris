@@ -819,6 +819,110 @@ describe('MatrixCanvasView', () => {
       });
     });
 
+    it('allows inline expanding all queued subtasks on canvas card and displays configure button with deadline badge', async () => {
+      dbTasks.push({
+        id: 'parent-task-expand-all',
+        user_id: mockUser.id,
+        title: 'Hardware Prototype Assembly',
+        status: 'active',
+        quadrant: 'urgent_important'
+      });
+      dbTasks.push({
+        id: 'sub-expand-1',
+        parent_task_id: 'parent-task-expand-all',
+        user_id: mockUser.id,
+        title: 'Assemble Power Supply',
+        status: 'active',
+        position: 0,
+        estimated_minutes: 20,
+        deadline: '2026-10-09'
+      });
+      dbTasks.push({
+        id: 'sub-expand-2',
+        parent_task_id: 'parent-task-expand-all',
+        user_id: mockUser.id,
+        title: 'Calibrate DAC Voltage',
+        status: 'active',
+        position: 1,
+        estimated_minutes: 30,
+        deadline: '2026-10-10'
+      });
+
+      render(<MatrixCanvasView />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Hardware Prototype Assembly')).toBeDefined();
+      });
+
+      // Expand subtasks
+      fireEvent.click(screen.getByTitle('Toggle Subtasks'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Assemble Power Supply')).toBeDefined();
+        // The queued button "+ 1 queued in Project Drawer" should be visible
+        expect(screen.getByText('+ 1 queued in Project Drawer')).toBeDefined();
+      });
+
+      // Click queued count button to expand all remaining subtasks inline
+      const queuedBtn = screen.getByText('+ 1 queued in Project Drawer').closest('button');
+      fireEvent.click(queuedBtn);
+
+      await waitFor(() => {
+        expect(screen.getByText('Calibrate DAC Voltage')).toBeDefined();
+      });
+      await waitFor(() => {
+        expect(screen.getByText(/Collapse subtasks/i)).toBeDefined();
+      });
+    });
+
+    it('allows drilling down to configure a subtask from Details drawer and navigating back to parent', async () => {
+      dbTasks.push({
+        id: 'parent-drill-task',
+        user_id: mockUser.id,
+        title: 'Master Application Portfolio Overhaul',
+        status: 'active',
+        quadrant: 'urgent_important'
+      });
+      dbTasks.push({
+        id: 'sub-drill-1',
+        parent_task_id: 'parent-drill-task',
+        user_id: mockUser.id,
+        title: 'Draft Industrial Design Layout',
+        status: 'active',
+        position: 0,
+        deadline: '2026-10-09'
+      });
+
+      render(<MatrixCanvasView />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Master Application Portfolio Overhaul')).toBeDefined();
+      });
+
+      // Click parent task to open Details drawer
+      fireEvent.click(screen.getByText('Master Application Portfolio Overhaul'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Draft Industrial Design Layout')).toBeDefined();
+      });
+
+      // Click subtask title to drill down into its configuration
+      fireEvent.click(screen.getByText('Draft Industrial Design Layout'));
+
+      await waitFor(() => {
+        // Drawer now shows subtask as selected, with Back to Parent button
+        expect(screen.getByRole('button', { name: /Back to Parent/i })).toBeDefined();
+      });
+
+      // Click Back to Parent
+      fireEvent.click(screen.getByRole('button', { name: /Back to Parent/i }));
+
+      await waitFor(() => {
+        // Returned to parent task in drawer
+        expect(screen.getByText('Subtasks (0/1)')).toBeDefined();
+      });
+    });
+
     it('renders Move back to Q2? chip when auto_quadrant_suggest is ON, task is in Q1 without urgent subtask and deadline is far away', async () => {
       localStorage.setItem('polaris_user_settings', JSON.stringify({
         featureFlags: { auto_quadrant_suggest: true }

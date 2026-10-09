@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { createSafeClient } from './lib/safe_supabase.js';
 import { generateWithFallbackNode } from './lib/llm_utils.js';
+import { runTaskIntake } from './lib/task_intake_engine.js';
 
 // Configuration
 export const config = {
@@ -229,18 +230,20 @@ export async function runAudit() {
   const supabase = await getSupabaseClient();
   const userId = await fetchPrimaryUser(supabase);
   
-  const [milestones, meals] = await Promise.all([
-    fetchUpcomingMilestones(supabase, userId),
-    fetchRecentMeals(supabase, userId)
-  ]);
-  
-  console.log(`Found ${milestones.length} upcoming milestones and ${meals.length} recent meals.`);
-  
-  const rawAIText = await generateTasksFromAI(config.groqApiKey, milestones, meals);
-  const parsedTasks = parseAITasks(rawAIText);
-  
-  const insertedCount = await insertTasks(supabase, userId, parsedTasks);
-  console.log(`Successfully inserted ${insertedCount} tasks into the inbox.`);
+  // 1. Deep atomic milestone task intake
+  const intakeResult = await runTaskIntake(supabase, userId, {
+    groqApiKey: config.groqApiKey,
+    geminiApiKey: config.geminiApiKey
+  });
+  console.log(`TaskIntakeEngine: Inserted ${intakeResult.inserted} atomic subtasks.`);
+
+  // 2. Nutrition check
+  const meals = await fetchRecentMeals(supabase, userId);
+  const heuristicTasks = generateHeuristicAuditTasks([], meals);
+  if (heuristicTasks.length > 0) {
+    const insertedNutrition = await insertTasks(supabase, userId, heuristicTasks);
+    console.log(`Successfully inserted ${insertedNutrition} nutrition audit tasks into the inbox.`);
+  }
 }
 
 import { fileURLToPath } from 'url';

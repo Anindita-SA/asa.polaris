@@ -103,7 +103,7 @@ export function useWSJFScore() {
 
       if (fetchError) throw fetchError;
 
-      const activeTasks = (data || []).filter(t => t.status === 'inbox' || t.status === 'active');
+      const activeTasks = (data || []).filter(t => t.status !== 'done');
 
       const scored = activeTasks.map((t) => {
         const { score, breakdown } = computeWSJFScore(t);

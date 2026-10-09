@@ -51,6 +51,7 @@ import { supabase } from '../../lib/supabase';
 import { computeWSJFScore } from '../../hooks/useWSJFScore';
 import { useAuth } from '../../hooks/useAuth';
 import { offlineSelect, offlineInsert, offlineUpdate, offlineDelete } from '../../lib/offlineApi';
+import { filterMatrixNodes } from '../../lib/matrixNodeFilter';
 import { 
   Plus, 
   Sparkles, 
@@ -271,10 +272,20 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
   const [isAuditing, setIsAuditing] = useState(false);
   const [auditMessage, setAuditMessage] = useState(null);
   const [expandedTasks, setExpandedTasks] = useState(new Set());
+  const [expandedAllSubtasks, setExpandedAllSubtasks] = useState(new Set());
 
   const toggleTaskExpand = (e, taskId) => {
     e.stopPropagation();
     setExpandedTasks(prev => {
+      const next = new Set(prev);
+      if (next.has(taskId)) next.delete(taskId);
+      else next.add(taskId);
+      return next;
+    });
+  };
+
+  const toggleExpandAllSubtasks = (taskId) => {
+    setExpandedAllSubtasks(prev => {
       const next = new Set(prev);
       if (next.has(taskId)) next.delete(taskId);
       else next.add(taskId);
@@ -849,23 +860,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
 
   // Active matrix tasks (Finished tasks `status === 'done'` are hidden from matrix plane)
   const matrixTasks = useMemo(() => {
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-    return tasks.filter((t) => {
-      if (t.parent_task_id || t.quadrant === null || t.status === 'done') return false;
-      if (hideReminders && t.category === 'reminders') return false;
-      if (hidePolaris && (t.category === 'polaris' || (t.title || '').toLowerCase().includes('polaris'))) return false;
-      if (overlookDays > 0 && t.status === 'scheduled' && t.deadline) {
-        let deadlineDate = new Date(t.deadline);
-        if (typeof t.deadline === 'string' && !t.deadline.includes('T')) {
-          deadlineDate = new Date(t.deadline + 'T00:00:00');
-        }
-        deadlineDate.setHours(0, 0, 0, 0);
-        const diffDays = Math.ceil((deadlineDate - now) / (1000 * 60 * 60 * 24));
-        if (diffDays > overlookDays) return false;
-      }
-      return true;
-    });
+    return filterMatrixNodes(tasks, { overlookDays, hideReminders, hidePolaris });
   }, [tasks, overlookDays, hideReminders, hidePolaris]);
 
   // Unsorted Brain Dump tasks (`quadrant === null` and `status !== 'done'`)
@@ -1382,6 +1377,27 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                                       {subEstimate}m
                                     </span>
                                   )}
+                                  {activeSubtask.deadline && (
+                                    <span className={`text-[9px] px-1 py-0.2 rounded font-mono border pointer-events-none ${
+                                      isDueWithin48h(activeSubtask.deadline)
+                                        ? 'bg-amber-950/80 text-amber-300 border-amber-500/40'
+                                        : 'bg-void/60 text-nova/60 border-pulsar/40'
+                                    }`}>
+                                      {activeSubtask.deadline}
+                                    </span>
+                                  )}
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedTaskId(activeSubtask.id);
+                                      setActiveBrainDumpTab('details');
+                                      setBrainDumpCollapsed(false);
+                                    }}
+                                    className="text-nova/60 hover:text-gold p-0.5 pointer-events-auto"
+                                    title="Configure Subtask"
+                                  >
+                                    <FileText className="w-3 h-3" />
+                                  </button>
                                   <button
                                     onClick={(e) => { e.stopPropagation(); toggleDone(activeSubtask); }}
                                     className="text-nova/60 hover:text-emerald p-0.5 pointer-events-auto"
@@ -1394,25 +1410,115 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                             );
 
                             if (incompleteSubtasks.length > 1) {
-                              childNodes.push(
-                                <motion.button
-                                  key={`more-${task.id}`}
-                                  type="button"
-                                  layout
-                                  initial={{ opacity: 0, scale: 0.9, x: -10 }}
-                                  animate={{ opacity: 1, scale: 1, x: 0 }}
-                                  exit={{ opacity: 0, scale: 0.9, x: -10 }}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedTaskId(task.id);
-                                    setActiveBrainDumpTab('details');
-                                    setBrainDumpCollapsed(false);
-                                  }}
-                                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-pulsar/10 border border-pulsar/30 hover:bg-pulsar/20 text-pulsar hover:text-starlight text-[11px] font-mono ml-6 w-fit cursor-pointer transition-colors"
-                                >
-                                  <span>+ {incompleteSubtasks.length - 1} queued in Project Drawer</span>
-                                </motion.button>
-                              );
+                              if (expandedAllSubtasks.has(task.id)) {
+                                const otherSubtasks = incompleteSubtasks.filter(s => s.id !== activeSubtask.id);
+                                otherSubtasks.forEach((st) => {
+                                  const stEst = st.time_estimate_minutes || st.estimated_minutes;
+                                  childNodes.push(
+                                    <div
+                                      key={`queued-${st.id}`}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedTaskId(st.id);
+                                        setActiveBrainDumpTab('details');
+                                        setBrainDumpCollapsed(false);
+                                      }}
+                                      className="group flex items-center gap-2 px-3 py-1.5 rounded-lg bg-void/40 border border-pulsar/30 hover:border-pulsar/60 ml-6 w-fit max-w-[500px] select-none cursor-pointer transition-colors shadow-sm"
+                                    >
+                                      <span className="w-1.5 h-1.5 rounded-full bg-nova/40 shrink-0" />
+                                      <h4 className="text-[12px] text-starlight truncate pointer-events-none">
+                                        {st.title}
+                                      </h4>
+                                      <div className="flex items-center gap-1.5 shrink-0 font-mono text-[10px]">
+                                        {st.mental_load && (
+                                          <span className={`text-[8px] uppercase px-1 py-0.2 rounded font-bold pointer-events-none ${
+                                            st.mental_load === 'low' ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/40' :
+                                            st.mental_load === 'high' ? 'bg-purple-950 text-purple-300 border border-purple-500/40' :
+                                            'bg-amber-950 text-amber-300 border border-amber-500/40'
+                                          }`}>
+                                            {st.mental_load}
+                                          </span>
+                                        )}
+                                        {stEst && (
+                                          <span className="text-nova/60 bg-void/60 px-1 py-0.5 rounded border border-pulsar/40 pointer-events-none">
+                                            {stEst}m
+                                          </span>
+                                        )}
+                                        {st.deadline && (
+                                          <span className={`text-[9px] px-1 py-0.2 rounded font-mono border pointer-events-none ${
+                                            isDueWithin48h(st.deadline)
+                                              ? 'bg-amber-950/80 text-amber-300 border-amber-500/40'
+                                              : 'bg-void/60 text-nova/60 border-pulsar/40'
+                                          }`}>
+                                            {st.deadline}
+                                          </span>
+                                        )}
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleSetNextAction(st);
+                                          }}
+                                          className="text-nova/40 hover:text-amber-400 p-0.5 pointer-events-auto opacity-0 group-hover:opacity-100 transition-opacity"
+                                          title="Set as Next Action"
+                                        >
+                                          <Zap className="w-3 h-3" />
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setSelectedTaskId(st.id);
+                                            setActiveBrainDumpTab('details');
+                                            setBrainDumpCollapsed(false);
+                                          }}
+                                          className="text-nova/60 hover:text-gold p-0.5 pointer-events-auto"
+                                          title="Configure Subtask"
+                                        >
+                                          <FileText className="w-3 h-3" />
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={(e) => { e.stopPropagation(); toggleDone(st); }}
+                                          className="text-nova/60 hover:text-emerald p-0.5 pointer-events-auto"
+                                          title="Mark Done"
+                                        >
+                                          <Check className="w-3 h-3" />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  );
+                                });
+
+                                childNodes.push(
+                                  <button
+                                    key={`collapse-${task.id}`}
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      toggleExpandAllSubtasks(task.id);
+                                    }}
+                                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-pulsar/10 border border-pulsar/30 hover:bg-pulsar/20 text-pulsar hover:text-starlight text-[11px] font-mono ml-6 w-fit cursor-pointer transition-colors"
+                                  >
+                                    <ChevronUp className="w-3 h-3" />
+                                    <span>Collapse subtasks ({incompleteSubtasks.length})</span>
+                                  </button>
+                                );
+                              } else {
+                                childNodes.push(
+                                  <button
+                                    key={`more-${task.id}`}
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      toggleExpandAllSubtasks(task.id);
+                                    }}
+                                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-pulsar/10 border border-pulsar/30 hover:bg-pulsar/20 text-pulsar hover:text-starlight text-[11px] font-mono ml-6 w-fit cursor-pointer transition-colors"
+                                  >
+                                    <span>+ {incompleteSubtasks.length - 1} queued in Project Drawer</span>
+                                  </button>
+                                );
+                              }
                             }
                           }
 
@@ -1861,13 +1967,21 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                     )}
 
                     {selectedTask.parent_task_id && (
-                      <div className="bg-aurora/10 border border-aurora/30 rounded-lg px-3 py-2 text-xs flex items-center gap-2">
-                        <Link className="w-3.5 h-3.5 text-aurora shrink-0" />
-                        <span className="text-nova/60 font-mono">Parent Task:</span>
-                        <span className="text-starlight truncate font-medium">
-                          {tasks.find(t => t.id === selectedTask.parent_task_id)?.title || selectedTask.parent_task_id}
-                        </span>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedTaskId(selectedTask.parent_task_id)}
+                        className="bg-aurora/10 hover:bg-aurora/20 border border-aurora/30 rounded-lg px-3 py-2 text-xs flex items-center justify-between transition-colors text-left w-full cursor-pointer group"
+                        title="Click to navigate back to parent project"
+                      >
+                        <div className="flex items-center gap-2 truncate">
+                          <ChevronLeft className="w-3.5 h-3.5 text-aurora shrink-0 group-hover:-translate-x-0.5 transition-transform" />
+                          <span className="text-nova/60 font-mono">Back to Parent:</span>
+                          <span className="text-starlight truncate font-medium">
+                            {tasks.find(t => t.id === selectedTask.parent_task_id)?.title || selectedTask.parent_task_id}
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-aurora/70 font-mono shrink-0">Parent Project</span>
+                      </button>
                     )}
 
                     {/* Top Badges & Actions Strip */}
@@ -2180,9 +2294,14 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                                     </button>
 
                                     <div className="flex-1 min-w-0">
-                                      <span className={`block break-words text-xs leading-snug ${isSubDone ? 'text-slate-400 line-through' : 'text-starlight font-medium'}`}>
+                                      <button
+                                        type="button"
+                                        onClick={() => setSelectedTaskId(st.id)}
+                                        className={`text-left block w-full break-words text-xs leading-snug hover:text-amber-400 transition-colors cursor-pointer ${isSubDone ? 'text-slate-400 line-through' : 'text-starlight font-medium'}`}
+                                        title="Configure subtask"
+                                      >
                                         {st.title}
-                                      </span>
+                                      </button>
                                       <div className="flex flex-wrap items-center gap-1.5 mt-1.5 min-h-[16px]">
                                         {isActive && (
                                           <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 font-mono text-[9px] font-semibold tracking-wide shrink-0">
@@ -2198,6 +2317,19 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                                           >
                                             Set as Next Action
                                           </button>
+                                        )}
+
+                                        {st.deadline && (
+                                          <span className={`inline-flex items-center gap-1 px-1.5 py-0.2 rounded font-mono text-[9px] shrink-0 ${
+                                            st.deadline.slice(0, 10) < new Date().toISOString().slice(0, 10)
+                                              ? 'text-red-400 bg-red-950/40 border border-red-500/30'
+                                              : st.deadline.slice(0, 10) === new Date().toISOString().slice(0, 10)
+                                              ? 'text-amber-300 bg-amber-950/40 border border-amber-500/30'
+                                              : 'text-nova/70 bg-void/40 border border-pulsar/30'
+                                          }`}>
+                                            <Calendar className="w-2.5 h-2.5" />
+                                            {st.deadline.slice(0, 10)}
+                                          </span>
                                         )}
 
                                         {st.mental_load && !isSubDone && (
@@ -2220,6 +2352,15 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                                   </div>
 
                                   <div className="flex items-center gap-1 shrink-0">
+                                    <button
+                                      type="button"
+                                      onClick={() => setSelectedTaskId(st.id)}
+                                      className="opacity-0 group-hover:opacity-100 text-nova/60 hover:text-amber-400 hover:bg-amber-500/10 p-1 rounded transition-all cursor-pointer"
+                                      title="Configure Subtask"
+                                      aria-label="Configure Subtask"
+                                    >
+                                      <FileText className="w-3.5 h-3.5" />
+                                    </button>
                                     {!isSubDone && (
                                       <button
                                         type="button"

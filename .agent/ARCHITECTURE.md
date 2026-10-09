@@ -17,6 +17,7 @@ This document maps features/tabs/panels to their component files, hooks, Supabas
 **Files:**
 - `src/components/views/MatrixCanvasView.jsx`
 - `src/components/TaskMatrix.jsx`
+- `src/lib/matrixNodeFilter.js`
 **Hooks:** `useWSJFScore.js`
 **Tables:** `tasks`, `milestones`, `recurring_task_templates`, `task_estimate_calibration`
 **Shared By:** Day Guide, Focus Board (shares `tasks`), Journal (shares `recurring_task_templates`).

@@ -32,15 +32,23 @@ if (-not $OllamaRunning) {
     Write-Host "Ollama is already running. We will leave it open after execution."
 }
 
+# 2. Weekly Audit & Milestone Intake (Mondays only, or with -ForceAudit)
+$IsMonday = ((Get-Date).DayOfWeek -eq 'Monday')
+$ForceAudit = $args -contains "-ForceAudit"
+
+if ($IsMonday -or $ForceAudit) {
+    Write-Host "Executing Weekly Audit Task Insertion (Monday cadence)..."
+    node "$ScriptDir\weekly_audit.js"
+} else {
+    Write-Host "Skipping weekly audit (runs on Mondays). Today is $((Get-Date).DayOfWeek)."
+}
+
 # 3. Run the actual triage script
 Write-Host "Executing Node triage script..."
 node "$ScriptDir\task_triage.js"
 
 Write-Host "Executing Cloud Scouts..."
 node "$ScriptDir\run_cloud_scouts.js"
-
-Write-Host "Executing Audit Task Insertion..."
-node "$ScriptDir\weekly_audit.js"
 
 # 3. Cleanup if we started it
 if ($StartedByUs) {
