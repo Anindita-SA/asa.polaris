@@ -460,7 +460,7 @@ export function filterTasksForTriage(unsortedTasks = [], parentTaskIdsWithChildr
 }
 
 const OLLAMA_URL = 'http://127.0.0.1:11434/api/generate';
-const MODEL = 'qwen2.5:1.5b';
+const MODEL = 'qwen2.5:3b';
 
 async function checkOllama() {
   try {

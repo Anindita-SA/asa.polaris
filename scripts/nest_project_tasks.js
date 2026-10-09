@@ -54,6 +54,16 @@ export const CANONICAL_PARENTS = [
     mental_load: 'high',
     status: 'active',
     notes: 'Canonical parent sprint task for MATLAB simulation, custom PCB design/fabrication for power conversion, hardware testing, and standard EMC for power converter topologies under Dr. Vignesh Kumar at NIT Trichy.'
+  },
+  {
+    key: 'nptel',
+    title: 'NPTEL Exam Preparation',
+    category: 'academic',
+    quadrant: 'important_not_urgent',
+    deadline: '2026-10-16',
+    mental_load: 'high',
+    status: 'active',
+    notes: 'Canonical parent sprint task for NPTEL Exam.'
   }
 ];
 
@@ -123,6 +133,7 @@ export async function nestProjectTasks(supabaseClient = null, isDryRun = false) 
   const mastersParentId = parentIds.masters;
   const speakerParentId = parentIds.speaker;
   const vigneshParentId = parentIds.vignesh;
+  const nptelParentId = parentIds.nptel;
 
   // 3. Match and reparent child tasks
   const chaargKeywords = [
@@ -172,6 +183,9 @@ export async function nestProjectTasks(supabaseClient = null, isDryRun = false) 
     'mdpi template',
     'agri solar survey paper',
     'agri energy survey',
+    'agri solar',
+    'agri energy',
+    'synthesize literature',
     'first pass',
     'second pass',
     'thematic batches to notebooklm',
@@ -185,7 +199,14 @@ export async function nestProjectTasks(supabaseClient = null, isDryRun = false) 
     'europass cv',
     'update resume & create europass cv',
     'weekly cold email batch',
-    'send weekly cold email batch'
+    'send weekly cold email batch',
+    'personal statement',
+    'sweden',
+    'swedish',
+    'replace placeholders',
+    'portfolio site',
+    'deadline',
+    'application'
   ];
 
   const speakerKeywords = [
@@ -198,13 +219,34 @@ export async function nestProjectTasks(supabaseClient = null, isDryRun = false) 
     'project page titled \'concrete speaker\''
   ];
 
-  const updatedChildCounts = { chaarg: 0, agri: 0, masters: 0, speaker: 0, vignesh: 0 };
+  const nptelKeywords = [
+    'nptel'
+  ];
+
+  const updatedChildCounts = { chaarg: 0, agri: 0, masters: 0, speaker: 0, vignesh: 0, nptel: 0 };
 
   for (const t of tasks) {
     // Never reparent canonical parent tasks themselves
     if (Object.values(parentIds).includes(t.id)) continue;
 
     const titleLower = (t.title || '').toLowerCase();
+
+    // Match NPTEL child tasks
+    if (nptelKeywords.some(kw => titleLower.includes(kw))) {
+      if (t.parent_task_id !== nptelParentId) {
+        console.log(`Reparenting NPTEL task: "${t.title}" (${t.id}) -> parent ${nptelParentId}`);
+        updatedChildCounts.nptel++;
+        if (!isDryRun) {
+          const { error: nErr } = await supabase
+            .from('tasks')
+            .update({ parent_task_id: nptelParentId })
+            .eq('id', t.id)
+            .eq('user_id', uid);
+          if (nErr) throw nErr;
+        }
+      }
+      continue;
+    }
 
     // Match CHAARG child tasks
     if (chaargKeywords.some(kw => titleLower.includes(kw))) {

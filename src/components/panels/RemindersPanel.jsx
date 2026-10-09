@@ -110,6 +110,7 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
   const [editingNudge, setEditingNudge] = useState(null)
   const [newNudgeTitle, setNewNudgeTitle] = useState('')
   const [newNudgeInterval, setNewNudgeInterval] = useState('60')
+  const [isSavingNudge, setIsSavingNudge] = useState(false)
   const [expandedContactId, setExpandedContactId] = useState(null)
   const [habitTasks, setHabitTasks] = useState([])
   const [collapsedSections, setCollapsedSections] = useState({})
@@ -145,7 +146,17 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
   useEffect(() => {
     if (!user) return
 
-    const handleTasksChanged = () => {
+    const handleTasksChanged = (e) => {
+      const table = e?.detail?.table
+      if (table) {
+        if (table === 'nudges') {
+          fetchNudges()
+          return
+        }
+        if (table !== 'tasks') {
+          return
+        }
+      }
       fetchTasks()
       fetchHabitTasks()
       fetchNudges()
@@ -208,7 +219,7 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
     // If a subtask is started, update its status to in_progress to sync with matrix canvas & views
     if (task?.parent_task_id && user?.id) {
       try {
-        await offlineUpdate('tasks', { id: task.id }, { status: 'in_progress' })
+        await offlineUpdate('tasks', { id: task.id, user_id: user.id }, { status: 'in_progress' })
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('polaris-tasks-changed', { detail: { table: 'tasks', operation: 'update' } }))
         }
@@ -220,7 +231,7 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
 
   const markTaskDone = async (taskId) => {
     if (!user?.id) return
-    const { error } = await offlineUpdate('tasks', { id: taskId }, { status: 'done' })
+    const { error } = await offlineUpdate('tasks', { id: taskId, user_id: user.id }, { status: 'done' })
     if (error) {
       console.error('Error marking task done:', error)
       return
@@ -240,7 +251,7 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
     if (dates.includes(todayStr)) return
     dates.push(todayStr)
     dates.sort()
-    const { error } = await offlineUpdate('tasks', { id: task.id }, { completion_dates: dates, completion_count: (task.completion_count || 0) + 1, status: 'done' })
+    const { error } = await offlineUpdate('tasks', { id: task.id, user_id: user.id }, { completion_dates: dates, completion_count: (task.completion_count || 0) + 1, status: 'done' })
     if (error) {
       console.error('Error completing habit:', error)
       return
@@ -251,19 +262,42 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
 
   // Nudge Settings handlers
   const saveNudge = async () => {
-    if (!user?.id || !newNudgeTitle.trim()) return
-    const interval = parseInt(newNudgeInterval) || 60
-    
-    if (editingNudge) {
-      await offlineUpdate('nudges', { id: editingNudge.id, user_id: user.id }, { title: newNudgeTitle, interval_minutes: interval })
-    } else {
-      await offlineInsert('nudges', { user_id: user.id, title: newNudgeTitle, interval_minutes: interval, active: true })
+    if (!user?.id || !newNudgeTitle.trim() || isSavingNudge) return
+    setIsSavingNudge(true)
+    try {
+      const interval = Math.max(1, parseInt(newNudgeInterval, 10) || 60)
+      const trimmedTitle = newNudgeTitle.trim()
+      const normTitle = trimmedTitle.toLowerCase()
+      
+      if (editingNudge) {
+        const otherExisting = nudges.find(n => !n.isTask && n.id !== editingNudge.id && (n.title || '').trim().toLowerCase() === normTitle)
+        if (otherExisting) {
+          await offlineUpdate('nudges', { id: otherExisting.id, user_id: user.id }, { interval_minutes: interval, active: true })
+          await offlineDelete('nudges', { id: editingNudge.id, user_id: user.id })
+        } else {
+          await offlineUpdate('nudges', { id: editingNudge.id, user_id: user.id }, { title: trimmedTitle, interval_minutes: interval })
+        }
+      } else {
+        let existing = nudges.find(n => !n.isTask && (n.title || '').trim().toLowerCase() === normTitle)
+        if (!existing) {
+          const { data: dbNudges } = await offlineSelect('nudges', { user_id: user.id })
+          existing = (dbNudges || []).find(n => (n.title || '').trim().toLowerCase() === normTitle)
+        }
+
+        if (existing) {
+          await offlineUpdate('nudges', { id: existing.id, user_id: user.id }, { interval_minutes: interval, active: true })
+        } else {
+          await offlineInsert('nudges', { user_id: user.id, title: trimmedTitle, interval_minutes: interval, active: true })
+        }
+      }
+      
+      setNewNudgeTitle('')
+      setNewNudgeInterval('60')
+      setEditingNudge(null)
+      fetchNudges()
+    } finally {
+      setIsSavingNudge(false)
     }
-    
-    setNewNudgeTitle('')
-    setNewNudgeInterval('60')
-    setEditingNudge(null)
-    fetchNudges()
   }
 
   const toggleNudgeActive = async (nudge) => {
@@ -274,7 +308,16 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
 
   const deleteNudge = async (id) => {
     if (!user?.id) return
+    const nudge = nudges.find(n => n.id === id)
     await offlineDelete('nudges', { id, user_id: user.id })
+    if (nudge?.title) {
+      const normTitle = nudge.title.trim().toLowerCase()
+      const { data: allN } = await offlineSelect('nudges', { user_id: user.id })
+      const dups = (allN || []).filter(n => n.id !== id && (n.title || '').trim().toLowerCase() === normTitle)
+      for (const d of dups) {
+        await offlineDelete('nudges', { id: d.id, user_id: user.id })
+      }
+    }
     fetchNudges()
   }
 
@@ -325,28 +368,23 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
   const ongoingAlert = isOngoingOverdue || Boolean(ongoingNeglectedBadge);
 
   // Unified Needs Attention Items
-  const needsAttentionItems = []
-  const seenAttentionIds = new Set()
+  const candidateItems = []
 
   // 1. Active due system nudges (!n.isTask && n.active && n.isDue)
   nudges.forEach(n => {
     if (!n.isTask && n.active && n.isDue) {
-      const key = `nudge-${n.id}`
-      if (!seenAttentionIds.has(key)) {
-        seenAttentionIds.add(key)
-        needsAttentionItems.push({
-          id: n.id,
-          title: n.title,
-          type: 'nudge',
-          tag: 'N',
-          tagFull: 'Nudge',
-          score: 3.8,
-          action: () => {
-            dismissNudge(n.id)
-            celebrate()
-          }
-        })
-      }
+      candidateItems.push({
+        id: n.id,
+        title: n.title,
+        type: 'nudge',
+        tag: 'N',
+        tagFull: 'Nudge',
+        score: 3.8,
+        action: () => {
+          dismissNudge(n.id)
+          celebrate()
+        }
+      })
     }
   })
 
@@ -360,20 +398,15 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
     const isQuickWin = Boolean(t.estimated_minutes && t.estimated_minutes <= 15)
 
     if (isOverdueOrDueToday || isNeglected || isQuickWin) {
-      const key = `task-${t.id}`
-      if (!seenAttentionIds.has(key) && !seenAttentionIds.has(t.id)) {
-        seenAttentionIds.add(key)
-        seenAttentionIds.add(t.id)
-        needsAttentionItems.push({
-          id: t.id,
-          title: t.title,
-          type: 'task',
-          tag: t.category === 'reminders' ? 'R' : 'T',
-          tagFull: t.category === 'reminders' ? 'Reminder' : 'Task',
-          score: t.score ?? computeWSJFScore(t).score,
-          action: () => markTaskDone(t.id)
-        })
-      }
+      candidateItems.push({
+        id: t.id,
+        title: t.title,
+        type: 'task',
+        tag: t.category === 'reminders' ? 'R' : 'T',
+        tagFull: t.category === 'reminders' ? 'Reminder' : 'Task',
+        score: t.score ?? computeWSJFScore(t).score,
+        action: () => markTaskDone(t.id)
+      })
     }
   })
 
@@ -381,49 +414,58 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
   habitTasks.forEach(t => {
     const dates = Array.isArray(t.completion_dates) ? t.completion_dates : []
     if (!dates.includes(todayStr)) {
-      const key = `habit-${t.id}`
-      if (!seenAttentionIds.has(key) && !seenAttentionIds.has(t.id)) {
-        seenAttentionIds.add(key)
-        seenAttentionIds.add(t.id)
-        needsAttentionItems.push({
-          id: t.id,
-          title: t.title,
-          type: 'habit',
-          tag: 'H',
-          tagFull: 'Habit',
-          score: 3.5,
-          action: () => completeHabitForToday(t)
-        })
-      }
+      candidateItems.push({
+        id: t.id,
+        title: t.title,
+        type: 'habit',
+        tag: 'H',
+        tagFull: 'Habit',
+        score: 3.5,
+        action: () => completeHabitForToday(t)
+      })
     }
   })
 
   // 4. Overdue contacts (c.isOverdue)
   contacts.forEach(c => {
     if (c.isOverdue) {
-      const key = `contact-${c.id}`
-      if (!seenAttentionIds.has(key) && !seenAttentionIds.has(c.id)) {
-        seenAttentionIds.add(key)
-        seenAttentionIds.add(c.id)
-        const score = c.tier === 'hearth' ? 4.0 : c.tier === 'parlour' ? 3.6 : c.tier === 'porch' ? 3.2 : 2.8
-        needsAttentionItems.push({
-          id: c.id,
-          title: c.name,
-          type: 'contact',
-          tag: 'C',
-          tagFull: 'Contact',
-          score,
-          action: () => {
-            markReachedOut(c.id)
-            celebrate()
-          }
-        })
-      }
+      const score = c.tier === 'hearth' ? 4.0 : c.tier === 'parlour' ? 3.6 : c.tier === 'porch' ? 3.2 : 2.8
+      candidateItems.push({
+        id: c.id,
+        title: c.name,
+        type: 'contact',
+        tag: 'C',
+        tagFull: 'Contact',
+        score,
+        action: () => {
+          markReachedOut(c.id)
+          celebrate()
+        }
+      })
     }
   })
 
-  // Sort strictly by score descending
-  needsAttentionItems.sort((a, b) => b.score - a.score)
+  // Sort candidate items strictly by score descending FIRST so highest priority items always win
+  candidateItems.sort((a, b) => b.score - a.score)
+
+  // Deduplicate candidates by ID and normalized title
+  const needsAttentionItems = []
+  const seenAttentionIds = new Set()
+  const seenAttentionTitles = new Set()
+
+  candidateItems.forEach(item => {
+    const key = `${item.type}-${item.id}`
+    const normTitle = (item.title || '').trim().toLowerCase()
+    if (!seenAttentionIds.has(key) && !seenAttentionIds.has(item.id)) {
+      if (normTitle) {
+        if (seenAttentionTitles.has(normTitle)) return
+        seenAttentionTitles.add(normTitle)
+      }
+      seenAttentionIds.add(key)
+      seenAttentionIds.add(item.id)
+      needsAttentionItems.push(item)
+    }
+  })
 
   // Slice to max 2 items
   const visibleAttention = needsAttentionItems.slice(0, 2)

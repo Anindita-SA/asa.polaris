@@ -14,6 +14,7 @@ vi.mock('../lib/offlineApi', () => ({
   offlineSelect: vi.fn(),
   offlineInsert: vi.fn(),
   offlineUpdate: vi.fn(),
+  offlineDelete: vi.fn(),
   generateUUID: () => 'mock-uuid-1'
 }));
 
@@ -46,6 +47,7 @@ describe('useNudgeScheduler', () => {
     });
 
     offlineApi.offlineInsert.mockResolvedValue({ data: null, error: null });
+    offlineApi.offlineDelete.mockResolvedValue({ data: [], error: null });
   };
 
   beforeEach(() => {
@@ -317,6 +319,93 @@ describe('useNudgeScheduler', () => {
 
     expect(localStorage.getItem('nudge_last_dismissed_task-1')).toBeTruthy();
     expect(mockUpdate).toHaveBeenCalledWith('tasks', { id: 'task-1', user_id: 'test-user-id' }, { skip_count: 3 });
+
+    unmount();
+  });
+
+  it('deduplicates system nudges with identical titles and prunes duplicates from database', async () => {
+    const mockNudgesData = [
+      { id: 'nudge-1', user_id: 'test-user-id', title: 'Drink water', interval_minutes: 60, active: true },
+      { id: 'nudge-2', user_id: 'test-user-id', title: 'drink water', interval_minutes: 60, active: true },
+      { id: 'nudge-3', user_id: 'test-user-id', title: 'Drink water ', interval_minutes: 60, active: true },
+      { id: 'nudge-4', user_id: 'test-user-id', title: 'Posture check', interval_minutes: 30, active: true }
+    ];
+
+    setupMock(mockNudgesData, []);
+
+    const { result, unmount } = renderHook(() => useNudgeScheduler());
+
+    await waitFor(() => {
+      // 4 items reduced to 2 unique titles ('Drink water' and 'Posture check')
+      expect(result.current.nudges).toHaveLength(2);
+    });
+
+    expect(result.current.nudges.map(n => n.title)).toEqual(['Drink water', 'Posture check']);
+
+    // Verify offlineDelete was called for the duplicate records with user_id
+    expect(offlineApi.offlineDelete).toHaveBeenCalledWith('nudges', { id: 'nudge-2', user_id: 'test-user-id' });
+    expect(offlineApi.offlineDelete).toHaveBeenCalledWith('nudges', { id: 'nudge-3', user_id: 'test-user-id' });
+
+    unmount();
+  });
+
+  it('dismisses all matching nudge instances across same title', async () => {
+    const mockNudgesData = [
+      { id: 'nudge-1', user_id: 'test-user-id', title: 'Drink water', interval_minutes: 60, active: true },
+      { id: 'nudge-2', user_id: 'test-user-id', title: 'Drink water', interval_minutes: 60, active: true }
+    ];
+
+    setupMock(mockNudgesData, []);
+
+    const { result, unmount } = renderHook(() => useNudgeScheduler());
+
+    await waitFor(() => {
+      expect(result.current.nudges).toHaveLength(1);
+    });
+
+    await act(async () => {
+      await result.current.dismissNudge('nudge-1');
+    });
+
+    expect(localStorage.getItem('nudge_last_dismissed_nudge-1')).toBeTruthy();
+    expect(localStorage.getItem('nudge_last_dismissed_nudge-2')).toBeTruthy();
+
+    unmount();
+  });
+
+  it('does not re-seed default nudges when polaris_nudges_seeded is already marked in localStorage', async () => {
+    localStorage.setItem('polaris_nudges_seeded_test-user-id', 'true');
+    setupMock([], []);
+
+    const { result, unmount } = renderHook(() => useNudgeScheduler());
+
+    await waitFor(() => {
+      expect(result.current.nudges).toEqual([]);
+    });
+
+    expect(offlineApi.offlineInsert).not.toHaveBeenCalled();
+    unmount();
+  });
+
+  it('deduplicates items sent to service worker controller by title', async () => {
+    const mockNudgesData = [
+      { id: 'nudge-1', user_id: 'test-user-id', title: 'Drink water', interval_minutes: 60, active: true },
+      { id: 'nudge-2', user_id: 'test-user-id', title: 'Drink water', interval_minutes: 60, active: true }
+    ];
+
+    setupMock(mockNudgesData, []);
+
+    const { unmount } = renderHook(() => useNudgeScheduler());
+
+    await waitFor(() => {
+      expect(mockPostMessage).toHaveBeenCalled();
+    });
+
+    const calls = mockPostMessage.mock.calls;
+    const lastCall = calls[calls.length - 1][0];
+    expect(lastCall.type).toBe('UPDATE_NUDGES');
+    const swTitles = lastCall.nudges.map(n => n.title);
+    expect(swTitles).toEqual(['Drink water']);
 
     unmount();
   });

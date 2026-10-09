@@ -19,6 +19,8 @@ Modifications to the following shared files require full app regression testing 
 - **Check 1:** Open the Task Matrix view. Verify tasks are plotted on the 2D grid based on urgency and importance.
 - **Check 2:** Drag a task node from one quadrant to another (e.g., from top-left to bottom-right). Verify its position updates and persists.
 - **Check 3:** Double-click or tap a task on the canvas. Verify a modal or detail view opens allowing you to edit its name or deadline.
+- **Check 4:** Click "Toggle Subtasks" on a parent project card. Verify the active subtask displays with its deadline badge, and clicking the queued count button expands all remaining child subtasks inline with load tags and configure buttons.
+- **Check 5:** In the Details Drawer for a parent project, click a subtask title or configure icon. Verify the drawer drills down into that subtask's editing form and displays a "Back to Parent" breadcrumb. Clicking it returns to the parent project.
 
 ## 3. Focus Board
 - **Check 1:** Add a new Focus Item. Verify it appears in the active focus column.

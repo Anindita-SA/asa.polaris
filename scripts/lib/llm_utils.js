@@ -55,6 +55,36 @@ export async function generateWithFallbackNode(prompt, groqApiKey = null, gemini
   const asJson = isBool ? options : (options?.asJson || false);
   const preferredModel = isBool ? null : (options?.preferredModel || null);
   const maxOut = isBool ? null : (options?.maxOutputTokens || null);
+  const tryOllama = isBool ? false : (options?.tryOllama || false);
+  const ollamaModel = (options && !isBool && options.ollamaModel) || 'qwen2.5:3b';
+
+  if (tryOllama) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    try {
+      const res = await fetch('http://127.0.0.1:11434/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: ollamaModel,
+          prompt: prompt,
+          stream: false,
+          format: asJson ? 'json' : undefined
+        }),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      if (res.ok) {
+        const json = await res.json();
+        const content = json.response ? json.response.trim() : (json.message?.content || '').trim();
+        if (content) {
+          return cleanLlmContent(content, asJson);
+        }
+      }
+    } catch (ollamaErr) {
+      clearTimeout(timeoutId);
+    }
+  }
 
   const finalGroqKey = groqApiKey || (typeof process !== 'undefined' ? (process.env.GROQ_API_KEY || process.env.VITE_GROQ_API_KEY) : null);
   const finalGeminiKey = geminiApiKey || (typeof process !== 'undefined' ? (process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY) : null);

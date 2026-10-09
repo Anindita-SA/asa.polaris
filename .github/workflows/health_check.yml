@@ -1,12 +1,7 @@
 name: Polaris Health Check
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+  workflow_dispatch:
 
 jobs:
   schema-check:
