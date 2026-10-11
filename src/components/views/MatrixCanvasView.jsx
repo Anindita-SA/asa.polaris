@@ -183,28 +183,9 @@ export function isDueWithin48h(deadline) {
   return diffDays <= 2;
 }
 
-export function computeActiveSubtask(incompleteSubtasks) {
-  if (!incompleteSubtasks || incompleteSubtasks.length === 0) return null;
-
-  // Tier 1 (Deadline override): Any incomplete subtask due within 48h (deadline <= today + 2 days).
-  // If multiple qualify, pick the lowest time_estimate_minutes (or estimated_minutes).
-  const urgentSubtasks = incompleteSubtasks.filter(s => isDueWithin48h(s.deadline));
-  if (urgentSubtasks.length > 0) {
-    return urgentSubtasks.reduce((minTask, currentTask) => {
-      const minEst = minTask.time_estimate_minutes ?? minTask.estimated_minutes ?? Infinity;
-      const currentEst = currentTask.time_estimate_minutes ?? currentTask.estimated_minutes ?? Infinity;
-      return currentEst < minEst ? currentTask : minTask;
-    });
-  }
-
-  // Tier 2 (Priority flag): If none are near deadline, surface the first subtask with status === 'in_progress' or priority === 'high'.
-  const prioritySubtask = incompleteSubtasks.find(s => s.status === 'in_progress' || s.priority === 'high');
-  if (prioritySubtask) {
-    return prioritySubtask;
-  }
-
-  // Tier 3 (Sequence with low-friction nudge): Sort by position (or created_at).
-  const sorted = [...incompleteSubtasks].sort((a, b) => {
+export function sortSubtasks(subtasks) {
+  if (!subtasks || subtasks.length === 0) return [];
+  return [...subtasks].sort((a, b) => {
     if (a.position != null && b.position != null) return a.position - b.position;
     if (a.position != null) return -1;
     if (b.position != null) return 1;
@@ -213,7 +194,47 @@ export function computeActiveSubtask(incompleteSubtasks) {
     if (timeA !== timeB) return timeA - timeB;
     return (a.id || '').localeCompare(b.id || '');
   });
+}
 
+export function computeActiveSubtask(incompleteSubtasks) {
+  if (!incompleteSubtasks || incompleteSubtasks.length === 0) return null;
+
+  // Protect against raw subtask arrays by excluding completed tasks
+  const pending = incompleteSubtasks.filter(s => s.status !== 'done');
+  if (pending.length === 0) return null;
+
+  // Canonical deterministic sort order (position ascending, created_at ascending, id tie-breaker)
+  const sorted = sortSubtasks(pending);
+
+  // Tier 1 (Deadline override): Any incomplete subtask due within 48h (deadline <= today + 2 days).
+  // If multiple qualify and one is designated in_progress, prioritize that urgent action.
+  // Otherwise pick the lowest time_estimate_minutes (or estimated_minutes).
+  const urgentSubtasks = sorted.filter(s => isDueWithin48h(s.deadline));
+  if (urgentSubtasks.length > 0) {
+    const urgentInProgress = urgentSubtasks.find(s => s.status === 'in_progress');
+    if (urgentInProgress) {
+      return urgentInProgress;
+    }
+    return urgentSubtasks.reduce((minTask, currentTask) => {
+      const minEst = minTask.time_estimate_minutes ?? minTask.estimated_minutes ?? Infinity;
+      const currentEst = currentTask.time_estimate_minutes ?? currentTask.estimated_minutes ?? Infinity;
+      return currentEst < minEst ? currentTask : minTask;
+    });
+  }
+
+  // Tier 2 (Priority flag): Surface subtask with status === 'in_progress' (user designated Next Action) FIRST.
+  // Only if none in progress, surface the first subtask with priority === 'high'.
+  const inProgressSubtask = sorted.find(s => s.status === 'in_progress');
+  if (inProgressSubtask) {
+    return inProgressSubtask;
+  }
+
+  const highPrioritySubtask = sorted.find(s => s.priority === 'high');
+  if (highPrioritySubtask) {
+    return highPrioritySubtask;
+  }
+
+  // Tier 3 (Sequence with low-friction nudge): Position order with low-friction warm-up
   const first = sorted[0];
   const firstEst = first.time_estimate_minutes ?? first.estimated_minutes ?? 0;
   if (firstEst > 60 && first.mental_load === 'high') {
@@ -515,16 +536,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
   // Reorder subtasks
   const handleMoveSubtask = async (subtaskId, direction) => {
     if (!selectedTaskId) return;
-    const currentSubtasks = tasks
-      .filter(t => t.parent_task_id === selectedTaskId)
-      .sort((a, b) => {
-        if (a.position != null && b.position != null) return a.position - b.position;
-        if (a.position != null) return -1;
-        if (b.position != null) return 1;
-        const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
-        const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
-        return timeA - timeB;
-      });
+    const currentSubtasks = sortSubtasks(tasks.filter(t => t.parent_task_id === selectedTaskId));
 
     const index = currentSubtasks.findIndex(s => s.id === subtaskId);
     if (index === -1) return;
@@ -941,14 +953,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
   const selectedSubtasks = useMemo(() => {
     if (!selectedTask) return [];
     const subs = tasks.filter(t => t.parent_task_id === selectedTask.id);
-    return [...subs].sort((a, b) => {
-      if (a.position != null && b.position != null) return a.position - b.position;
-      if (a.position != null) return -1;
-      if (b.position != null) return 1;
-      const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
-      const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
-      return timeA - timeB;
-    });
+    return sortSubtasks(subs);
   }, [tasks, selectedTask]);
 
   const selectedIncompleteSubtasks = useMemo(() => {
@@ -1147,7 +1152,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                         {qTasks.flatMap((task) => {
                           const isOutput = task.estimate_source === 'ai' || (task.title || '').toLowerCase().includes('write') || (task.title || '').toLowerCase().includes('code') || (task.title || '').toLowerCase().includes('ppt') || (task.title || '').toLowerCase().includes('fix');
                           const ioTag = isOutput ? 'OUT' : 'IN';
-                          const childTasks = tasks.filter(t => t.parent_task_id === task.id);
+                          const childTasks = sortSubtasks(tasks.filter(t => t.parent_task_id === task.id));
                           const incompleteSubtasks = childTasks.filter(t => t.status !== 'done');
                           const activeSubtask = computeActiveSubtask(incompleteSubtasks);
                           const hasUrgentSubtask = incompleteSubtasks.some(s => isDueWithin48h(s.deadline));
@@ -1541,7 +1546,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
             {matrixTasks.filter(t => t.canvasX != null && t.canvasY != null).map((task) => {
               const isOutput = task.estimate_source === 'ai' || (task.title || '').toLowerCase().includes('write') || (task.title || '').toLowerCase().includes('code') || (task.title || '').toLowerCase().includes('ppt') || (task.title || '').toLowerCase().includes('fix');
               const ioTag = isOutput ? 'OUT' : 'IN';
-              const childTasks = tasks.filter(t => t.parent_task_id === task.id);
+              const childTasks = sortSubtasks(tasks.filter(t => t.parent_task_id === task.id));
               const incompleteSubtasks = childTasks.filter(t => t.status !== 'done');
               const hasUrgentSubtask = incompleteSubtasks.some(s => isDueWithin48h(s.deadline));
               const doneSubtasksCount = childTasks.filter(t => t.status === 'done').length;
@@ -1808,7 +1813,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                     </div>
                   ) : (
                     brainDumpTasks.map((task) => {
-                      const childTasks = tasks.filter(t => t.parent_task_id === task.id);
+                      const childTasks = sortSubtasks(tasks.filter(t => t.parent_task_id === task.id));
                       const incompleteSubtasks = childTasks.filter(t => t.status !== 'done');
                       const doneSubtasksCount = childTasks.filter(t => t.status === 'done').length;
                       const totalSubtasksCount = childTasks.length;

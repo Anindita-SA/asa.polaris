@@ -13,9 +13,13 @@ vi.mock("../../hooks/useAuth", () => ({
   useAuth: () => ({ user: mockUser })
 }));
 
-vi.mock("../../hooks/useNudgeScheduler", () => ({
-  useNudgeScheduler: vi.fn()
-}));
+vi.mock("../../hooks/useNudgeScheduler", async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    useNudgeScheduler: vi.fn()
+  };
+});
 
 vi.mock("../../hooks/useContactReminders", () => ({
   useContactReminders: vi.fn()
@@ -703,6 +707,38 @@ describe("RemindersPanel", () => {
     const matchedTitles = within(needsAttentionSection).getAllByText("Urgent Review");
     expect(matchedTitles.length).toBe(1);
     expect(within(needsAttentionSection).getByText("T")).toBeDefined();
+  });
+
+  it("should deduplicate unicode spacing variations of system nudges in Needs Attention and Nudges section", async () => {
+    useNudgeScheduler.mockReturnValue({
+      nudges: [
+        { id: "nudge-1", title: "Posture check", active: true, isDue: true, isTask: false },
+        { id: "nudge-2", title: "Posture\u00A0check", active: true, isDue: true, isTask: false },
+        { id: "nudge-3", title: "Posture   check", active: true, isDue: true, isTask: false },
+        { id: "nudge-4", title: "Drink water", active: true, isDue: false, isTask: false }
+      ],
+      dismissNudge: vi.fn(),
+      fetchNudges: vi.fn()
+    });
+
+    setupSupabaseMock([], []);
+
+    render(<RemindersPanel onOpenDayGuide={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Needs Attention/)).toBeDefined();
+    });
+
+    const needsAttentionHeading = screen.getByText(/Needs Attention/);
+    const needsAttentionSection = needsAttentionHeading.closest(".rounded-xl");
+
+    // "Posture check" should appear exactly once in Needs Attention despite 3 variants
+    const postureItems = within(needsAttentionSection).getAllByText(/Posture.*check/i);
+    expect(postureItems.length).toBe(1);
+
+    // Section 2: Nudges header count should be 2 unique nudges ('Posture check' and 'Drink water'), NOT 4
+    const nudgesHeader = screen.getByRole("button", { name: /Nudges/i });
+    expect(within(nudgesHeader).getByText("2")).toBeDefined();
   });
 });
 

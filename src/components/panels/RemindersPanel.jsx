@@ -20,7 +20,7 @@ import {
   Crosshair, AlertTriangle
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
-import { useNudgeScheduler } from '../../hooks/useNudgeScheduler'
+import { useNudgeScheduler, normalizeNudgeTitle } from '../../hooks/useNudgeScheduler'
 import { useContactReminders } from '../../hooks/useContactReminders'
 import { useCelebration } from '../../hooks/useCelebration'
 import { supabase } from '../../lib/supabase'
@@ -267,10 +267,10 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
     try {
       const interval = Math.max(1, parseInt(newNudgeInterval, 10) || 60)
       const trimmedTitle = newNudgeTitle.trim()
-      const normTitle = trimmedTitle.toLowerCase()
+      const normTitle = normalizeNudgeTitle(trimmedTitle)
       
       if (editingNudge) {
-        const otherExisting = nudges.find(n => !n.isTask && n.id !== editingNudge.id && (n.title || '').trim().toLowerCase() === normTitle)
+        const otherExisting = nudges.find(n => !n.isTask && n.id !== editingNudge.id && normalizeNudgeTitle(n.title) === normTitle)
         if (otherExisting) {
           await offlineUpdate('nudges', { id: otherExisting.id, user_id: user.id }, { interval_minutes: interval, active: true })
           await offlineDelete('nudges', { id: editingNudge.id, user_id: user.id })
@@ -278,10 +278,10 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
           await offlineUpdate('nudges', { id: editingNudge.id, user_id: user.id }, { title: trimmedTitle, interval_minutes: interval })
         }
       } else {
-        let existing = nudges.find(n => !n.isTask && (n.title || '').trim().toLowerCase() === normTitle)
+        let existing = nudges.find(n => !n.isTask && normalizeNudgeTitle(n.title) === normTitle)
         if (!existing) {
           const { data: dbNudges } = await offlineSelect('nudges', { user_id: user.id })
-          existing = (dbNudges || []).find(n => (n.title || '').trim().toLowerCase() === normTitle)
+          existing = (dbNudges || []).find(n => normalizeNudgeTitle(n.title) === normTitle)
         }
 
         if (existing) {
@@ -302,7 +302,16 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
 
   const toggleNudgeActive = async (nudge) => {
     if (!user?.id) return
-    await offlineUpdate('nudges', { id: nudge.id, user_id: user.id }, { active: !nudge.active })
+    const newActive = !nudge.active
+    await offlineUpdate('nudges', { id: nudge.id, user_id: user.id }, { active: newActive })
+    if (nudge?.title) {
+      const normTitle = normalizeNudgeTitle(nudge.title)
+      const { data: allN } = await offlineSelect('nudges', { user_id: user.id })
+      const dups = (allN || []).filter(n => n.id !== nudge.id && normalizeNudgeTitle(n.title) === normTitle)
+      for (const d of dups) {
+        await offlineUpdate('nudges', { id: d.id, user_id: user.id }, { active: newActive })
+      }
+    }
     fetchNudges()
   }
 
@@ -311,9 +320,9 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
     const nudge = nudges.find(n => n.id === id)
     await offlineDelete('nudges', { id, user_id: user.id })
     if (nudge?.title) {
-      const normTitle = nudge.title.trim().toLowerCase()
+      const normTitle = normalizeNudgeTitle(nudge.title)
       const { data: allN } = await offlineSelect('nudges', { user_id: user.id })
-      const dups = (allN || []).filter(n => n.id !== id && (n.title || '').trim().toLowerCase() === normTitle)
+      const dups = (allN || []).filter(n => n.id !== id && normalizeNudgeTitle(n.title) === normTitle)
       for (const d of dups) {
         await offlineDelete('nudges', { id: d.id, user_id: user.id })
       }
@@ -344,6 +353,25 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
   const focusTasks = tasks.filter(t => t.category !== 'reminders' && t.category !== 'habits');
   const reminderTasks = tasks.filter(t => t.category === 'reminders');
 
+  // Unique active system nudges (deduplicated by normalized title)
+  const uniqueActiveSystemNudges = useMemo(() => {
+    const seen = new Set();
+    const result = [];
+    const sorted = [...nudges.filter(n => !n.isTask && n.active)].sort((a, b) => {
+      if (a.isDue && !b.isDue) return -1;
+      if (!a.isDue && b.isDue) return 1;
+      return (a.nextFireAt || 0) - (b.nextFireAt || 0);
+    });
+    sorted.forEach(nudge => {
+      const norm = normalizeNudgeTitle(nudge.title);
+      if (norm && !seen.has(norm)) {
+        seen.add(norm);
+        result.push(nudge);
+      }
+    });
+    return result;
+  }, [nudges]);
+
   // Show ONLY 1 ongoing task + 1 next upcoming task to prevent user overload!
   const ongoingTask = activeTask || focusTasks[0];
   const nextTask = focusTasks.find(t => t.id !== ongoingTask?.id);
@@ -371,20 +399,26 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
   const candidateItems = []
 
   // 1. Active due system nudges (!n.isTask && n.active && n.isDue)
+  // Deduplicate by normalized title so duplicate system nudges never accumulate
+  const seenSystemNudgeTitles = new Set()
   nudges.forEach(n => {
     if (!n.isTask && n.active && n.isDue) {
-      candidateItems.push({
-        id: n.id,
-        title: n.title,
-        type: 'nudge',
-        tag: 'N',
-        tagFull: 'Nudge',
-        score: 3.8,
-        action: () => {
-          dismissNudge(n.id)
-          celebrate()
-        }
-      })
+      const normTitle = normalizeNudgeTitle(n.title)
+      if (normTitle && !seenSystemNudgeTitles.has(normTitle)) {
+        seenSystemNudgeTitles.add(normTitle)
+        candidateItems.push({
+          id: n.id,
+          title: n.title,
+          type: 'nudge',
+          tag: 'N',
+          tagFull: 'Nudge',
+          score: 3.8,
+          action: () => {
+            dismissNudge(n.id)
+            celebrate()
+          }
+        })
+      }
     }
   })
 
@@ -455,7 +489,7 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
 
   candidateItems.forEach(item => {
     const key = `${item.type}-${item.id}`
-    const normTitle = (item.title || '').trim().toLowerCase()
+    const normTitle = normalizeNudgeTitle(item.title)
     if (!seenAttentionIds.has(key) && !seenAttentionIds.has(item.id)) {
       if (normTitle) {
         if (seenAttentionTitles.has(normTitle)) return
@@ -716,7 +750,7 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
         {/* Section 2: Nudges */}
         <CollapsibleSection
           title="Nudges"
-          count={nudges.filter(n => !n.isTask && n.active).length}
+          count={uniqueActiveSystemNudges.length}
           isCollapsed={Boolean(collapsedSections['nudges'])}
           onToggle={() => toggleSection('nudges')}
         >
@@ -749,27 +783,34 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
                 )}
               </div>
               <div className="space-y-1">
-                {nudges.filter(n => !n.isTask).map(n => (
-                  <div key={n.id} className="flex items-center justify-between text-xs text-nova/60 bg-void/60 border border-blue-900/10 p-1.5 rounded">
-                    <span>{n.title} ({n.interval_minutes}m)</span>
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => { setEditingNudge(n); setNewNudgeTitle(n.title); setNewNudgeInterval(n.interval_minutes.toString()) }}><Edit2 className="w-3 h-3 hover:text-sky"/></button>
-                      <button onClick={() => toggleNudgeActive(n)} className={n.active ? 'text-emerald-400' : 'text-nova/60 hover:text-emerald-400/50'}><Check className="w-3 h-3" /></button>
-                      <button onClick={() => deleteNudge(n.id)}><Trash2 className="w-3 h-3 hover:text-red-400"/></button>
+                {(() => {
+                  const seenSettings = new Set();
+                  const uniqueSettingsNudges = nudges.filter(n => !n.isTask).filter(n => {
+                    const norm = normalizeNudgeTitle(n.title);
+                    if (!norm || seenSettings.has(norm)) return false;
+                    seenSettings.add(norm);
+                    return true;
+                  });
+                  if (uniqueSettingsNudges.length === 0) {
+                    return <p className="text-xs italic text-nova/60">No nudges created yet.</p>;
+                  }
+                  return uniqueSettingsNudges.map(n => (
+                    <div key={n.id} className="flex items-center justify-between text-xs text-nova/60 bg-void/60 border border-blue-900/10 p-1.5 rounded">
+                      <span>{n.title} ({n.interval_minutes}m)</span>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => { setEditingNudge(n); setNewNudgeTitle(n.title); setNewNudgeInterval(n.interval_minutes.toString()) }}><Edit2 className="w-3 h-3 hover:text-sky"/></button>
+                        <button onClick={() => toggleNudgeActive(n)} className={n.active ? 'text-emerald-400' : 'text-nova/60 hover:text-emerald-400/50'}><Check className="w-3 h-3" /></button>
+                        <button onClick={() => deleteNudge(n.id)}><Trash2 className="w-3 h-3 hover:text-red-400"/></button>
+                      </div>
                     </div>
-                  </div>
-                ))}
-                {nudges.filter(n => !n.isTask).length === 0 && <p className="text-xs italic text-nova/60">No nudges created yet.</p>}
+                  ));
+                })()}
               </div>
             </div>
           )}
 
           <div className="space-y-2">
-            {nudges.filter(n => !n.isTask && n.active).sort((a, b) => {
-              if (a.isDue && !b.isDue) return -1
-              if (!a.isDue && b.isDue) return 1
-              return a.nextFireAt - b.nextFireAt
-            }).map(nudge => (
+            {uniqueActiveSystemNudges.map(nudge => (
               <div key={nudge.id} className={`glass glass-hover hover:-translate-y-1 transition-transform border border-pulsar/30 p-3 rounded-xl flex items-center justify-between ${nudge.isDue ? 'animate-pulse-glow border-amber-500/50' : ''}`}>
                 <div>
                   <p className="text-sm text-starlight">{nudge.title}</p>
@@ -780,7 +821,7 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
                 </button>
               </div>
             ))}
-            {nudges.filter(n => !n.isTask && n.active).length === 0 && <p className="text-xs text-nova/60 italic">No active nudges</p>}
+            {uniqueActiveSystemNudges.length === 0 && <p className="text-xs text-nova/60 italic">No active nudges</p>}
           </div>
         </CollapsibleSection>
 

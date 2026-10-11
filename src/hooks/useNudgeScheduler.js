@@ -5,6 +5,17 @@ import { offlineSelect, offlineInsert, offlineUpdate, offlineDelete } from '../l
 import { useAuth } from './useAuth';
 import { getNotificationSettings, NOTIFICATION_SETTINGS_EVENT } from './useNotificationSettings';
 
+export function normalizeNudgeTitle(title) {
+  if (!title || typeof title !== 'string') return '';
+  return title
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .replace(/[\u00A0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]/g, ' ')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .replace(/[.!?,;:]+$/, '');
+}
+
 export const useNudgeScheduler = () => {
   const { user } = useAuth();
   const [nudges, setNudges] = useState([]);
@@ -13,6 +24,7 @@ export const useNudgeScheduler = () => {
   const lastScheduledRef = useRef({});
   const rawNudgesRef = useRef([]);
   const isPruningRef = useRef(false);
+  const prunedIdsRef = useRef(new Set());
 
   const hasSeededRef = useRef(false);
 
@@ -27,15 +39,15 @@ export const useNudgeScheduler = () => {
 
     const seedNudges = async () => {
       hasSeededRef.current = true;
-      const { data: existingNudges } = await offlineSelect('nudges', { user_id: user.id });
 
-      // If any nudges exist locally in IndexedDB, do not seed defaults
+      // 1. Check local Dexie first
+      const { data: existingNudges } = await offlineSelect('nudges', { user_id: user.id });
       if (existingNudges && existingNudges.length > 0) {
         if (typeof localStorage !== 'undefined') localStorage.setItem(seedKey, 'true');
         return;
       }
 
-      // Double-check remote Supabase if online to prevent duplicate seeding across fresh sessions or devices
+      // 2. Double-check remote Supabase if online
       if (typeof navigator !== 'undefined' && navigator.onLine && supabase?.from) {
         try {
           const { data: remoteNudges, error: remoteErr } = await supabase
@@ -51,14 +63,14 @@ export const useNudgeScheduler = () => {
         }
       }
 
-      // Default system habit nudges to seed if user has none
+      // 3. User is truly new with 0 nudges in both local and remote stores
+      if (typeof localStorage !== 'undefined') localStorage.setItem(seedKey, 'true');
       const defaults = [
         { title: "Drink water", interval_minutes: 120, active: true },
         { title: "Posture check", interval_minutes: 60, active: true },
         { title: "Take a break", interval_minutes: 90, active: true }
       ];
 
-      if (typeof localStorage !== 'undefined') localStorage.setItem(seedKey, 'true');
       await Promise.all(
         defaults.map(n => offlineInsert('nudges', { user_id: user.id, ...n }))
       );
@@ -69,7 +81,7 @@ export const useNudgeScheduler = () => {
   }, [user?.id]);
 
   const fetchNudges = useCallback(async () => {
-    if (!user?.id) return;
+    if (!user?.id || isPruningRef.current) return;
     
     const settings = getNotificationSettings();
 
@@ -108,26 +120,39 @@ export const useNudgeScheduler = () => {
 
     rawNudgesRef.current = allNudgesData || [];
 
-    // Deduplicate system nudges by normalized title (case-insensitive, trimmed)
-    const seenTitles = new Set();
-    const uniqueNudges = [];
+    // Deduplicate system nudges by normalized title
+    const groupedByTitle = new Map();
     const duplicatesToDelete = [];
 
     (allNudgesData || []).forEach(item => {
       if (!item || !item.title) return;
-      const normTitle = item.title.trim().toLowerCase();
-      if (!seenTitles.has(normTitle)) {
-        seenTitles.add(normTitle);
-        uniqueNudges.push(item);
+      const normTitle = normalizeNudgeTitle(item.title);
+      if (!normTitle) return;
+
+      if (!groupedByTitle.has(normTitle)) {
+        groupedByTitle.set(normTitle, item);
       } else {
-        // Redundant duplicate record found
-        duplicatesToDelete.push(item);
+        const existing = groupedByTitle.get(normTitle);
+        // If existing is inactive but current item is active, keep active as canonical record
+        if (!existing.active && item.active) {
+          groupedByTitle.set(normTitle, item);
+          if (!prunedIdsRef.current.has(existing.id)) {
+            duplicatesToDelete.push(existing);
+          }
+        } else {
+          if (!prunedIdsRef.current.has(item.id)) {
+            duplicatesToDelete.push(item);
+          }
+        }
       }
     });
+
+    const uniqueNudges = Array.from(groupedByTitle.values());
 
     // Prune existing duplicate nudges from database/Dexie in the background safely
     if (duplicatesToDelete.length > 0 && user?.id && !isPruningRef.current) {
       isPruningRef.current = true;
+      duplicatesToDelete.forEach(d => prunedIdsRef.current.add(d.id));
       (async () => {
         try {
           for (const dup of duplicatesToDelete) {
@@ -141,10 +166,8 @@ export const useNudgeScheduler = () => {
       })();
     }
 
-    const data = uniqueNudges.filter(n => n.active);
-
-    // Filter system habit nudges based on settings
-    const systemNudges = settings.habitNudgesEnabled ? (data || []) : [];
+    // Keep all unique system habit nudges (preserving active and inactive records)
+    const systemNudges = settings.habitNudgesEnabled ? uniqueNudges : [];
 
     const today = new Date().toISOString().split('T')[0];
     const { data: allTasksData, error: overdueError } = await offlineSelect('tasks', { user_id: user.id });
@@ -233,15 +256,24 @@ export const useNudgeScheduler = () => {
 
     const now = Date.now();
     const processedNudges = combinedNudges.map((nudge) => {
-      const normTitle = (nudge.title || '').trim().toLowerCase();
-      const lastDismissedStr = localStorage.getItem(`nudge_last_dismissed_${nudge.id}`) ||
-        (normTitle ? localStorage.getItem(`nudge_last_dismissed_title_${normTitle}`) : null);
+      const normTitle = normalizeNudgeTitle(nudge.title);
+      const idDismissed = localStorage.getItem(`nudge_last_dismissed_${nudge.id}`);
+      const titleDismissed = normTitle ? localStorage.getItem(`nudge_last_dismissed_title_${normTitle}`) : null;
+
+      let lastDismissedTime = 0;
+      if (idDismissed) {
+        lastDismissedTime = Math.max(lastDismissedTime, parseInt(idDismissed, 10) || 0);
+      }
+      if (titleDismissed) {
+        lastDismissedTime = Math.max(lastDismissedTime, parseInt(titleDismissed, 10) || 0);
+      }
+
       let nextFireAt;
       const safeIntervalMinutes = Math.max(1, parseInt(nudge.interval_minutes, 10) || 60);
       const intervalMs = safeIntervalMinutes * 60000;
       
-      if (lastDismissedStr) {
-        nextFireAt = parseInt(lastDismissedStr, 10) + intervalMs;
+      if (lastDismissedTime > 0) {
+        nextFireAt = lastDismissedTime + intervalMs;
       } else {
         nextFireAt = now + intervalMs;
         localStorage.setItem(`nudge_last_dismissed_${nudge.id}`, now.toString());
@@ -250,7 +282,7 @@ export const useNudgeScheduler = () => {
         }
       }
 
-      const isDue = nextFireAt <= now;
+      const isDue = Boolean(nudge.active) && nextFireAt <= now;
       
       return {
         ...nudge,
@@ -278,14 +310,15 @@ export const useNudgeScheduler = () => {
       }
     }
 
-    // Setup scheduling
+    // Setup scheduling (only active nudges should ring/fire)
+    const activeNudgesToSchedule = processedNudges.filter(n => n.active);
     if ('serviceWorker' in navigator) {
       if (navigator.serviceWorker.controller) {
         // SW is active, hand off to it (deduplicate sw nudges by title to prevent duplicate alarms)
         const seenSwTitles = new Set();
         const swNudges = [];
-        processedNudges.forEach(n => {
-          const nTitle = (n.title || '').trim().toLowerCase();
+        activeNudgesToSchedule.forEach(n => {
+          const nTitle = normalizeNudgeTitle(n.title);
           if (!seenSwTitles.has(nTitle)) {
             if (nTitle) seenSwTitles.add(nTitle);
             swNudges.push({
@@ -310,8 +343,8 @@ export const useNudgeScheduler = () => {
         // SW controller is null, use main thread fallback
         if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
           const seenFallbackTitles = new Set();
-          processedNudges.forEach(nudge => {
-            const nTitle = (nudge.title || '').trim().toLowerCase();
+          activeNudgesToSchedule.forEach(nudge => {
+            const nTitle = normalizeNudgeTitle(nudge.title);
             if (seenFallbackTitles.has(nTitle)) return;
             if (nTitle) seenFallbackTitles.add(nTitle);
 
@@ -373,26 +406,19 @@ export const useNudgeScheduler = () => {
     };
   }, [fetchNudges]);
 
-  const dismissNudge = async (id) => {
+  const dismissNudge = async (id, optionalTitle) => {
     const nowStr = Date.now().toString();
     localStorage.setItem(`nudge_last_dismissed_${id}`, nowStr);
 
     const nudge = allNudges.find(n => n.id === id) || nudges.find(n => n.id === id) || rawNudgesRef.current.find(n => n.id === id);
-    if (nudge?.title) {
-      const normTitle = nudge.title.trim().toLowerCase();
+    const nudgeTitle = optionalTitle || nudge?.title;
+    const normTitle = normalizeNudgeTitle(nudgeTitle);
+
+    if (normTitle) {
       localStorage.setItem(`nudge_last_dismissed_title_${normTitle}`, nowStr);
-      (rawNudgesRef.current || []).forEach(n => {
-        if (n?.title && n.title.trim().toLowerCase() === normTitle) {
-          localStorage.setItem(`nudge_last_dismissed_${n.id}`, nowStr);
-        }
-      });
-      nudges.forEach(n => {
-        if (n?.title && n.title.trim().toLowerCase() === normTitle) {
-          localStorage.setItem(`nudge_last_dismissed_${n.id}`, nowStr);
-        }
-      });
-      allNudges.forEach(n => {
-        if (n?.title && n.title.trim().toLowerCase() === normTitle) {
+      const allKnown = [...(rawNudgesRef.current || []), ...nudges, ...allNudges];
+      allKnown.forEach(n => {
+        if (n?.id && normalizeNudgeTitle(n?.title) === normTitle) {
           localStorage.setItem(`nudge_last_dismissed_${n.id}`, nowStr);
         }
       });
@@ -412,7 +438,8 @@ export const useNudgeScheduler = () => {
       }
     }
 
-    const isMatch = (n) => n.id === id || Boolean(nudge?.title && n.title && n.title.trim().toLowerCase() === nudge.title.trim().toLowerCase());
+    const targetNorm = normTitle;
+    const isMatch = (n) => n.id === id || Boolean(targetNorm && n.title && normalizeNudgeTitle(n.title) === targetNorm);
     setNudges(prev => prev.map(n => isMatch(n) ? { ...n, isDue: false } : n));
     setAllNudges(prev => prev.map(n => isMatch(n) ? { ...n, isDue: false } : n));
     await fetchNudges();
