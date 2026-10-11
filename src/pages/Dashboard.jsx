@@ -24,6 +24,7 @@ const Timeline = lazy(() => import('../components/panels/Timeline'))
 const Journal = lazy(() => import('../components/journal/Journal'))
 const CalendarView = lazy(() => import('../components/panels/CalendarView'))
 const Curriculum = lazy(() => import('../components/panels/Curriculum'))
+const ReachOutView = lazy(() => import('../components/panels/ReachOutView'))
 const FitnessBridge = lazy(() => import('../components/panels/FitnessBridge'))
 
 const ViewFallback = () => (
@@ -80,6 +81,7 @@ const Dashboard = () => {
       case 'journal': content = <Journal />; break
       case 'calendar': content = <CalendarView />; break
       case 'curriculum': content = <Curriculum />; break
+      case 'reach_out': content = <div className="h-full overflow-y-auto p-4 sm:p-6"><ReachOutView /></div>; break
       case 'fitness': content = <FitnessBridge />; break
       default: content = null
     }

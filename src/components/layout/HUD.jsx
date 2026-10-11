@@ -63,6 +63,7 @@ const HUD = ({ activeView, setActiveView, rightPanelOpen, setRightPanelOpen }) =
     { id: 'journal', label: 'Journal' },
     { id: 'calendar', label: 'Calendar' },
     { id: 'curriculum', label: 'Curriculum' },
+    { id: 'reach_out', label: 'Outreach' },
     { id: 'fitness', label: 'Orbit' },
   ]
 

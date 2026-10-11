@@ -2,7 +2,7 @@
 import React from 'react';
 import { render, screen, waitFor, fireEvent, cleanup, within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import MatrixCanvasView, { computeActiveSubtask, isDueWithin48h } from './MatrixCanvasView';
+import MatrixCanvasView, { computeActiveSubtask, isDueWithin48h, sortSubtasks } from './MatrixCanvasView';
 import * as offlineApi from '../../lib/offlineApi';
 
 const { mockUser } = vi.hoisted(() => ({
@@ -1159,6 +1159,91 @@ describe('MatrixCanvasView', () => {
       await waitFor(() => {
         expect(screen.getByText('External Focus Task Added')).toBeDefined();
       });
+    });
+  });
+
+  describe('Subtask prioritization and deterministic ordering (Canvas and Drawer alignment)', () => {
+    it('sortSubtasks orders subtasks by position asc, created_at asc, and id', () => {
+      const unsorted = [
+        { id: 'c', position: 2, created_at: '2026-09-02' },
+        { id: 'a', position: 0, created_at: '2026-09-01' },
+        { id: 'b', position: 1, created_at: '2026-09-03' }
+      ];
+      const sorted = sortSubtasks(unsorted);
+      expect(sorted.map(s => s.id)).toEqual(['a', 'b', 'c']);
+    });
+
+    it('computeActiveSubtask strictly prioritizes in_progress status over priority high regardless of array order', () => {
+      // High priority subtask comes first in array, but in_progress was selected as Next Action
+      const subtasks = [
+        { id: 'sub-high', title: 'Edit for flow, formatting', priority: 'high', status: 'active', position: 0 },
+        { id: 'sub-prog', title: 'Synthesis: Upload thematic batches', priority: 'normal', status: 'in_progress', position: 1 }
+      ];
+
+      const active = computeActiveSubtask(subtasks);
+      expect(active?.id).toBe('sub-prog');
+      expect(active?.title).toBe('Synthesis: Upload thematic batches');
+    });
+
+    it('computeActiveSubtask falls back to priority high when no subtask is in_progress', () => {
+      const subtasks = [
+        { id: 'sub-1', title: 'Subtask 1', priority: 'normal', status: 'active', position: 0 },
+        { id: 'sub-2', title: 'Subtask 2', priority: 'high', status: 'active', position: 1 }
+      ];
+
+      const active = computeActiveSubtask(subtasks);
+      expect(active?.id).toBe('sub-2');
+    });
+
+    it('computeActiveSubtask falls back to first incomplete subtask in deterministic sort order', () => {
+      const subtasks = [
+        { id: 'sub-2', title: 'Second Step', priority: 'normal', status: 'active', position: 1 },
+        { id: 'sub-1', title: 'First Step', priority: 'normal', status: 'active', position: 0 },
+        { id: 'sub-done', title: 'Done Step', priority: 'normal', status: 'done', position: -1 }
+      ];
+
+      const active = computeActiveSubtask(subtasks);
+      expect(active?.id).toBe('sub-1');
+    });
+
+    it('computeActiveSubtask prioritizes in_progress over smaller estimate within Tier 1 (deadline <= 48h)', () => {
+      const today = new Date();
+      const tomorrow = new Date(today);
+      tomorrow.setDate(today.getDate() + 1);
+      const deadlineStr = tomorrow.toISOString().split('T')[0];
+
+      const subtasks = [
+        { id: 'sub-fast', title: 'Quick urgent check', deadline: deadlineStr, time_estimate_minutes: 5, status: 'active', position: 0 },
+        { id: 'sub-in-progress', title: 'Current urgent work', deadline: deadlineStr, time_estimate_minutes: 60, status: 'in_progress', position: 1 }
+      ];
+
+      const active = computeActiveSubtask(subtasks);
+      expect(active?.id).toBe('sub-in-progress');
+      expect(active?.title).toBe('Current urgent work');
+    });
+
+    it('computeActiveSubtask falls back to lowest time estimate when no urgent subtask is in_progress', () => {
+      const today = new Date();
+      const tomorrow = new Date(today);
+      tomorrow.setDate(today.getDate() + 1);
+      const deadlineStr = tomorrow.toISOString().split('T')[0];
+
+      const subtasks = [
+        { id: 'sub-long', title: 'Long urgent work', deadline: deadlineStr, time_estimate_minutes: 60, status: 'active', position: 0 },
+        { id: 'sub-short', title: 'Short urgent work', deadline: deadlineStr, time_estimate_minutes: 10, status: 'active', position: 1 }
+      ];
+
+      const active = computeActiveSubtask(subtasks);
+      expect(active?.id).toBe('sub-short');
+    });
+
+    it('computeActiveSubtask returns null if all subtasks are done', () => {
+      const subtasks = [
+        { id: 'sub-1', status: 'done' },
+        { id: 'sub-2', status: 'done' }
+      ];
+
+      expect(computeActiveSubtask(subtasks)).toBeNull();
     });
   });
 });

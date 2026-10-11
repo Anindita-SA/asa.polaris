@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { useNudgeScheduler } from './useNudgeScheduler';
+import { useNudgeScheduler, normalizeNudgeTitle } from './useNudgeScheduler';
 import * as offlineApi from '../lib/offlineApi';
 import { NOTIFICATION_SETTINGS_STORAGE_KEY, NOTIFICATION_SETTINGS_EVENT } from './useNotificationSettings';
 
@@ -406,6 +406,89 @@ describe('useNudgeScheduler', () => {
     expect(lastCall.type).toBe('UPDATE_NUDGES');
     const swTitles = lastCall.nudges.map(n => n.title);
     expect(swTitles).toEqual(['Drink water']);
+
+    unmount();
+  });
+
+  it('normalizes titles by stripping zero-width characters, normalizing unicode spaces, and collapsing whitespace', () => {
+    expect(normalizeNudgeTitle('  Posture\u200B check  ')).toBe('posture check');
+    expect(normalizeNudgeTitle('Drink\u00A0\u00A0water!.')).toBe('drink water');
+    expect(normalizeNudgeTitle('Take   a   break?')).toBe('take a break');
+    expect(normalizeNudgeTitle(null)).toBe('');
+    expect(normalizeNudgeTitle(undefined)).toBe('');
+  });
+
+  it('deduplicates nudges across subtle unicode whitespace and zero-width characters and preserves active record', async () => {
+    const mockNudgesData = [
+      { id: 'nudge-1', user_id: 'test-user-id', title: 'Posture check', interval_minutes: 60, active: false },
+      { id: 'nudge-2', user_id: 'test-user-id', title: 'Posture\u00A0check', interval_minutes: 60, active: true },
+      { id: 'nudge-3', user_id: 'test-user-id', title: 'Posture\u200B check', interval_minutes: 60, active: false }
+    ];
+
+    setupMock(mockNudgesData, []);
+
+    const { result, unmount } = renderHook(() => useNudgeScheduler());
+
+    await waitFor(() => {
+      expect(result.current.nudges).toHaveLength(1);
+    });
+
+    // The active record should be preserved
+    expect(result.current.nudges[0].id).toBe('nudge-2');
+    expect(result.current.nudges[0].active).toBe(true);
+
+    // Redundant duplicates deleted with user_id
+    expect(offlineApi.offlineDelete).toHaveBeenCalledWith('nudges', { id: 'nudge-1', user_id: 'test-user-id' });
+    expect(offlineApi.offlineDelete).toHaveBeenCalledWith('nudges', { id: 'nudge-3', user_id: 'test-user-id' });
+
+    unmount();
+  });
+
+  it('resolves dismissal timestamps using Math.max between id and title keys to prevent revival', async () => {
+    const now = 1000000000;
+    vi.spyOn(Date, 'now').mockReturnValue(now);
+
+    const mockNudgesData = [
+      { id: 'nudge-1', user_id: 'test-user-id', title: 'Drink water', interval_minutes: 60, active: true }
+    ];
+
+    // Older dismissal by id: 2 hours ago (interval is 60m, so would be due if evaluated alone)
+    localStorage.setItem('nudge_last_dismissed_nudge-1', (now - 120 * 60000).toString());
+    // Newer dismissal by title: 5 minutes ago (interval is 60m, so should NOT be due)
+    localStorage.setItem('nudge_last_dismissed_title_drink water', (now - 5 * 60000).toString());
+
+    setupMock(mockNudgesData, []);
+
+    const { result, unmount } = renderHook(() => useNudgeScheduler());
+
+    await waitFor(() => {
+      expect(result.current.nudges).toHaveLength(1);
+    });
+
+    const nudge = result.current.nudges[0];
+    expect(nudge.isDue).toBe(false);
+    expect(nudge.nextFireAt).toBe((now - 5 * 60000) + 60 * 60000);
+
+    vi.spyOn(Date, 'now').mockRestore();
+    unmount();
+  });
+
+  it('preserves inactive system habit nudges in state while ensuring isDue is false', async () => {
+    const mockNudgesData = [
+      { id: 'nudge-inactive', user_id: 'test-user-id', title: 'Deep stretch', interval_minutes: 30, active: false }
+    ];
+
+    setupMock(mockNudgesData, []);
+
+    const { result, unmount } = renderHook(() => useNudgeScheduler());
+
+    await waitFor(() => {
+      expect(result.current.nudges).toHaveLength(1);
+    });
+
+    expect(result.current.nudges[0].id).toBe('nudge-inactive');
+    expect(result.current.nudges[0].active).toBe(false);
+    expect(result.current.nudges[0].isDue).toBe(false);
 
     unmount();
   });

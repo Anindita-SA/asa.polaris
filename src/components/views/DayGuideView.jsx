@@ -53,13 +53,14 @@ import { safeMutate } from '../../lib/safeMutate';
 import { computeWSJFScore } from '../../hooks/useWSJFScore';
 import {
   Sparkles, Star, Network, Bot, CheckCircle2, Clock, AlertTriangle,
-  Zap, Target, Flame, Archive, RefreshCw, ChevronRight, ChevronDown, BarChart2
+  Zap, Target, Flame, Archive, RefreshCw, ChevronRight, ChevronDown, BarChart2, Map
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const TodaysTasksShuffle = lazy(() => import('../TodaysTasksShuffle'));
 const MatrixCanvasView = lazy(() => import('./MatrixCanvasView'));
 const DayBriefView = lazy(() => import('./DayBriefView'));
+const BlueprintView = lazy(() => import('./BlueprintView'));
 
 const TabFallback = () => (
   <div className="flex items-center justify-center h-full w-full p-8">
@@ -432,6 +433,14 @@ export default function DayGuideView() {
       activeStyle: 'bg-cosmic border border-gold/40 ',
     },
     {
+      id: 'blueprint',
+      label: 'BLUEPRINT',
+      fullLabel: 'REALITY BLUEPRINT',
+      icon: Map,
+      iconColor: 'text-sky-400',
+      activeStyle: 'bg-cosmic border border-sky-400/40 ',
+    },
+    {
       id: 'auditor',
       label: 'AUDITOR',
       fullLabel: 'AI AUDITOR',
@@ -560,6 +569,15 @@ export default function DayGuideView() {
                 className="w-full h-full min-h-0 overflow-y-auto scrollbar-hide"
               >
                 <TodaysTasksShuffle key={`picks-${refreshKey}`} />
+              </motion.div>
+            )}
+            {activeSubTab === 'blueprint' && (
+              <motion.div key="blueprint"
+                initial={{ opacity: 0, scale: 0.99 }} animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.99 }} transition={{ duration: 0.15 }}
+                className="w-full h-full min-h-0 overflow-y-auto scrollbar-hide"
+              >
+                <BlueprintView />
               </motion.div>
             )}
             {activeSubTab === 'auditor' && (
