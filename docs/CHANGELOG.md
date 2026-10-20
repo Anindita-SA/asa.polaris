@@ -1,3 +1,45 @@
+## [2026-10-20] Hard Programmatic Day-to-Day Anti-Repeat, Animal Anti-Clustering & Source Hardening (v1.2.54)
+- **Hard Anti-Repeat Rotation Across Days**:
+  - Fixed selection algorithm defect where yesterday's covered pillars were ignored during LLM candidate evaluation, permitting repeated coverage across consecutive days.
+  - In `selectDiverseNewsItems` (`src/lib/newsDiversity.js` and `supabase/functions/generate-morning-brief/index.ts`), enforced hard programmatic constraint limiting items from yesterday's covered pillars to at most 1 rotating repeat when fresh pillars are available in the candidate pool.
+  - Guaranteed that at least 2 fresh canonical pillars are selected every day, ensuring steady cross-day rotation across all 5 canonical pillars.
+- **Animal & Biodiversity Anti-Clustering Enforcement**:
+  - Implemented `isAnimalOrWildlifeStory` regex classifier with context-aware exceptions for human medicine, clinical devices, and crop agriculture.
+  - Enforced strict programmatic cap: at most 1 animal/wildlife story permitted across the entire brief, preventing multi-pillar fauna clustering (e.g., cave fish under Community and rays under Marine).
+  - Added explicit anti-clustering mandate to `newsPrompt` in `supabase/functions/_shared/personal_prompts.ts`.
+- **Robust Candidate Match-Back & Summary Cleaning**:
+  - Extended LLM pick matcher to parse string integer IDs (`id: "0"`) and normalize titles with fuzzy punctuation and case matching, preventing dropped LLM summaries.
+  - Implemented `cleanSummary` to strip truncated RSS ellipses (`...`) and guarantee clean sentence endings for backfilled items.
+- **Live Feed Curation & Defunct Source Cleanup**:
+  - Deactivated defunct feeds in Supabase `brief_sources` table across user accounts: Hakai Magazine (defunct Dec 2024), Innovation Origins (defunct Nov 2024), and Wildlabs (returns HTML instead of RSS).
+  - Added verified active feed `Phys.org Engineering` (`https://phys.org/rss-feed/technology-news/engineering/`) for Pillar E (Tech & field implementation).
+  - Deployed updated `generate-morning-brief` Edge Function to Supabase Cloud and verified live regeneration of Oct 20 brief with 0 duplicate pillars, 0 duplicate sources, and exactly 1 wildlife story.
+- **Verification & Quality Gates**:
+  - Unit tests expanded from 5 to 10 in `src/lib/newsDiversity.test.js` (10/10 passing). Total test suite: 32 test files and 338 tests passing with 100% success rate in `vitest`.
+  - Clean Vite production PWA build with service worker precache generated.
+  - 0 em dashes, 0 en dashes, 0 CSS gradients.
+
+## [2026-10-20] Canonical Pillars News Pooling, Hard Diversity Enforcement & Day-to-Day Anti-Repeat Rotation (v1.2.53)
+- **Canonical Pillars Ingestion & Source Quotas**:
+  - Mapped all candidate feeds to 5 canonical pillars: Pillar A (Biotechnology & genetic engineering), Pillar B (Health & medicine), Pillar C (Marine & ocean conservation), Pillar D (Community & grassroots ecology), and Pillar E (Tech & field implementation).
+  - Enforced per-pillar candidate quotas (max 2 items per pillar in pool), preventing any single publication domain (e.g., Mongabay biodiversity/animals) from dominating the candidate pool sent to the LLM.
+  - Added verified active feeds to `brief_sources` and fallback configurations: Ocean Conservancy and Phys.org Oceanography for marine conservation; AgFunderNews for agriculture and field robotics tech.
+  - Added automated fallback querying for starved pillars if user configured feeds are inactive or defunct.
+- **Hard Programmatic Diversity Enforcement**:
+  - Built `selectDiverseNewsItems` in `src/lib/newsDiversity.js` and in `supabase/functions/generate-morning-brief/index.ts`.
+  - Enforced post-generation validation: matches LLM output back to authentic candidate pool items and rejects any duplicate canonical pillar or duplicate source.
+  - Guaranteed that the 3 selected items always span 3 distinct canonical pillars and 3 distinct sources every day.
+  - If LLM generation fails or times out, Tier 3 fallback utilizes the same deterministic diversity and anti-repeat selection algorithm.
+- **Consecutive-Day Anti-Repeat Rotation**:
+  - Identified yesterday's covered canonical pillars from `morning_briefs` history.
+  - Calculated unrepresented fresh pillars for today and prioritized them in both the LLM prompt and the programmatic backfill passes.
+- **Quality Gates & Verification**:
+  - Added unit test suite in `src/lib/newsDiversity.test.js` covering source normalization, duplicate dropping, animal clustering prevention, Tier 3 fallback, and empty pool safety (5/5 tests passing).
+  - Total test suite: 32 test files and 333 tests passing with 100% success rate in `vitest`.
+  - Production Vite PWA build clean in 18.10s (service worker precache 37 entries / 1527.58 KiB).
+  - Deployed updated `generate-morning-brief` Edge Function to Supabase Cloud and verified live regeneration of Oct 20 brief: exactly 3 items spanning Tech & field implementation (AgFunderNews), Community & grassroots ecology (Mongabay India), and Biotechnology & genetic engineering (Phys.org Biotechnology).
+  - 0 em dashes, 0 en dashes, 0 CSS gradients.
+
 ## [2026-10-19] Opportunity Scout Structured Breakdown & Zero-Leak News Bookmarking (v1.2.52)
 - **Opportunity Description Breakdown & UI Structure**:
   - Implemented `parseOpportunityBreakdown` and `formatTwoSentenceSummary` in `src/lib/opportunityUtils.js` to parse opportunity descriptions into three structured components: Program Overview, Strategic Fit & Eligibility, and What is Offered.
