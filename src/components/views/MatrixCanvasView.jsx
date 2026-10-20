@@ -85,7 +85,8 @@ import {
   ChevronDown,
   ChevronUp,
   Bell,
-  BellOff
+  BellOff,
+  Wrench
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -359,6 +360,20 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
       return false;
     }
   });
+  const [hideUpkeep, setHideUpkeep] = useState(() => {
+    try {
+      return localStorage.getItem('polaris_matrix_hide_upkeep') === 'true';
+    } catch (e) {
+      return false;
+    }
+  });
+  const [filtersExpanded, setFiltersExpanded] = useState(() => {
+    try {
+      return localStorage.getItem('polaris_matrix_filters_expanded') !== 'false';
+    } catch (e) {
+      return true;
+    }
+  });
 
   useEffect(() => {
     try {
@@ -377,6 +392,18 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
       localStorage.setItem('polaris_matrix_hide_polaris', hidePolaris.toString());
     } catch (e) {}
   }, [hidePolaris]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('polaris_matrix_hide_upkeep', hideUpkeep.toString());
+    } catch (e) {}
+  }, [hideUpkeep]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('polaris_matrix_filters_expanded', filtersExpanded.toString());
+    } catch (e) {}
+  }, [filtersExpanded]);
 
   const canvasRef = useRef(null);
   const innerRef = useRef(null);
@@ -448,6 +475,97 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
       window.removeEventListener('polaris-tasks-changed', handleTasksChanged);
     };
   }, [fetchTasks]);
+
+  const pendingCenterTaskIdRef = useRef(null);
+
+  const centerTaskOnCanvas = useCallback((taskId, currentTasks) => {
+    if (!taskId || !currentTasks || currentTasks.length === 0) return false;
+    const targetTask = currentTasks.find(t => t.id === taskId);
+    if (!targetTask) return false;
+
+    let nodeToCenter = targetTask;
+    if (targetTask.parent_task_id) {
+      const parent = currentTasks.find(t => t.id === targetTask.parent_task_id);
+      if (parent) {
+        nodeToCenter = parent;
+        setExpandedTasks(prev => new Set([...prev, targetTask.parent_task_id]));
+      }
+    }
+
+    let targetX = nodeToCenter?.canvasX;
+    let targetY = nodeToCenter?.canvasY;
+    if (targetX == null || targetY == null) {
+      if (nodeToCenter?.quadrant && QUADRANTS[nodeToCenter.quadrant]) {
+        targetX = QUADRANTS[nodeToCenter.quadrant].cx;
+        targetY = QUADRANTS[nodeToCenter.quadrant].cy;
+      }
+    }
+
+    if (targetX != null && targetY != null && canvasRef.current && zoomBehaviorRef.current) {
+      const width = canvasRef.current.clientWidth || 1000;
+      const height = canvasRef.current.clientHeight || 700;
+      const k = zoom || 1;
+      const transform = d3.zoomIdentity
+        .translate(width / 2 - targetX * k, height / 2 - targetY * k)
+        .scale(k);
+      d3.select(canvasRef.current).transition().duration(400).call(zoomBehaviorRef.current.transform, transform);
+      return true;
+    }
+    return false;
+  }, [zoom]);
+
+  const selectAndFocusTask = useCallback((taskId) => {
+    if (!taskId) return;
+    setSelectedTaskId(taskId);
+    setActiveBrainDumpTab('details');
+    setBrainDumpCollapsed(false);
+
+    const centered = centerTaskOnCanvas(taskId, tasks);
+    if (!centered) {
+      pendingCenterTaskIdRef.current = taskId;
+    } else {
+      pendingCenterTaskIdRef.current = null;
+    }
+  }, [tasks, centerTaskOnCanvas]);
+
+  // Check for pending task navigation on mount (cross-view navigation support)
+  useEffect(() => {
+    try {
+      const pendingId = sessionStorage.getItem('polaris_pending_nav_task_id');
+      if (pendingId) {
+        sessionStorage.removeItem('polaris_pending_nav_task_id');
+        selectAndFocusTask(pendingId);
+      }
+    } catch (e) {}
+  }, [selectAndFocusTask]);
+
+  // Retried canvas centering once tasks finish loading asynchronously
+  useEffect(() => {
+    if (pendingCenterTaskIdRef.current && tasks.length > 0) {
+      const targetId = pendingCenterTaskIdRef.current;
+      const centered = centerTaskOnCanvas(targetId, tasks);
+      if (centered) {
+        pendingCenterTaskIdRef.current = null;
+      }
+    }
+  }, [tasks, centerTaskOnCanvas]);
+
+  // Real-time custom event listener for in-view navigation
+  useEffect(() => {
+    const handleNavTaskDetails = (e) => {
+      const taskId = e?.detail?.taskId;
+      if (!taskId) return;
+      try {
+        sessionStorage.removeItem('polaris_pending_nav_task_id');
+      } catch (err) {}
+      selectAndFocusTask(taskId);
+    };
+
+    window.addEventListener('nav-task-details', handleNavTaskDetails);
+    return () => {
+      window.removeEventListener('nav-task-details', handleNavTaskDetails);
+    };
+  }, [selectAndFocusTask]);
 
   // Quick Dump Task into Brain Dump (Zero-Friction Capture)
   const handleDumpTask = async (e) => {
@@ -872,8 +990,8 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
 
   // Active matrix tasks (Finished tasks `status === 'done'` are hidden from matrix plane)
   const matrixTasks = useMemo(() => {
-    return filterMatrixNodes(tasks, { overlookDays, hideReminders, hidePolaris });
-  }, [tasks, overlookDays, hideReminders, hidePolaris]);
+    return filterMatrixNodes(tasks, { overlookDays, hideReminders, hidePolaris, hideUpkeep });
+  }, [tasks, overlookDays, hideReminders, hidePolaris, hideUpkeep]);
 
   // Unsorted Brain Dump tasks (`quadrant === null` and `status !== 'done'`)
   const brainDumpTasks = useMemo(() => {
@@ -884,17 +1002,20 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
     if (hidePolaris) {
       result = result.filter(t => !(t.category === 'polaris' || (t.title || '').toLowerCase().includes('polaris')));
     }
+    if (hideUpkeep) {
+      result = result.filter(t => t.category !== 'upkeep');
+    }
     if (searchQuery.trim()) {
       result = result.filter(t => (t.title || '').toLowerCase().includes(searchQuery.toLowerCase().trim()));
     }
-    const catOrder = { 'polaris': 1, 'normal': 2, 'reminders': 3 };
+    const catOrder = { 'polaris': 1, 'upkeep': 2, 'normal': 3, 'reminders': 4 };
     result.sort((a, b) => {
-      const aCat = catOrder[a.category || 'normal'] || 2;
-      const bCat = catOrder[b.category || 'normal'] || 2;
+      const aCat = catOrder[a.category || 'normal'] || 3;
+      const bCat = catOrder[b.category || 'normal'] || 3;
       return aCat - bCat;
     });
     return result;
-  }, [tasks, searchQuery, hideReminders, hidePolaris]);
+  }, [tasks, searchQuery, hideReminders, hidePolaris, hideUpkeep]);
 
   // Completed Tasks list (`status === 'done'`)
   const completedTasks = useMemo(() => {
@@ -1053,39 +1174,91 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
       {/* ==================================================================== */}
       <div className="flex-1 relative flex flex-col overflow-hidden bg-transparent">
         {/* Canvas Controls */}
-        <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
-          <button
-            onClick={() => setHidePolaris(!hidePolaris)}
-            className={`flex items-center justify-center w-[26px] h-[26px] rounded-lg transition-colors ${
-              hidePolaris ? 'bg-pulsar/20 text-pulsar border border-pulsar/40' : 'glass border border-pulsar/20 text-nova/60 hover:text-starlight'
-            }`}
-            title="Hide Polaris Edit Tasks"
-          >
-            <Bot className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={() => setHideReminders(!hideReminders)}
-            className={`flex items-center justify-center w-[26px] h-[26px] rounded-lg transition-colors ${
-              hideReminders ? 'bg-pulsar/20 text-pulsar border border-pulsar/40' : 'glass border border-pulsar/20 text-nova/60 hover:text-starlight'
-            }`}
-            title="Hide Reminders"
-          >
-            {hideReminders ? <BellOff className="w-3.5 h-3.5" /> : <Bell className="w-3.5 h-3.5" />}
-          </button>
-          <button
-            onClick={() => {
-              if (overlookDays === 1) setOverlookDays(7);
-              else if (overlookDays === 7) setOverlookDays(14);
-              else if (overlookDays === 14) setOverlookDays(0);
-              else setOverlookDays(1);
-            }}
-            className={`flex items-center justify-center min-w-[26px] h-[26px] px-1.5 rounded-lg transition-colors text-[10px] font-mono font-bold ${
-              overlookDays > 0 ? 'bg-pulsar/20 text-pulsar border border-pulsar/40' : 'glass border border-pulsar/20 text-nova/60 hover:text-starlight'
-            }`}
-            title="Toggle Scheduled Tasks Overlook Horizon (1 Day / 7 Days / 14 Days / Show All)"
-          >
-            {overlookDays > 0 ? `${overlookDays}D` : <Eye className="w-3.5 h-3.5" />}
-          </button>
+        <div className="absolute top-4 right-4 z-50 flex items-center gap-1.5">
+          <AnimatePresence mode="wait">
+            {!filtersExpanded ? (
+              <motion.button
+                key="collapsed-toolbar"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                transition={{ duration: 0.15 }}
+                type="button"
+                onClick={() => setFiltersExpanded(true)}
+                className="glass border border-pulsar/30 hover:border-pulsar/50 text-starlight px-2 h-[26px] rounded-lg flex items-center gap-1.5 text-xs transition-colors relative shadow-sm cursor-pointer"
+                title="Expand Filters"
+              >
+                <Filter className="w-3.5 h-3.5 text-nova/80" />
+                <ChevronLeft className="w-3 h-3 text-nova/60" />
+                {(hideUpkeep || hidePolaris || hideReminders) && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-pulsar shrink-0" />
+                )}
+              </motion.button>
+            ) : (
+              <motion.div
+                key="expanded-toolbar"
+                initial={{ opacity: 0, x: 10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 10 }}
+                transition={{ duration: 0.15 }}
+                className="flex items-center gap-1.5"
+              >
+                <button
+                  type="button"
+                  onClick={() => setFiltersExpanded(false)}
+                  className="glass border border-pulsar/30 hover:border-pulsar/50 text-nova/60 hover:text-starlight w-[26px] h-[26px] rounded-lg flex items-center justify-center transition-colors cursor-pointer"
+                  title="Collapse Filters"
+                >
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setHideUpkeep(!hideUpkeep)}
+                  className={`flex items-center justify-center w-[26px] h-[26px] rounded-lg transition-colors cursor-pointer ${
+                    hideUpkeep ? 'bg-pulsar/20 text-pulsar border border-pulsar/40' : 'glass border border-pulsar/20 text-nova/60 hover:text-starlight'
+                  }`}
+                  title={hideUpkeep ? "Show Upkeep Tasks" : "Hide Upkeep Tasks"}
+                >
+                  <Wrench className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setHidePolaris(!hidePolaris)}
+                  className={`flex items-center justify-center w-[26px] h-[26px] rounded-lg transition-colors cursor-pointer ${
+                    hidePolaris ? 'bg-pulsar/20 text-pulsar border border-pulsar/40' : 'glass border border-pulsar/20 text-nova/60 hover:text-starlight'
+                  }`}
+                  title={hidePolaris ? "Show Polaris Edit Tasks" : "Hide Polaris Edit Tasks"}
+                >
+                  <Bot className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setHideReminders(!hideReminders)}
+                  className={`flex items-center justify-center w-[26px] h-[26px] rounded-lg transition-colors cursor-pointer ${
+                    hideReminders ? 'bg-pulsar/20 text-pulsar border border-pulsar/40' : 'glass border border-pulsar/20 text-nova/60 hover:text-starlight'
+                  }`}
+                  title={hideReminders ? "Show Reminders" : "Hide Reminders"}
+                >
+                  {hideReminders ? <BellOff className="w-3.5 h-3.5" /> : <Bell className="w-3.5 h-3.5" />}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (overlookDays === 1) setOverlookDays(7);
+                    else if (overlookDays === 7) setOverlookDays(14);
+                    else if (overlookDays === 14) setOverlookDays(0);
+                    else setOverlookDays(1);
+                  }}
+                  className={`flex items-center justify-center min-w-[26px] h-[26px] px-1.5 rounded-lg transition-colors text-[10px] font-mono font-bold cursor-pointer ${
+                    overlookDays > 0 ? 'bg-pulsar/20 text-pulsar border border-pulsar/40' : 'glass border border-pulsar/20 text-nova/60 hover:text-starlight'
+                  }`}
+                  title="Toggle Scheduled Tasks Overlook Horizon (1 Day / 7 Days / 14 Days / Show All)"
+                >
+                  {overlookDays > 0 ? `${overlookDays}D` : <Eye className="w-3.5 h-3.5" />}
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
         {/* 2D Canvas Surface */}
         <div
@@ -1220,8 +1393,8 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                               }}
                               className="group inline-flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-[#0a0f1e]/90 border transition-all cursor-grab active:cursor-grabbing w-fit max-w-[450px] select-none"
                               style={{ 
-                                borderColor: `${q.color}66`, 
-                                boxShadow: `0 0 10px ${q.color}33` 
+                                borderColor: (selectedTaskId === task.id || selectedTask?.parent_task_id === task.id) ? '#f59e0b' : `${q.color}66`, 
+                                boxShadow: (selectedTaskId === task.id || selectedTask?.parent_task_id === task.id) ? '0 0 20px #f59e0b' : `0 0 10px ${q.color}33` 
                               }}
                             >
                               {/* Left Bullet / Urgent Subtask Indicator */}
@@ -1242,6 +1415,9 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                               <div className="flex items-center gap-1.5 shrink-0 font-mono text-xs">
                                 {task.source_template_id && (
                                   <RefreshCw className="w-3 h-3 text-pulsar/80 shrink-0 pointer-events-none" title="Recurring Task" />
+                                )}
+                                {task.category === 'upkeep' && (
+                                  <Wrench className="w-3 h-3 text-emerald-400 shrink-0" title="Upkeep" />
                                 )}
 
                                 {autoQuadrantSuggest && (() => {
@@ -1361,7 +1537,11 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                                   setActiveBrainDumpTab('details');
                                   setBrainDumpCollapsed(false);
                                 }}
-                                className="group flex items-center gap-2 px-3 py-1.5 rounded-lg bg-void/50 border border-amber-500/40 ml-6 w-fit max-w-[500px] select-none cursor-pointer hover:border-amber-500/70 transition-colors shadow-sm"
+                                className={`group flex items-center gap-2 px-3 py-1.5 rounded-lg ml-6 w-fit max-w-[500px] select-none cursor-pointer transition-all shadow-sm ${
+                                  selectedTaskId === activeSubtask.id
+                                    ? 'bg-amber-500/20 border-2 border-amber-400 shadow-[0_0_15px_#f59e0b]'
+                                    : 'bg-void/50 border border-amber-500/40 hover:border-amber-500/70'
+                                }`}
                               >
                                 <Zap className="w-3 h-3 text-amber-400 shrink-0" />
                                 <h4 className="text-[12px] text-starlight truncate pointer-events-none">
@@ -1428,7 +1608,11 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                                         setActiveBrainDumpTab('details');
                                         setBrainDumpCollapsed(false);
                                       }}
-                                      className="group flex items-center gap-2 px-3 py-1.5 rounded-lg bg-void/40 border border-pulsar/30 hover:border-pulsar/60 ml-6 w-fit max-w-[500px] select-none cursor-pointer transition-colors shadow-sm"
+                                      className={`group flex items-center gap-2 px-3 py-1.5 rounded-lg ml-6 w-fit max-w-[500px] select-none cursor-pointer transition-all shadow-sm ${
+                                        selectedTaskId === st.id
+                                          ? 'bg-amber-500/20 border-2 border-amber-400 shadow-[0_0_15px_#f59e0b]'
+                                          : 'bg-void/40 border border-pulsar/30 hover:border-pulsar/60'
+                                      }`}
                                     >
                                       <span className="w-1.5 h-1.5 rounded-full bg-nova/40 shrink-0" />
                                       <h4 className="text-[12px] text-starlight truncate pointer-events-none">
@@ -1589,8 +1773,8 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                     left: `${task.canvasX}px`,
                     top: `${task.canvasY}px`,
                     zIndex: 40,
-                    borderColor: qColor,
-                    boxShadow: `0 0 15px ${qColor}66`
+                    borderColor: (selectedTaskId === task.id || selectedTask?.parent_task_id === task.id) ? '#f59e0b' : qColor,
+                    boxShadow: (selectedTaskId === task.id || selectedTask?.parent_task_id === task.id) ? '0 0 25px #f59e0b' : `0 0 15px ${qColor}66`
                   }}
                   className="group inline-flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-[#0a0f1e]/95 border-2 cursor-grab active:cursor-grabbing w-fit max-w-[450px] select-none"
                 >
@@ -1606,6 +1790,9 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                   <div className="flex items-center gap-1.5 shrink-0 font-mono text-[9px]">
                     {task.source_template_id && (
                       <RefreshCw className="w-3 h-3 text-pulsar/80 shrink-0 pointer-events-none" title="Recurring Task" />
+                    )}
+                    {task.category === 'upkeep' && (
+                      <Wrench className="w-3 h-3 text-emerald-400 shrink-0" title="Upkeep" />
                     )}
                     {autoQuadrantSuggest && (() => {
                       const currentEffective = task.quadrant || getQuadrantFromCoords(task.canvasX || 300, task.canvasY || 300);
@@ -2202,6 +2389,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                             className="bg-transparent w-full outline-none text-starlight cursor-pointer font-sans min-w-0 text-[11px] truncate"
                           >
                             <option value="normal" className="bg-void">Normal</option>
+                            <option value="upkeep" className="bg-void">Upkeep</option>
                             <option value="polaris" className="bg-void">Polaris</option>
                             <option value="reminders" className="bg-void">Reminder</option>
                           </select>

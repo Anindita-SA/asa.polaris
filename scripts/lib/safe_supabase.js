@@ -25,7 +25,9 @@ const ALLOWED_TABLES = [
   'user_settings',
   'media_log',
   'practice_scores',
-  'meal_logs'
+  'meal_logs',
+  'calendar_events',
+  'brief_sources'
 ];
 
 

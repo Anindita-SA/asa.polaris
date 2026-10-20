@@ -84,28 +84,34 @@ ${JSON.stringify(minifiedPool)}
 
 Applicant: ${APPLICANT_PROFILE}
 
-Pick 2-3 best fits (fewer is fine if others fail constraints, do not pad).
+STEP 1 - PAGE TYPE CLASSIFICATION:
+For each item, determine if the page is:
+- "application": A direct application or call-for-proposals page with submission instructions
+- "aggregator": A listicle, newsletter, blog roundup, or portal listing multiple opportunities
+- "info": A press release, news article, org homepage, or general info page
+- "expired": Deadline has clearly passed
 
-Rank: (1) fully-funded travel/field research/residencies (2) hardware/conservation/agri/climate tech grants, UN programs, product design/art competitions, emerging artist grants, free industry-certified training (equal tier, not hardware-first) (3) research fellowships/grants (4) rest.
+ONLY items classified as "application" may proceed. Reject all others.
 
-NATIONALITY & REGIONAL ELIGIBILITY (STRICT):
-- If eligible countries/regions are listed (e.g. Africa, SIDS, Latin America, EU only), Bangladesh MUST be explicitly included.
-- If Bangladesh is missing or restricted to other regions/citizenships, reject with profile_match: 0.
+STEP 2 - ELIGIBILITY & REALISTIC SCORING:
+- Bangladeshi nationals must be eligible (reject if restricted to other regions/citizenships or requires Indian citizenship/residency).
+- Must have funding (reject self-funded or paid fee programs).
+- If unconfirmed, note in project_fit instead of rejecting outright.
 
-Reject if:
-- Ineligible for Bangladeshi nationals.
-- Aggregators, newsletters, listicles (direct application page required).
-- Requires Indian residency/citizenship.
-- Requires self-funding, out-of-pocket costs, or paid application fees.
-- Deadline passed.
-- If unconfirmed, flag in project_fit instead of rejecting outright.
+CRITICAL SCORING & OUTPUT RULES:
+- DO NOT use default scores like 80/85 or 60. Calibrate realistic numbers:
+  * profile_match (0-100): Alignment with applicant background and citizenship (90+ = exact match with EEE/design/conservation and verified Bangladesh eligibility, 60-80 = moderate alignment, <50 = weak alignment).
+  * acceptance_chance (0-100): Realistic selection probability based on competition (competitive international programs are typically 10-35%).
+- what_offered: Specify exact funding terms, grant amount, stipend, or travel terms (e.g. '$20,000 research grant', 'Full tuition + €1,400/month stipend'). NEVER output vague text like 'Travel and project funding' or 'Grant funding'.
+- project_fit: Generate a clean 2-3 sentence structured summary:
+  Sentence 1 (Program Overview): Program scope, focus, and host organization.
+  Sentence 2-3 (Strategic Fit & Eligibility): Direct alignment with applicant background (hardware/EEE, product design/art, or certified technical training) and nationality/visa eligibility confirmation.
+- effort: low (simple form) | med (1-2 essays/portfolio) | high (multi-stage/interview).
+
+Pick 0-3 best fits. Return ZERO if nothing qualifies - an empty array is the correct answer when no direct applications match.
 ${learnedFeedback ? `\nLEARNED REJECTIONS (DO NOT REPEAT):\n${learnedFeedback}\n` : ''}
-effort: application work only (low: form, med: 1-2 essays/portfolio, high: multi-stage/interview).
-profile_match (0-100): Alignment with applicant profile across hardware/tech, design/art, or certified training, nationality, and undergrad status.
-acceptance_chance (0-100): Realistic selection probability based on competition and profile fit.
-
 JSON only, no preamble/fences:
-{"opportunities":[{"title":"","url":"","deadline":"YYYY-MM-DD or null","effort":"low|med|high","profile_match":85,"acceptance_chance":60,"project_fit":"","what_offered":""}]}`;
+{"opportunities":[{"id":0,"title":"","deadline":"YYYY-MM-DD or null","effort":"low|med|high","profile_match":72,"acceptance_chance":25,"project_fit":"","what_offered":""}],"rejected":[{"id":0,"title":"","reason":"aggregator|info|expired|ineligible"}]}`;
 }
 
 async function run() {
@@ -160,11 +166,11 @@ async function run() {
     return;
   }
 
-  // 4. Evaluate candidates via LLM
-  const minifiedPool = newPool.slice(0, 6).map(item => ({
+  // 4. Evaluate candidates via LLM (Token optimization: 300 chars max, omit URLs)
+  const minifiedPool = newPool.slice(0, 5).map((item, idx) => ({
+    id: idx,
     title: item.title,
-    url: item.url,
-    description: (item.description || item.title).slice(0, 500),
+    description: (item.description || item.title).slice(0, 300),
     source: item.source_name
   }));
 
@@ -172,7 +178,7 @@ async function run() {
   let parsedOpps = [];
 
   try {
-    const rawOutput = await generateWithFallbackNode(prompt, config.groqApiKey, config.geminiApiKey, true);
+    const rawOutput = await generateWithFallbackNode(prompt, config.groqApiKey, config.geminiApiKey, { asJson: true, maxOutputTokens: 768 });
     if (rawOutput) {
       const parsed = typeof rawOutput === 'string' ? JSON.parse(rawOutput) : rawOutput;
       parsedOpps = parsed?.opportunities || parsed?.items || [];
@@ -181,22 +187,25 @@ async function run() {
     console.error('LLM evaluation error:', err.message);
   }
 
-  // Fallback to keyword scoring if LLM returned nothing
-  if (parsedOpps.length === 0 && newPool.length > 0) {
-    console.log('Using heuristic fallback for top opportunities.');
-    parsedOpps = newPool.slice(0, 2).map(item => ({
-      title: item.title,
-      url: item.url,
-      deadline: null,
-      effort: 'med',
-      profile_match: 75,
-      acceptance_chance: 55,
-      project_fit: (item.description || item.title).slice(0, 200),
-      what_offered: 'Funded opportunity'
-    }));
-  }
+  // Map parsed opportunities back to newPool candidates to resolve URL
+  const enrichedOpps = parsedOpps.map(o => {
+    let matchedItem = null;
+    if (typeof o.id === 'number' && newPool[o.id]) {
+      matchedItem = newPool[o.id];
+    } else if (o.url) {
+      matchedItem = newPool.find(p => p.url === o.url);
+    } else if (o.title) {
+      matchedItem = newPool.find(p => p.title.toLowerCase() === o.title.toLowerCase());
+    }
 
-  const validOpps = parsedOpps.filter(o => o.title && o.url && (o.profile_match === undefined || o.profile_match > 0));
+    return {
+      ...o,
+      title: o.title || matchedItem?.title || '',
+      url: matchedItem?.url || o.url || ''
+    };
+  }).filter(o => o.title && o.url);
+
+  const validOpps = enrichedOpps.filter(o => o.profile_match === undefined || o.profile_match > 20);
   console.log(`Identified ${validOpps.length} valid opportunities matching criteria.`);
 
   if (validOpps.length === 0) {
@@ -210,11 +219,11 @@ async function run() {
     title: o.title,
     url: o.url,
     deadline: (o.deadline && String(o.deadline).match(/^\d{4}-\d{2}-\d{2}$/)) ? o.deadline : null,
-    effort: o.effort || 'med',
-    profile_match: o.profile_match || 75,
-    acceptance_chance: o.acceptance_chance || 50,
-    project_fit: o.project_fit || 'Scouted funding/fellowship opportunity',
-    what_offered: o.what_offered || 'Grant funding',
+    effort: ['low', 'med', 'high'].includes(o.effort) ? o.effort : 'med',
+    profile_match: typeof o.profile_match === 'number' ? Math.min(100, Math.max(0, o.profile_match)) : 70,
+    acceptance_chance: typeof o.acceptance_chance === 'number' ? Math.min(100, Math.max(0, o.acceptance_chance)) : 30,
+    project_fit: o.project_fit || 'Scouted fellowship or funding opportunity matching applicant profile.',
+    what_offered: o.what_offered || 'See program call for full award terms.',
     status: 'new'
   }));
 

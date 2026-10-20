@@ -1,11 +1,26 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { safeMutate } from '../../lib/safeMutate'
 import { useAuth } from '../../hooks/useAuth'
-import { Cpu, ExternalLink, Plus, Check, Edit2, X, Save } from 'lucide-react'
+import { 
+  Cpu, 
+  ExternalLink, 
+  Plus, 
+  Check, 
+  Edit2, 
+  X, 
+  Save, 
+  ChevronDown, 
+  ChevronUp, 
+  Copy, 
+  ShieldCheck, 
+  Gift, 
+  FileText, 
+  Sparkles 
+} from 'lucide-react'
 import DismissFeedbackModal from '../modals/DismissFeedbackModal'
 import { safeExternalUrl } from '../../lib/urlUtils'
-import { offlineSelect, offlineInsert, offlineUpdate, generateUUID } from '../../lib/offlineApi'
+import { offlineInsert, offlineUpdate, generateUUID } from '../../lib/offlineApi'
+import { parseOpportunityBreakdown } from '../../lib/opportunityUtils'
 
 const HardwareScoutPanel = () => {
   const { user } = useAuth()
@@ -15,12 +30,33 @@ const HardwareScoutPanel = () => {
   const [editForm, setEditForm] = useState({})
   const [isScouting, setIsScouting] = useState(false)
   const [dismissTargetOpp, setDismissTargetOpp] = useState(null)
+  const [expandedIds, setExpandedIds] = useState(new Set())
+  const [copiedId, setCopiedId] = useState(null)
 
   useEffect(() => {
     if (user?.id) {
       fetchOpportunities()
     }
   }, [user?.id])
+
+  const toggleExpand = (id) => {
+    setExpandedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
+
+  const handleCopyDraft = (id, text) => {
+    if (!text) return
+    navigator.clipboard?.writeText(text)
+    setCopiedId(id)
+    setTimeout(() => setCopiedId(null), 2000)
+  }
 
   const invokeScout = async () => {
     setIsScouting(true)
@@ -97,7 +133,7 @@ const HardwareScoutPanel = () => {
             what_offered: opp.what_offered
           }
         }
-      }).catch(err => console.error('Background subtask generation failed:', err));
+      }).catch(err => console.error('Background subtask generation failed:', err))
     }
 
     // Ensure state remains synchronized with backend
@@ -121,21 +157,34 @@ const HardwareScoutPanel = () => {
 
   const startEditing = (opp) => {
     setEditingId(opp.id)
-    setEditForm({ ...opp })
+    setEditForm({
+      title: opp.title || '',
+      url: opp.url || '',
+      deadline: opp.deadline || '',
+      effort: opp.effort || '',
+      project_fit: opp.project_fit || '',
+      what_offered: opp.what_offered || '',
+      profile_match: opp.profile_match ?? '',
+      acceptance_chance: opp.acceptance_chance ?? '',
+      application_draft: opp.application_draft || ''
+    })
   }
 
   const saveEdit = async () => {
-    if (!user?.id) return
+    if (!user?.id || !editingId) return
+    const matchNum = editForm.profile_match === '' || editForm.profile_match == null ? null : Number(editForm.profile_match)
+    const chanceNum = editForm.acceptance_chance === '' || editForm.acceptance_chance == null ? null : Number(editForm.acceptance_chance)
+
     await offlineUpdate('hardware_opportunities', { id: editingId, user_id: user.id }, {
       title: editForm.title,
       url: editForm.url,
-      deadline: editForm.deadline,
-      what_offered: editForm.what_offered,
-      project_fit: editForm.project_fit,
-      effort: editForm.effort,
-      application_draft: editForm.application_draft,
-      profile_match: editForm.profile_match,
-      acceptance_chance: editForm.acceptance_chance
+      deadline: editForm.deadline || null,
+      what_offered: editForm.what_offered || null,
+      project_fit: editForm.project_fit || null,
+      effort: editForm.effort || null,
+      application_draft: editForm.application_draft || null,
+      profile_match: isNaN(matchNum) ? null : matchNum,
+      acceptance_chance: isNaN(chanceNum) ? null : chanceNum
     })
     
     setEditingId(null)
@@ -168,144 +217,132 @@ const HardwareScoutPanel = () => {
         <div className="grid gap-4 w-full">
           {opportunities.map((opp) => {
             const isEditing = editingId === opp.id
+            const isExpanded = expandedIds.has(opp.id)
             const validUrl = safeExternalUrl(opp.url)
+
             return (
               <div key={opp.id} className="glass p-5 rounded-xl border border-pulsar/40 flex flex-col gap-4">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1 mr-4">
-                    {isEditing ? (
-                      <input 
-                        value={editForm.title || ''}
-                        onChange={e => setEditForm({...editForm, title: e.target.value})}
-                        className="bg-transparent border-b border-blue-500/30 outline-none text-lg font-display text-starlight w-full mb-2"
-                        placeholder="Opportunity Title"
-                      />
-                    ) : (
-                      <h3 className="text-xl font-display font-bold text-starlight flex items-center gap-2">
-                        {opp.title}
-                        {validUrl && (
-                          <a href={validUrl} target="_blank" rel="noreferrer" className="text-nova/60 hover:text-pulsar">
-                            <ExternalLink className="w-4 h-4" />
-                          </a>
-                        )}
-                      </h3>
-                    )}
-                    
-                    <div className="flex flex-wrap gap-4 text-xs text-nova/60 mt-1">
-                      {isEditing ? (
-                        <>
+                {isEditing ? (
+                  /* Edit Mode */
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center border-b border-pulsar/30 pb-2">
+                      <span className="text-xs font-mono uppercase tracking-wider text-amber-400">Edit Opportunity</span>
+                      <button 
+                        onClick={() => setEditingId(null)}
+                        className="text-nova/60 hover:text-starlight text-xs"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-xs font-mono uppercase text-nova/70 mb-1">Title</label>
+                        <input 
+                          value={editForm.title || ''}
+                          onChange={e => setEditForm({ ...editForm, title: e.target.value })}
+                          className="bg-void/70 border border-pulsar/40 rounded-lg px-3 py-2 text-sm text-starlight outline-none w-full focus:border-amber-500/50"
+                          placeholder="Opportunity Title"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-mono uppercase text-nova/70 mb-1">URL</label>
+                        <input 
+                          value={editForm.url || ''}
+                          onChange={e => setEditForm({ ...editForm, url: e.target.value })}
+                          className="bg-void/70 border border-pulsar/40 rounded-lg px-3 py-2 text-sm text-starlight outline-none w-full focus:border-amber-500/50"
+                          placeholder="https://..."
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                        <div>
+                          <label className="block text-xs font-mono uppercase text-nova/70 mb-1">Deadline</label>
                           <input 
                             type="date"
                             value={editForm.deadline || ''}
-                            onChange={e => setEditForm({...editForm, deadline: e.target.value})}
-                            className="bg-void/70 border border-pulsar/40 rounded px-2 py-1 text-starlight outline-none"
+                            onChange={e => setEditForm({ ...editForm, deadline: e.target.value })}
+                            className="bg-void/70 border border-pulsar/40 rounded-lg px-2.5 py-1.5 text-xs text-starlight outline-none w-full focus:border-amber-500/50"
                           />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-mono uppercase text-nova/70 mb-1">Effort</label>
                           <select
                             value={editForm.effort || ''}
-                            onChange={e => setEditForm({...editForm, effort: e.target.value})}
-                            className="bg-void/70 border border-pulsar/40 rounded px-2 py-1 text-starlight outline-none"
+                            onChange={e => setEditForm({ ...editForm, effort: e.target.value })}
+                            className="bg-void/70 border border-pulsar/40 rounded-lg px-2.5 py-1.5 text-xs text-starlight outline-none w-full focus:border-amber-500/50"
                           >
                             <option value="">Effort...</option>
                             <option value="low">Low</option>
                             <option value="med">Medium</option>
                             <option value="high">High</option>
                           </select>
-                          <input 
-                            value={editForm.project_fit || ''}
-                            onChange={e => setEditForm({...editForm, project_fit: e.target.value})}
-                            className="bg-void/70 border border-pulsar/40 rounded px-2 py-1 text-starlight outline-none flex-1"
-                            placeholder="Project Fit"
-                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-mono uppercase text-nova/70 mb-1">Profile Match %</label>
                           <input 
                             type="number"
-                            value={editForm.profile_match || ''}
-                            onChange={e => setEditForm({...editForm, profile_match: parseInt(e.target.value) || null})}
-                            className="bg-void/70 border border-pulsar/40 rounded px-2 py-1 text-starlight outline-none w-24"
-                            placeholder="Match %"
+                            min="0"
+                            max="100"
+                            value={editForm.profile_match ?? ''}
+                            onChange={e => setEditForm({ ...editForm, profile_match: e.target.value })}
+                            className="bg-void/70 border border-pulsar/40 rounded-lg px-2.5 py-1.5 text-xs text-starlight outline-none w-full focus:border-amber-500/50"
+                            placeholder="0 - 100"
                           />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-mono uppercase text-nova/70 mb-1">Acceptance %</label>
                           <input 
                             type="number"
-                            value={editForm.acceptance_chance || ''}
-                            onChange={e => setEditForm({...editForm, acceptance_chance: parseInt(e.target.value) || null})}
-                            className="bg-void/70 border border-pulsar/40 rounded px-2 py-1 text-starlight outline-none w-24"
-                            placeholder="Chance %"
+                            min="0"
+                            max="100"
+                            value={editForm.acceptance_chance ?? ''}
+                            onChange={e => setEditForm({ ...editForm, acceptance_chance: e.target.value })}
+                            className="bg-void/70 border border-pulsar/40 rounded-lg px-2.5 py-1.5 text-xs text-starlight outline-none w-full focus:border-amber-500/50"
+                            placeholder="0 - 100"
                           />
-                          <input 
-                            value={editForm.url || ''}
-                            onChange={e => setEditForm({...editForm, url: e.target.value})}
-                            className="bg-void/70 border border-pulsar/40 rounded px-2 py-1 text-starlight outline-none flex-1"
-                            placeholder="URL"
-                          />
-                        </>
-                      ) : (
-                        <>
-                          {opp.deadline && <span className="px-2 py-1 rounded bg-amber-500/10 text-amber-500/80 border border-amber-500/20">Deadline: {opp.deadline}</span>}
-                          {opp.effort && <span className="px-2 py-1 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">Effort: {opp.effort}</span>}
-                          {opp.profile_match != null && (
-                            <span className={`px-2 py-1 rounded border ${
-                              opp.profile_match >= 80 ? 'border-emerald-500/30 text-emerald-400 bg-emerald-500/10' :
-                              opp.profile_match >= 50 ? 'border-pulsar/30 text-nova/70 bg-pulsar/10' :
-                              'border-red-500/30 text-red-400/70 bg-red-500/10'
-                            }`}>Match: {opp.profile_match}%</span>
-                          )}
-                          {opp.acceptance_chance != null && (
-                            <span className={`px-2 py-1 rounded border ${
-                              opp.acceptance_chance >= 60 ? 'border-blue-500/30 text-blue-400 bg-blue-500/10' :
-                              opp.acceptance_chance >= 30 ? 'border-pulsar/30 text-nova/70 bg-pulsar/10' :
-                              'border-red-500/30 text-red-400/70 bg-red-500/10'
-                            }`}>Chance: {opp.acceptance_chance}%</span>
-                          )}
-                        </>
-                      )}
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-mono uppercase text-nova/70 mb-1">Program Summary / Project Fit</label>
+                        <textarea 
+                          value={editForm.project_fit || ''}
+                          onChange={e => setEditForm({ ...editForm, project_fit: e.target.value })}
+                          rows={3}
+                          className="bg-void/70 border border-pulsar/40 rounded-lg px-3 py-2 text-sm text-starlight outline-none w-full focus:border-amber-500/50 leading-relaxed"
+                          placeholder="Rich summary covering program overview, applicant fit, and eligibility..."
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-mono uppercase text-nova/70 mb-1">What's Offered (Funding, Perks, Stipend)</label>
+                        <textarea 
+                          value={editForm.what_offered || ''}
+                          onChange={e => setEditForm({ ...editForm, what_offered: e.target.value })}
+                          rows={2}
+                          className="bg-void/70 border border-pulsar/40 rounded-lg px-3 py-2 text-sm text-starlight outline-none w-full focus:border-amber-500/50 leading-relaxed"
+                          placeholder="Specific funding terms, grant amount, stipend, travel coverage..."
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-mono uppercase text-nova/70 mb-1">Application Draft</label>
+                        <textarea 
+                          value={editForm.application_draft || ''}
+                          onChange={e => setEditForm({ ...editForm, application_draft: e.target.value })}
+                          rows={4}
+                          className="bg-void/70 border border-pulsar/40 rounded-lg px-3 py-2 text-xs font-mono text-starlight outline-none w-full focus:border-amber-500/50 leading-relaxed"
+                          placeholder="Application draft text..."
+                        />
+                      </div>
                     </div>
-                  </div>
-                  
-                  <div className="flex gap-2 items-start">
-                    {!isEditing && (
-                      <button onClick={() => startEditing(opp)} className="p-1.5 text-nova/60 hover:text-starlight rounded bg-blue-900/10">
-                        <Edit2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                    <span className="px-2 py-1 rounded bg-blue-900/20 text-nova/60 text-xs ">
-                      {opp.status}
-                    </span>
-                  </div>
-                </div>
 
-                {isEditing ? (
-                  <div className="space-y-3">
-                    <input 
-                      value={editForm.what_offered || ''}
-                      onChange={e => setEditForm({...editForm, what_offered: e.target.value})}
-                      className="bg-void/70 border border-pulsar/40 rounded px-3 py-2 text-sm text-starlight outline-none w-full"
-                      placeholder="What is offered?"
-                    />
-                    <textarea 
-                      value={editForm.application_draft || ''}
-                      onChange={e => setEditForm({...editForm, application_draft: e.target.value})}
-                      className="bg-void/70 border border-pulsar/40 rounded px-3 py-2 text-sm text-starlight outline-none w-full min-h-[120px] font-mono"
-                      placeholder="Application draft text..."
-                    />
-                  </div>
-                ) : (
-                  <>
-                    {opp.what_offered && (
-                      <div className="text-sm">
-                        <span className="text-nova/60">Offered:</span> <span className="text-starlight">{opp.what_offered}</span>
-                      </div>
-                    )}
-
-                    {opp.application_draft && (
-                      <div className="bg-void/70 p-3 rounded-xl border border-pulsar/30 text-sm whitespace-pre-wrap font-mono text-starlight/80 max-h-48 overflow-y-auto">
-                        {opp.application_draft}
-                      </div>
-                    )}
-                  </>
-                )}
-
-                <div className="flex justify-end gap-3 pt-2">
-                  {isEditing ? (
-                    <>
+                    <div className="flex justify-end gap-3 pt-2 border-t border-pulsar/30">
                       <button
                         onClick={() => setEditingId(null)}
                         className="px-4 py-2 rounded-lg text-sm text-nova/60 hover:text-starlight hover:bg-pulsar/10 transition-colors"
@@ -314,33 +351,214 @@ const HardwareScoutPanel = () => {
                       </button>
                       <button
                         onClick={saveEdit}
-                        className="px-4 py-2 rounded-lg text-sm bg-emerald-500/20 text-emerald-500 hover:bg-emerald-500/30 border border-emerald-500/30 transition-colors flex items-center gap-2"
+                        className="px-4 py-2 rounded-lg text-sm bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border border-emerald-500/30 transition-colors flex items-center gap-2"
                       >
                         <Save className="w-4 h-4" /> Save Changes
                       </button>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        onClick={() => setDismissTargetOpp(opp)}
-                        className="px-4 py-2 rounded-lg text-sm text-nova/60 hover:text-red-400 hover:bg-red-400/10 transition-colors"
-                      >
-                        Dismiss
-                      </button>
-                      <button
-                        onClick={() => approveAndActivate(opp)}
-                        disabled={opp.status === 'applied'}
-                        className="px-4 py-2 rounded-lg text-sm bg-amber-500/20 text-amber-500 hover:bg-amber-500/30 border border-amber-500/30 transition-colors flex items-center gap-2 disabled:opacity-50"
-                      >
-                        {opp.status === 'applied' ? (
-                          <><Check className="w-4 h-4" /> Added to Tasks</>
-                        ) : (
-                          <><Plus className="w-4 h-4" /> Move to Tasks</>
-                        )}
-                      </button>
-                    </>
-                  )}
-                </div>
+                    </div>
+                  </div>
+                ) : (
+                  /* View Mode */
+                  <>
+                    <div 
+                      className="flex justify-between items-start cursor-pointer select-none group"
+                      onClick={() => toggleExpand(opp.id)}
+                    >
+                      <div className="flex-1 mr-4">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="text-xl font-display font-bold text-starlight group-hover:text-amber-400 transition-colors">
+                            {opp.title}
+                          </h3>
+                          {validUrl && (
+                            <a 
+                              href={validUrl} 
+                              target="_blank" 
+                              rel="noopener noreferrer" 
+                              onClick={(e) => e.stopPropagation()}
+                              className="text-nova/60 hover:text-amber-400 transition-colors p-1"
+                              title="Open original link"
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                            </a>
+                          )}
+                        </div>
+
+                        <div className="flex flex-wrap gap-2 text-xs font-mono mt-2">
+                          {opp.deadline && (
+                            <span className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-400/90 border border-amber-500/20">
+                              Deadline: {opp.deadline}
+                            </span>
+                          )}
+                          {opp.effort && (
+                            <span className="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                              Effort: {opp.effort}
+                            </span>
+                          )}
+                          {opp.profile_match != null && (
+                            <span className={`px-2 py-0.5 rounded border ${
+                              opp.profile_match >= 80 ? 'border-emerald-500/30 text-emerald-400 bg-emerald-500/10' :
+                              opp.profile_match >= 50 ? 'border-pulsar/30 text-nova/70 bg-pulsar/10' :
+                              'border-red-500/30 text-red-400/70 bg-red-500/10'
+                            }`}>
+                              Match: {opp.profile_match}%
+                            </span>
+                          )}
+                          {opp.acceptance_chance != null && (
+                            <span className={`px-2 py-0.5 rounded border ${
+                              opp.acceptance_chance >= 60 ? 'border-blue-500/30 text-blue-400 bg-blue-500/10' :
+                              opp.acceptance_chance >= 30 ? 'border-pulsar/30 text-nova/70 bg-pulsar/10' :
+                              'border-red-500/30 text-red-400/70 bg-red-500/10'
+                            }`}>
+                              Chance: {opp.acceptance_chance}%
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); startEditing(opp); }} 
+                          className="p-1.5 text-nova/60 hover:text-starlight rounded bg-pulsar/10 border border-pulsar/30 hover:border-pulsar/60 transition-colors"
+                          title="Edit details"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <span className="px-2 py-1 rounded bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-mono">
+                          {opp.status}
+                        </span>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); toggleExpand(opp.id); }}
+                          className="p-1.5 text-nova/60 hover:text-amber-400 rounded bg-pulsar/10 border border-pulsar/30 hover:border-amber-500/30 transition-colors"
+                          title={isExpanded ? 'Collapse breakdown' : 'Expand breakdown'}
+                        >
+                          {isExpanded ? <ChevronUp className="w-4 h-4 text-amber-400" /> : <ChevronDown className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Summary Section */}
+                    {(() => {
+                      const breakdown = parseOpportunityBreakdown(opp)
+                      return !isExpanded ? (
+                        /* Collapsed Teaser */
+                        <div className="space-y-1">
+                          <p className="text-sm font-body text-nova/80 line-clamp-2 leading-relaxed">
+                            {breakdown.overview}
+                          </p>
+                          <button 
+                            onClick={() => toggleExpand(opp.id)}
+                            className="text-xs font-mono text-amber-400/90 hover:text-amber-300 flex items-center gap-1 transition-colors"
+                          >
+                            View Strategic Details <ChevronDown className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        /* Expanded Structured Breakdown */
+                        <div className="space-y-3 pt-1">
+                          {/* a) Program Summary / Overview */}
+                          <div className="bg-void/70 p-3.5 rounded-xl border border-pulsar/30 space-y-1">
+                            <div className="text-xs font-mono uppercase tracking-wider text-amber-400/90 flex items-center gap-1.5">
+                              <FileText className="w-3.5 h-3.5 text-amber-400" /> Program Summary / Overview
+                            </div>
+                            <p className="text-sm font-body text-starlight/90 leading-relaxed">
+                              {breakdown.overview}
+                            </p>
+                          </div>
+
+                          {/* b) Strategic Fit & Eligibility */}
+                          <div className="bg-void/70 p-3.5 rounded-xl border border-pulsar/30 space-y-2">
+                            <div className="text-xs font-mono uppercase tracking-wider text-blue-400/90 flex items-center gap-1.5">
+                              <ShieldCheck className="w-3.5 h-3.5 text-blue-400" /> Strategic Fit & Eligibility
+                            </div>
+                            <p className="text-sm font-body text-starlight/90 leading-relaxed">
+                              {breakdown.fit}
+                            </p>
+                            <div className="text-xs font-mono text-nova/80 space-y-1 border-t border-pulsar/20 pt-2">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-amber-400/90 font-medium">Verified Constraints:</span>
+                                <span className="text-starlight/90">Bangladeshi national, EEE undergrad, Indian student visa</span>
+                              </div>
+                              <div className="flex items-center gap-3 text-xs text-nova/70">
+                                <span>Profile Match: <strong className="text-emerald-400">{opp.profile_match != null ? `${opp.profile_match}%` : 'Pending'}</strong></span>
+                                <span>:</span>
+                                <span>Acceptance Probability: <strong className="text-blue-400">{opp.acceptance_chance != null ? `${opp.acceptance_chance}%` : 'Pending'}</strong></span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* c) What's Offered */}
+                          <div className="bg-void/70 p-3.5 rounded-xl border border-pulsar/30 space-y-1">
+                            <div className="text-xs font-mono uppercase tracking-wider text-emerald-400/90 flex items-center gap-1.5">
+                              <Gift className="w-3.5 h-3.5 text-emerald-400" /> What's Offered (Funding, Perks, Stipend)
+                            </div>
+                            <p className="text-sm font-body text-starlight/90 leading-relaxed">
+                              {breakdown.offered}
+                            </p>
+                          </div>
+
+                          {/* d) Application Draft */}
+                          {opp.application_draft && (
+                            <div className="bg-void/70 p-3.5 rounded-xl border border-pulsar/30 space-y-2">
+                              <div className="flex items-center justify-between">
+                                <div className="text-xs font-mono uppercase tracking-wider text-purple-400/90 flex items-center gap-1.5">
+                                  <Sparkles className="w-3.5 h-3.5 text-purple-400" /> Application Draft
+                                </div>
+                                <button
+                                  onClick={() => handleCopyDraft(opp.id, opp.application_draft)}
+                                  className="flex items-center gap-1 text-xs font-mono text-nova/70 hover:text-starlight px-2 py-0.5 rounded bg-pulsar/10 border border-pulsar/30 hover:border-pulsar/60 transition-colors"
+                                  title="Copy draft to clipboard"
+                                >
+                                  {copiedId === opp.id ? (
+                                    <><Check className="w-3 h-3 text-emerald-400" /> Copied</>
+                                  ) : (
+                                    <><Copy className="w-3 h-3" /> Copy Draft</>
+                                  )}
+                                </button>
+                              </div>
+                              <div className="p-3 rounded-lg bg-void/90 border border-pulsar/20 text-xs font-mono text-starlight/85 whitespace-pre-wrap max-h-48 overflow-y-auto leading-relaxed select-text">
+                                {opp.application_draft}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })()}
+
+                    {/* Card Actions */}
+                    <div className="flex items-center justify-between pt-2 border-t border-pulsar/20">
+                      {isExpanded ? (
+                        <button
+                          onClick={() => toggleExpand(opp.id)}
+                          className="text-xs font-mono text-nova/60 hover:text-amber-400 flex items-center gap-1 transition-colors"
+                        >
+                          <ChevronUp className="w-3.5 h-3.5" /> Collapse Details
+                        </button>
+                      ) : (
+                        <div />
+                      )}
+
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => setDismissTargetOpp(opp)}
+                          className="px-4 py-2 rounded-lg text-sm text-nova/60 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                        >
+                          Dismiss
+                        </button>
+                        <button
+                          onClick={() => approveAndActivate(opp)}
+                          disabled={opp.status === 'applied'}
+                          className="px-4 py-2 rounded-lg text-sm bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 border border-amber-500/30 transition-colors flex items-center gap-2 disabled:opacity-50"
+                        >
+                          {opp.status === 'applied' ? (
+                            <><Check className="w-4 h-4" /> Added to Tasks</>
+                          ) : (
+                            <><Plus className="w-4 h-4" /> Move to Tasks</>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             )
           })}

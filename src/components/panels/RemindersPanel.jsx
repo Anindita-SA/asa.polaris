@@ -714,33 +714,50 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
               )}
             </div>
             <div className="space-y-1.5">
-              {visibleAttention.map(item => (
-                <div
-                  key={`${item.type}-${item.id}`}
-                  className="flex items-center justify-between bg-void/60 rounded-lg p-2 border border-red-500/20 hover:border-red-500/40 transition-colors"
-                >
-                  <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
-                    <span 
-                      className={`w-5 h-5 flex items-center justify-center text-[10px] font-mono font-bold rounded border shrink-0 ${TAG_BADGE_COLORS[item.tag] || 'text-nova/60 bg-nova/10 border-nova/30'}`}
-                      title={item.tagFull || item.tag}
-                    >
-                      {item.tag}
-                    </span>
-                    <span className="text-xs text-starlight truncate" title={item.title}>
-                      {item.title}
-                    </span>
+              {visibleAttention.map(item => {
+                const isNavigable = item.type === 'task' || item.type === 'habit';
+                return (
+                  <div
+                    key={`${item.type}-${item.id}`}
+                    onClick={() => {
+                      if (isNavigable) {
+                        try {
+                          sessionStorage.setItem('polaris_pending_nav_task_id', item.id);
+                        } catch (e) {}
+                        window.dispatchEvent(new CustomEvent('nav-task-details', { detail: { taskId: item.id } }));
+                        if (onOpenDayGuide) onOpenDayGuide();
+                      }
+                    }}
+                    className={`flex items-center justify-between bg-void/60 rounded-lg p-2 border border-red-500/20 transition-colors ${
+                      isNavigable ? 'cursor-pointer hover:bg-void/80 hover:border-red-500/40' : 'hover:border-red-500/40'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
+                      <span 
+                        className={`w-5 h-5 flex items-center justify-center text-[10px] font-mono font-bold rounded border shrink-0 ${TAG_BADGE_COLORS[item.tag] || 'text-nova/60 bg-nova/10 border-nova/30'}`}
+                        title={item.tagFull || item.tag}
+                      >
+                        {item.tag}
+                      </span>
+                      <span className="text-xs text-starlight truncate" title={item.title}>
+                        {item.title}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          item.action();
+                        }}
+                        aria-label={`Complete ${item.title}`}
+                        className="h-6 w-6 rounded-full bg-blue-900/20 flex items-center justify-center text-nova/60 hover:text-emerald hover:bg-emerald/20 hover:border-emerald/40 border border-transparent transition-all shrink-0 cursor-pointer"
+                      >
+                        <Check className="w-3 h-3" />
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      onClick={item.action}
-                      aria-label={`Complete ${item.title}`}
-                      className="h-6 w-6 rounded-full bg-blue-900/20 flex items-center justify-center text-nova/60 hover:text-emerald hover:bg-emerald/20 hover:border-emerald/40 border border-transparent transition-all shrink-0"
-                    >
-                      <Check className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}

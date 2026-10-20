@@ -1,8 +1,10 @@
 import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Sparkles, ExternalLink } from 'lucide-react'
+import { safeExternalUrl } from '../../lib/urlUtils'
 
 export default function SparkPopup({ items, onDismiss }) {
+  const newsItems = (items || []).filter(item => item.type === 'news' || (!item.type && !item.hardware_opportunity_id))
   return (
     <AnimatePresence>
       <motion.div
@@ -38,30 +40,33 @@ export default function SparkPopup({ items, onDismiss }) {
 
           {/* Items */}
           <div className="space-y-4 max-h-[60vh] overflow-y-auto scrollbar-hide pr-2">
-            {items && items.length > 0 ? (
-              items.map((item, i) => (
-                <div key={i} className="glass bg-void/40 border border-pulsar/30 p-5 rounded-xl hover:border-amber-500/20 transition-colors">
-                  <div className="flex items-start justify-between gap-4">
-                    <h3 className="font-display text-base text-starlight leading-tight">{item.title}</h3>
-                    <span className="text-xs font-mono text-amber-400/80 shrink-0 border border-amber-500/20 bg-amber-500/10 px-2 py-1 rounded">
-                      {item.source_name}
-                    </span>
+            {newsItems && newsItems.length > 0 ? (
+              newsItems.map((item, i) => {
+                const validUrl = safeExternalUrl(item.url)
+                return (
+                  <div key={i} className="glass bg-void/40 border border-pulsar/30 p-5 rounded-xl hover:border-amber-500/20 transition-colors">
+                    <div className="flex items-start justify-between gap-4">
+                      <h3 className="font-display text-base text-starlight leading-tight">{item.title}</h3>
+                      <span className="text-xs font-mono text-amber-400/80 shrink-0 border border-amber-500/20 bg-amber-500/10 px-2 py-1 rounded">
+                        {item.source_name || item.source || 'News'}
+                      </span>
+                    </div>
+                    <p className="font-body text-nova/80 mt-3 text-sm leading-relaxed">
+                      {item.summary}
+                    </p>
+                    {validUrl && (
+                      <a
+                        href={validUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 mt-3 text-xs font-mono text-amber-400/90 hover:text-amber-300 hover:underline transition-colors"
+                      >
+                        Read more &rarr;
+                      </a>
+                    )}
                   </div>
-                  <p className="font-body text-nova/60/90 mt-3 text-sm leading-relaxed">
-                    {item.summary}
-                  </p>
-                  {item.url && (
-                    <a
-                      href={item.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 mt-3 text-xs font-mono text-amber-400/90 hover:text-amber-300 hover:underline transition-colors"
-                    >
-                      Read more &rarr;
-                    </a>
-                  )}
-                </div>
-              ))
+                )
+              })
             ) : (
               <div className="text-center py-8 text-nova/60 font-mono text-sm">
                 No signals picked up today.

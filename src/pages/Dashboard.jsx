@@ -1,4 +1,4 @@
-import { useState, useRef, lazy, Suspense } from 'react'
+import { useState, useEffect, useRef, lazy, Suspense } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useRecurringTasks } from '../hooks/useRecurringTasks'
 import { useMorningBrief } from '../hooks/useMorningBrief'
@@ -55,6 +55,24 @@ const Dashboard = () => {
       localStorage.setItem('polaris_active_view', view)
     } catch (e) {}
   }
+
+  useEffect(() => {
+    const handleNavTaskDetails = (e) => {
+      const taskId = e?.detail?.taskId;
+      if (taskId) {
+        try {
+          sessionStorage.setItem('polaris_pending_nav_task_id', taskId);
+        } catch (err) {}
+      }
+      setActiveView('day_guide');
+      setMobileSheet(null);
+    };
+    window.addEventListener('nav-task-details', handleNavTaskDetails);
+    return () => {
+      window.removeEventListener('nav-task-details', handleNavTaskDetails);
+    };
+  }, []);
+
   const [rightPanelOpen, setRightPanelOpen] = useState(true)
   const [selectedNode, setSelectedNode] = useState(null)
   const [anchorCollapsed, setAnchorCollapsed] = useState(true)
@@ -169,9 +187,12 @@ const Dashboard = () => {
       
       {(stage === 'spark') && (
         <SparkPopup 
-          items={briefItems}
+          items={(briefItems || []).filter(item => item.type === 'news' || (!item.type && !item.hardware_opportunity_id))}
           onDismiss={() => {
             markSparkSeen()
+            try {
+              sessionStorage.setItem('polaris_pending_day_guide_tab', 'brief')
+            } catch (e) {}
             setActiveView('day_guide')
             setTimeout(() => window.dispatchEvent(new CustomEvent('nav-day-brief')), 50)
           }}

@@ -86,16 +86,25 @@ serve(async (req) => {
         .eq('user_id', user.id)
         .eq('status', 'new')
         .order('created_at', { ascending: false })
-        .limit(3)
+        .limit(6)
 
-      if (!previousOpps || previousOpps.length === 0) {
+      // Filter out noisy aggregators or stale placeholder records
+      const cleanOpps = (previousOpps || [])
+        .filter((o: any) => 
+          o.what_offered !== 'Travel and project funding' &&
+          !(o.profile_match === 80 && o.acceptance_chance === 60) &&
+          !o.project_fit?.startsWith('# Grants and Funding')
+        )
+        .slice(0, 3)
+
+      if (cleanOpps.length === 0) {
         return new Response(JSON.stringify({ message: `${reason}, and no previous opportunities found` }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 200,
         })
       }
 
-      const briefItems = previousOpps.map((o: any) => ({
+      const briefItems = cleanOpps.map((o: any) => ({
         title: o.title,
         url: o.url,
         source_name: 'Previous Scout',
@@ -104,7 +113,11 @@ serve(async (req) => {
         hardware_opportunity_id: o.id,
         is_previous: true,
         profile_match: o.profile_match,
-        acceptance_chance: o.acceptance_chance
+        acceptance_chance: o.acceptance_chance,
+        effort: o.effort,
+        deadline: o.deadline,
+        what_offered: o.what_offered,
+        project_fit: o.project_fit
       }))
 
       const { data: existingBrief } = await supabaseAdmin
@@ -180,8 +193,6 @@ serve(async (req) => {
       /grantwatch\.com/i,
       /fws\.gov/i,
       /grants\.gov/i,
-      /opportunitydesk\.org/i,
-      /fundsforngos\.org/i,
       /unv\.org/i
     ]
 
@@ -198,8 +209,8 @@ serve(async (req) => {
         headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
       })
       const opportunityFeeds = [
-        { name: 'EIT InnoEnergy', url: 'https://www.innoenergy.com/feed/' },
-        { name: 'Hardware Massive', url: 'https://hardwaremassive.com/feed/' }
+        { name: 'Opportunity Desk', url: 'https://opportunitydesk.org/feed/' },
+        { name: 'FundsForNGOs', url: 'https://www.fundsforngos.org/feed/' }
       ]
 
       for (const feedConfig of opportunityFeeds) {
@@ -207,10 +218,12 @@ serve(async (req) => {
           const feed = await parser.parseURL(feedConfig.url)
           for (const item of (feed.items || []).slice(0, 5)) {
             if (item.title && item.link) {
+              const rawDesc = item.contentSnippet || item.content || item.summary || item.title || ''
+              const cleanDesc = rawDesc.replace(/<[^>]*>?/gm, '').replace(/\s+/g, ' ').trim()
               searchResults.push({
-                title: item.title,
-                url: item.link,
-                description: item.contentSnippet || item.content || item.summary || item.title,
+                title: item.title.trim(),
+                url: item.link.trim(),
+                description: cleanDesc.length > 350 ? cleanDesc.slice(0, 347) + '...' : cleanDesc,
                 source_name: feedConfig.name
               })
             }
@@ -243,17 +256,28 @@ serve(async (req) => {
         .join('\n')
     }
 
-    const minifiedPool = searchResults.slice(0, 5).map((r: any) => ({
-      title: r.title, url: r.url, 
-      content: r.markdown ? r.markdown.substring(0, 1500) : r.description
-    }))
+    // Token optimization: Clean candidate pool snippets to 300 chars max, omit URLs to save tokens
+    const minifiedPool = searchResults.slice(0, 5).map((r: any, idx: number) => {
+      const raw = r.markdown || r.description || ''
+      const clean = raw
+        .replace(/!\[.*?\]\(.*?\)/g, '')
+        .replace(/\[(.*?)\]\(.*?\)/g, '$1')
+        .replace(/<[^>]*>?/gm, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+      return {
+        id: idx,
+        title: r.title,
+        content: clean.substring(0, 300)
+      }
+    })
 
     const prompt = opportunitiesPrompt(JSON.stringify(minifiedPool), learnedFeedback)
   
     let parsedOpps: any[] = []
     try {
       if (groqApiKey || geminiApiKey) {
-        const parsed = await generateWithFallback(prompt, groqApiKey, geminiApiKey)
+        const parsed = await generateWithFallback(prompt, groqApiKey, geminiApiKey, true, 768)
         parsedOpps = parsed?.opportunities || parsed?.items || []
         
         const rejectedItems = parsed?.rejected || []
@@ -266,8 +290,26 @@ serve(async (req) => {
       console.error("Failed LLM generation or parsing for scout opportunities:", err)
     }
 
+    // Map parsed opportunities back to candidate pool to resolve original URL
+    const enrichedOpps = parsedOpps.map((o: any) => {
+      let matchedResult = null
+      if (typeof o.id === 'number' && searchResults[o.id]) {
+        matchedResult = searchResults[o.id]
+      } else if (o.url) {
+        matchedResult = searchResults.find(r => r.url === o.url)
+      } else if (o.title) {
+        matchedResult = searchResults.find(r => r.title.toLowerCase() === o.title.toLowerCase())
+      }
+
+      return {
+        ...o,
+        title: o.title || matchedResult?.title || '',
+        url: matchedResult?.url || o.url || ''
+      }
+    }).filter(o => o.title && o.url)
+
     // Post-LLM gate: reject items with profile_match <= 20
-    parsedOpps = parsedOpps.filter(o => {
+    const filteredOpps = enrichedOpps.filter(o => {
       if (o.profile_match != null && o.profile_match <= 20) {
         console.log(`LLM-rejected (low match): ${o.title} (${o.profile_match}%)`)
         return false
@@ -275,12 +317,12 @@ serve(async (req) => {
       return true
     })
 
-    if (parsedOpps.length === 0) {
+    if (filteredOpps.length === 0) {
       return await appendPreviousOpps('LLM found no qualifying opportunities in today\'s pool')
     }
 
     // 3. Idempotency Check
-    const urls = parsedOpps.map((o: any) => o.url).filter(Boolean)
+    const urls = filteredOpps.map((o: any) => o.url).filter(Boolean)
     let existingUrls = new Set()
     
     if (urls.length > 0) {
@@ -295,7 +337,7 @@ serve(async (req) => {
       }
     }
 
-    const newOpps = parsedOpps.filter((o: any) => !existingUrls.has(o.url))
+    const newOpps = filteredOpps.filter((o: any) => !existingUrls.has(o.url))
 
     if (newOpps.length === 0) {
       return await appendPreviousOpps('All found opportunities already exist in the database')
@@ -307,18 +349,18 @@ serve(async (req) => {
       title: o.title,
       url: o.url,
       deadline: (o.deadline && String(o.deadline).match(/^\d{4}-\d{2}-\d{2}$/)) ? o.deadline : null,
-      effort: o.effort || 'med',
-      profile_match: o.profile_match ?? 75,
-      acceptance_chance: o.acceptance_chance ?? 50,
-      project_fit: o.project_fit || 'Scouted grant/fellowship opportunity',
-      what_offered: o.what_offered || 'Grant funding',
+      effort: ['low', 'med', 'high'].includes(o.effort) ? o.effort : 'med',
+      profile_match: typeof o.profile_match === 'number' ? Math.min(100, Math.max(0, o.profile_match)) : 70,
+      acceptance_chance: typeof o.acceptance_chance === 'number' ? Math.min(100, Math.max(0, o.acceptance_chance)) : 30,
+      project_fit: o.project_fit || 'Scouted fellowship or funding opportunity matching applicant profile.',
+      what_offered: o.what_offered || 'See program call for full award terms.',
       status: 'new'
     }))
 
     const { data: insertedRows, error: insertErr } = await supabaseAdmin
       .from('hardware_opportunities')
       .insert(opsToInsert)
-      .select('id, title, url, project_fit, profile_match, acceptance_chance')
+      .select('id, title, url, project_fit, profile_match, acceptance_chance, effort, deadline, what_offered')
 
     if (insertErr) throw insertErr
 
@@ -331,7 +373,11 @@ serve(async (req) => {
       type: 'opportunity',
       hardware_opportunity_id: o.id,
       profile_match: o.profile_match,
-      acceptance_chance: o.acceptance_chance
+      acceptance_chance: o.acceptance_chance,
+      effort: o.effort,
+      deadline: o.deadline,
+      what_offered: o.what_offered,
+      project_fit: o.project_fit
     }))
 
     const { data: existingBrief } = await supabaseAdmin

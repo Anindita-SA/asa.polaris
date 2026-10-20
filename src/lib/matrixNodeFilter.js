@@ -7,6 +7,7 @@
  * @param {number} [options.overlookDays=14] - Horizon window in days for scheduled tasks
  * @param {boolean} [options.hideReminders=false] - Whether to suppress reminder category tasks
  * @param {boolean} [options.hidePolaris=false] - Whether to suppress internal polaris category tasks
+ * @param {boolean} [options.hideUpkeep=false] - Whether to suppress upkeep category tasks
  * @param {Date|string|number} [options.currentDate=new Date()] - Reference date for deadline calculations
  * @returns {Array} Filtered list of tasks eligible to render on the 2D matrix canvas plane
  */
@@ -17,6 +18,7 @@ export function filterMatrixNodes(tasks = [], options = {}) {
     overlookDays = 14,
     hideReminders = false,
     hidePolaris = false,
+    hideUpkeep = false,
     currentDate = new Date()
   } = options;
 
@@ -46,6 +48,7 @@ export function filterMatrixNodes(tasks = [], options = {}) {
     // Invariant 4: Category suppression
     if (hideReminders && t.category === 'reminders') return false;
     if (hidePolaris && (t.category === 'polaris' || (t.title || '').toLowerCase().includes('polaris'))) return false;
+    if (hideUpkeep && t.category === 'upkeep') return false;
 
     const isParentProject = parentIdsWithChildren.has(t.id);
 

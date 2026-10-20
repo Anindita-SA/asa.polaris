@@ -131,6 +131,16 @@ describe('filterMatrixNodes', () => {
     expect(filtered.map(t => t.id)).toEqual(['1']);
   });
 
+  it('filters upkeep category when hideUpkeep flag is enabled', () => {
+    const tasks = [
+      { id: '1', title: 'Normal task', category: 'career', quadrant: 'urgent_important', status: 'active' },
+      { id: '2', title: 'Clean room', category: 'upkeep', quadrant: 'urgent_important', status: 'active' }
+    ];
+
+    const filtered = filterMatrixNodes(tasks, { hideUpkeep: true, currentDate: baseDate });
+    expect(filtered.map(t => t.id)).toEqual(['1']);
+  });
+
   it('handles empty inputs and malformed tasks safely', () => {
     expect(filterMatrixNodes(null)).toEqual([]);
     expect(filterMatrixNodes(undefined)).toEqual([]);

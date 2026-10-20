@@ -69,7 +69,7 @@ Reply with ONLY the fixed TypeScript code. No markdown fences, no explanation.`;
 
     const patched = await generateWithFallbackNode(prompt, null, null, {
       asJson: false,
-      preferredModel: 'gemini-3.1-flash-lite',
+      preferredModel: 'gemini-2.5-flash',
       maxOutputTokens: estimatedTokens
     });
 
@@ -79,12 +79,15 @@ Reply with ONLY the fixed TypeScript code. No markdown fences, no explanation.`;
     }
 
     fs.writeFileSync(indexPath, patched.trim());
-    console.log(`[${functionName}] Patched. Deploying...`);
-
-    try {
-      execSync(`npx supabase functions deploy ${functionName}`, { stdio: 'inherit' });
-    } catch (e) {
-      console.error(`[${functionName}] Deploy failed.`);
+    if (process.argv.includes('--deploy')) {
+      console.log(`[${functionName}] Patched. Deploying...`);
+      try {
+        execSync(`npx supabase functions deploy ${functionName}`, { stdio: 'inherit' });
+      } catch (e) {
+        console.error(`[${functionName}] Deploy failed.`);
+      }
+    } else {
+      console.log(`[${functionName}] Patched file locally. Pass --deploy to push to production.`);
     }
   }
 }
