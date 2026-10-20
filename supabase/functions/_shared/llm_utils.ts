@@ -43,7 +43,7 @@ export function extractJsonFromLlm(content: string): any {
 }
 
 export async function getBestGroqModel(apiKey: string): Promise<string> {
-  const fallback = 'llama-3.3-70b-versatile';
+  const fallback = 'qwen/qwen3.8-27b';
   if (!apiKey) return fallback;
 
   try {
@@ -62,10 +62,11 @@ export async function getBestGroqModel(apiKey: string): Promise<string> {
     const filteredModels = availableModels.filter((id: string) => !excludeRegex.test(id));
 
     const priorities = [
+      'qwen/qwen3.8-27b',
+      'openai/gpt-oss-120b',
+      'openai/gpt-oss-20b',
       'llama-3.3-70b-versatile',
-      'llama-3.1-8b-instant',
-      'llama-3.1-70b-versatile',
-      'llama3-70b-8192'
+      'llama-3.1-8b-instant'
     ];
 
     for (const prefix of priorities) {
@@ -106,17 +107,17 @@ export async function generateWithFallback(
 
   // 1. Try Groq First (capped at 2 models max with 6-second timeout per attempt)
   if (groqApiKey) {
-    let topModel = 'llama-3.3-70b-versatile';
+    let topModel = 'qwen/qwen3.8-27b';
     try {
       topModel = await getBestGroqModel(groqApiKey);
     } catch (e) {
-      topModel = 'llama-3.3-70b-versatile';
+      topModel = 'qwen/qwen3.8-27b';
     }
 
     const groqCandidates = Array.from(new Set([
       topModel,
-      'llama-3.3-70b-versatile',
-      'llama-3.1-8b-instant'
+      'qwen/qwen3.8-27b',
+      'openai/gpt-oss-120b'
     ])).slice(0, 2);
 
     for (const model of groqCandidates) {
@@ -156,7 +157,7 @@ export async function generateWithFallback(
     }
   }
 
-  // 2. Fallback to Gemini cascade (gemini-3.7-flash -> gemini-3.5-flash with 8s timeout)
+  // 2. Fallback to Gemini cascade (gemini-3.8-flash -> gemini-3.5-flash -> gemini-flash-latest with 8s timeout)
   if (geminiApiKey) {
     const nonSystemMessages = messages.filter((m: any) => m.role !== 'system');
     const geminiContents = nonSystemMessages.map((msg: any) => ({
@@ -168,7 +169,7 @@ export async function generateWithFallback(
       geminiContents.push({ role: 'user', parts: [{ text: systemText }] });
     }
 
-    const geminiModels = ['gemini-3.7-flash', 'gemini-3.5-flash'];
+    const geminiModels = ['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-flash-latest'];
     for (const model of geminiModels) {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 8000);
@@ -185,9 +186,9 @@ export async function generateWithFallback(
           geminiPayload.system_instruction = { parts: [{ text: systemText }] };
         }
 
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`, {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': geminiApiKey },
           body: JSON.stringify(geminiPayload),
           signal: controller.signal
         });

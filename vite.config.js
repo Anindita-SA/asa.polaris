@@ -1,3 +1,11 @@
+import fs from 'fs'
+if (fs.realpathSync.native) {
+  fs.realpathSync.native = fs.realpathSync
+}
+if (fs.realpath.native) {
+  fs.realpath.native = fs.realpath
+}
+
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'

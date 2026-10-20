@@ -1,3 +1,113 @@
+## [2026-10-19] Opportunity Scout Structured Breakdown & Zero-Leak News Bookmarking (v1.2.52)
+- **Opportunity Description Breakdown & UI Structure**:
+  - Implemented `parseOpportunityBreakdown` and `formatTwoSentenceSummary` in `src/lib/opportunityUtils.js` to parse opportunity descriptions into three structured components: Program Overview, Strategic Fit & Eligibility, and What is Offered.
+  - Added unit test suite in `src/lib/opportunityUtils.test.js` covering multi-sentence parsing, header-based formats, empty/null safety, and two-sentence truncation (4/4 tests passing).
+  - Updated `HardwareScoutPanel.jsx` with an expandable "View Strategic Details" drawer rendering delineated sections with visual icons and constraint badges.
+  - Updated `DayBriefView.jsx` to support expanding strategic details directly within the Day Brief view.
+- **Candidate ID Indexing & Zero-URL Token Optimization**:
+  - Minified candidate payloads in `generate-morning-brief`, `scout-opportunities`, and `scripts/scout_opportunities.js` by indexing candidates by integer ID and omitting URLs from LLM prompts.
+  - Match-back logic resolves source URLs and titles in code by ID, reducing prompt and completion token consumption by >50%.
+- **Stale Record Cleanup & Safeguards**:
+  - Purged legacy 80/60 "Travel and project funding" records across historical `morning_briefs` entries.
+  - Added filter in `appendPreviousOpps` to exclude stale fallback opportunities from ever being recycled into active briefs.
+  - Verified news items are never auto-saved into `media_log` or `tasks` without explicit user bookmarking.
+
+## [2026-10-19] News Multi-Domain Ingestion, Consecutive-Day Anti-Repeat & Scout Model Overhaul (v1.2.51)
+- **Multi-Domain Ingestion & Verified RSS Feeds**:
+  - Replaced legacy US-centric EV feeds (Electrek, CleanTechnica, Canary Media) in Supabase `brief_sources` table and fallback configs with 7 verified high-signal feeds: Hakai Magazine (marine & ocean conservation), Mongabay India (South Asia biodiversity), Mongabay Global (community-led & global conservation), Phys.org Biotechnology (biotech & genetics), The Conversation Health (inclusive health research), Wildlabs (conservation tech & telemetry), and Innovation Origins (sustainable innovation & European tech).
+- **Consecutive-Day Anti-Repeat News Logic**:
+  - In `generate-morning-brief/index.ts`, added inspection of recent briefs to detect yesterday's news titles, sources, and categories.
+  - Updated `newsPrompt` in `personal_prompts.ts` with explicit domain targets (Biotech & genetics, Health & medicine, Marine conservation, Community-led conservation, Conservation tech, Sustainable agriculture) and an Anti-Repeat rule instructing the LLM to avoid yesterday's domains and enforce cross-day variety.
+  - Hardened Tier 3 heuristic fallback to group candidates by source and rotate across distinct domains rather than pulling multiple items from a single source.
+  - Added explicit `category` tagging to morning brief news records.
+- **Aggressive Token Optimization**:
+  - Stripped HTML, boilerplate markdown, and excessive whitespace from all candidate payloads before sending to LLM.
+  - Truncated news candidate snippets to 180 characters max and limited feed ingestion to 2 fresh items per feed.
+  - In `scout-opportunities/index.ts` and `scripts/scout_opportunities.js`, stripped link/image markdown syntax and truncated candidate descriptions to 350 characters max (down from 1,500 characters).
+  - Capped LLM `maxTokens` to 512 for morning brief news and 768 for opportunity evaluations.
+- **Opportunity Scout Model Cascade & Evaluation Calibration**:
+  - Diagnosed that previous runs were falling into default 80 60 scores and "Travel and project funding" because Groq `llama-3.3-70b-versatile` / `llama-3.1-8b-instant` and Gemini `gemini-2.5-flash` were failing with 404 / 503.
+  - Updated Groq candidate model cascade in `supabase/functions/_shared/llm_utils.ts`, `scripts/lib/llm_utils.js`, and `src/lib/llm.js` to active available models (`qwen/qwen3.8-27b`, `openai/gpt-oss-120b`, `openai/gpt-oss-20b`).
+  - Updated Gemini fallback cascade to active models `gemini-3.8-flash` and `gemini-3.5-flash`.
+  - Fixed service role JWT authentication check in `scout-opportunities/index.ts` by inspecting JWT payload role (`role === 'service_role'`).
+  - Overhauled `opportunitiesPrompt` in `personal_prompts.ts` and `scout_opportunities.js` to eliminate misleading 85/60 schema examples, ban generic funding placeholders, and enforce realistic calibrated scoring (0-100) and structured 2-3 sentence `project_fit` summaries.
+  - Enriched IBCI Fellowship record and dismissed 7 noisy aggregator listicles from `hardware_opportunities`.
+  - Deployed updated Edge Functions to Supabase Cloud and verified live execution.
+- **Database Curation & Media Log Cleanup**:
+  - Cleaned up 4 untagged morning-brief news articles that had been auto-migrated into `media_log`.
+  - Added `brief_sources` to `ALLOWED_TABLES` in `scripts/lib/safe_supabase.js`.
+
+## [2026-10-15] Morning Spark & Day Brief Synchronization Alignment (v1.2.50)
+- **News Item Filtering in SparkPopup**:
+  - Filtered items passed to `SparkPopup` in `Dashboard.jsx` and inside `SparkPopup.jsx` so it strictly shows news items, matching `DayBriefView`'s news filter logic (`item.type === 'news' || (!item.type && !item.hardware_opportunity_id)`).
+  - Opportunity items (`type === 'opportunity'` or having `hardware_opportunity_id`) are cleanly excluded from the popup to prevent mix-ups with news.
+  - Hardened source badge fallback in `SparkPopup.jsx` to render `item.source_name || item.source || 'News'`, matching `DayBriefView.jsx`.
+  - Added URL validation using `safeExternalUrl` from `src/lib/urlUtils.js`.
+- **Morning Brief Dexie Persistence & Opportunity-Aware Check**:
+  - In `useMorningBrief.js`, replaced naive `items.length > 0` checks with predicate `hasNewsItem(items)` (`item.type === 'news' || (!item.type && !item.hardware_opportunity_id)`). If an existing brief only contains opportunities (e.g. from Opportunity Scout), generation is not skipped.
+  - When `generate-morning-brief` edge function returns generated items, the canonical record is retrieved and persisted into Dexie via `db.morning_briefs.put(record)` and `offlineUpsert('morning_briefs', record)`.
+  - Fallback logic preserves existing brief ID and merges existing non-news items so opportunities are never erased from Dexie.
+  - Dispatches `polaris-morning-brief-updated` on success and `polaris-morning-brief-failed` on error.
+- **Reactive Sequence Updating in useMorningSequence**:
+  - Added window event listeners for `polaris-morning-brief-updated`, `polaris-tasks-changed` (for `morning_briefs` table), and `polaris-morning-brief-failed` in `useMorningSequence.js`.
+  - Stays in `loading` stage if brief exists but lacks news signals, preventing premature empty popup modals while news generation is in flight.
+  - Automatically updates `stage` and `briefItems` state immediately when a new brief is generated.
+  - Falls back to Supabase to fetch news if Dexie brief lacks news items.
+  - Added safety timeout to ensure progression to `brief` if news generation encounters network timeouts.
+- **DayBriefView & DayGuideView Synchronization**:
+  - In `DayBriefView.jsx`, added Supabase fallback check when local brief lacks news items, and added `polaris-tasks-changed` listener for `morning_briefs`.
+  - In `DayGuideView.jsx` and `Dashboard.jsx`, added `sessionStorage.getItem('polaris_pending_day_guide_tab')` intent check to eliminate 50ms race condition with lazy-loaded bundle when dismissing Spark popup.
+- **Test Bench & Quality Gates**:
+  - Added 3 new test suites (`SparkPopup.test.jsx`, `useMorningBrief.test.js`, `useMorningSequence.test.js`) with 22 comprehensive unit tests covering news filtering, badge fallback, reactive event dispatch, Dexie persistence, Supabase fallback, and edge function error handling.
+  - All 30 test files (324 tests) passing with 100% success rate in `vitest`.
+  - Production Vite build verified clean (`npm run build`). 0 CSS gradients, 0 em dashes, 0 en dashes.
+
+## [2026-10-14] Upkeep Category, Collapsible Filter Toolbar & Needs Attention Direct Navigation (v1.2.49)
+- **Upkeep Category in Task Matrix**:
+  - Added native `'upkeep'` category (`tasks.category`) representing chores, health, housekeeping, and daily errands.
+  - Added Upkeep option to Category select dropdown menu in Task Details drawer.
+  - Display subtle green Wrench icon (`text-emerald-400`) on 2D quadrant cards and free-floating canvas nodes for upkeep tasks.
+  - Added `hideUpkeep` state with localStorage persistence (`polaris_matrix_hide_upkeep`).
+  - Added upkeep category suppression rule in pure filter engine `filterMatrixNodes.js`.
+  - Updated Brain Dump tray ordering to place upkeep directly after polaris (`{ polaris: 1, upkeep: 2, normal: 3, reminders: 4 }`).
+- **Collapsible Filter Toolbar with Framer Motion**:
+  - Replaced static filter buttons with animated collapsible toolbar in top-right of Matrix Canvas.
+  - Added `filtersExpanded` state initialized from localStorage (`polaris_matrix_filters_expanded`).
+  - Compact collapsed state displays `<Filter />` icon with `<ChevronLeft />` and active indicator dot when any category filter is engaged.
+  - Expanded state features `<ChevronRight />` collapse trigger and 4 filter pills: Upkeep (`<Wrench />`), Polaris (`<Bot />`), Reminders (`<Bell />`), and Overlook Horizon (`1D` / `7D` / `14D` / `Eye`).
+- **Direct Navigation from Needs Attention to Task View**:
+  - Made task and habit rows in Needs Attention container in `RemindersPanel.jsx` clickable with hover feedback.
+  - Clicking item dispatches `nav-task-details` custom event with `taskId` and opens Day Guide. Complete checkmark retains stop propagation.
+  - `Dashboard.jsx` handles `nav-task-details` by switching to `day_guide` and closing active mobile drawer.
+  - `DayGuideView.jsx` handles `nav-task-details` by activating the `spatial` (Matrix) tab.
+  - `MatrixCanvasView.jsx` handles `nav-task-details` by selecting the task, expanding Details drawer, and smoothly centering canvas viewport on the task.
+- **Cross-View Session Navigation & Deferred Centering**: Hardened navigation between unmounted views using `polaris_pending_nav_task_id` in `sessionStorage` and deferred canvas centering in `MatrixCanvasView.jsx`. Auto-expands parent cards when navigating to subtasks and provides glowing amber highlights on active subtasks.
+- **Test Bench & Quality Gates**: All 27 test files (302 tests) passing with 100% success rate. 0 CSS gradients, 0 em dashes, 0 en dashes.
+
+## [2026-10-13] Opportunity Scout Overhaul, Database Curation & Pipeline Healing (v1.2.48)
+- **Expandable Structured Summaries in Scout UI**: Replaced the sparse 3-word "Offered" text with rich, structured summaries in `HardwareScoutPanel.jsx`. Displays a 2-line teaser by default, expanding via chevron toggle into four dedicated sections: (1) Program Overview and Scope, (2) Strategic Fit & Eligibility (explicitly confirming Bangladeshi nationality, EEE undergrad, and Indian student visa constraints), (3) What's Offered (funding, stipend, perks), and (4) Application Draft with a one-click clipboard copy button.
+- **Enhanced Edit Form for All 9 Fields**: Added complete edit mode support in `HardwareScoutPanel.jsx` for `title`, `url`, `deadline`, `effort`, `project_fit`, `what_offered`, `profile_match`, `acceptance_chance`, and `application_draft`, with atomic `offlineUpdate` synchronization.
+- **High-Information Compact Day Brief Cards**: Overhauled opportunity rendering in `DayBriefView.jsx` with an auto-extracted 2-sentence summary, 6 metadata badges (Source, Effort, Deadline, Match %, Selection Probability, Archived), and fast action buttons (Star toggle, Flag to Apply task creation, and Dismiss feedback modal).
+- **Automated Scout Stagnation Root Cause Remediation**:
+  - Unblocked `opportunitydesk.org` and `fundsforngos.org` in `URL_BLOCKLIST_PATTERNS` within `supabase/functions/scout-opportunities/index.ts`.
+  - Replaced non-existent Gemini model IDs (`gemini-3.7-flash` and `gemini-3.5-flash`) with active models (`gemini-2.5-flash` and `gemini-1.5-flash`) across `scripts/lib/llm_utils.js` and `supabase/functions/_shared/llm_utils.ts`.
+  - Hardened edge function service role authentication by checking `token === serviceRoleKey` directly and verifying user caller tokens via `auth.getUser()`, removing unverified base64 role parsing.
+  - Secured API key transmission by sending `x-goog-api-key` in HTTP headers instead of exposing keys in URL query parameters.
+- **Database Curation & Side Quest Seeding**: Executed `scripts/curate_opportunities.js` against Supabase. Purged 13 noisy aggregator listicles, enriched 8 active opportunities with structured summaries and fit rationales, and seeded 5 top vetted opportunities from Side Quests and Master Strategy (Erasmus Mundus STEPS Full-Ride, Knight Center Data Investigation Certifications, TU Delft Justus & Louise van Effen Scholarship, Politecnico di Milano Merit Scholarship, EarthRanger Conservation Tech Award). Database now maintains 14 high-signal `new` opportunities and 1 `applied` opportunity.
+- **Scheduled GitHub Actions Workflow**: Created `.github/workflows/scout_opportunities.yml` with daily cron execution at 01:00 UTC (06:30 IST) and manual `workflow_dispatch` trigger.
+- **Test Bench & Quality Gates**: All 27 test files (292 tests) passing with 100% success rate. Verified clean Vite production build with service worker precache updated (38 entries / 1514.72 KiB). 0 CSS gradients, 0 em dashes, 0 en dashes.
+
+## [2026-10-12] E-Summit '26 IIT Bombay Reminder & Calendar Integration (v1.2.47)
+- **E-Summit '26 Milestone**: Added milestone "E-Summit '26 (IIT Bombay)" scheduled for 2026-12-12 (XP: 100) covering the annual entrepreneurship summit hosted by E-Cell IIT Bombay on December 12-13, 2026.
+- **Preparatory & Attendance Tasks**: Created 2 scheduled tasks linked to the milestone with matrix protection compliance: a registration and pass logistics check on 2026-11-28 (2 weeks prior), and summit attendance on 2026-12-12.
+- **Calendar Event & ICS Sync**: Added confirmed event to `calendar_events` table in Supabase and synchronized the `VEVENT` entry in `docs/Masters_Timeline_Sync.ics` for Google Calendar and device integration.
+- **Security Allowlist Extension**: Added `calendar_events` to `ALLOWED_TABLES` in `scripts/lib/safe_supabase.js`.
+
+## [2026-10-12] UN Environmental Track & YPP Roadmap Integration (v1.2.46)
+- **UN Environmental Track Backburner Entry**: Added "UN Environmental Track & YPP Roadmap" to `DEFAULT_BACKBURNER` in `src/data/defaults.js`, scheduled for revisit on 2027-02-15 (Spring semester kickoff following European MSc applications).
+- **Spring 2027 Milestones & Tasks Deployment**: Executed `scripts/add_un_ypp_items.js` deploying 1 milestone ("UN Environmental Track & YPP Roadmap Launch" due 2027-02-15) and 4 scheduled tasks covering UNITAR UN CC:Learn certification, openLCA lifecycle carbon modeling, GHG Protocol corporate standard study, and annual YPP eligibility monitoring.
+- **Production Build Verification**: Verified clean Vite production build (2823 modules transformed, service worker precache updated).
+
 ## [2026-10-11] Aloka Fit Nutrition AI Engine Overhaul & Dynamic Gemini Latest Architecture (v1.2.5)
 - **Dynamic Latest Gemini Resolution**: Transitioned `supabase/functions/groq-proxy/index.ts` from hardcoded static strings to Google Gemini's hot-swapped `gemini-flash-latest` alias, backed by an active fallback list (`gemini-2.5-flash`, `gemini-2.0-flash`, `gemini-1.5-flash`) and a 6-hour cached runtime discovery mechanism against `v1beta/models`, eliminating manual model bumps when old model IDs deprecate.
 - **Thinking Latency Elimination**: Configured `thinkingConfig: { thinkingBudget: 0 }` with automatic retry fallback, removing 2 to 3 seconds of unwanted silent reasoning token generation and cutting lookup latency down to sub-1s.

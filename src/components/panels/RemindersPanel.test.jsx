@@ -740,6 +740,71 @@ describe("RemindersPanel", () => {
     const nudgesHeader = screen.getByRole("button", { name: /Nudges/i });
     expect(within(nudgesHeader).getByText("2")).toBeDefined();
   });
+
+  it("clicking a task in Needs Attention dispatches nav-task-details and calls onOpenDayGuide", async () => {
+    const onOpenDayGuide = vi.fn();
+    const dispatchSpy = vi.spyOn(window, "dispatchEvent");
+
+    setupSupabaseMock([
+      { id: "focus-1", title: "Focus 1", status: "active", category: "work", wsjfScore: 10.0 },
+      { id: "focus-2", title: "Focus 2", status: "active", category: "work", wsjfScore: 9.0 },
+      { id: "task-attention-1", title: "Urgent overdue task", status: "active", category: "work", deadline: "2020-01-01", wsjfScore: 5.0 }
+    ], []);
+
+    render(<RemindersPanel onOpenDayGuide={onOpenDayGuide} />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Needs Attention/)).toBeDefined();
+    });
+
+    const needsAttentionHeading = screen.getByText(/Needs Attention/);
+    const needsAttentionSection = needsAttentionHeading.closest(".rounded-xl");
+    const taskText = within(needsAttentionSection).getByText("Urgent overdue task");
+    const row = taskText.closest(".cursor-pointer");
+    expect(row).toBeDefined();
+
+    fireEvent.click(row);
+
+    expect(onOpenDayGuide).toHaveBeenCalled();
+    expect(sessionStorage.getItem("polaris_pending_nav_task_id")).toBe("task-attention-1");
+    expect(dispatchSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "nav-task-details",
+        detail: { taskId: "task-attention-1" }
+      })
+    );
+
+    dispatchSpy.mockRestore();
+  });
+
+  it("clicking the complete checkmark button does not trigger nav-task-details navigation", async () => {
+    const onOpenDayGuide = vi.fn();
+    const dispatchSpy = vi.spyOn(window, "dispatchEvent");
+
+    setupSupabaseMock([
+      { id: "focus-1", title: "Focus 1", status: "active", category: "work", wsjfScore: 10.0 },
+      { id: "focus-2", title: "Focus 2", status: "active", category: "work", wsjfScore: 9.0 },
+      { id: "task-attention-2", title: "Checkoff task", status: "active", category: "work", deadline: "2020-01-01", wsjfScore: 5.0 }
+    ], []);
+
+    render(<RemindersPanel onOpenDayGuide={onOpenDayGuide} />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Needs Attention/)).toBeDefined();
+    });
+
+    const needsAttentionHeading = screen.getByText(/Needs Attention/);
+    const needsAttentionSection = needsAttentionHeading.closest(".rounded-xl");
+
+    const checkButton = within(needsAttentionSection).getByRole("button", { name: "Complete Checkoff task" });
+    fireEvent.click(checkButton);
+
+    expect(onOpenDayGuide).not.toHaveBeenCalled();
+    const navDetailsCalls = dispatchSpy.mock.calls.filter(c => c[0]?.type === "nav-task-details");
+    expect(navDetailsCalls.length).toBe(0);
+
+    dispatchSpy.mockRestore();
+  });
 });
 
 

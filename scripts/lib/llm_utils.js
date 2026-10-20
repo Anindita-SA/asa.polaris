@@ -12,7 +12,7 @@ function cleanLlmContent(text, asJson = false) {
 }
 
 export async function getBestGroqModel(apiKey) {
-  const fallback = 'llama-3.3-70b-versatile';
+  const fallback = 'qwen/qwen3.8-27b';
   if (!apiKey) return fallback;
 
   try {
@@ -31,10 +31,11 @@ export async function getBestGroqModel(apiKey) {
     const filteredModels = availableModels.filter(id => !excludeRegex.test(id));
 
     const priorities = [
+      'qwen/qwen3.8-27b',
+      'openai/gpt-oss-120b',
+      'openai/gpt-oss-20b',
       'llama-3.3-70b-versatile',
-      'llama-3.1-8b-instant',
-      'llama-3.1-70b-versatile',
-      'llama3-70b-8192'
+      'llama-3.1-8b-instant'
     ];
 
     for (const prefix of priorities) {
@@ -100,9 +101,9 @@ export async function generateWithFallbackNode(prompt, groqApiKey = null, gemini
           maxOutputTokens: maxOut || 4096
         }
       };
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${preferredModel}:generateContent?key=${finalGeminiKey}`, {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${preferredModel}:generateContent`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': finalGeminiKey },
         body: JSON.stringify(geminiPayload),
         signal: controller.signal
       });
@@ -124,17 +125,17 @@ export async function generateWithFallbackNode(prompt, groqApiKey = null, gemini
 
   // 1. Try Groq with 2-model candidate list and 6s timeout
   if (finalGroqKey) {
-    let topModel = 'llama-3.3-70b-versatile';
+    let topModel = 'qwen/qwen3.8-27b';
     try {
       topModel = await getBestGroqModel(finalGroqKey);
     } catch (e) {
-      topModel = 'llama-3.3-70b-versatile';
+      topModel = 'qwen/qwen3.8-27b';
     }
 
     const groqCandidates = Array.from(new Set([
       topModel,
-      'llama-3.3-70b-versatile',
-      'llama-3.1-8b-instant'
+      'qwen/qwen3.8-27b',
+      'openai/gpt-oss-120b'
     ])).slice(0, 2);
 
     for (const candidate of groqCandidates) {
@@ -148,7 +149,7 @@ export async function generateWithFallbackNode(prompt, groqApiKey = null, gemini
             model: candidate,
             messages: [{ role: 'user', content: prompt }],
             response_format: asJson ? { type: 'json_object' } : undefined,
-            max_tokens: maxOut || 2048,
+            max_tokens: maxOut || 1024,
             temperature: 0.7
           }),
           signal: controller.signal
@@ -171,9 +172,9 @@ export async function generateWithFallbackNode(prompt, groqApiKey = null, gemini
     }
   }
 
-  // 2. Fallback to Gemini cascade (gemini-3.7-flash -> gemini-3.5-flash with 8s timeout)
+  // 2. Fallback to Gemini cascade (gemini-3.8-flash -> gemini-3.5-flash -> gemini-flash-latest with 8s timeout)
   if (finalGeminiKey) {
-    const geminiModels = ['gemini-3.5-flash', 'gemini-3.1-flash-lite'];
+    const geminiModels = ['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-flash-latest'];
     for (const model of geminiModels) {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 8000);
@@ -182,13 +183,13 @@ export async function generateWithFallbackNode(prompt, groqApiKey = null, gemini
           contents: [{ role: 'user', parts: [{ text: prompt }] }],
           generationConfig: {
             responseMimeType: asJson ? "application/json" : "text/plain",
-            maxOutputTokens: maxOut || 2048
+            maxOutputTokens: maxOut || 1024
           }
         };
 
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${finalGeminiKey}`, {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': finalGeminiKey },
           body: JSON.stringify(geminiPayload),
           signal: controller.signal
         });

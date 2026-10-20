@@ -356,7 +356,7 @@ describe('MatrixCanvasView', () => {
       status: 'active',
       quadrant: 'urgent_important', // Currently Q1
       mental_load: 'high', // Should be Q2 (important_not_urgent) since deadline is far
-      deadline: '2026-10-15'
+      deadline: new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0]
     });
 
     const onTasksChanged = vi.fn();
@@ -934,7 +934,7 @@ describe('MatrixCanvasView', () => {
         title: 'Long Term Infrastructure Upgrade',
         status: 'active',
         quadrant: 'urgent_important', // Currently Q1
-        deadline: '2026-10-30' // Far away
+        deadline: '2026-11-30' // Far away
       });
       dbTasks.push({
         id: 'normal-child-1',
@@ -942,7 +942,7 @@ describe('MatrixCanvasView', () => {
         user_id: mockUser.id,
         title: 'Research Database Options',
         status: 'active',
-        deadline: '2026-10-20' // Far away
+        deadline: '2026-11-20' // Far away
       });
 
       render(<MatrixCanvasView />);
@@ -1244,6 +1244,159 @@ describe('MatrixCanvasView', () => {
       ];
 
       expect(computeActiveSubtask(subtasks)).toBeNull();
+    });
+  });
+
+  describe('Upkeep Category and Collapsible Filter Toolbar', () => {
+    it('renders Upkeep option in Category select menu in Task Details drawer', async () => {
+      render(<MatrixCanvasView />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Deploy Polaris Alpha')).toBeDefined();
+      });
+
+      // Select task to open details
+      fireEvent.click(screen.getByText('Deploy Polaris Alpha'));
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Deploy Polaris Alpha')).toBeDefined();
+      });
+
+      const upkeepOption = screen.getByRole('option', { name: 'Upkeep' });
+      expect(upkeepOption).toBeDefined();
+
+      const categorySelect = screen.getByText('Category').closest('div').querySelector('select');
+      fireEvent.change(categorySelect, { target: { value: 'upkeep' } });
+
+      await waitFor(() => {
+        expect(offlineApi.offlineUpdate).toHaveBeenCalledWith('tasks', { id: 'task-1' }, { category: 'upkeep' });
+      });
+    });
+
+    it('displays Wrench icon for upkeep category tasks on canvas', async () => {
+      dbTasks.push({
+        id: 'task-upkeep-1',
+        user_id: mockUser.id,
+        title: 'Fix kitchen sink faucet',
+        status: 'active',
+        quadrant: 'urgent_important',
+        category: 'upkeep',
+        deadline: '2026-09-30'
+      });
+
+      render(<MatrixCanvasView />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Fix kitchen sink faucet')).toBeDefined();
+      });
+
+      const upkeepIcons = screen.getAllByTitle('Upkeep');
+      expect(upkeepIcons.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('collapses and expands filter toolbar via chevron button', async () => {
+      render(<MatrixCanvasView />);
+
+      await waitFor(() => {
+        expect(screen.getByTitle('Collapse Filters')).toBeDefined();
+      });
+
+      // Click collapse button
+      const collapseBtn = screen.getByTitle('Collapse Filters');
+      fireEvent.click(collapseBtn);
+
+      await waitFor(() => {
+        expect(screen.getByTitle('Expand Filters')).toBeDefined();
+      });
+
+      // Click expand button
+      const expandBtn = screen.getByTitle('Expand Filters');
+      fireEvent.click(expandBtn);
+
+      await waitFor(() => {
+        expect(screen.getByTitle('Collapse Filters')).toBeDefined();
+      });
+    });
+
+    it('navigates to task details drawer on nav-task-details window event', async () => {
+      render(<MatrixCanvasView />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Deploy Polaris Alpha')).toBeDefined();
+      });
+
+      // Dispatch nav-task-details event
+      window.dispatchEvent(new CustomEvent('nav-task-details', { detail: { taskId: 'task-1' } }));
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Deploy Polaris Alpha')).toBeDefined();
+      });
+    });
+
+    it('navigates to task details drawer on mount if polaris_pending_nav_task_id is present in sessionStorage', async () => {
+      sessionStorage.setItem('polaris_pending_nav_task_id', 'task-1');
+
+      render(<MatrixCanvasView />);
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Deploy Polaris Alpha')).toBeDefined();
+      });
+
+      expect(sessionStorage.getItem('polaris_pending_nav_task_id')).toBeNull();
+    });
+
+    it('displays active dot on collapsed filter toolbar button when a category filter is active', async () => {
+      localStorage.setItem('polaris_matrix_filters_expanded', 'false');
+      localStorage.setItem('polaris_matrix_hide_upkeep', 'true');
+
+      render(<MatrixCanvasView />);
+
+      await waitFor(() => {
+        const expandBtn = screen.getByTitle('Expand Filters');
+        expect(expandBtn).toBeDefined();
+        const dot = expandBtn.querySelector('.bg-pulsar');
+        expect(dot).toBeDefined();
+      });
+
+      localStorage.removeItem('polaris_matrix_filters_expanded');
+      localStorage.removeItem('polaris_matrix_hide_upkeep');
+    });
+
+    it('auto-expands parent task card on canvas when navigating to a child subtask', async () => {
+      const parentId = 'parent-project-1';
+      const childId = 'child-sub-1';
+      dbTasks.push(
+        {
+          id: parentId,
+          user_id: mockUser.id,
+          title: 'Parent Master Project',
+          status: 'active',
+          quadrant: 'urgent_important',
+          category: 'work'
+        },
+        {
+          id: childId,
+          user_id: mockUser.id,
+          title: 'Configured Child Action',
+          parent_task_id: parentId,
+          status: 'active',
+          quadrant: 'urgent_important',
+          category: 'work'
+        }
+      );
+
+      render(<MatrixCanvasView />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Parent Master Project')).toBeDefined();
+      });
+
+      // Dispatch nav-task-details for child subtask
+      window.dispatchEvent(new CustomEvent('nav-task-details', { detail: { taskId: childId } }));
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Configured Child Action')).toBeDefined();
+      });
     });
   });
 });

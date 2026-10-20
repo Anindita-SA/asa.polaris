@@ -175,6 +175,13 @@ export const DEFAULT_BACKBURNER = [
     context_snapshot:
       "ME3+ (Management & Engineering of Environment & Energy) - full ride, EEE qualifies, best sustainability-policy fit. MESPOM - full ride, more policy-heavy, less technical. Both have Jan 2027 deadlines. Apply with template SOP adaptation, not bespoke effort. Primary energy goes to IPD, TU/e, Polimi, Wageningen.",
   },
+  {
+    title: "UN Environmental Track & YPP Roadmap",
+    why_deferred: "Immediate focus is post-IELTS freelance cash generation, European MSc applications (Jan 2027 deadline), and graduating NIT Trichy. Full YPP preparation and monitoring begins next semester.",
+    context_snapshot:
+      "Track annual participating country eligibility for Bangladesh at careers.un.org/ypp (Development & Sustainability or IT/Engineering tracks). Complete UN CC:Learn core primer and openLCA modeling as portfolio proof. Target P-1/P-2 entry or UNV specialist roles post-Master's.",
+    revisit_after: "2027-02-15",
+  },
 ];
 
 // ── Milestones ────────────────────────────────────────────────────────────────

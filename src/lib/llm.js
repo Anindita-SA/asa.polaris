@@ -71,7 +71,10 @@ export async function getBestGroqModel(apiKey) {
       'llama-3.3-70b-versatile',
       'llama-3.1-8b-instant',
       'llama-3.1-70b-versatile',
-      'llama3-70b-8192'
+      'llama3-70b-8192',
+      'qwen/qwen3.8-27b',
+      'openai/gpt-oss-120b',
+      'openai/gpt-oss-20b'
     ];
 
     for (const prefix of priorities) {
@@ -120,17 +123,17 @@ export async function generateLlmResponse(promptOrMessages, asJson = true, maxTo
 
     // Try Groq with 2-model candidate list and 6s timeout
     if (groqApiKey) {
-      let topModel = 'llama-3.3-70b-versatile';
+      let topModel = 'qwen/qwen3.8-27b';
       try {
         topModel = await getBestGroqModel(groqApiKey);
       } catch (e) {
-        topModel = 'llama-3.3-70b-versatile';
+        topModel = 'qwen/qwen3.8-27b';
       }
 
       const groqCandidates = Array.from(new Set([
         topModel,
-        'llama-3.3-70b-versatile',
-        'llama-3.1-8b-instant'
+        'qwen/qwen3.8-27b',
+        'openai/gpt-oss-120b'
       ])).slice(0, 2);
 
       for (const candidate of groqCandidates) {
@@ -166,7 +169,7 @@ export async function generateLlmResponse(promptOrMessages, asJson = true, maxTo
       }
     }
 
-    // Fallback cascade to Gemini (gemini-3.7-flash -> gemini-3.5-flash with 8s timeout)
+    // Fallback cascade to Gemini (gemini-3.8-flash -> gemini-3.5-flash -> gemini-flash-latest with 8s timeout)
     if (geminiApiKey) {
       const nonSystemMessages = messages.filter(m => m.role !== 'system');
       const geminiContents = nonSystemMessages.map(msg => ({
@@ -178,7 +181,7 @@ export async function generateLlmResponse(promptOrMessages, asJson = true, maxTo
         geminiContents.push({ role: 'user', parts: [{ text: systemText }] });
       }
 
-      const geminiModels = ['gemini-3.7-flash', 'gemini-3.5-flash'];
+      const geminiModels = ['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-flash-latest'];
 
       for (const model of geminiModels) {
         const controller = new AbortController();

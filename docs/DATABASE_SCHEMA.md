@@ -662,7 +662,7 @@
 | `id` | `uuid` | Primary, Default `gen_random_uuid()` |
 | `user_id` | `uuid` | Not Null, Default `auth.uid()` |
 | `title` | `text` | Not Null |
-| `category` | `text` | Nullable |
+| `category` | `text` | Nullable (normal | polaris | reminders | upkeep) |
 | `notes` | `text` | Nullable |
 | `quadrant` | `text` | Nullable (urgent_important \| important_not_urgent \| urgent_not_important \| neither) |
 | canvas_x | float8 |  Nullable |

@@ -389,13 +389,35 @@ function AuditorPanel({ onAuditDone }) {
 
 // Day Guide View
 export default function DayGuideView() {
-  const [activeSubTab, setActiveSubTab] = useState('spatial');
+  const [activeSubTab, setActiveSubTab] = useState(() => {
+    try {
+      const pending = sessionStorage.getItem('polaris_pending_day_guide_tab');
+      if (pending) {
+        sessionStorage.removeItem('polaris_pending_day_guide_tab');
+        return pending;
+      }
+    } catch (e) {}
+    return 'spatial';
+  });
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   useEffect(() => {
     const handleNav = () => setActiveSubTab('brief');
     window.addEventListener('nav-day-brief', handleNav);
-    return () => window.removeEventListener('nav-day-brief', handleNav);
+    const handleNavTaskDetails = (e) => {
+      const taskId = e?.detail?.taskId;
+      if (taskId) {
+        try {
+          sessionStorage.setItem('polaris_pending_nav_task_id', taskId);
+        } catch (err) {}
+      }
+      setActiveSubTab('spatial');
+    };
+    window.addEventListener('nav-task-details', handleNavTaskDetails);
+    return () => {
+      window.removeEventListener('nav-day-brief', handleNav);
+      window.removeEventListener('nav-task-details', handleNavTaskDetails);
+    };
   }, []);
 
   // Shared cross-tab refresh counter - incrementing forces all sub-views to refetch
