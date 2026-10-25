@@ -46,6 +46,7 @@ export function filterMatrixNodes(tasks = [], options = {}) {
     if (t.status === 'done') return false;
 
     // Invariant 4: Category suppression
+    if (t.category === 'habits') return false;
     if (hideReminders && t.category === 'reminders') return false;
     if (hidePolaris && (t.category === 'polaris' || (t.title || '').toLowerCase().includes('polaris'))) return false;
     if (hideUpkeep && t.category === 'upkeep') return false;

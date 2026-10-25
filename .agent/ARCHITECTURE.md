@@ -9,6 +9,7 @@ This document maps features/tabs/panels to their component files, hooks, Supabas
 - `src/components/TodaysTasksShuffle.jsx`
 - `src/components/journal/DailyTasks.jsx`
 - `src/components/views/DayBriefView.jsx`
+- `src/components/widgets/TodayAgendaWidget.jsx`
 - `src/components/widgets/SparkPopup.jsx`
 **Hooks:** `useTodaysTasks.js`, `useMorningBrief.js`, `useMorningSequence.js`
 **Tables:** `tasks`, `daily_tasks`, `day_plan_blocks`, `morning_briefs`, `goals`, `hardware_opportunities`, `media_log`

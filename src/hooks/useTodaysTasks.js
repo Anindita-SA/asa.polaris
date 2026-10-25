@@ -52,19 +52,62 @@ export function useTodaysTasks() {
 
       // 3. Fetch active tasks from main tasks table
       let activeMatrixTasks = []
+      let allTasksList = []
       try {
         // Since we can only equality match, we'll fetch all tasks for user and filter in memory
         const { data: allTasks } = await offlineSelect('tasks', { user_id: user.id })
-        activeMatrixTasks = (allTasks || []).filter(t => t.status === 'active' || t.status === 'scheduled')
+        allTasksList = allTasks || []
+        activeMatrixTasks = allTasksList.filter(t => 
+          t.status === 'active' || 
+          t.status === 'scheduled' || 
+          (t.status === 'done' && t.deadline === todayStr)
+        )
       } catch (e3) {
         console.warn('Error fetching matrix tasks:', e3)
       }
+
+      // Compute subtask statistics and parent titles from allTasksList
+      const subtaskStats = {}
+      const taskTitleById = {}
+      for (const t of allTasksList) {
+        taskTitleById[t.id] = t.title
+        if (t.parent_task_id) {
+          if (!subtaskStats[t.parent_task_id]) {
+            subtaskStats[t.parent_task_id] = { total: 0, completed: 0 }
+          }
+          subtaskStats[t.parent_task_id].total += 1
+          if (t.status === 'done') {
+            subtaskStats[t.parent_task_id].completed += 1
+          }
+        }
+      }
+
+      // Sort active matrix tasks primarily by sort_order ASC (when set), falling back to created_at ASC
+      activeMatrixTasks.sort((a, b) => {
+        const orderA = a.sort_order != null ? a.sort_order : Infinity
+        const orderB = b.sort_order != null ? b.sort_order : Infinity
+        if (orderA !== orderB) return orderA - orderB
+        const dateA = a.created_at ? new Date(a.created_at).getTime() : 0
+        const dateB = b.created_at ? new Date(b.created_at).getTime() : 0
+        return dateA - dateB
+      })
 
       // Map each source to a unified model
       const dailyMapped = finalDailyTasks.map(t => ({
         id: t.id,
         title: t.title,
         completed: !!t.completed,
+        estimated_minutes: t.estimated_minutes || null,
+        time_estimate_minutes: t.time_estimate_minutes || null,
+        mental_load: t.mental_load || null,
+        quadrant: t.quadrant || null,
+        deadline: t.date || todayStr,
+        parent_task_id: t.parent_task_id || null,
+        sort_order: t.sort_order ?? null,
+        notes: t.notes || null,
+        subtasks_total: 0,
+        subtasks_completed: 0,
+        parent_title: null,
         __type: 'daily_task',
         raw: t
       }))
@@ -76,6 +119,17 @@ export function useTodaysTasks() {
         target: g.target,
         current: g.current,
         unit: g.unit,
+        estimated_minutes: null,
+        time_estimate_minutes: null,
+        mental_load: null,
+        quadrant: null,
+        deadline: g.deadline || todayStr,
+        parent_task_id: g.parent_goal_id || null,
+        sort_order: null,
+        notes: g.description || null,
+        subtasks_total: 0,
+        subtasks_completed: 0,
+        parent_title: null,
         __type: 'goal',
         raw: g
       }))
@@ -85,8 +139,16 @@ export function useTodaysTasks() {
         title: m.title,
         completed: m.status === 'done',
         estimated_minutes: m.estimated_minutes,
+        time_estimate_minutes: m.time_estimate_minutes,
+        mental_load: m.mental_load,
         quadrant: m.quadrant,
+        deadline: m.deadline,
+        parent_task_id: m.parent_task_id,
+        sort_order: m.sort_order ?? null,
         notes: m.notes,
+        subtasks_total: subtaskStats[m.id]?.total || 0,
+        subtasks_completed: subtaskStats[m.id]?.completed || 0,
+        parent_title: m.parent_task_id ? (taskTitleById[m.parent_task_id] || null) : null,
         __type: 'matrix_task',
         raw: m
       }))
@@ -107,6 +169,9 @@ export function useTodaysTasks() {
       combined.sort((a, b) => {
         if (a.completed && !b.completed) return 1
         if (!a.completed && b.completed) return -1
+        const orderA = a.sort_order != null ? a.sort_order : Infinity
+        const orderB = b.sort_order != null ? b.sort_order : Infinity
+        if (orderA !== orderB) return orderA - orderB
         return 0
       })
 
@@ -120,6 +185,21 @@ export function useTodaysTasks() {
 
   useEffect(() => {
     fetchTasks()
+  }, [fetchTasks])
+
+  // Listen for local tasks-changed event across tabs/components
+  useEffect(() => {
+    const handleTasksChanged = () => {
+      fetchTasks()
+    }
+    if (typeof window !== 'undefined') {
+      window.addEventListener('polaris-tasks-changed', handleTasksChanged)
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('polaris-tasks-changed', handleTasksChanged)
+      }
+    }
   }, [fetchTasks])
 
   // Realtime subscription with unique channel name per subscriber
@@ -197,5 +277,18 @@ export function useTodaysTasks() {
     if (data) fetchTasks()
   }
 
-  return { tasks, isLoading, fetchTasks, toggleComplete, addTask }
+  const updateSortOrder = async (taskId, newOrder) => {
+    if (!taskId) return
+    try {
+      await offlineUpdate('tasks', { id: taskId }, { sort_order: newOrder })
+      setTasks(prev => prev.map(t => (t.id === taskId ? { ...t, sort_order: newOrder } : t)))
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('polaris-tasks-changed', { detail: { table: 'tasks' } }))
+      }
+    } catch (err) {
+      console.warn('Error updating sort_order:', err)
+    }
+  }
+
+  return { tasks, isLoading, fetchTasks, toggleComplete, addTask, updateSortOrder }
 }

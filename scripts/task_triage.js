@@ -472,6 +472,34 @@ async function checkOllama() {
   }
 }
 
+async function exportPolarisFeatures(supabase, uid) {
+  const { data: devTasks, error: devErr } = await supabase
+    .from('tasks')
+    .select('id, title, notes, status')
+    .eq('user_id', uid)
+    .eq('category', 'polaris')
+    .neq('status', 'done');
+
+  if (devErr) throw devErr;
+
+  const fpPath = path.join(process.cwd(), 'docs', 'plannedfeatures.md');
+  if (devTasks && devTasks.length > 0) {
+    let fpContent = `# Polaris Feature Proposals\n\nGenerated on ${new Date().toISOString()}\n\n`;
+    for (const t of devTasks) {
+      fpContent += `## ${t.title}\n`;
+      fpContent += `- **ID:** \`${t.id}\`\n`;
+      fpContent += `- **Status:** ${t.status}\n`;
+      if (t.notes) fpContent += `- **Notes:** ${t.notes}\n`;
+      fpContent += `\n`;
+    }
+    fs.writeFileSync(fpPath, fpContent, 'utf8');
+    console.log(`Wrote ${devTasks.length} dev tasks to plannedfeatures.md`);
+  } else {
+    fs.writeFileSync(fpPath, `# Polaris Feature Proposals\n\nNo pending dev tasks found.\n`, 'utf8');
+    console.log(`No pending dev tasks found. Wrote empty state to plannedfeatures.md`);
+  }
+}
+
 async function run() {
   try {
     const res = await fetch(process.env.VITE_SUPABASE_URL, { method: 'HEAD' });
@@ -636,8 +664,10 @@ async function run() {
     fs.writeFileSync(reportPath, reportMd, 'utf8');
     console.log(`Wrote Triage Report to _TRIAGE_REPORT.md`);
 
-      return;
-    }
+    await exportPolarisFeatures(supabase, uid);
+
+    return;
+  }
 
     // Filter out any unsorted tasks that were marked done in active deduplication
     unsortedTasks = unsortedTasks.filter(t => !activeDuplicateIdSet.has(t.id));
@@ -679,8 +709,10 @@ async function run() {
     fs.writeFileSync(reportPath, reportMd, 'utf8');
     console.log(`Wrote Triage Report to _TRIAGE_REPORT.md`);
 
-      return;
-    }
+    await exportPolarisFeatures(supabase, uid);
+
+    return;
+  }
 
     console.log(`Found ${unsortedTasks.length} unsorted tasks. Building context...`);
 
@@ -883,32 +915,8 @@ async function run() {
     // 7. Increment skip_count for all triaged tasks (surfaced without action = a skip)
     // await incrementSkipCounts(supabase, uid, unsortedTasks, isDryRun);
 
-    // 8. Output polaris tasks to docs/_FEATURE_PROPOSALS.md
-    const { data: devTasks, error: devErr } = await supabase
-      .from('tasks')
-      .select('id, title, notes, status')
-      .eq('user_id', uid)
-      .eq('category', 'polaris')
-      .neq('status', 'done');
-
-    if (devErr) throw devErr;
-
-    const fpPath = path.join(process.cwd(), 'docs', '_FEATURE_PROPOSALS.md');
-    if (devTasks && devTasks.length > 0) {
-      let fpContent = `# Polaris Feature Proposals\n\nGenerated on ${new Date().toISOString()}\n\n`;
-      for (const t of devTasks) {
-        fpContent += `## ${t.title}\n`;
-        fpContent += `- **ID:** \`${t.id}\`\n`;
-        fpContent += `- **Status:** ${t.status}\n`;
-        if (t.notes) fpContent += `- **Notes:** ${t.notes}\n`;
-        fpContent += `\n`;
-      }
-      fs.writeFileSync(fpPath, fpContent, 'utf8');
-      console.log(`Wrote ${devTasks.length} dev tasks to _FEATURE_PROPOSALS.md`);
-    } else {
-      fs.writeFileSync(fpPath, `# Polaris Feature Proposals\n\nNo pending dev tasks found.\n`, 'utf8');
-      console.log(`No pending dev tasks found. Wrote empty state to _FEATURE_PROPOSALS.md`);
-    }
+    // 8. Output polaris tasks to docs/plannedfeatures.md
+    await exportPolarisFeatures(supabase, uid);
 
     // 9. Output Triage Report
     const reportPath = path.join(process.cwd(), 'docs', '_TRIAGE_REPORT.md');

@@ -203,7 +203,7 @@ describe('useRecurringTasks hook', () => {
         completion_count: 5,
         skip_count: 0,
         category: 'habits',
-        quadrant: 'important_not_urgent'
+        quadrant: null
       })
     );
 
@@ -265,6 +265,104 @@ describe('useRecurringTasks hook', () => {
       'recurring_task_templates',
       { id: 'tpl-4' },
       { last_generated_date: today }
+    );
+  });
+
+  it('inserts a new habit task with quadrant: null and category: habits', async () => {
+    const today = new Date().toLocaleDateString('en-CA');
+    const templates = [
+      {
+        id: 'tpl-habit',
+        user_id: 'test-user-123',
+        title: 'Read 10 pages a day',
+        notes: null,
+        quadrant: 'important_not_urgent',
+        estimated_minutes: 15,
+        is_active: true,
+        last_generated_date: null,
+        frequency: 'daily',
+        is_habit: true
+      }
+    ];
+
+    offlineSelect.mockImplementation(async (table) => {
+      if (table === 'recurring_task_templates') return { data: templates, error: null };
+      if (table === 'tasks') return { data: [], error: null };
+      return { data: [], error: null };
+    });
+
+    const { result } = renderHook(() => useRecurringTasks());
+
+    await waitFor(() => {
+      expect(result.current.generated).toBe(1);
+    });
+
+    expect(offlineInsert).toHaveBeenCalledWith('tasks', expect.objectContaining({
+      user_id: 'test-user-123',
+      title: 'Read 10 pages a day',
+      quadrant: null,
+      category: 'habits',
+      status: 'active',
+      source_template_id: 'tpl-habit'
+    }));
+  });
+
+  it('recycles a completed task with quadrant: null when template has category habits', async () => {
+    const today = new Date().toLocaleDateString('en-CA');
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toLocaleDateString('en-CA');
+
+    const templates = [
+      {
+        id: 'tpl-habit-cat',
+        user_id: 'test-user-123',
+        title: 'Exercise daily',
+        category: 'habits',
+        quadrant: 'important_not_urgent',
+        estimated_minutes: 20,
+        is_active: true,
+        last_generated_date: yesterdayStr,
+        frequency: 'daily'
+      }
+    ];
+
+    const tasks = [
+      {
+        id: 'task-habit-done',
+        user_id: 'test-user-123',
+        title: 'Exercise daily',
+        source_template_id: 'tpl-habit-cat',
+        status: 'done',
+        deadline: yesterdayStr,
+        completion_count: 2,
+        completion_dates: [yesterdayStr],
+        quadrant: 'important_not_urgent',
+        category: 'habits'
+      }
+    ];
+
+    offlineSelect.mockImplementation(async (table) => {
+      if (table === 'recurring_task_templates') return { data: templates, error: null };
+      if (table === 'tasks') return { data: tasks, error: null };
+      return { data: [], error: null };
+    });
+
+    const { result } = renderHook(() => useRecurringTasks());
+
+    await waitFor(() => {
+      expect(result.current.generated).toBe(1);
+    });
+
+    expect(offlineUpdate).toHaveBeenCalledWith(
+      'tasks',
+      { id: 'task-habit-done' },
+      expect.objectContaining({
+        status: 'active',
+        source_template_id: 'tpl-habit-cat',
+        quadrant: null,
+        category: 'habits'
+      })
     );
   });
 

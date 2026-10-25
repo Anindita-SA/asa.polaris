@@ -1,3 +1,32 @@
+# Polaris Database Schema
+
+> **Source of Truth**: Canonical documentation for all Supabase tables, columns, and constraints in the Polaris project.
+
+## Database Guidelines & Table Creation Rules
+
+### Supabase Data API Grants (Post-October 30, 2026 Requirement)
+Supabase does not automatically grant Data API (PostgREST / `supabase-js`) access to new tables in the `public` schema. When creating any new table or writing migration scripts, you must include explicit grants in addition to enabling RLS:
+
+```sql
+-- Standard Table Migration Pattern:
+CREATE TABLE public.<table_name> (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id),
+  created_at timestamptz DEFAULT now()
+  -- ...columns...
+);
+
+ALTER TABLE public.<table_name> ENABLE ROW LEVEL SECURITY;
+
+-- PostgREST API Role Grants (Mandatory)
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.<table_name> TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.<table_name> TO service_role;
+-- Optional: if public unauthenticated reading is required
+-- GRANT SELECT ON public.<table_name> TO anon;
+```
+
+---
+
 ## Table `meal_logs`
 
 ### Columns

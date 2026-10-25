@@ -1398,5 +1398,29 @@ describe('MatrixCanvasView', () => {
         expect(screen.getByDisplayValue('Configured Child Action')).toBeDefined();
       });
     });
+
+    it('excludes tasks with category habits from brain dump backlog and matrix canvas', async () => {
+      const habitTaskId = 'task-habit-reading';
+      dbTasks.push({
+        id: habitTaskId,
+        user_id: mockUser.id,
+        title: 'Read 10 pages a day',
+        status: 'active',
+        quadrant: null,
+        category: 'habits',
+        notes: null
+      });
+
+      render(<MatrixCanvasView />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Review EE lecture slides')).toBeDefined();
+      });
+
+      // Verify habit task never leaks into the Brain Dump backlog tray or canvas
+      expect(screen.queryByText('Read 10 pages a day')).toBeNull();
+    });
   });
 });
+
+

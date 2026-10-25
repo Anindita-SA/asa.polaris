@@ -133,9 +133,9 @@ export function useRecurringTasks() {
               completion_dates: nextDates,
               skip_count: 0
             }
-            if (template.is_habit) {
+            if (template.is_habit || template.category === 'habits' || canonicalTask.category === 'habits') {
               updatePayload.category = 'habits'
-              updatePayload.quadrant = 'important_not_urgent'
+              updatePayload.quadrant = null
             }
 
             const { error: updateTaskErr } = await offlineUpdate('tasks', { id: canonicalTask.id }, updatePayload)
@@ -170,13 +170,14 @@ export function useRecurringTasks() {
               continue
             }
 
+            const isHabit = Boolean(template.is_habit || template.category === 'habits')
             const insertPayload = {
               id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : generateUUID(),
               user_id: user.id,
               title: template.title,
               notes: template.notes,
               deadline: today,
-              quadrant: template.is_habit ? 'important_not_urgent' : template.quadrant,
+              quadrant: isHabit ? null : template.quadrant,
               estimated_minutes: template.estimated_minutes,
               status: 'active',
               source_template_id: template.id,
@@ -185,7 +186,7 @@ export function useRecurringTasks() {
               skip_count: 0,
               created_at: new Date().toISOString()
             }
-            if (template.is_habit) {
+            if (isHabit) {
               insertPayload.category = 'habits'
             }
 

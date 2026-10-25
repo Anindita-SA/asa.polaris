@@ -146,7 +146,7 @@ const Journal = () => {
       title: newHabitTitle.trim(),
       is_habit: true,
       frequency: 'daily',
-      quadrant: 'important_not_urgent',
+      quadrant: null,
       estimated_minutes: 15,
       is_active: true
     })
