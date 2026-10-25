@@ -995,7 +995,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
 
   // Unsorted Brain Dump tasks (`quadrant === null` and `status !== 'done'`)
   const brainDumpTasks = useMemo(() => {
-    let result = tasks.filter((t) => !t.parent_task_id && t.quadrant === null && t.status !== 'done');
+    let result = tasks.filter((t) => !t.parent_task_id && t.quadrant === null && t.status !== 'done' && t.category !== 'habits');
     if (hideReminders) {
       result = result.filter(t => t.category !== 'reminders');
     }

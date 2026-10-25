@@ -141,6 +141,16 @@ describe('filterMatrixNodes', () => {
     expect(filtered.map(t => t.id)).toEqual(['1']);
   });
 
+  it('filters habits category unconditionally from matrix canvas plane', () => {
+    const tasks = [
+      { id: '1', title: 'Normal task', category: 'career', quadrant: 'urgent_important', status: 'active' },
+      { id: '2', title: 'Read 10 pages a day', category: 'habits', quadrant: 'important_not_urgent', status: 'active' }
+    ];
+
+    const filtered = filterMatrixNodes(tasks, { currentDate: baseDate });
+    expect(filtered.map(t => t.id)).toEqual(['1']);
+  });
+
   it('handles empty inputs and malformed tasks safely', () => {
     expect(filterMatrixNodes(null)).toEqual([]);
     expect(filterMatrixNodes(undefined)).toEqual([]);

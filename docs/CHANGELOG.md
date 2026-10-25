@@ -1,3 +1,30 @@
+## [2026-10-25] Today's Agenda Widget, Day Slicing, Habit Decoupling & Reading Habit Restoration (v1.2.55)
+- **Today's Agenda Widget (TodayAgendaWidget.jsx)**:
+  - Built interactive glassmorphic widget mounted at the top of Day Brief view (DayBriefView.jsx), replacing the legacy empty "Today's Agenda" container.
+  - Enforced daily cap discipline with maximum 3 primary tasks for today, derived from deadline, Q1 urgency, and parent task structure.
+  - Added drag-and-drop priority reordering via ramer-motion (Reorder.Group, Reorder.Item), persisting sequence to 	asks.sort_order and localStorage.
+  - Implemented cosmetic Day Slice renaming for tasks: single click allows day-specific phrasing (e.g., "Just read 2 pages") persisted locally to localStorage under polaris_day_alias_<date>_<taskId> without touching canonical database titles.
+  - Added parent/subtask badges displaying completion ratios (Parent (X/Y done)) or parent task links.
+  - Implemented passive time-block focus chips (15m/30m toggleable modes): clicking a chip marks it complete for today, logs duration directly to pomodoro_logs without an active timer, awards 10 XP via 	rackXP, plays success chime, and tallies daily focus minutes.
+  - Added secondary collapsible Quick Wins section for tasks under 15 minutes or low mental load.
+  - Added Quick Add input bar to inject ephemeral daily tasks.
+- **Habit Stack Matrix Decoupling & Monthly Habit Restoration**:
+  - Excluded habit tasks from the 2D Matrix Canvas plane via matrixNodeFilter.js (if (t.category === 'habits') return false).
+  - Excluded habit tasks from the Brain Dump tray in MatrixCanvasView.jsx.
+  - Decoupled habits from Eisenhower quadrants in useRecurringTasks.js and Journal.jsx by assigning quadrant: null.
+  - Reactivated 'Read 10 pages a day' template in Supabase (is_active: true, quadrant: null) and restored active task (status: 'active', deadline: today, quadrant: null, category: 'habits', notes cleared).
+  - Harmonized 'Exercise/Stretch Out/Walk' template and tasks to quadrant: null.
+- **Hook Enhancements (useTodaysTasks.js)**:
+  - Exposed sort_order, parent_task_id, deadline, mental_load, subtasks_total, subtasks_completed, and parent_title on mapped matrix task items.
+  - Sorted active matrix tasks primarily by sort_order ASC (when set), falling back to created_at ASC.
+  - Added updateSortOrder(taskId, newOrder) callback using offlineUpdate.
+  - Added event listener for polaris-tasks-changed to automatically sync today's task list across tabs and components.
+- **Script Alignment (	ask_triage.js)**:
+  - Updated polaris dev tasks export path from docs/_FEATURE_PROPOSALS.md to docs/plannedfeatures.md.
+- **Testing & Quality Gates**:
+  - 34 test files, 355 unit tests passing with 100% success rate (zero regressions).
+  - Clean Vite production PWA build with service worker precache generated.
+  - 0 em dashes, 0 en dashes, 0 CSS gradients.
 ## [2026-10-20] Hard Programmatic Day-to-Day Anti-Repeat, Animal Anti-Clustering & Source Hardening (v1.2.54)
 - **Hard Anti-Repeat Rotation Across Days**:
   - Fixed selection algorithm defect where yesterday's covered pillars were ignored during LLM candidate evaluation, permitting repeated coverage across consecutive days.

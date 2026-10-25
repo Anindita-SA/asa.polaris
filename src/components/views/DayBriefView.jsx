@@ -3,9 +3,10 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
 import { useTodaysTasks } from '../../hooks/useTodaysTasks';
 import { useMorningBrief } from '../../hooks/useMorningBrief';
-import { Flame, Check, Target, ChevronRight, Sparkles, RefreshCw, Rocket, X, Bookmark, AlignLeft, Star, ExternalLink } from 'lucide-react';
+import { Flame, Check, Target, ChevronRight, Sparkles, RefreshCw, Rocket, X, Bookmark, Star, ExternalLink } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import DismissFeedbackModal from '../modals/DismissFeedbackModal';
+import TodayAgendaWidget from '../widgets/TodayAgendaWidget';
 import { safeExternalUrl } from '../../lib/urlUtils';
 import { offlineSelect, offlineInsert, offlineUpdate } from '../../lib/offlineApi';
 import db from '../../lib/offlineStore';
@@ -397,6 +398,8 @@ export default function DayBriefView() {
         </button>
       </div>
 
+      <TodayAgendaWidget />
+
       {oppItems.length > 0 && (
         <div className="glass border border-amber-500/30 rounded-xl p-6">
           <h3 className="text-lg font-display text-amber-400 flex items-center gap-2 mb-4">
@@ -635,22 +638,6 @@ export default function DayBriefView() {
 
       <div className="text-starlight font-body text-lg border-l-2 border-nova pl-4 py-1">
         Today: <span className="text-orange-400 font-bold">{urgent.length}</span> urgent, <span className="text-pulsar font-bold">{strategic.length}</span> strategic. <br/>This week's push: <span className="text-nova font-bold">{weeklyGoal}</span>.
-      </div>
-      
-      <div className="glass border border-amber-500/30 rounded-xl p-6 space-y-4">
-        <h3 className="text-lg font-display text-starlight flex items-center gap-2"><AlignLeft className="w-5 h-5 text-amber-500" /> Today's Agenda</h3>
-        {dailyGoals.length === 0 ? (
-          <p className="text-nova/60 italic">No daily goals defined.</p>
-        ) : (
-          <ul className="space-y-2">
-            {dailyGoals.map(g => (
-              <li key={g.id} className="flex items-start gap-3 text-starlight font-body">
-                <ChevronRight className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
-                {g.title}
-              </li>
-            ))}
-          </ul>
-        )}
       </div>
 
       <AnimatePresence>

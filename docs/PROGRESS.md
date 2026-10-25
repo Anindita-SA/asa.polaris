@@ -1,5 +1,51 @@
 # Progress Log
 
+RUBRIC BREAK: v2 starts here, earlier composite scores are v1 and not comparable.
+
+## Oct 25, 2026 - Today's Agenda Widget, Day Slicing & Passive Timebox Focus (v1.2.55)
+- **What**: Built interactive TodayAgendaWidget mounted atop DayBriefView.jsx replacing legacy empty container. Added drag-and-drop priority reordering (Framer Motion Reorder) capped at max 3 primary tasks, parent/subtask completion ratio badges, cosmetic Day Slice renaming stored in localStorage, passive 15m/30m time-block focus logging direct to pomodoro_logs with 10 XP rewards, collapsible Quick Wins section, and ephemeral Quick Add. Exposed sort_order, parent_task_id, deadline, and mental_load in useTodaysTasks.js and redirected polaris triage export to docs/plannedfeatures.md.
+- **Evidence**: 34 test files and 351 unit tests passing (100% pass rate; 9/9 tests in TodayAgendaWidget.test.jsx, 4/4 in useTodaysTasks.test.js); Vite PWA production build clean in 7.32s (precache 37 entries / 1546.47 KiB); schema compliance verified with 0 extraneous columns; 0 em dashes, 0 en dashes, 0 CSS gradients; version bumped to v1.2.55 in package.json.
+
+## Oct 25, 2026 - Daily Polaris Task Audit Report (Rubric v2, Report-Only)
+- **What**: Fifth Rubric v2 audit executed scoring Saturday Oct 24 (complete day) with independent dimension evaluation and zero composite aggregation. Evaluated 40 overdue tasks, 90 min capacity due in 14 days (4% capacity ratio, 83% unestimated), 0 meals logged yesterday (neutral midpoint 8/15 scored with 2 blackout days), and prioritized Portfolio Site placeholder replacement expiring today (Oct 25).
+- **Scores (scored day 2026-10-24)**: D1 7/20 | D2 7/25 | D3 15/20 | D4 8/15 | D5 9/20
+- **Flags**: Sustainability partly measured, Unlogged focus, Unlogged nutrition, Unestimated 14d capacity, Unplanned P0 milestones
+- **Evidence**: 187 total tasks tracked (88 pending: 40 overdue, 2 today, 24 due in 14d; 99 completed); 15 milestones in 90d window, 19 outreach targets. 189 lines in `docs/task_audit_report.md`. 0 database insertions. 0 em dashes, 0 en dashes.
+
+## Oct 24, 2026 - Daily Polaris Task Audit Report (Rubric v2, Report-Only)
+- **What**: Fourth Rubric v2 audit executed scoring Friday Oct 23 (complete day) with independent dimension evaluation and zero composite aggregation. Evaluated 38 overdue tasks, 105 min capacity due in 14 days (4% capacity ratio, 81% unestimated), 0 meals logged yesterday (neutral midpoint 8/15 scored with 1 blackout day), and prioritized Portfolio Site placeholder replacement expiring tomorrow (Oct 25).
+- **Scores (scored day 2026-10-23)**: D1 7/20 | D2 7/25 | D3 15/20 | D4 8/15 | D5 9/20
+- **Flags**: Sustainability partly measured, Unlogged focus, Unlogged nutrition, Unestimated 14d capacity, Unplanned P0 milestones
+- **Evidence**: 187 total tasks tracked (88 pending: 38 overdue, 2 today, 26 due in 14d; 99 completed); 15 milestones in 90d window, 19 outreach targets. 185 lines in `docs/task_audit_report.md`. 0 database insertions. 0 em dashes, 0 en dashes.
+
+## Oct 23, 2026 - Daily Polaris Task Audit Report (Rubric v2, Report-Only)
+- **What**: Third Rubric v2 audit executed scoring Thursday Oct 22 (complete day) with independent dimension evaluation and zero composite aggregation. Evaluated 40 overdue tasks (2 completed during afternoon triage), 390 min capacity due in 14 days (15% capacity ratio, 81% unestimated), 6 meals logged yesterday (29.0g protein vs 65.3g target, 50.4g floor; 4-day logging streak active), and noted completion of Economics CT2 exam with active post-exam recovery buffer.
+- **Scores (scored day 2026-10-22)**: D1 7/20 | D2 7/25 | D3 15/20 | D4 7/15 | D5 9/20
+- **Flags**: Sustainability partly measured, Unlogged focus, Unestimated 14d capacity
+- **Evidence**: 186 total tasks tracked (89 pending: 40 overdue, 1 today, 26 due in 14d; 97 completed); 16 milestones in 90d window, 19 outreach targets. 186 lines in `docs/task_audit_report.md`. 0 database insertions. 0 em dashes, 0 en dashes.
+
+## Oct 22, 2026 - Daily Polaris Task Audit Report (Rubric v2, Report-Only)
+- **What**: Second Rubric v2 audit executed scoring Wednesday Oct 21 (complete day) with independent dimension evaluation and zero composite aggregation. Evaluated 42 overdue tasks, 390 min capacity due in 14 days (15% capacity ratio, 81% unestimated), unlogged nutrition (scored neutral midpoint 8/15), and enforced crunch freeze for Economics CT2 exam execution today (Oct 22).
+- **Scores (scored day 2026-10-21)**: D1 7/20 | D2 7/25 | D3 15/20 | D4 8/15 | D5 9/20
+- **Flags**: Sustainability partly measured, Unlogged focus, Unlogged nutrition, Unestimated 14d capacity
+- **Evidence**: 186 total tasks tracked (91 pending: 42 overdue, 0 today, 26 due in 14d; 95 completed); 15 milestones in 90d window, 19 outreach targets. 176 lines in `docs/task_audit_report.md`. 0 database insertions. 0 em dashes, 0 en dashes.
+
+## Oct 21, 2026 - Daily Polaris Task Audit Report (Rubric v2, Report-Only)
+- **What**: First Rubric v2 audit executed scoring Tuesday Oct 20 (complete day) with independent dimension evaluation and zero composite aggregation. Evaluated 41 overdue tasks, 390 min capacity due in 14 days (15% capacity ratio, 81% unestimated), 3 meals logged yesterday (21.0g protein vs 65.3g target), and enforced crunch freeze ahead of Economics CT2 tomorrow (Oct 22).
+- **Scores (scored day 2026-10-20)**: D1 7/20 | D2 7/25 | D3 15/20 | D4 6/15 | D5 9/20
+- **Flags**: Sustainability partly measured, Unlogged focus, Unestimated 14d capacity
+- **Evidence**: 188 total tasks tracked (92 pending: 41 overdue, 0 today, 26 due in 14d; 96 completed); 15 milestones in 90d window, 19 outreach targets. 171 lines in `docs/task_audit_report.md`. 0 database insertions. 0 em dashes, 0 en dashes.
+
+## Oct 21, 2026 - Daily Polaris Task Audit Report (Report-Only Mode)
+- **What**: Generated Daily Polaris Task Audit Report in strict report-only mode adhering to the frozen 6-section template and locked 5-dimension rubric. Diagnosed 41 overdue tasks competing with zero scheduled today (41 total active), evaluated re-anchoring of nutrition logging (2-day streak across Oct 19-20; 21g protein yesterday) breaking the previous 8-day blackout, assessed expired Agri Solar Survey Paper Phase 1 & 2 milestone (due Oct 20, 1 day overdue), and enforced academic crunch freeze ahead of Economics CT2 tomorrow (Oct 22).
+- **Evidence**: 188 total tasks tracked (92 pending: 41 overdue, 0 today, 19 inbox with 14 leaking; 96 completed); 37 milestones, 19 outreach targets (16 drafted, 1 queued, 1 sent, 1 replied); Composite score 43 / 100 (Grade: D+ - Severe Bottleneck). 170 lines in `docs/task_audit_report.md`. 0 database insertions. 0 em dashes, 0 en dashes.
+- **Impact**: Enforced 3-primary daily cap under academic crunch freeze rules, prioritized Economics CT2 satisficing prep for tomorrow's exam, drove Agri Solar Phase 2 literature synthesis to recover the expired milestone, advanced Dr. Vignesh power converter research, and prescribed protein density elevation for lunch.
+
+## Oct 20, 2026 - Daily Polaris Task Audit Report (Report-Only Mode)
+- **What**: Generated Daily Polaris Task Audit Report in strict report-only mode adhering to the frozen 6-section template and locked 5-dimension rubric. Diagnosed 41 overdue tasks competing with zero scheduled today (41 total active), evaluated ongoing 8-day nutrition logging blackout across Oct 12-19, assessed critical same-day milestone expiry for Agri Solar Survey Paper Phase 1 & 2 today (Oct 20), and aligned academic prep ahead of Economics CT2 in 2 days (Oct 22).
+- **Evidence**: 188 total tasks tracked (92 pending: 41 overdue, 0 today, 19 inbox with 14 leaking; 96 completed); 37 milestones, 18 outreach targets (16 drafted, 1 sent, 1 replied); Composite score 38 / 100 (Grade: D - Critical Misalignment). 169 lines in `docs/task_audit_report.md`. 0 database insertions. 0 em dashes, 0 en dashes.
+- **Impact**: Enforced 3-primary daily cap under academic crunch freeze rules, prioritized Agri Solar Phase 2 literature synthesis to unblock today's expiring milestone, continued Dr. Vignesh power converter research, queued Economics CT2 satisficing prep, and prescribed urgent lunch nutrition re-anchoring.
+
 ## Oct 20, 2026 - Hard Anti-Repeat Rotation, Animal Anti-Clustering & Live Source Cleanup (v1.2.54)
 - **What**: Eliminated critical flaws in morning brief news diversity and rotation. Diagnosed that previous `selectDiverseNewsItems` ignored `yesterdayPillars` during LLM pick evaluation, allowing consecutive-day repeats. Enforced hard programmatic constraint limiting items from yesterday's covered pillars to at most 1 rotating repeat, guaranteeing selection of at least 2 fresh canonical pillars every day. Added `isAnimalOrWildlifeStory` classification and strict programmatic cap permitting at most 1 animal/wildlife article across the entire brief, eliminating fauna clustering across different pillars. Added anti-clustering mandate to `newsPrompt`. Enhanced LLM match-back to support string integer IDs and fuzzy title matching, preserving LLM summaries and preventing raw RSS truncated snippet fallbacks (`cleanSummary`). Deactivated defunct feeds (Hakai Magazine, Innovation Origins, Wildlabs) and activated `Phys.org Engineering` for Pillar E in Supabase `brief_sources` table. Deployed updated `generate-morning-brief` Edge Function to Supabase Cloud and regenerated today's brief with `force: true`.
 - **Evidence**: Vitest unit test suite expanded from 5 to 10 tests in `src/lib/newsDiversity.test.js` (10/10 passing). Total test suite: 32 test files and 338 tests passing with 100% success rate. Vite production build clean in 7.07s with service worker precache (37 entries / 1527.58 KiB). Live Edge Function invocation with `force: true` produced 3 diverse items spanning 3 distinct pillars and sources: 4D biofabrication kirigami (`Biotechnology & genetic engineering`, Phys.org Biotechnology), cotton supply chain traceability (`Tech & field implementation`, AgFunderNews), and orangutan repatriation (`Community & grassroots ecology`, Mongabay India). Exactly 1 wildlife item, 0 duplicate pillars, 0 duplicate sources, 0 CSS gradients, 0 em dashes, 0 en dashes.
@@ -174,6 +220,11 @@
 ## 2026-10-14: Upkeep Category, Collapsible Filter Toolbar & Needs Attention Direct Navigation (v1.2.49)
 - **What was done:** Added native `'upkeep'` task category (representing chores, housekeeping, errands, health) across DB schema and UI. Added Upkeep option to Task Details drawer select menu and rendered subtle Wrench icon on 2D quadrant cards and floating nodes. Added `hideUpkeep` state with localStorage persistence and integrated it into pure filter engine `filterMatrixNodes.js` and Brain Dump sorting (`{ polaris: 1, upkeep: 2, normal: 3, reminders: 4 }`). Replaced static filter buttons with Framer Motion animated collapsible toolbar toggled via chevron. Enabled direct task navigation from Needs Attention rows in `RemindersPanel.jsx` via `nav-task-details` custom event, wired up to `Dashboard.jsx`, `DayGuideView.jsx`, and `MatrixCanvasView.jsx` with automatic selection, drawer expansion, and viewport centering. Bumped version to `v1.2.49`.
 - **Evidence:** 27 test files / 299 unit tests passing (100% pass rate); 7 new unit tests added covering Upkeep category filtering, Wrench icon rendering, collapsible toolbar animation, and Needs Attention event navigation; zero em dashes, zero en dashes, and zero gradients.
+
+## 2026-10-21: Supabase PostgREST Data API Breaking Change Protocol Added to Database Context
+- **What was done:** Documented Supabase's breaking change taking effect October 30, 2026 (ceasing automatic Data API grant inheritance for newly created public tables) across all database coding contexts. Updated `GEMINI.md` under Schema Source of Truth with the mandatory explicit `GRANT` pattern (`authenticated`, `service_role`, `anon`). Updated `docs/DATABASE_SCHEMA.md` with a top-level Table Creation & Migration protocol banner. Updated `C:\Users\anind\.gemini\config\skills\polaris-dev\SKILL.md` in Critical Rules and Verification Checklist. Updated `dev guides/database_sup.md` reference header.
+- **Evidence:** 4 files updated with migration rules; 0 em dashes and 0 en dashes verified via regex scan; Vite production build verified clean (40.36s).
+
 
 
 

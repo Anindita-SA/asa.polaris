@@ -15,6 +15,7 @@ Modifications to the following shared files require full app regression testing 
 - **Check 3:** Click the checkbox on a task to mark it done. Verify it visually crosses out, moves to the completed section, and triggers a sound/celebration (if enabled).
 - **Check 4:** View the Day Brief. Verify that all News & Tech Breakthrough items have their source tag rendering correctly (not an empty box).
 - **Check 5:** Trigger or view the Morning Spark popup. Verify it strictly displays news signals (not opportunities), source badges render correctly with fallback to 'News', and clicking 'Initialize Day' advances the morning sequence.
+- **Check 6:** View the Day Brief. Verify Today's Agenda widget displays top 3 priorities with timebox chips. Clicking a 15m/30m chip logs to pomodoro_logs, awards XP, and plays a chime; clicking task title allows cosmetic Day Slice renaming without database mutation.
 
 ## 2. Matrix Canvas (Task Matrix)
 - **Check 1:** Open the Task Matrix view. Verify tasks are plotted on the 2D grid based on urgency and importance.

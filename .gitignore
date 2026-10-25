@@ -35,6 +35,8 @@ scripts/.last_run_date
 .vite/
 supabase/functions/_shared/personal_prompts.ts
 docs/_FEATURE_PROPOSALS.md
+docs/plannedfeatures.md
+docs/audit_archive/
 docs/_IMPLEMENTATION_PLAN.md
 docs/task_audit_report.md
 docs/_TRIAGE_REPORT.md

@@ -1,3 +1,13 @@
+# Polaris Database Schema (Supabase Reference)
+
+> **Notice**: Starting October 30, 2026, Supabase will no longer automatically grant Data API access to new tables in the `public` schema. When creating any new table or writing migration scripts, you must include explicit grants in addition to enabling RLS:
+> ```sql
+> GRANT SELECT, INSERT, UPDATE, DELETE ON public.<table_name> TO authenticated;
+> GRANT SELECT, INSERT, UPDATE, DELETE ON public.<table_name> TO service_role;
+> ```
+
+---
+
 ## Table `meal_logs`
 
 ### Columns
