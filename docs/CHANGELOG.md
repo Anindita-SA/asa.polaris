@@ -1,3 +1,6 @@
+## [2026-10-26] Restore GitHub Pages Auto-Deploy on Main (v1.2.56)
+- **GitHub Actions Auto-Deploy**: Restored `push: branches: [main]` trigger in `.github/workflows/deploy.yml` alongside `workflow_dispatch`, enabling automatic build and deployment to GitHub Pages on every push to `main`.
+
 ## [2026-10-25] Today's Agenda Widget, Day Slicing, Habit Decoupling & Reading Habit Restoration (v1.2.55)
 - **Today's Agenda Widget (TodayAgendaWidget.jsx)**:
   - Built interactive glassmorphic widget mounted at the top of Day Brief view (DayBriefView.jsx), replacing the legacy empty "Today's Agenda" container.

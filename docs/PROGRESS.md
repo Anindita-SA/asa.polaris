@@ -2,6 +2,10 @@
 
 RUBRIC BREAK: v2 starts here, earlier composite scores are v1 and not comparable.
 
+## Oct 26, 2026 - Restore GitHub Pages Auto-Deploy on Main (v1.2.56)
+- **What**: Re-enabled `push: branches: [main]` in `.github/workflows/deploy.yml` alongside `workflow_dispatch` so code pushes trigger automatic GitHub Pages deployments. Bumped package.json to v1.2.56.
+- **Evidence**: deploy.yml triggers verified (push on main + workflow_dispatch), npm run build clean in 8.00s (precache 37 entries / 1546.53 KiB), package.json version 1.2.56, 0 em dashes, 0 en dashes.
+
 ## Oct 25, 2026 - Today's Agenda Widget, Day Slicing & Passive Timebox Focus (v1.2.55)
 - **What**: Built interactive TodayAgendaWidget mounted atop DayBriefView.jsx replacing legacy empty container. Added drag-and-drop priority reordering (Framer Motion Reorder) capped at max 3 primary tasks, parent/subtask completion ratio badges, cosmetic Day Slice renaming stored in localStorage, passive 15m/30m time-block focus logging direct to pomodoro_logs with 10 XP rewards, collapsible Quick Wins section, and ephemeral Quick Add. Exposed sort_order, parent_task_id, deadline, and mental_load in useTodaysTasks.js and redirected polaris triage export to docs/plannedfeatures.md.
 - **Evidence**: 34 test files and 351 unit tests passing (100% pass rate; 9/9 tests in TodayAgendaWidget.test.jsx, 4/4 in useTodaysTasks.test.js); Vite PWA production build clean in 7.32s (precache 37 entries / 1546.47 KiB); schema compliance verified with 0 extraneous columns; 0 em dashes, 0 en dashes, 0 CSS gradients; version bumped to v1.2.55 in package.json.
@@ -224,13 +228,3 @@ RUBRIC BREAK: v2 starts here, earlier composite scores are v1 and not comparable
 ## 2026-10-21: Supabase PostgREST Data API Breaking Change Protocol Added to Database Context
 - **What was done:** Documented Supabase's breaking change taking effect October 30, 2026 (ceasing automatic Data API grant inheritance for newly created public tables) across all database coding contexts. Updated `GEMINI.md` under Schema Source of Truth with the mandatory explicit `GRANT` pattern (`authenticated`, `service_role`, `anon`). Updated `docs/DATABASE_SCHEMA.md` with a top-level Table Creation & Migration protocol banner. Updated `C:\Users\anind\.gemini\config\skills\polaris-dev\SKILL.md` in Critical Rules and Verification Checklist. Updated `dev guides/database_sup.md` reference header.
 - **Evidence:** 4 files updated with migration rules; 0 em dashes and 0 en dashes verified via regex scan; Vite production build verified clean (40.36s).
-
-
-
-
-
-
-
-
-
-
