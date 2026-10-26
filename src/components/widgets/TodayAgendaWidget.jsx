@@ -14,12 +14,23 @@ import {
   Clock,
   Sparkles,
   Layers,
-  FolderGit2
+  FolderGit2,
+  Target
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useTodaysTasks } from '../../hooks/useTodaysTasks'
 import { playChime } from '../../lib/sound'
 import { offlineInsert, offlineSelect } from '../../lib/offlineApi'
+import {
+  DEFAULT_AUDIT_PRIMARIES,
+  getAuditRank,
+  getStoredAuditList,
+  sortCandidatePrimaries,
+  buildAlignedOrder
+} from '../../lib/agendaPrioritizer'
+
+// Re-export for backward compatibility
+export { DEFAULT_AUDIT_PRIMARIES, getAuditRank } from '../../lib/agendaPrioritizer'
 
 export default function TodayAgendaWidget({ className = '' }) {
   const { user, trackXP } = useAuth()
@@ -159,8 +170,7 @@ export default function TodayAgendaWidget({ className = '' }) {
       }
     })
 
-    // Sort candidate primaries:
-    // Respect saved local reorder order if present
+    // Sort candidate primaries via extracted domain module:
     let savedOrder = []
     if (typeof window !== 'undefined' && window.localStorage) {
       try {
@@ -169,30 +179,10 @@ export default function TodayAgendaWidget({ className = '' }) {
       } catch (e) {}
     }
 
-    pCandidates.sort((a, b) => {
-      const idxA = savedOrder.indexOf(a.id)
-      const idxB = savedOrder.indexOf(b.id)
-      if (idxA !== -1 && idxB !== -1) return idxA - idxB
-      if (idxA !== -1) return -1
-      if (idxB !== -1) return 1
+    const auditList = getStoredAuditList(todayStr)
+    const sortedPrimaries = sortCandidatePrimaries(pCandidates, { savedOrder, auditList, todayStr })
 
-      // If not in savedOrder, prioritize incomplete tasks first
-      if (a.completed && !b.completed) return 1
-      if (!a.completed && b.completed) return -1
-
-      // Priority criteria: deadline = today, quadrant = urgent_important, parent tasks
-      const priorityA = (a.deadline === todayStr ? 10 : 0) + (a.quadrant === 'urgent_important' ? 5 : 0) + (a.subtasks_total > 0 ? 3 : 0)
-      const priorityB = (b.deadline === todayStr ? 10 : 0) + (b.quadrant === 'urgent_important' ? 5 : 0) + (b.subtasks_total > 0 ? 3 : 0)
-      if (priorityA !== priorityB) return priorityB - priorityA
-
-      const orderA = a.sort_order != null ? a.sort_order : Infinity
-      const orderB = b.sort_order != null ? b.sort_order : Infinity
-      if (orderA !== orderB) return orderA - orderB
-
-      return 0
-    })
-
-    return { candidatePrimaries: pCandidates, quickWins: qWins }
+    return { candidatePrimaries: sortedPrimaries, quickWins: qWins }
   }, [tasks, isQuickWin, todayStr])
 
   // Sync primaries state with top 3 candidate primaries
@@ -200,6 +190,49 @@ export default function TodayAgendaWidget({ className = '' }) {
     const top3 = candidatePrimaries.slice(0, 3)
     setPrimaries(top3)
   }, [candidatePrimaries])
+
+  // Feedback state for Align Audit button
+  const [alignedFeedback, setAlignedFeedback] = useState(false)
+
+  // Align priorities with Daily Task Audit
+  const handleAlignAudit = useCallback(() => {
+    const auditList = getStoredAuditList(todayStr)
+    const orderedTasks = buildAlignedOrder(tasks, candidatePrimaries, auditList)
+
+    const newIds = orderedTasks.map(t => t.id)
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        localStorage.setItem(`polaris_today_order_${todayStr}`, JSON.stringify(newIds))
+      } catch (e) {}
+    }
+
+    setPrimaries(orderedTasks)
+
+    orderedTasks.forEach((task, index) => {
+      if (updateSortOrder && task.id) {
+        updateSortOrder(task.id, index)
+      }
+    })
+
+    setAlignedFeedback(true)
+    setTimeout(() => setAlignedFeedback(false), 2000)
+
+    playChime('success')
+  }, [tasks, candidatePrimaries, todayStr, updateSortOrder])
+
+  // Lock primaries into saved order on completion toggle so completing a primary does not push it out
+  const toggleTaskComplete = async (task, e) => {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        const raw = localStorage.getItem(`polaris_today_order_${todayStr}`)
+        if (!raw && primaries.length > 0) {
+          const ids = primaries.map(t => t.id)
+          localStorage.setItem(`polaris_today_order_${todayStr}`, JSON.stringify(ids))
+        }
+      } catch (e2) {}
+    }
+    await toggleComplete(task, e)
+  }
 
   // Drag and drop reordering handler
   const handleReorder = (newOrder) => {
@@ -295,6 +328,15 @@ export default function TodayAgendaWidget({ className = '' }) {
     setQuickAddOpen(false)
   }
 
+  // Day Completion Progress calculation
+  const totalPrimaries = primaries.length
+  const completedPrimaries = primaries.filter(t => t.completed).length
+  const primaryPercentage = totalPrimaries > 0 ? Math.round((completedPrimaries / totalPrimaries) * 100) : 0
+  const primariesTarget = totalPrimaries > 0 ? totalPrimaries : 3
+
+  const totalAgendaCount = tasks.length
+  const completedAgendaCount = tasks.filter(t => t.completed).length
+
   return (
     <div className={`glass bg-void/70 border border-amber-500/30 rounded-xl p-5 space-y-4 ${className}`}>
       {/* Header */}
@@ -346,6 +388,21 @@ export default function TodayAgendaWidget({ className = '' }) {
             </button>
           </div>
 
+          {/* Align Audit button */}
+          <button
+            onClick={handleAlignAudit}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-mono transition-colors ${
+              alignedFeedback
+                ? 'bg-amber-500/20 border-amber-500/60 text-amber-300 font-bold'
+                : 'bg-void/80 hover:bg-amber-500/10 border-pulsar/30 hover:border-amber-500/40 text-nova/70 hover:text-amber-400'
+            }`}
+            title="Align priorities with Daily Task Audit"
+            aria-label="Align Audit"
+          >
+            <Target className="w-3.5 h-3.5 text-amber-400" />
+            <span>{alignedFeedback ? 'Aligned!' : 'Align Audit'}</span>
+          </button>
+
           {/* Quick add toggle */}
           <button
             onClick={() => setQuickAddOpen(!quickAddOpen)}
@@ -388,6 +445,38 @@ export default function TodayAgendaWidget({ className = '' }) {
         </form>
       )}
 
+      {/* Day Completion Progress Bar */}
+      <div className="p-3.5 rounded-xl bg-void/60 border border-pulsar/30 space-y-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-xs font-mono">
+          <span className="text-starlight font-bold tracking-wide">
+            {completedPrimaries} of {primariesTarget} Primaries Cleared • {primaryPercentage}%
+          </span>
+          <span className="text-nova/70 flex items-center gap-1.5 flex-wrap">
+            <span>{completedAgendaCount}/{totalAgendaCount} total agenda items done</span>
+            <span className="text-nova/40">•</span>
+            <span className="text-amber-400/90 flex items-center gap-1">
+              <Clock className="w-3 h-3" />
+              <span>{loggedMinutesToday}m logged</span>
+            </span>
+          </span>
+        </div>
+        <div
+          role="progressbar"
+          aria-label="Day Completion Progress"
+          aria-valuenow={primaryPercentage}
+          aria-valuemin="0"
+          aria-valuemax="100"
+          className="w-full h-2.5 bg-void/90 rounded-full border border-pulsar/40 overflow-hidden"
+        >
+          <div
+            className={`h-full rounded-full transition-all duration-500 ${
+              primaryPercentage === 100 ? 'bg-emerald-400' : 'bg-amber-400'
+            }`}
+            style={{ width: `${primaryPercentage}%` }}
+          />
+        </div>
+      </div>
+
       {/* Primaries Section (Max 3) */}
       <div className="space-y-2">
         <div className="flex items-center justify-between text-xs font-mono text-nova/60 uppercase tracking-wider px-1">
@@ -425,9 +514,27 @@ export default function TodayAgendaWidget({ className = '' }) {
 
                       {/* Parent / Subtask Badge */}
                       {task.subtasks_total > 0 && (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/30">
-                          <Layers className="w-3 h-3" />
-                          Parent ({task.subtasks_completed}/{task.subtasks_total} done)
+                        <span className="inline-flex items-center gap-1.5 text-[11px] font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/30">
+                          <Layers className="w-3 h-3 shrink-0" />
+                          <span>Parent ({task.subtasks_completed}/{task.subtasks_total} done)</span>
+                          <span
+                            role="progressbar"
+                            aria-label="Subtask progress"
+                            aria-valuenow={Math.round(((task.subtasks_completed || 0) / task.subtasks_total) * 100)}
+                            aria-valuemin="0"
+                            aria-valuemax="100"
+                            className="w-7 h-1.5 bg-void/90 border border-pulsar/40 rounded-full overflow-hidden inline-block shrink-0 ml-0.5"
+                            title={`Subtasks: ${task.subtasks_completed}/${task.subtasks_total} (${Math.round(((task.subtasks_completed || 0) / task.subtasks_total) * 100)}%)`}
+                          >
+                            <span
+                              className={`block h-full transition-all duration-300 ${
+                                task.subtasks_completed >= task.subtasks_total ? 'bg-emerald-400' : 'bg-amber-400'
+                              }`}
+                              style={{
+                                width: `${Math.min(100, Math.round(((task.subtasks_completed || 0) / task.subtasks_total) * 100))}%`
+                              }}
+                            />
+                          </span>
                         </span>
                       )}
 
@@ -506,7 +613,7 @@ export default function TodayAgendaWidget({ className = '' }) {
 
                     {/* Circular completion button */}
                     <button
-                      onClick={(e) => toggleComplete(task, e)}
+                      onClick={(e) => toggleTaskComplete(task, e)}
                       className="shrink-0 p-1 text-nova/40 hover:text-amber-400 transition-colors"
                       title={task.completed ? 'Mark active' : 'Mark completed'}
                     >
