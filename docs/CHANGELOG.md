@@ -1,3 +1,27 @@
+## [2026-10-26] Day Completion Progress Bar, Subtask Bar & Daily Task Audit Alignment (v1.2.57)
+- **Architecture Deepening (agendaPrioritizer.js)**:
+  - Extracted pure task prioritization and alignment domain logic from `TodayAgendaWidget.jsx` into dedicated module `src/lib/agendaPrioritizer.js`.
+  - Exported `DEFAULT_AUDIT_PRIMARIES`, `getAuditRank`, `getStoredAuditList`, `sortCandidatePrimaries`, and `buildAlignedOrder`.
+  - Re-exported legacy symbols from `TodayAgendaWidget.jsx` for 100% backward compatibility.
+  - Reduced `TodayAgendaWidget.jsx` length from 866 lines to 743 lines (-123 lines).
+  - Added unit test suite `src/lib/agendaPrioritizer.test.js` (14 unit tests).
+- **Day Completion Progress Bar (TodayAgendaWidget.jsx)**:
+  - Added visual horizontal day completion progress bar displaying completion ratio and percentage (e.g., "1 of 3 Primaries Cleared • 33%").
+  - Solid void track with border-pulsar/40 and filled with solid amber-400 (or emerald-400 at 100% completion). Zero gradients.
+  - Added secondary summary displaying total agenda items completed (e.g., "X/Y total agenda items done") and logged focus minutes.
+- **Visual Subtask Progress Bar ("task sub bar thingy")**:
+  - Added dedicated visual progress bar directly on parent task cards (task.subtasks_total > 0), 28px wide with solid amber-400 fill (or emerald-400 when 100% complete) reflecting subtasks_completed / subtasks_total ratio.
+  - Maintained parent badge with exact completion ratio and subtask progress bar.
+- **Daily Task Audit Alignment**:
+  - Implemented default auto-alignment prioritizing Daily Task Audit P0 primaries: "Portfolio: Replace AI Product Sketches with Real ID Sketches", "Agri Solar Survey Paper: Phase 2 (Reading & Synthesis)", and "DAB Converter & Power Electronics EMC Research (Dr. Vignesh Kumar)" over random routine tasks due today.
+  - Recognized overdue P0/critical tasks so they are not displaced by tasks due today.
+  - Added "Align Audit" button with Target icon in widget header to match and prioritize Daily Task Audit primaries and persist order to localStorage (polaris_today_order_<date>).
+  - Supported custom directives loaded from localStorage under polaris_audit_directives_<date>.
+- **Quality Gates & Testing**:
+  - 34 test files, 362 unit tests passing with 100% success rate (16/16 in TodayAgendaWidget.test.jsx).
+  - Clean Vite production PWA build with service worker precache generated (1551.82 KiB).
+  - Strict compliance: 0 em dashes, 0 en dashes, 0 CSS gradients.
+
 ## [2026-10-26] Restore GitHub Pages Auto-Deploy on Main (v1.2.56)
 - **GitHub Actions Auto-Deploy**: Restored `push: branches: [main]` trigger in `.github/workflows/deploy.yml` alongside `workflow_dispatch`, enabling automatic build and deployment to GitHub Pages on every push to `main`.
 

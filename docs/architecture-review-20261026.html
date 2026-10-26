@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Architecture Review: Polaris PWA</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module">
+      import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+      mermaid.initialize({ startOnLoad: true, theme: "dark", securityLevel: "loose" });
+    </script>
+    <style>
+      .seam { stroke-dasharray: 4 4; }
+      .leak { stroke: #ef4444; }
+      .deep-box { background-color: #0f172a; border: 2px solid #38bdf8; }
+      .shallow-box { background-color: #1e293b; border: 1px dashed #64748b; }
+    </style>
+  </head>
+  <body class="bg-slate-950 text-slate-100 font-sans antialiased min-h-screen">
+    <main class="max-w-5xl mx-auto px-6 py-12 space-y-12">
+      
+      <!-- Header -->
+      <header class="border-b border-slate-800 pb-6 space-y-3">
+        <div class="flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <span class="text-xs font-mono uppercase tracking-widest text-amber-400">Architecture Review</span>
+            <h1 class="text-2xl font-bold tracking-tight text-white mt-1">Polaris Codebase Architecture</h1>
+          </div>
+          <div class="text-xs font-mono text-slate-400">Date: 2026-10-26 | Target: Main Branch</div>
+        </div>
+        
+        <!-- Legend -->
+        <div class="flex items-center gap-6 pt-3 text-xs font-mono text-slate-400 border-t border-slate-900 flex-wrap">
+          <div class="flex items-center gap-2">
+            <span class="w-3.5 h-3.5 rounded bg-slate-800 border border-slate-600 inline-block"></span>
+            <span>Module</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="w-4 h-0 border-t-2 border-dashed border-amber-400 inline-block"></span>
+            <span>Seam</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="w-4 h-0 border-t-2 border-red-500 inline-block"></span>
+            <span>Leakage</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="w-3.5 h-3.5 rounded bg-slate-900 border-2 border-sky-400 inline-block"></span>
+            <span>Deep Module</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- Candidates Section -->
+      <section id="candidates" class="space-y-12">
+
+        <!-- Candidate 1 -->
+        <article class="p-6 rounded-xl bg-slate-900/80 border border-slate-800 space-y-6">
+          <div class="flex items-start justify-between gap-4 flex-wrap">
+            <div class="space-y-1">
+              <span class="text-xs font-mono text-slate-400">Candidate 1</span>
+              <h2 class="text-lg font-bold text-white">Consolidate the Leaky Offline Persistence Seam</h2>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="px-2.5 py-0.5 rounded text-xs font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">Strong</span>
+              <span class="px-2.5 py-0.5 rounded text-xs font-mono bg-slate-800 text-slate-300 border border-slate-700">ports & adapters</span>
+            </div>
+          </div>
+
+          <div class="text-xs font-mono text-slate-400 bg-slate-950 p-2.5 rounded border border-slate-800/80">
+            Files: src/lib/offlineApi.js, src/lib/syncManager.js, src/lib/syncQueue.js, src/lib/offlineStore.js
+          </div>
+
+          <!-- Before / After Diagram -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="rounded-lg border border-slate-800 bg-slate-950 p-4 space-y-2">
+              <div class="text-xs font-mono uppercase tracking-wider text-red-400 font-bold">Before: Shallow Ring & Leaking Seams</div>
+              <pre class="mermaid">
+flowchart TD
+    UI[React Views] --> OA[offlineApi.js]
+    OA --> OS[(offlineStore.js)]
+    OA --> SQ[syncQueue.js]
+    SM[syncManager.js] -.pullData.-> OS
+    SM --> SQ
+    SM -.validateRowPayload.-> OA
+    SM -.moveToDLQ.-> SQ
+    classDef leak stroke:#ef4444,stroke-width:2px;
+    class SM,OA leak;
+              </pre>
+            </div>
+
+            <div class="rounded-lg border border-slate-800 bg-slate-950 p-4 space-y-2">
+              <div class="text-xs font-mono uppercase tracking-wider text-sky-400 font-bold">After: Deep DataSyncEngine Module</div>
+              <pre class="mermaid">
+flowchart TD
+    UI[React Views] --> DSE["DataSyncEngine (Deep Module)"]
+    subgraph DSE_Hidden ["Encapsulated Behind Seam"]
+      OS[(Dexie Store)]
+      Val[Schema Validation]
+      DLQ[Dead Letter Queue]
+      Q[Sync Queue]
+    end
+    DSE --> Adapters{"Seam Adapters"}
+    Adapters --> A1["Supabase Remote (Prod)"]
+    Adapters --> A2["Memory Mock (Tests)"]
+    classDef deep stroke:#38bdf8,stroke-width:2px;
+    class DSE deep;
+              </pre>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-slate-300">
+            <div>
+              <p class="font-bold text-white mb-1">Problem:</p>
+              <p class="text-slate-400">Offline mutations leak validation rules, dynamic DLQ imports, and queue draining across four shallow modules with circular imports.</p>
+            </div>
+            <div>
+              <p class="font-bold text-white mb-1">Solution:</p>
+              <p class="text-slate-400">Deepen the persistence layer into a single DataSyncEngine module that encapsulates Dexie storage, payload validation, and DLQ resolution behind one uniform interface.</p>
+            </div>
+          </div>
+
+          <div class="space-y-1">
+            <p class="text-xs font-mono uppercase tracking-wider text-slate-400 font-bold">Wins:</p>
+            <ul class="grid grid-cols-1 sm:grid-cols-2 gap-1 text-xs font-mono text-slate-300">
+              <li class="flex items-center gap-1.5"><span class="text-emerald-400">•</span> Locality: validation concentrates in one module</li>
+              <li class="flex items-center gap-1.5"><span class="text-emerald-400">•</span> Leverage: one interface for all storage</li>
+              <li class="flex items-center gap-1.5"><span class="text-emerald-400">•</span> Deletes circular dynamic imports in loops</li>
+              <li class="flex items-center gap-1.5"><span class="text-emerald-400">•</span> Two clean adapters: Supabase and Memory</li>
+            </ul>
+          </div>
+        </article>
+
+        <!-- Candidate 2 -->
+        <article class="p-6 rounded-xl bg-slate-900/80 border border-slate-800 space-y-6">
+          <div class="flex items-start justify-between gap-4 flex-wrap">
+            <div class="space-y-1">
+              <span class="text-xs font-mono text-slate-400">Candidate 2</span>
+              <h2 class="text-lg font-bold text-white">Extract Pure Task Prioritization Domain Module</h2>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="px-2.5 py-0.5 rounded text-xs font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">Strong</span>
+              <span class="px-2.5 py-0.5 rounded text-xs font-mono bg-slate-800 text-slate-300 border border-slate-700">in-process</span>
+            </div>
+          </div>
+
+          <div class="text-xs font-mono text-slate-400 bg-slate-950 p-2.5 rounded border border-slate-800/80">
+            Files: src/components/widgets/TodayAgendaWidget.jsx, src/lib/agendaPrioritizer.js
+          </div>
+
+          <!-- Before / After Diagram -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="rounded-lg border border-slate-800 bg-slate-950 p-4 space-y-2">
+              <div class="text-xs font-mono uppercase tracking-wider text-red-400 font-bold">Before: Monolithic UI Carrying Domain Logic</div>
+              <pre class="mermaid">
+flowchart TD
+    TAW["TodayAgendaWidget.jsx (865 lines)"]
+    subgraph TAW_Mixed ["Entangled In Component Body"]
+      G1["getAuditRank (Fuzzy Matcher)"]
+      G2["Duplicate localStorage Parser"]
+      G3["Task Candidate Sorter"]
+      G4["12 React State Hooks"]
+      G5["Timebox Chip Logger"]
+      G6["JSX Markup & Progress Bars"]
+    end
+    classDef leak stroke:#ef4444,stroke-width:2px;
+    class G1,G2,G3 leak;
+              </pre>
+            </div>
+
+            <div class="rounded-lg border border-slate-800 bg-slate-950 p-4 space-y-2">
+              <div class="text-xs font-mono uppercase tracking-wider text-sky-400 font-bold">After: Thin View + Deep Domain Policy</div>
+              <pre class="mermaid">
+flowchart TD
+    TAW["TodayAgendaWidget.jsx (~700 lines)"]
+    AP["agendaPrioritizer.js (Deep Module)"]
+    TAW -->|sort, rank, align| AP
+    subgraph AP_Hidden ["Encapsulated Pure Policy"]
+      P1["Fuzzy Title & Keyword Scoring"]
+      P2["Directives Resolution"]
+      P3["Audit Priority Ranking"]
+      P4["Deterministic Candidate Sorting"]
+    end
+    classDef deep stroke:#38bdf8,stroke-width:2px;
+    class AP deep;
+              </pre>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-slate-300">
+            <div>
+              <p class="font-bold text-white mb-1">Problem:</p>
+              <p class="text-slate-400">TodayAgendaWidget has swelled to 865 lines by mixing task-ranking algorithms, duplicate storage parsing, and view rendering.</p>
+            </div>
+            <div>
+              <p class="font-bold text-white mb-1">Solution:</p>
+              <p class="text-slate-400">Extract an agendaPrioritizer module that exposes pure ranking and alignment functions, keeping the component focused solely on UI interaction.</p>
+            </div>
+          </div>
+
+          <div class="space-y-1">
+            <p class="text-xs font-mono uppercase tracking-wider text-slate-400 font-bold">Wins:</p>
+            <ul class="grid grid-cols-1 sm:grid-cols-2 gap-1 text-xs font-mono text-slate-300">
+              <li class="flex items-center gap-1.5"><span class="text-emerald-400">•</span> Prevents file crossing 1k lines</li>
+              <li class="flex items-center gap-1.5"><span class="text-emerald-400">•</span> Interface is the test surface</li>
+              <li class="flex items-center gap-1.5"><span class="text-emerald-400">•</span> Locality: ranking rules in one file</li>
+              <li class="flex items-center gap-1.5"><span class="text-emerald-400">•</span> Deletes duplicate parsing code</li>
+            </ul>
+          </div>
+        </article>
+
+        <!-- Candidate 3 -->
+        <article class="p-6 rounded-xl bg-slate-900/80 border border-slate-800 space-y-6">
+          <div class="flex items-start justify-between gap-4 flex-wrap">
+            <div class="space-y-1">
+              <span class="text-xs font-mono text-slate-400">Candidate 3</span>
+              <h2 class="text-lg font-bold text-white">Unify Multi-Table Task Ingestion in useTodaysTasks</h2>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="px-2.5 py-0.5 rounded text-xs font-mono font-bold bg-amber-500/10 text-amber-400 border border-amber-500/30">Worth exploring</span>
+              <span class="px-2.5 py-0.5 rounded text-xs font-mono bg-slate-800 text-slate-300 border border-slate-700">in-process</span>
+            </div>
+          </div>
+
+          <div class="text-xs font-mono text-slate-400 bg-slate-950 p-2.5 rounded border border-slate-800/80">
+            Files: src/hooks/useTodaysTasks.js, src/lib/taskRepository.js
+          </div>
+
+          <!-- Before / After Diagram -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="rounded-lg border border-slate-800 bg-slate-950 p-4 space-y-2">
+              <div class="text-xs font-mono uppercase tracking-wider text-red-400 font-bold">Before: 3 Sequential Fetches + In-Memory Aggregation</div>
+              <pre class="mermaid">
+sequenceDiagram
+    participant Hook as useTodaysTasks.js
+    participant DT as daily_tasks
+    participant G as goals
+    participant T as tasks (all user tasks)
+    Hook->>DT: offlineSelect(daily_tasks)
+    Hook->>G: offlineSelect(goals, daily)
+    Hook->>T: offlineSelect(tasks) - Full Table
+    Note over Hook: Loops through all user tasks in JS<br/>to calculate subtask totals & active status
+              </pre>
+            </div>
+
+            <div class="rounded-lg border border-slate-800 bg-slate-950 p-4 space-y-2">
+              <div class="text-xs font-mono uppercase tracking-wider text-sky-400 font-bold">After: Single Consolidated Repository Interface</div>
+              <pre class="mermaid">
+sequenceDiagram
+    participant Hook as useTodaysTasks.js
+    participant Repo as TaskRepository (Deep Module)
+    participant Store as Offline & DB Engine
+    Hook->>Repo: getTodaysAggregatedAgenda(userId, date)
+    Repo->>Store: executeConsolidatedQuery()
+    Store-->>Repo: unified records with subtask counts
+    Repo-->>Hook: pre-aggregated unified task models
+              </pre>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-slate-300">
+            <div>
+              <p class="font-bold text-white mb-1">Problem:</p>
+              <p class="text-slate-400">useTodaysTasks downloads every task the user has ever created into client memory to calculate subtask ratios and active statuses.</p>
+            </div>
+            <div>
+              <p class="font-bold text-white mb-1">Solution:</p>
+              <p class="text-slate-400">Deepen task querying behind a TaskRepository module that returns pre-aggregated parent-child task records through a single interface call.</p>
+            </div>
+          </div>
+
+          <div class="space-y-1">
+            <p class="text-xs font-mono uppercase tracking-wider text-slate-400 font-bold">Wins:</p>
+            <ul class="grid grid-cols-1 sm:grid-cols-2 gap-1 text-xs font-mono text-slate-300">
+              <li class="flex items-center gap-1.5"><span class="text-emerald-400">•</span> Leverage: 1 query replaces 3 fetches</li>
+              <li class="flex items-center gap-1.5"><span class="text-emerald-400">•</span> Eliminates client memory scan of full history</li>
+              <li class="flex items-center gap-1.5"><span class="text-emerald-400">•</span> Locality: aggregation lives in data layer</li>
+              <li class="flex items-center gap-1.5"><span class="text-emerald-400">•</span> Test surface: mock 1 call, not 3 tables</li>
+            </ul>
+          </div>
+        </article>
+
+      </section>
+
+      <!-- Top Recommendation Section -->
+      <section id="top-recommendation" class="p-6 rounded-xl bg-slate-900 border-2 border-amber-500/40 space-y-4">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <span class="text-xs font-mono uppercase tracking-widest text-amber-400 font-bold">Top Recommendation</span>
+          <a href="#candidates" class="text-xs font-mono text-sky-400 hover:underline">View Candidate 2 &rarr;</a>
+        </div>
+        <h3 class="text-xl font-bold text-white">Candidate 2: Extract Pure Task Prioritization Domain Module (agendaPrioritizer.js)</h3>
+        <p class="text-sm text-slate-300">
+          This is the immediate hot spot touched by the active PR. TodayAgendaWidget.jsx sits at 865 lines, approaching the 1,000-line boundary. Extracting agendaPrioritizer.js provides an immediate "code judo" move: it collapses duplicated localStorage directives parsing, decouples fuzzy string ranking from React component lifecycle, shrinks the widget by ~120 lines, and creates a pure in-process test surface with zero UI overhead.
+        </p>
+      </section>
+
+    </main>
+  </body>
+</html>

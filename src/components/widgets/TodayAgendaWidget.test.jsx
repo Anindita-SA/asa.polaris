@@ -348,4 +348,237 @@ describe('TodayAgendaWidget', () => {
     // Completed task should not displace active tasks into the cap
     expect(screen.queryByText('Already Completed P0')).toBeNull()
   })
+
+  it('renders visual Day Completion Progress Bar with ratio, percentage, and secondary summary', () => {
+    render(<TodayAgendaWidget />)
+
+    // Progress bar label: 0 of 3 Primaries Cleared • 0%
+    expect(screen.getByText(/0 of 3 Primaries Cleared • 0%/i)).toBeDefined()
+
+    // Secondary summary: 0/5 total agenda items done • 0m logged
+    expect(screen.getByText(/0\/5 total agenda items done/i)).toBeDefined()
+    expect(screen.getAllByText(/0m logged/i).length).toBe(2)
+
+    // Progress bar element
+    const progressBar = screen.getByRole('progressbar', { name: /Day Completion Progress/i })
+    expect(progressBar).toBeDefined()
+    expect(progressBar.getAttribute('aria-valuenow')).toBe('0')
+  })
+
+  it('updates Day Completion Progress Bar ratio and percentage when primary tasks are completed', () => {
+    localStorage.setItem(`polaris_today_order_${todayStr}`, JSON.stringify(['task-1', 'task-2', 'task-3']))
+    mockTasks[0].completed = true // 1 of 3 primaries completed
+
+    render(<TodayAgendaWidget />)
+
+    expect(screen.getByText(/1 of 3 Primaries Cleared • 33%/i)).toBeDefined()
+    expect(screen.getByText(/1\/5 total agenda items done/i)).toBeDefined()
+
+    const progressBar = screen.getByRole('progressbar', { name: /Day Completion Progress/i })
+    expect(progressBar.getAttribute('aria-valuenow')).toBe('33')
+  })
+
+  it('renders dedicated visual Subtask Bar directly on parent task cards', () => {
+    render(<TodayAgendaWidget />)
+
+    // Subtask progress bar with aria-label="Subtask progress" and aria-valuenow="25"
+    const subtaskBars = screen.getAllByRole('progressbar', { name: /Subtask progress/i })
+    expect(subtaskBars.length).toBeGreaterThan(0)
+    expect(subtaskBars[0].getAttribute('aria-valuenow')).toBe('25')
+
+    // Parent badge is preserved
+    expect(screen.getByText('Parent (1/4 done)')).toBeDefined()
+  })
+
+  it('default auto-alignment prioritizes matching Daily Task Audit P0 primaries even when overdue', () => {
+    mockTasks = [
+      {
+        id: 'random-task-1',
+        title: 'Random Routine Item Due Today',
+        completed: false,
+        estimated_minutes: 30,
+        quadrant: 'urgent_important',
+        deadline: todayStr,
+        parent_task_id: null,
+        subtasks_total: 0
+      },
+      {
+        id: 'audit-dab',
+        title: 'DAB Converter & Power Electronics EMC Research (Dr. Vignesh Kumar)',
+        completed: false,
+        estimated_minutes: 60,
+        quadrant: 'urgent_important',
+        deadline: '2026-10-18',
+        parent_task_id: null,
+        subtasks_total: 0
+      },
+      {
+        id: 'audit-portfolio',
+        title: 'Portfolio: Replace AI Product Sketches with Real ID Sketches',
+        completed: false,
+        estimated_minutes: 60,
+        quadrant: 'urgent_important',
+        deadline: '2026-10-23',
+        parent_task_id: null,
+        subtasks_total: 0
+      },
+      {
+        id: 'audit-agri',
+        title: 'Agri Solar Survey Paper: Phase 2 (Reading & Synthesis)',
+        completed: false,
+        estimated_minutes: 60,
+        quadrant: 'important_not_urgent',
+        deadline: '2026-10-18',
+        parent_task_id: null,
+        subtasks_total: 0
+      }
+    ]
+
+    render(<TodayAgendaWidget />)
+
+    // All 3 audit primaries must be rendered in primaries list
+    expect(screen.getByText('Portfolio: Replace AI Product Sketches with Real ID Sketches')).toBeDefined()
+    expect(screen.getByText('Agri Solar Survey Paper: Phase 2 (Reading & Synthesis)')).toBeDefined()
+    expect(screen.getByText('DAB Converter & Power Electronics EMC Research (Dr. Vignesh Kumar)')).toBeDefined()
+
+    // Random task due today must be displaced beyond the 3-primary cap
+    expect(screen.queryByText('Random Routine Item Due Today')).toBeNull()
+  })
+
+  it('clicking Align Audit button matches audit primaries and saves order to localStorage', async () => {
+    mockTasks = [
+      {
+        id: 't-random',
+        title: 'Unrelated Routine Work',
+        completed: false,
+        estimated_minutes: 45,
+        quadrant: 'urgent_important',
+        deadline: todayStr,
+        parent_task_id: null,
+        subtasks_total: 0
+      },
+      {
+        id: 't-agri',
+        title: 'Agri Solar Survey Paper: Phase 2 (Reading & Synthesis)',
+        completed: false,
+        estimated_minutes: 60,
+        quadrant: 'important_not_urgent',
+        deadline: '2026-10-18',
+        parent_task_id: null,
+        subtasks_total: 0
+      },
+      {
+        id: 't-port',
+        title: 'Portfolio: Replace AI Product Sketches with Real ID Sketches',
+        completed: false,
+        estimated_minutes: 60,
+        quadrant: 'urgent_important',
+        deadline: '2026-10-23',
+        parent_task_id: null,
+        subtasks_total: 0
+      },
+      {
+        id: 't-dab',
+        title: 'DAB Converter & Power Electronics EMC Research (Dr. Vignesh Kumar)',
+        completed: false,
+        estimated_minutes: 60,
+        quadrant: 'urgent_important',
+        deadline: '2026-10-18',
+        parent_task_id: null,
+        subtasks_total: 0
+      }
+    ]
+
+    render(<TodayAgendaWidget />)
+
+    const alignBtn = screen.getByRole('button', { name: /align audit/i })
+    expect(alignBtn).toBeDefined()
+
+    fireEvent.click(alignBtn)
+
+    // Order saved to localStorage: Portfolio, Agri, DAB
+    const savedOrder = JSON.parse(localStorage.getItem(`polaris_today_order_${todayStr}`))
+    expect(savedOrder).toEqual(['t-port', 't-agri', 't-dab'])
+
+    // UI shows aligned state
+    expect(screen.getByText('Aligned!')).toBeDefined()
+  })
+
+  it('recognizes custom directives in polaris_audit_directives_<date>', () => {
+    localStorage.setItem(
+      `polaris_audit_directives_${todayStr}`,
+      JSON.stringify([
+        'Custom Priority Task One',
+        'Custom Priority Task Two',
+        'Custom Priority Task Three'
+      ])
+    )
+
+    mockTasks = [
+      {
+        id: 'custom-3',
+        title: 'Custom Priority Task Three',
+        completed: false,
+        estimated_minutes: 30,
+        quadrant: 'urgent_important',
+        deadline: null,
+        parent_task_id: null,
+        subtasks_total: 0
+      },
+      {
+        id: 'custom-1',
+        title: 'Custom Priority Task One',
+        completed: false,
+        estimated_minutes: 60,
+        quadrant: 'important_not_urgent',
+        deadline: null,
+        parent_task_id: null,
+        subtasks_total: 0
+      },
+      {
+        id: 'custom-2',
+        title: 'Custom Priority Task Two',
+        completed: false,
+        estimated_minutes: 45,
+        quadrant: 'urgent_important',
+        deadline: null,
+        parent_task_id: null,
+        subtasks_total: 0
+      },
+      {
+        id: 'random-ignored',
+        title: 'Random Ignored Task',
+        completed: false,
+        estimated_minutes: 20,
+        quadrant: 'urgent_important',
+        deadline: todayStr,
+        parent_task_id: null,
+        subtasks_total: 0
+      }
+    ]
+
+    render(<TodayAgendaWidget />)
+
+    expect(screen.getByText('Custom Priority Task One')).toBeDefined()
+    expect(screen.getByText('Custom Priority Task Two')).toBeDefined()
+    expect(screen.getByText('Custom Priority Task Three')).toBeDefined()
+    expect(screen.queryByText('Random Ignored Task')).toBeNull()
+  })
+
+  it('locking primaries into polaris_today_order on completion toggle preserves daily primaries', async () => {
+    render(<TodayAgendaWidget />)
+
+    expect(localStorage.getItem(`polaris_today_order_${todayStr}`)).toBeNull()
+
+    const toggleBtns = screen.getAllByTitle('Mark completed')
+    fireEvent.click(toggleBtns[0])
+
+    const saved = localStorage.getItem(`polaris_today_order_${todayStr}`)
+    expect(saved).toBeDefined()
+    expect(JSON.parse(saved)).toEqual(['task-1', 'task-2', 'task-3'])
+    expect(mockToggleComplete).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'task-1' }),
+      expect.anything()
+    )
+  })
 })
