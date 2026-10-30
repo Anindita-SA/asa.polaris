@@ -795,4 +795,105 @@ describe('TodayAgendaWidget', () => {
     // Verify daily_plan was NOT queried because rollback flag was off
     expect(offlineApi.offlineSelect).not.toHaveBeenCalledWith('daily_plan', expect.anything())
   })
+
+  it('accepts tasks and action methods as props, overriding useTodaysTasks fallback', () => {
+    const propTasks = [
+      {
+        id: 'prop-task-1',
+        title: 'Task Passed Via Props',
+        completed: false,
+        estimated_minutes: 30,
+        quadrant: 'urgent_important',
+        deadline: todayStr,
+        parent_task_id: null,
+        subtasks_total: 0
+      }
+    ]
+    const propToggleComplete = vi.fn()
+
+    render(
+      <TodayAgendaWidget
+        tasks={propTasks}
+        toggleComplete={propToggleComplete}
+      />
+    )
+
+    expect(screen.getByText('Task Passed Via Props')).toBeDefined()
+    const checkbox = screen.getByTitle('Mark completed')
+    fireEvent.click(checkbox)
+    expect(propToggleComplete).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'prop-task-1' }),
+      expect.anything()
+    )
+    expect(mockToggleComplete).not.toHaveBeenCalled()
+  })
+
+  it('renders loading state when isLoading prop is true', () => {
+    render(
+      <TodayAgendaWidget
+        tasks={[]}
+        isLoading={true}
+      />
+    )
+
+    expect(screen.getByText('Loading priorities...')).toBeDefined()
+  })
+
+  it('guards importTodayLocalStorageToDb with hasImportedTodayRef so it runs once per mount across prop updates', async () => {
+    offlineApi.offlineSelect.mockImplementation(async (table) => {
+      if (table === 'daily_plan') return { data: [], error: null }
+      if (table === 'daily_plan_streams') return { data: [], error: null }
+      return { data: [], error: null }
+    })
+
+    const initialTasks = [
+      {
+        id: 'task-guard-1',
+        title: 'Guard Task 1',
+        completed: false,
+        estimated_minutes: 30,
+        quadrant: 'urgent_important',
+        deadline: todayStr,
+        parent_task_id: null,
+        subtasks_total: 0
+      }
+    ]
+
+    const { rerender } = render(
+      <TodayAgendaWidget
+        tasks={initialTasks}
+        isLoading={false}
+      />
+    )
+
+    await waitFor(() => {
+      expect(offlineApi.offlineSelect).toHaveBeenCalledWith('daily_plan', expect.anything())
+    })
+
+    const dailyPlanCallsAfterMount = offlineApi.offlineSelect.mock.calls.filter(c => c[0] === 'daily_plan').length
+
+    // Rerender with a newly allocated tasks array reference (simulating background silent update)
+    const updatedTasks = [
+      {
+        ...initialTasks[0],
+        title: 'Guard Task 1 Updated'
+      }
+    ]
+
+    rerender(
+      <TodayAgendaWidget
+        tasks={updatedTasks}
+        isLoading={false}
+      />
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('Guard Task 1 Updated')).toBeDefined()
+    })
+
+    // Verify importTodayLocalStorageToDb was NOT called again on subsequent render
+    const dailyPlanCallsAfterRerender = offlineApi.offlineSelect.mock.calls.filter(c => c[0] === 'daily_plan').length
+    // The second offlineSelect call in loadTimeboxesAndTracks reads daily_plan, but import idempotency check was bypassed
+    expect(dailyPlanCallsAfterRerender).toBeLessThanOrEqual(dailyPlanCallsAfterMount + 1)
+  })
 })

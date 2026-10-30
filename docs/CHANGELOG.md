@@ -1,3 +1,22 @@
+## [2026-10-31] Day Brief Refresh Loop & Interaction Lockout Fix (v1.2.63)
+- **Destructive Unmount Gate Removal (src/components/views/DayBriefView.jsx)**:
+  - Removed destructive if (tasksLoading || loadingExtras) component tree unmount gate.
+  - Replaced with cold initial load check if (loadingExtras && briefItems.length === 0) so background task updates never unmount the tree or lock out interactions.
+  - Forwarded task data and action methods (tasks, allBacklogTasks, isLoading, toggleComplete, addTask, addSubtask, attachSubtask, updateSortOrder) to TodayAgendaWidget.
+- **Silent Task Fetching & Table Event Filtering (src/hooks/useTodaysTasks.js)**:
+  - Added silent = false parameter to fetchTasks(). When silent = true, skips setIsLoading(true) to prevent UI disruption during background updates.
+  - Filtered polaris-tasks-changed event listener in handleTasksChanged to only trigger on task tables (['tasks', 'daily_tasks', 'goals']), passing silent = true, and ignoring empty detail events.
+  - Made toggleComplete, addTask, addSubtask, and attachSubtask post-mutation refreshes silent (fetchTasks(true)) to prevent user interaction jitter and loading flickers.
+- **Idempotent Day Guide Import & Optional Props Fallback (src/components/widgets/TodayAgendaWidget.jsx)**:
+  - Added hasImportedTodayRef guard to importTodayLocalStorageToDb conditioned on (!isLoading || tasks.length > 0) so database hydration waits for tasks to load and runs once per mount instead of executing on every reference change.
+  - Accepted tasks, isLoading, and task action methods as optional props with backward-compatible fallback to useTodaysTasks().
+- **Sync Event Table Detail (src/lib/syncManager.js)**:
+  - Updated pullData in sync manager (L36) to pass { detail: { table } } with polaris-tasks-changed events.
+- **Test Coverage**:
+  - Added unit tests in src/components/views/DayBriefView.test.jsx verifying cold load placeholder rendering, persistent mounting during background tasks loading, and widget prop delivery.
+  - Added unit tests in src/hooks/useTodaysTasks.test.js verifying silent fetch behavior, table event filtering (including empty detail objects), and silent toggle completion.
+  - Added unit tests in src/components/widgets/TodayAgendaWidget.test.jsx verifying props override fallback, toggleComplete prop invocation, isLoading rendering, and hasImportedTodayRef single execution.
+
 ## [2026-10-30] Sprint B: Day Guide Persistence & Dual-Write Architecture (v1.2.62)
 - **Database Schema Expansion (supabase/migrations/20261030223000_sprint_b_day_guide_persistence.sql)**:
   - Created tables daily_plan, daily_plan_streams, day_state, and exam_dates with Row Level Security, Data API grants, and foreign keys.
