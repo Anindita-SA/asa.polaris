@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { Reorder } from 'framer-motion'
 import {
   ListTodo,
@@ -44,18 +44,30 @@ import {
 // Re-export for backward compatibility
 export { DEFAULT_AUDIT_PRIMARIES, getAuditRank } from '../../lib/agendaPrioritizer'
 
-export default function TodayAgendaWidget({ className = '' }) {
+export default function TodayAgendaWidget({
+  className = '',
+  tasks: propTasks,
+  allBacklogTasks: propAllBacklogTasks,
+  isLoading: propIsLoading,
+  toggleComplete: propToggleComplete,
+  addTask: propAddTask,
+  addSubtask: propAddSubtask,
+  attachSubtask: propAttachSubtask,
+  updateSortOrder: propUpdateSortOrder
+}) {
   const { user, trackXP } = useAuth()
-  const {
-    tasks,
-    allBacklogTasks = [],
-    isLoading,
-    toggleComplete,
-    addTask,
-    addSubtask,
-    attachSubtask,
-    updateSortOrder
-  } = useTodaysTasks()
+  const hookResult = useTodaysTasks()
+
+  const tasks = propTasks !== undefined ? propTasks : hookResult.tasks
+  const allBacklogTasks = propAllBacklogTasks !== undefined ? propAllBacklogTasks : (hookResult.allBacklogTasks || [])
+  const isLoading = propIsLoading !== undefined ? propIsLoading : hookResult.isLoading
+  const toggleComplete = propToggleComplete || hookResult.toggleComplete
+  const addTask = propAddTask || hookResult.addTask
+  const addSubtask = propAddSubtask || hookResult.addSubtask
+  const attachSubtask = propAttachSubtask || hookResult.attachSubtask
+  const updateSortOrder = propUpdateSortOrder || hookResult.updateSortOrder
+
+  const hasImportedTodayRef = useRef(false)
 
   const todayStr = useMemo(() => new Date().toLocaleDateString('en-CA'), [])
   const formattedToday = useMemo(() => {
@@ -193,12 +205,15 @@ export default function TodayAgendaWidget({ className = '' }) {
       (async () => {
         try {
           // 1. Run one-time idempotent import of today's localStorage if DB has no plan yet
-          await importTodayLocalStorageToDb({
-            userId: user.id,
-            todayStr,
-            candidateTasks: tasks,
-            boxMins
-          })
+          if (!hasImportedTodayRef.current && (!isLoading || tasks.length > 0)) {
+            hasImportedTodayRef.current = true
+            await importTodayLocalStorageToDb({
+              userId: user.id,
+              todayStr,
+              candidateTasks: tasks,
+              boxMins
+            })
+          }
 
           // 2. Read daily_plan and daily_plan_streams
           const [{ data: plans }, { data: streams }] = await Promise.all([
@@ -224,7 +239,7 @@ export default function TodayAgendaWidget({ className = '' }) {
         }
       })()
     }
-  }, [tasks, todayStr, boxMins, user?.id])
+  }, [tasks, todayStr, boxMins, user?.id, isLoading])
 
   // Refresh logged minutes from pomodoro_logs or localStorage
   const refreshLoggedMinutes = useCallback(async () => {

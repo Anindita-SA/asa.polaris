@@ -33,7 +33,7 @@ export async function pullData(table, userId) {
         }
 
         if (['tasks', 'daily_tasks', 'goals', 'milestones', 'daily_plan', 'daily_plan_streams', 'day_state'].includes(table) && typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('polaris-tasks-changed'));
+          window.dispatchEvent(new CustomEvent('polaris-tasks-changed', { detail: { table } }));
         }
       }
     }

@@ -14,13 +14,15 @@ export function useTodaysTasks() {
   const [allBacklogTasks, setAllBacklogTasks] = useState([])
   const [isLoading, setIsLoading] = useState(true)
 
-  const fetchTasks = useCallback(async () => {
+  const fetchTasks = useCallback(async (silent = false) => {
     if (!user) {
       setIsLoading(false)
       return
     }
 
-    setIsLoading(true)
+    if (!silent) {
+      setIsLoading(true)
+    }
     const todayStr = new Date().toLocaleDateString('en-CA') // YYYY-MM-DD local time
 
     try {
@@ -195,8 +197,12 @@ export function useTodaysTasks() {
 
   // Listen for local tasks-changed event across tabs/components
   useEffect(() => {
-    const handleTasksChanged = () => {
-      fetchTasks()
+    const handleTasksChanged = (e) => {
+      const changedTable = e?.detail?.table
+      if (e?.detail && !['tasks', 'daily_tasks', 'goals'].includes(changedTable)) {
+        return
+      }
+      fetchTasks(true)
     }
     if (typeof window !== 'undefined') {
       window.addEventListener('polaris-tasks-changed', handleTasksChanged)
@@ -265,7 +271,7 @@ export function useTodaysTasks() {
       } else {
         trackXP(true, false, XP?.TASK_COMPLETE || 10)
       }
-      fetchTasks()
+      fetchTasks(true)
     }
   }
 
@@ -280,7 +286,7 @@ export function useTodaysTasks() {
       completed: false
     })
 
-    if (data) fetchTasks()
+    if (data) fetchTasks(true)
   }
 
   const updateSortOrder = async (taskId, newOrder) => {
@@ -310,7 +316,7 @@ export function useTodaysTasks() {
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('polaris-tasks-changed', { detail: { table: 'tasks' } }))
       }
-      fetchTasks()
+      fetchTasks(true)
     }
   }
 
@@ -321,7 +327,7 @@ export function useTodaysTasks() {
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('polaris-tasks-changed', { detail: { table: 'tasks' } }))
     }
-    fetchTasks()
+    fetchTasks(true)
   }
 
   return { tasks, allBacklogTasks, isLoading, fetchTasks, toggleComplete, addTask, addSubtask, attachSubtask, updateSortOrder }

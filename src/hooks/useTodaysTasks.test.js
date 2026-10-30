@@ -304,4 +304,96 @@ describe('useTodaysTasks hook', () => {
     expect(parent.subtasks_total).toBe(2)
     expect(parent.subtasks_completed).toBe(1)
   })
+
+  it('supports silent = true in fetchTasks without flipping isLoading to true', async () => {
+    offlineSelect.mockResolvedValue({ data: [], error: null })
+    const { result } = renderHook(() => useTodaysTasks())
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+    })
+
+    let observedLoadingState = null
+    await act(async () => {
+      const fetchPromise = result.current.fetchTasks(true)
+      observedLoadingState = result.current.isLoading
+      await fetchPromise
+    })
+
+    expect(observedLoadingState).toBe(false)
+    expect(result.current.isLoading).toBe(false)
+  })
+
+  it('filters polaris-tasks-changed by table: ignores non-task tables and triggers on task tables silently', async () => {
+    offlineSelect.mockClear()
+    offlineSelect.mockResolvedValue({ data: [], error: null })
+
+    const { result } = renderHook(() => useTodaysTasks())
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+    })
+
+    const initialSelectCalls = offlineSelect.mock.calls.length
+
+    // Dispatch non-task table event (e.g. daily_plan, milestones)
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent('polaris-tasks-changed', {
+        detail: { table: 'daily_plan' }
+      }))
+    })
+
+    // Should NOT have triggered any new selects
+    expect(offlineSelect.mock.calls.length).toBe(initialSelectCalls)
+
+    // Dispatch empty detail object (should NOT trigger)
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent('polaris-tasks-changed', {
+        detail: {}
+      }))
+    })
+
+    expect(offlineSelect.mock.calls.length).toBe(initialSelectCalls)
+
+    // Dispatch task table event (e.g. tasks)
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent('polaris-tasks-changed', {
+        detail: { table: 'tasks' }
+      }))
+    })
+
+    await waitFor(() => {
+      expect(offlineSelect.mock.calls.length).toBeGreaterThan(initialSelectCalls)
+      expect(result.current.isLoading).toBe(false)
+    })
+  })
+
+  it('toggleComplete executes optimistic update and refreshes silently without setting isLoading to true', async () => {
+    const mockTasks = [
+      { id: 'task-toggle-1', user_id: mockUser.id, title: 'Toggle Test Task', status: 'active' }
+    ]
+
+    offlineSelect.mockImplementation(async (table) => {
+      if (table === 'tasks') return { data: mockTasks, error: null }
+      return { data: [], error: null }
+    })
+    offlineUpdate.mockResolvedValue({ data: [{}], error: null })
+
+    const { result } = renderHook(() => useTodaysTasks())
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+      expect(result.current.tasks.length).toBe(1)
+    })
+
+    let observedLoadingStateDuringToggle = null
+    await act(async () => {
+      const togglePromise = result.current.toggleComplete(result.current.tasks[0])
+      observedLoadingStateDuringToggle = result.current.isLoading
+      await togglePromise
+    })
+
+    expect(observedLoadingStateDuringToggle).toBe(false)
+    expect(result.current.isLoading).toBe(false)
+  })
 })

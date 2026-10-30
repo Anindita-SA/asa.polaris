@@ -14,7 +14,16 @@ import { parseOpportunityBreakdown, formatTwoSentenceSummary } from '../../lib/o
 
 export default function DayBriefView() {
   const { user } = useAuth();
-  const { tasks: todaysTasks, isLoading: tasksLoading } = useTodaysTasks();
+  const {
+    tasks: todaysTasks = [],
+    allBacklogTasks = [],
+    isLoading: tasksLoading,
+    toggleComplete,
+    addTask,
+    addSubtask,
+    attachSubtask,
+    updateSortOrder
+  } = useTodaysTasks();
   const { generateBrief, isGenerating } = useMorningBrief({ autoRun: false });
   
   const [briefItems, setBriefItems] = useState([]);
@@ -365,7 +374,7 @@ export default function DayBriefView() {
   const affirmations = ["I am an engineer capable of solving any problem.", "My focus is a laser; distractions burn away.", "Fear is just fuel for my ambition."];
   const randomAffirmation = affirmations[Math.floor(Math.random() * affirmations.length)];
 
-  if (tasksLoading || loadingExtras) return <div className="p-8 text-nova/60">Loading your brief...</div>;
+  if (loadingExtras && briefItems.length === 0) return <div className="p-8 text-nova/60">Loading your brief...</div>;
 
   const urgent = todaysTasks.filter(t => !t.completed && t.quadrant === 'urgent_important');
   const strategic = todaysTasks.filter(t => !t.completed && t.quadrant === 'important_not_urgent');
@@ -392,7 +401,16 @@ export default function DayBriefView() {
         </button>
       </div>
 
-      <TodayAgendaWidget />
+      <TodayAgendaWidget
+        tasks={todaysTasks}
+        allBacklogTasks={allBacklogTasks}
+        isLoading={tasksLoading}
+        toggleComplete={toggleComplete}
+        addTask={addTask}
+        addSubtask={addSubtask}
+        attachSubtask={attachSubtask}
+        updateSortOrder={updateSortOrder}
+      />
 
       {oppItems.length > 0 && (
         <div className="glass border border-amber-500/30 rounded-xl p-6">
