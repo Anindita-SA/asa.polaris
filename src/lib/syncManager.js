@@ -32,7 +32,7 @@ export async function pullData(table, userId) {
           await db[table].bulkPut(validRecords);
         }
 
-        if (['tasks', 'daily_tasks', 'goals', 'milestones'].includes(table) && typeof window !== 'undefined') {
+        if (['tasks', 'daily_tasks', 'goals', 'milestones', 'daily_plan', 'daily_plan_streams', 'day_state'].includes(table) && typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('polaris-tasks-changed'));
         }
       }
@@ -199,7 +199,8 @@ export function initSyncManager(userId) {
           'calendar_backups', 'nudges', 'contacts', 'wins', 'mood_logs',
           'highlights', 'io_logs', 'pomodoro_logs', 'morning_briefs',
           'user_settings', 'outreach_targets', 'habit_logs', 'meal_logs',
-          'workout_logs', 'weight_logs'
+          'workout_logs', 'weight_logs', 'daily_plan', 'daily_plan_streams',
+          'day_state', 'exam_dates'
         ];
 
         try {

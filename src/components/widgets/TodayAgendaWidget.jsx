@@ -23,7 +23,7 @@ import {
 import { useAuth } from '../../hooks/useAuth'
 import { useTodaysTasks } from '../../hooks/useTodaysTasks'
 import { playChime } from '../../lib/sound'
-import { offlineInsert, offlineSelect } from '../../lib/offlineApi'
+import { offlineInsert, offlineSelect, offlineDelete } from '../../lib/offlineApi'
 import {
   DEFAULT_AUDIT_PRIMARIES,
   getAuditRank,
@@ -31,6 +31,15 @@ import {
   sortCandidatePrimaries,
   buildAlignedOrder
 } from '../../lib/agendaPrioritizer'
+import {
+  isDayGuideDbReadEnabled,
+  importTodayLocalStorageToDb,
+  mapDbPlanToUiState,
+  persistTimeboxToggleDual,
+  persistAdjustBoxCountDual,
+  persistAddTrackDual,
+  persistOrderDual
+} from '../../lib/dayGuidePersistence'
 
 // Re-export for backward compatibility
 export { DEFAULT_AUDIT_PRIMARIES, getAuditRank } from '../../lib/agendaPrioritizer'
@@ -125,54 +134,97 @@ export default function TodayAgendaWidget({ className = '' }) {
     return t.mental_load === 'low' || (mins != null && mins > 0 && mins <= 15)
   }, [])
 
-  // Load timeboxes and multi-tracks from localStorage
+  // Load timeboxes and multi-tracks from Database (with localStorage dual-read / rollback)
   const loadTimeboxesAndTracks = useCallback(() => {
-    if (typeof window === 'undefined' || !window.localStorage) return
-    const tMap = {}
-    const trMap = {}
+    if (typeof window === 'undefined') return
 
-    tasks.forEach(t => {
-      // 1. Raw timeboxes array
-      try {
-        const raw = localStorage.getItem(`polaris_timeboxes_${todayStr}_${t.id}`)
-        if (raw) tMap[t.id] = JSON.parse(raw)
-      } catch (e) {}
+    // 1. Synchronously populate from localStorage/defaults for immediate instant paint
+    const loadFromLocalStorage = () => {
+      if (!window.localStorage) return
+      const tMap = {}
+      const trMap = {}
 
-      // 2. Structured tracks
-      try {
-        const rawTracks = localStorage.getItem(`polaris_tracks_${todayStr}_${t.id}`)
-        if (rawTracks) {
-          trMap[t.id] = JSON.parse(rawTracks)
-        } else {
-          // Initialize default tracks based on task type / notes
-          const title = (t.title || '').toLowerCase()
-          const totalMins = t.estimated_minutes || t.time_estimate_minutes || (boxMins * 2)
-          const defCount = Math.max(1, Math.min(8, Math.ceil(totalMins / boxMins)))
-          const existingBoxes = tMap[t.id] || []
+      tasks.forEach(t => {
+        // 1. Raw timeboxes array
+        try {
+          const raw = localStorage.getItem(`polaris_timeboxes_${todayStr}_${t.id}`)
+          if (raw) tMap[t.id] = JSON.parse(raw)
+        } catch (e) {}
 
-          if (/cold\s*mail|outreach|email\s*outreach/i.test(title)) {
-            trMap[t.id] = [
-              { id: 'draft', name: 'draft', count: 3, boxes: existingBoxes.slice(0, 3) },
-              { id: 'sche', name: 'sche', count: 3, boxes: existingBoxes.slice(3, 6) }
-            ]
+        // 2. Structured tracks
+        try {
+          const rawTracks = localStorage.getItem(`polaris_tracks_${todayStr}_${t.id}`)
+          if (rawTracks) {
+            trMap[t.id] = JSON.parse(rawTracks)
           } else {
-            const isCountMode = /(\b\d+\b|sketches|sketch|papers|paper|articles|calls|items)\b/i.test(title)
-            trMap[t.id] = [
-              {
-                id: 'default',
-                name: isCountMode ? 'count' : `${boxMins}m units`,
-                count: defCount,
-                boxes: existingBoxes
-              }
-            ]
-          }
-        }
-      } catch (e2) {}
-    })
+            const title = (t.title || '').toLowerCase()
+            const totalMins = t.estimated_minutes || t.time_estimate_minutes || (boxMins * 2)
+            const defCount = Math.max(1, Math.min(8, Math.ceil(totalMins / boxMins)))
+            const existingBoxes = tMap[t.id] || []
 
-    setTimeboxesMap(tMap)
-    setTaskTracksMap(trMap)
-  }, [tasks, todayStr, boxMins])
+            if (/cold\s*mail|outreach|email\s*outreach/i.test(title)) {
+              trMap[t.id] = [
+                { id: 'draft', name: 'draft', count: 3, boxes: existingBoxes.slice(0, 3) },
+                { id: 'sche', name: 'sche', count: 3, boxes: existingBoxes.slice(3, 6) }
+              ]
+            } else {
+              const isCountMode = /(\b\d+\b|sketches|sketch|papers|paper|articles|calls|items)\b/i.test(title)
+              trMap[t.id] = [
+                {
+                  id: 'default',
+                  name: isCountMode ? 'count' : `${boxMins}m units`,
+                  count: defCount,
+                  boxes: existingBoxes
+                }
+              ]
+            }
+          }
+        } catch (e2) {}
+      })
+
+      setTimeboxesMap(prev => ({ ...prev, ...tMap }))
+      setTaskTracksMap(prev => ({ ...prev, ...trMap }))
+    }
+
+    loadFromLocalStorage()
+
+    // 2. If DB read is enabled and user is logged in, asynchronously sync / hydrate from DB
+    if (isDayGuideDbReadEnabled() && user?.id) {
+      (async () => {
+        try {
+          // 1. Run one-time idempotent import of today's localStorage if DB has no plan yet
+          await importTodayLocalStorageToDb({
+            userId: user.id,
+            todayStr,
+            candidateTasks: tasks,
+            boxMins
+          })
+
+          // 2. Read daily_plan and daily_plan_streams
+          const [{ data: plans }, { data: streams }] = await Promise.all([
+            offlineSelect('daily_plan', { user_id: user.id, plan_date: todayStr }),
+            offlineSelect('daily_plan_streams', { user_id: user.id })
+          ])
+
+          if (plans && plans.length > 0) {
+            const mapped = mapDbPlanToUiState({
+              plans,
+              streams: streams || [],
+              tasks,
+              boxMins
+            })
+            setTimeboxesMap(prev => ({ ...prev, ...mapped.timeboxesMap }))
+            setTaskTracksMap(prev => ({ ...prev, ...mapped.taskTracksMap }))
+            if (mapped.orderedTasks.length > 0) {
+              setPrimaries(mapped.orderedTasks)
+            }
+          }
+        } catch (err) {
+          console.warn('Error hydrating day guide from DB:', err)
+        }
+      })()
+    }
+  }, [tasks, todayStr, boxMins, user?.id])
 
   // Refresh logged minutes from pomodoro_logs or localStorage
   const refreshLoggedMinutes = useCallback(async () => {
@@ -260,11 +312,11 @@ export default function TodayAgendaWidget({ className = '' }) {
     const orderedTasks = buildAlignedOrder(tasks, candidatePrimaries, auditList)
 
     const newIds = orderedTasks.map(t => t.id)
-    if (typeof window !== 'undefined' && window.localStorage) {
-      try {
-        localStorage.setItem(`polaris_today_order_${todayStr}`, JSON.stringify(newIds))
-      } catch (e) {}
-    }
+    persistOrderDual({
+      userId: user?.id,
+      todayStr,
+      taskIds: newIds
+    })
 
     setPrimaries(orderedTasks)
 
@@ -278,18 +330,16 @@ export default function TodayAgendaWidget({ className = '' }) {
     setTimeout(() => setAlignedFeedback(false), 2000)
 
     playChime('success')
-  }, [tasks, candidatePrimaries, todayStr, updateSortOrder])
+  }, [tasks, candidatePrimaries, todayStr, updateSortOrder, user?.id])
 
   // Lock primaries into saved order on completion toggle
   const toggleTaskComplete = async (task, e) => {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      try {
-        const raw = localStorage.getItem(`polaris_today_order_${todayStr}`)
-        if (!raw && primaries.length > 0) {
-          const ids = primaries.map(t => t.id)
-          localStorage.setItem(`polaris_today_order_${todayStr}`, JSON.stringify(ids))
-        }
-      } catch (e2) {}
+    if (primaries.length > 0) {
+      persistOrderDual({
+        userId: user?.id,
+        todayStr,
+        taskIds: primaries.map(t => t.id)
+      })
     }
     await toggleComplete(task, e)
   }
@@ -297,12 +347,11 @@ export default function TodayAgendaWidget({ className = '' }) {
   // Drag and drop reordering handler
   const handleReorder = (newOrder) => {
     setPrimaries(newOrder)
-    if (typeof window !== 'undefined' && window.localStorage) {
-      try {
-        const ids = newOrder.map(t => t.id)
-        localStorage.setItem(`polaris_today_order_${todayStr}`, JSON.stringify(ids))
-      } catch (e) {}
-    }
+    persistOrderDual({
+      userId: user?.id,
+      todayStr,
+      taskIds: newOrder.map(t => t.id)
+    })
 
     newOrder.forEach((task, index) => {
       if (updateSortOrder && task.id) {
@@ -347,18 +396,12 @@ export default function TodayAgendaWidget({ className = '' }) {
     const nextList = [...currentList]
     nextList[chipIdx] = nextChecked
 
-    // Save in localStorage
-    if (typeof window !== 'undefined' && window.localStorage) {
-      try {
-        localStorage.setItem(`polaris_timeboxes_${todayStr}_${task.id}`, JSON.stringify(nextList))
-      } catch (e) {}
-    }
-
     setTimeboxesMap(prev => ({ ...prev, [task.id]: nextList }))
 
+    let updatedTracks = null
     // Also update structured track state if trackId exists
     if (trackId && taskTracksMap[task.id]) {
-      const updatedTracks = taskTracksMap[task.id].map(tr => {
+      updatedTracks = taskTracksMap[task.id].map(tr => {
         if (tr.id === trackId) {
           const tBoxes = [...(tr.boxes || [])]
           tBoxes[chipIdx] = nextChecked
@@ -367,12 +410,17 @@ export default function TodayAgendaWidget({ className = '' }) {
         return tr
       })
       setTaskTracksMap(prev => ({ ...prev, [task.id]: updatedTracks }))
-      if (typeof window !== 'undefined' && window.localStorage) {
-        try {
-          localStorage.setItem(`polaris_tracks_${todayStr}_${task.id}`, JSON.stringify(updatedTracks))
-        } catch (e) {}
-      }
     }
+
+    // Dual-write: updates localStorage AND daily_plan / daily_plan_streams
+    persistTimeboxToggleDual({
+      userId: user?.id,
+      todayStr,
+      task,
+      nextList,
+      trackId,
+      updatedTracks: updatedTracks || taskTracksMap[task.id]
+    })
 
     if (nextChecked) {
       setLoggedMinutesToday(prev => prev + chipMinutes)
@@ -398,6 +446,24 @@ export default function TodayAgendaWidget({ className = '' }) {
       }
     } else {
       setLoggedMinutesToday(prev => Math.max(0, prev - chipMinutes))
+
+      // Unfill: remove latest matching pomodoro log for this task today
+      if (user?.id) {
+        const displayTitle = dayAliases[task.id] || task.title
+        try {
+          const { data: logs } = await offlineSelect('pomodoro_logs', {
+            user_id: user.id,
+            date: todayStr,
+            label: displayTitle
+          })
+          if (logs && logs.length > 0) {
+            const sortedLogs = [...logs].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
+            await offlineDelete('pomodoro_logs', { id: sortedLogs[0].id, user_id: user.id })
+          }
+        } catch (unfillErr) {
+          console.warn('Error removing pomodoro_log on unfill:', unfillErr)
+        }
+      }
     }
   }
 
@@ -412,11 +478,13 @@ export default function TodayAgendaWidget({ className = '' }) {
       return tr
     })
     setTaskTracksMap(prev => ({ ...prev, [task.id]: updated }))
-    if (typeof window !== 'undefined' && window.localStorage) {
-      try {
-        localStorage.setItem(`polaris_tracks_${todayStr}_${task.id}`, JSON.stringify(updated))
-      } catch (e) {}
-    }
+    persistAdjustBoxCountDual({
+      userId: user?.id,
+      todayStr,
+      task,
+      trackId,
+      updatedTracks: updated
+    })
   }
 
   // Add a new sub-track to a task (e.g., 'sche', 'review')
@@ -431,11 +499,13 @@ export default function TodayAgendaWidget({ className = '' }) {
     }
     const updated = [...tracks, newTrack]
     setTaskTracksMap(prev => ({ ...prev, [task.id]: updated }))
-    if (typeof window !== 'undefined' && window.localStorage) {
-      try {
-        localStorage.setItem(`polaris_tracks_${todayStr}_${task.id}`, JSON.stringify(updated))
-      } catch (e) {}
-    }
+    persistAddTrackDual({
+      userId: user?.id,
+      todayStr,
+      task,
+      newTrack,
+      updatedTracks: updated
+    })
     setNewStreamName('')
     setAddingStreamForTask(null)
   }

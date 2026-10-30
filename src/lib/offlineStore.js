@@ -76,6 +76,13 @@ db.version(8).stores({
   weight_logs: 'id, user_id, log_date'
 });
 
+db.version(9).stores({
+  daily_plan: 'id, user_id, plan_date, slot, task_id, status',
+  daily_plan_streams: 'id, user_id, plan_id, position',
+  day_state: 'id, user_id, day',
+  exam_dates: 'id, user_id, exam_date'
+});
+
 export default db;
 
 

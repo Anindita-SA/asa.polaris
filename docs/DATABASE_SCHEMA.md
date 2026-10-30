@@ -940,3 +940,75 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.<table_name> TO service_role;
 | `date` | `timestamptz` | Not Null, Default `now()` |
 | `created_at` | `timestamptz` | Not Null, Default `now()` |
 
+## Table `daily_plan`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `id` | `uuid` | Primary, Default `gen_random_uuid()` |
+| `user_id` | `uuid` | Not Null, References `auth.users(id)` on delete cascade |
+| `plan_date` | `date` | Not Null |
+| `slot` | `int2` | Not Null, Check `(slot BETWEEN 1 AND 4)` |
+| `task_id` | `uuid` | Nullable, References `tasks(id)` on delete set null |
+| `unit` | `text` | Not Null, Default `'min'`, Check `(unit IN ('min', 'count'))` |
+| `target_boxes` | `int4` | Not Null, Default `1`, Check `(target_boxes >= 1)` |
+| `done_boxes` | `int4` | Not Null, Default `0`, Check `(done_boxes >= 0)` |
+| `source` | `text` | Not Null, Default `'auto'`, Check `(source IN ('auto', 'manual', 'rollover'))` |
+| `locked` | `bool` | Not Null, Default `false` |
+| `status` | `text` | Not Null, Default `'planned'`, Check `(status IN ('planned', 'cleared', 'swapped', 'skipped'))` |
+| `energy_tier` | `text` | Nullable, Check `(energy_tier IN ('Low', 'Medium', 'High', 'Unwell'))` |
+| `swapped_from` | `uuid` | Nullable, References `tasks(id)` on delete set null |
+| `created_at` | `timestamptz` | Not Null, Default `now()` |
+| `updated_at` | `timestamptz` | Not Null, Default `now()` |
+
+Unique Constraint: `UNIQUE (user_id, plan_date, slot)`
+
+## Table `daily_plan_streams`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `id` | `uuid` | Primary, Default `gen_random_uuid()` |
+| `user_id` | `uuid` | Not Null, References `auth.users(id)` on delete cascade |
+| `plan_id` | `uuid` | Not Null, References `daily_plan(id)` on delete cascade |
+| `label` | `text` | Not Null |
+| `unit` | `text` | Not Null, Default `'min'`, Check `(unit IN ('min', 'count'))` |
+| `target_boxes` | `int4` | Not Null, Default `1`, Check `(target_boxes >= 1)` |
+| `done_boxes` | `int4` | Not Null, Default `0`, Check `(done_boxes >= 0)` |
+| `position` | `int4` | Not Null, Default `1` |
+| `created_at` | `timestamptz` | Not Null, Default `now()` |
+
+## Table `day_state`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `id` | `uuid` | Primary, Default `gen_random_uuid()` |
+| `user_id` | `uuid` | Not Null, References `auth.users(id)` on delete cascade |
+| `day` | `date` | Not Null |
+| `energy_tier` | `text` | Nullable, Check `(energy_tier IN ('Low', 'Medium', 'High', 'Unwell'))` |
+| `unwell` | `bool` | Not Null, Default `false` |
+| `created_at` | `timestamptz` | Not Null, Default `now()` |
+| `updated_at` | `timestamptz` | Not Null, Default `now()` |
+
+Unique Constraint: `UNIQUE (user_id, day)`
+
+## Table `exam_dates`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `id` | `uuid` | Primary, Default `gen_random_uuid()` |
+| `user_id` | `uuid` | Not Null, References `auth.users(id)` on delete cascade |
+| `name` | `text` | Not Null |
+| `exam_date` | `date` | Not Null |
+| `confirmed` | `bool` | Not Null, Default `true` |
+| `created_at` | `timestamptz` | Not Null, Default `now()` |
+
+Unique Constraint: `UNIQUE (user_id, name, exam_date)`
+
+
