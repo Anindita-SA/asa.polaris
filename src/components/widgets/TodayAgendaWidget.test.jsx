@@ -41,11 +41,16 @@ vi.mock('../../lib/sound', () => ({
   playChime: vi.fn()
 }))
 
-vi.mock('../../lib/offlineApi', () => ({
-  offlineSelect: vi.fn(),
-  offlineInsert: vi.fn(),
-  offlineUpdate: vi.fn()
-}))
+vi.mock('../../lib/offlineApi', async (importOriginal) => {
+  const actual = await importOriginal()
+  return {
+    ...actual,
+    offlineSelect: vi.fn(),
+    offlineInsert: vi.fn(),
+    offlineUpdate: vi.fn(),
+    offlineDelete: vi.fn()
+  }
+})
 
 describe('TodayAgendaWidget', () => {
   const todayStr = new Date().toLocaleDateString('en-CA')
@@ -764,5 +769,30 @@ describe('TodayAgendaWidget', () => {
       'Subtask E (null pos, same date as C, later id)',
       'Subtask D (null pos, later date)'
     ])
+  })
+
+  it('respects rollback feature flag: when set to false, reads pure localStorage without calling DB', async () => {
+    localStorage.setItem('polaris_ff_day_guide_db_read', 'false')
+    offlineApi.offlineSelect.mockClear()
+
+    mockTasks = [
+      {
+        id: 'task-rb',
+        title: 'Rollback Task Test',
+        completed: false,
+        estimated_minutes: 30,
+        quadrant: 'urgent_important',
+        deadline: todayStr,
+        parent_task_id: null,
+        subtasks_total: 0
+      }
+    ]
+
+    localStorage.setItem(`polaris_timeboxes_${todayStr}_task-rb`, JSON.stringify([true, false]))
+
+    render(<TodayAgendaWidget />)
+
+    // Verify daily_plan was NOT queried because rollback flag was off
+    expect(offlineApi.offlineSelect).not.toHaveBeenCalledWith('daily_plan', expect.anything())
   })
 })

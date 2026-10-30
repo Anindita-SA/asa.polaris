@@ -1,3 +1,17 @@
+## [2026-10-30] Sprint B: Day Guide Persistence & Dual-Write Architecture (v1.2.62)
+- **Database Schema Expansion (supabase/migrations/20261030223000_sprint_b_day_guide_persistence.sql)**:
+  - Created tables daily_plan, daily_plan_streams, day_state, and exam_dates with Row Level Security, Data API grants, and foreign keys.
+  - Seeded exam_dates for Robotics (12 Nov), BMS (13 Nov), Economics (16 Nov), and Entrepreneurship Development (23 Nov, unconfirmed).
+- **Offline Dexie v9 Store & Sync Manager (src/lib/offlineStore.js, src/lib/syncManager.js)**:
+  - Registered daily_plan, daily_plan_streams, day_state, and exam_dates in Dexie schema v9 and the sync manager push/pull queue.
+- **Dual-Write & Database-Read (src/lib/dayGuidePersistence.js, src/components/widgets/TodayAgendaWidget.jsx)**:
+  - Implemented dual-write engine: writes all tally box checks, box count adjustments, micro-streams, and primary order changes to both Supabase/Dexie and existing localStorage keys.
+  - Implemented one-time idempotent import of today's localStorage values into daily_plan and daily_plan_streams.
+  - Added rollback feature flag (polaris_ff_day_guide_db_read, default on) allowing instant fallback to reading localStorage with zero data loss.
+  - Implemented pomodoro log unfill cleanup: removing the most recent pomodoro log for a task when a box is unchecked.
+- **Persistence Verification Tool (scripts/verify_day_guide_persistence.js)**:
+  - Added standalone verification tool comparing database rows against localStorage keys for the last 7 days.
+
 ## [2026-10-30] Embedded Systems & C Firmware Mastery Curriculum Ingestion (v1.2.61)
 - **Curriculum Roadmap Ingestion (scripts/ingest_embedded_curriculum.js)**:
   - Ingested 98-hour, 8-module progressive firmware engineering curriculum synthesizing 4 community-vetted open-source repositories: Project-Based Tutorials in C (nCally), theEmbeddedNewTestament (George Li), TheEmbeDEADInterview (Sunil Vaghela), and Embedded_SWE_Prep (srnvl).
