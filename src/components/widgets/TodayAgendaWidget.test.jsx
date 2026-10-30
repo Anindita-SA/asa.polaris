@@ -10,9 +10,12 @@ const mockUser = { id: 'test-user-456' }
 const mockTrackXP = vi.fn()
 const mockToggleComplete = vi.fn()
 const mockAddTask = vi.fn()
+const mockAddSubtask = vi.fn()
+const mockAttachSubtask = vi.fn()
 const mockUpdateSortOrder = vi.fn()
 
 let mockTasks = []
+let mockAllBacklogTasks = []
 
 vi.mock('../../hooks/useAuth', () => ({
   useAuth: () => ({
@@ -24,9 +27,12 @@ vi.mock('../../hooks/useAuth', () => ({
 vi.mock('../../hooks/useTodaysTasks', () => ({
   useTodaysTasks: () => ({
     tasks: mockTasks,
+    allBacklogTasks: mockAllBacklogTasks,
     isLoading: false,
     toggleComplete: mockToggleComplete,
     addTask: mockAddTask,
+    addSubtask: mockAddSubtask,
+    attachSubtask: mockAttachSubtask,
     updateSortOrder: mockUpdateSortOrder
   })
 }))
@@ -580,5 +586,183 @@ describe('TodayAgendaWidget', () => {
       expect.objectContaining({ id: 'task-1' }),
       expect.anything()
     )
+  })
+
+  it('renders analog notebook header and legend [each box is 15min or 1 count]', () => {
+    render(<TodayAgendaWidget />)
+
+    expect(screen.getByText('what would I like to do today?')).toBeDefined()
+    expect(screen.getByText('[each box is 15min or 1 count]')).toBeDefined()
+  })
+
+  it('renders default multi-tracks for cold mail and outreach tasks', () => {
+    mockTasks = [
+      {
+        id: 'task-outreach',
+        title: 'Cold mail outreach to professors',
+        completed: false,
+        estimated_minutes: 60,
+        quadrant: 'urgent_important',
+        deadline: todayStr,
+        parent_task_id: null,
+        subtasks_total: 0
+      }
+    ]
+
+    render(<TodayAgendaWidget />)
+
+    // Should render split tracks 'draft:' and 'sche:'
+    expect(screen.getByText('draft:')).toBeDefined()
+    expect(screen.getByText('sche:')).toBeDefined()
+  })
+
+  it('toggles quick subtask search popover and triggers addSubtask', async () => {
+    mockTasks = [
+      {
+        id: 'parent-1',
+        title: 'Master Thesis Project',
+        completed: false,
+        estimated_minutes: 60,
+        quadrant: 'urgent_important',
+        deadline: todayStr,
+        parent_task_id: null,
+        subtasks_total: 2,
+        subtasks_completed: 1
+      }
+    ]
+
+    render(<TodayAgendaWidget />)
+
+    const subtaskBtn = screen.getByTitle('Quick search backlog or add subtask under this parent')
+    expect(subtaskBtn).toBeDefined()
+    fireEvent.click(subtaskBtn)
+
+    // Popover opens
+    expect(screen.getByText(/Quick Subtask for:/i)).toBeDefined()
+    const input = screen.getByPlaceholderText('Search backlog or type new subtask...')
+    fireEvent.change(input, { target: { value: 'Write Methodology Section' } })
+
+    const createBtn = screen.getByRole('button', { name: 'Create' })
+    fireEvent.click(createBtn)
+
+    expect(mockAddSubtask).toHaveBeenCalledWith('parent-1', 'Write Methodology Section')
+  })
+
+  it('clicking checked tally box unchecks it and adjusts logged focus minutes', async () => {
+    mockTasks = [
+      {
+        id: 'task-1',
+        title: 'Agri Solar Survey Paper',
+        completed: false,
+        estimated_minutes: 30,
+        quadrant: 'urgent_important',
+        deadline: todayStr,
+        parent_task_id: null,
+        subtasks_total: 0
+      }
+    ]
+
+    render(<TodayAgendaWidget />)
+
+    const firstBox = screen.getAllByTitle(/Click to log completed 15m focus block/i)[0]
+    expect(firstBox).toBeDefined()
+
+    // Check box
+    fireEvent.click(firstBox)
+    expect(screen.getAllByText('15m logged').length).toBeGreaterThanOrEqual(1)
+
+    // Uncheck box
+    const checkedBox = screen.getByTitle(/Completed 15m focus session \(click to uncheck\)/i)
+    fireEvent.click(checkedBox)
+    expect(screen.getAllByText('0m logged').length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('sorts child subtasks with position != null first, then by created_at, then by id', () => {
+    mockTasks = [
+      {
+        id: 'parent-1',
+        title: 'Master Thesis Project',
+        completed: false,
+        estimated_minutes: 60,
+        quadrant: 'urgent_important',
+        deadline: todayStr,
+        parent_task_id: null,
+        subtasks_total: 5,
+        subtasks_completed: 0
+      },
+      {
+        id: 'parent-2',
+        title: 'Secondary Project Alpha',
+        completed: false,
+        estimated_minutes: 45,
+        quadrant: 'urgent_important',
+        deadline: todayStr,
+        parent_task_id: null,
+        subtasks_total: 0,
+        subtasks_completed: 0
+      },
+      {
+        id: 'parent-3',
+        title: 'Secondary Project Beta',
+        completed: false,
+        estimated_minutes: 45,
+        quadrant: 'urgent_important',
+        deadline: todayStr,
+        parent_task_id: null,
+        subtasks_total: 0,
+        subtasks_completed: 0
+      },
+      {
+        id: 'child-d',
+        title: 'Subtask D (null pos, later date)',
+        completed: false,
+        parent_task_id: 'parent-1',
+        position: null,
+        created_at: '2026-10-04T12:00:00Z'
+      },
+      {
+        id: 'child-a',
+        title: 'Subtask A (position 2)',
+        completed: false,
+        parent_task_id: 'parent-1',
+        position: 2,
+        created_at: '2026-10-01T12:00:00Z'
+      },
+      {
+        id: 'child-b',
+        title: 'Subtask B (position 1)',
+        completed: false,
+        parent_task_id: 'parent-1',
+        position: 1,
+        created_at: '2026-10-05T12:00:00Z'
+      },
+      {
+        id: 'child-c',
+        title: 'Subtask C (null pos, earlier date)',
+        completed: false,
+        parent_task_id: 'parent-1',
+        position: null,
+        created_at: '2026-10-02T12:00:00Z'
+      },
+      {
+        id: 'child-e',
+        title: 'Subtask E (null pos, same date as C, later id)',
+        completed: false,
+        parent_task_id: 'parent-1',
+        position: null,
+        created_at: '2026-10-02T12:00:00Z'
+      }
+    ]
+
+    render(<TodayAgendaWidget />)
+
+    const subtaskTitles = screen.getAllByText(/Subtask [A-E]/i).map(el => el.textContent)
+    expect(subtaskTitles).toEqual([
+      'Subtask B (position 1)',
+      'Subtask A (position 2)',
+      'Subtask C (null pos, earlier date)',
+      'Subtask E (null pos, same date as C, later id)',
+      'Subtask D (null pos, later date)'
+    ])
   })
 })

@@ -345,7 +345,7 @@ export async function nestProjectTasks(supabaseClient = null, isDryRun = false) 
   ];
 
   const deprecatedTasks = tasks.filter(t => {
-    if (t.status === 'done') return false;
+    if (t.status === 'done' || t.status === 'archived') return false;
     const titleLower = (t.title || '').toLowerCase();
     return deprecatedKeywords.some(kw => titleLower.includes(kw));
   });

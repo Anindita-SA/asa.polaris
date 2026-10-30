@@ -52,6 +52,7 @@ import { computeWSJFScore } from '../../hooks/useWSJFScore';
 import { useAuth } from '../../hooks/useAuth';
 import { offlineSelect, offlineInsert, offlineUpdate, offlineDelete } from '../../lib/offlineApi';
 import { filterMatrixNodes } from '../../lib/matrixNodeFilter';
+import { isOpenTask } from '../../lib/taskState';
 import { 
   Plus, 
   Sparkles, 
@@ -200,8 +201,8 @@ export function sortSubtasks(subtasks) {
 export function computeActiveSubtask(incompleteSubtasks) {
   if (!incompleteSubtasks || incompleteSubtasks.length === 0) return null;
 
-  // Protect against raw subtask arrays by excluding completed tasks
-  const pending = incompleteSubtasks.filter(s => s.status !== 'done');
+  // Protect against raw subtask arrays by excluding completed or archived tasks
+  const pending = incompleteSubtasks.filter(s => isOpenTask(s));
   if (pending.length === 0) return null;
 
   // Canonical deterministic sort order (position ascending, created_at ascending, id tie-breaker)
@@ -628,7 +629,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
     if (!parentId) return;
 
     setTasks(prev => prev.map(t => {
-      if (t.parent_task_id === parentId && t.status !== 'done') {
+      if (t.parent_task_id === parentId && isOpenTask(t)) {
         if (t.id === targetSubtask.id) {
           return { ...t, status: 'in_progress' };
         } else if (t.status === 'in_progress') {
@@ -865,7 +866,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
     setAuditMessage("Auditing Brain Dump & spatial matrix nodes...");
 
     try {
-      const unestimated = tasks.filter((t) => !t.estimated_minutes && t.status !== 'done');
+      const unestimated = tasks.filter((t) => !t.estimated_minutes && isOpenTask(t));
       if (unestimated.length > 0) {
         setAuditMessage(`Estimating duration for ${unestimated.length} unestimated tasks...`);
         for (const task of unestimated) {
@@ -925,7 +926,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
       let capacityMins = 0;
       const todayPickIds = [];
       for (const t of scored) {
-        if (t.status === 'done') continue;
+        if (!isOpenTask(t)) continue;
         const duration = t.estimated_minutes || 30;
         if (capacityMins + duration <= 240 || todayPickIds.length === 0) {
           todayPickIds.push(t.id);
@@ -993,9 +994,9 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
     return filterMatrixNodes(tasks, { overlookDays, hideReminders, hidePolaris, hideUpkeep });
   }, [tasks, overlookDays, hideReminders, hidePolaris, hideUpkeep]);
 
-  // Unsorted Brain Dump tasks (`quadrant === null` and `status !== 'done'`)
+  // Unsorted Brain Dump tasks (`quadrant === null` and open)
   const brainDumpTasks = useMemo(() => {
-    let result = tasks.filter((t) => !t.parent_task_id && t.quadrant === null && t.status !== 'done' && t.category !== 'habits');
+    let result = tasks.filter((t) => !t.parent_task_id && t.quadrant === null && isOpenTask(t) && t.category !== 'habits');
     if (hideReminders) {
       result = result.filter(t => t.category !== 'reminders');
     }
@@ -1078,7 +1079,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
   }, [tasks, selectedTask]);
 
   const selectedIncompleteSubtasks = useMemo(() => {
-    return selectedSubtasks.filter(t => t.status !== 'done');
+    return selectedSubtasks.filter(t => isOpenTask(t));
   }, [selectedSubtasks]);
 
   const selectedActiveSubtask = useMemo(() => {
@@ -1326,7 +1327,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                           const isOutput = task.estimate_source === 'ai' || (task.title || '').toLowerCase().includes('write') || (task.title || '').toLowerCase().includes('code') || (task.title || '').toLowerCase().includes('ppt') || (task.title || '').toLowerCase().includes('fix');
                           const ioTag = isOutput ? 'OUT' : 'IN';
                           const childTasks = sortSubtasks(tasks.filter(t => t.parent_task_id === task.id));
-                          const incompleteSubtasks = childTasks.filter(t => t.status !== 'done');
+                          const incompleteSubtasks = childTasks.filter(t => isOpenTask(t));
                           const activeSubtask = computeActiveSubtask(incompleteSubtasks);
                           const hasUrgentSubtask = incompleteSubtasks.some(s => isDueWithin48h(s.deadline));
                           const doneSubtasksCount = childTasks.filter(t => t.status === 'done').length;
@@ -1731,10 +1732,10 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
               const isOutput = task.estimate_source === 'ai' || (task.title || '').toLowerCase().includes('write') || (task.title || '').toLowerCase().includes('code') || (task.title || '').toLowerCase().includes('ppt') || (task.title || '').toLowerCase().includes('fix');
               const ioTag = isOutput ? 'OUT' : 'IN';
               const childTasks = sortSubtasks(tasks.filter(t => t.parent_task_id === task.id));
-              const incompleteSubtasks = childTasks.filter(t => t.status !== 'done');
+              const incompleteSubtasks = childTasks.filter(t => isOpenTask(t));
               const hasUrgentSubtask = incompleteSubtasks.some(s => isDueWithin48h(s.deadline));
               const doneSubtasksCount = childTasks.filter(t => t.status === 'done').length;
-              const totalSubtasksCount = childTasks.length;
+              const totalSubtasksCount = childTasks.filter(t => t.status !== 'archived').length;
               const remainingMinutes = incompleteSubtasks.reduce((sum, t) => sum + (t.time_estimate_minutes || t.estimated_minutes || 0), 0);
               const taskEstimate = task.time_estimate_minutes || task.estimated_minutes;
 
@@ -2001,9 +2002,9 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                   ) : (
                     brainDumpTasks.map((task) => {
                       const childTasks = sortSubtasks(tasks.filter(t => t.parent_task_id === task.id));
-                      const incompleteSubtasks = childTasks.filter(t => t.status !== 'done');
+                      const incompleteSubtasks = childTasks.filter(t => isOpenTask(t));
                       const doneSubtasksCount = childTasks.filter(t => t.status === 'done').length;
-                      const totalSubtasksCount = childTasks.length;
+                      const totalSubtasksCount = childTasks.filter(t => t.status !== 'archived').length;
                       const remainingMinutes = incompleteSubtasks.reduce((sum, t) => sum + (t.time_estimate_minutes || t.estimated_minutes || 0), 0);
                       const taskEstimate = task.time_estimate_minutes || task.estimated_minutes;
 
@@ -2434,7 +2435,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                     <div className="mt-2 space-y-2">
                       <div className="flex items-center justify-between">
                         <h4 className="text-[10px] uppercase tracking-wider font-bold text-nova/60 font-mono">
-                          Subtasks ({selectedSubtasks.filter(t => t.status === 'done').length}/{selectedSubtasks.length})
+                          Subtasks ({selectedSubtasks.filter(t => t.status === 'done').length}/{selectedSubtasks.filter(t => t.status !== 'archived').length})
                         </h4>
                       </div>
 

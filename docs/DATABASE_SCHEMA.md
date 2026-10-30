@@ -701,7 +701,10 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.<table_name> TO service_role;
 | `time_estimate_minutes` | `int4` | Nullable |
 | `mental_load` | `text` | Nullable (low \| medium \| high) |
 | `estimate_source` | `text` | Nullable (user \| ai) |
-| `status` | `text` | Not Null, Default `'inbox'` (inbox \| active \| scheduled \| done) |
+| `status` | `text` | Not Null, Default `'inbox'` (inbox \| active \| in_progress \| scheduled \| done \| archived) |
+| `position` | `int4` | Nullable, Subtask ordering within parent |
+| `box_unit` | `text` | Nullable, Default `'min'` |
+| `target_count` | `int4` | Nullable |
 | `source_template_id` | `uuid` | Nullable, References `recurring_task_templates` |
 | `skip_count` | `int4` | Nullable, Default `0` |
 | `completion_count` | `int4` | Nullable, Default `0` |
@@ -847,6 +850,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.<table_name> TO service_role;
 | `is_habit` | `bool` | Nullable, Default `false` |
 | `last_generated_date` | `date` | Nullable |
 | `is_active` | `bool` | Nullable, Default `true` |
+| `end_date` | `date` | Nullable, Recurrence cutoff date (null = no expiry) |
 | `created_at` | `timestamptz` | Not Null, Default `now()` |
 
 

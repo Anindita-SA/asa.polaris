@@ -5,7 +5,7 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $DateFile = "$ScriptDir\.last_run_date"
 $Today = (Get-Date).ToString("yyyy-MM-dd")
 if (Test-Path $DateFile) {
-    $LastRun = Get-Content $DateFile
+    $LastRun = (Get-Content $DateFile | Out-String).Trim()
     if ($LastRun -eq $Today) {
         Write-Host "Triage already ran today ($Today). Skipping."
         exit

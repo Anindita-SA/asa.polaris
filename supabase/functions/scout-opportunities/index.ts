@@ -15,6 +15,17 @@ serve(async (req) => {
   }
 
   try {
+    let body: any = {}
+    try {
+      const text = await req.text()
+      if (text) {
+        body = JSON.parse(text)
+      }
+    } catch (_) {
+      body = {}
+    }
+    const force = Boolean(body?.force)
+
     const firecrawlApiKey = Deno.env.get('FIRECRAWL_API_KEY') || null
     const groqApiKey = Deno.env.get('GROQ_API_KEY') || null
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY') || null
@@ -43,13 +54,10 @@ serve(async (req) => {
 
     let resolvedUserId: string | null = null
 
-    let isServiceRole = false
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]))
-      if (payload.role === 'service_role') isServiceRole = true
-    } catch (e) {}
+    const isServiceRole = (token === serviceRoleKey)
+    const adminOverride = isServiceRole && (body?.admin_override === true || body?.force_admin === true)
 
-    if (!isServiceRole && token !== serviceRoleKey) {
+    if (!isServiceRole) {
       const { data: { user: callerUser }, error: authErr } = await supabaseAdmin.auth.getUser(token)
       if (authErr || !callerUser) {
         return new Response(JSON.stringify({ error: 'Unauthorized' }), {
@@ -76,6 +84,42 @@ serve(async (req) => {
 
     const user = { id: resolvedUserId }
     const today = new Date().toLocaleDateString('en-CA')
+
+    if (!adminOverride) {
+      const { data: existingBrief } = await supabaseAdmin
+        .from('morning_briefs')
+        .select('items')
+        .eq('user_id', user.id)
+        .eq('date', today)
+        .maybeSingle()
+
+      const hasOpportunityBrief = Boolean(existingBrief && existingBrief.items?.some((i: any) => i.type === 'opportunity'))
+
+      let hasTodayOpps = false
+      if (!hasOpportunityBrief) {
+        const { data: todayOpps, error: oppsErr } = await supabaseAdmin
+          .from('hardware_opportunities')
+          .select('id')
+          .eq('user_id', user.id)
+          .gte('created_at', `${today}T00:00:00.000Z`)
+          .limit(1)
+
+        if (!oppsErr && todayOpps && todayOpps.length > 0) {
+          hasTodayOpps = true
+        }
+      }
+
+      if (hasOpportunityBrief || hasTodayOpps) {
+        return new Response(JSON.stringify({
+          success: true,
+          message: 'Scout already ran for today. Skipping duplicate execution.',
+          skipped: true,
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        })
+      }
+    }
 
     // Helper function to append previous highly recommended opportunities
     const appendPreviousOpps = async (reason: string) => {
@@ -167,15 +211,22 @@ serve(async (req) => {
             query: query,
             limit: 8,
             tbs: 'qdr:m', // past month
-            scrapeOptions: { formats: ["markdown"] }
           })
         })
 
         if (firecrawlRes.ok) {
           const firecrawlData = await firecrawlRes.json()
           searchResults = firecrawlData.data || []
+        } else if (firecrawlRes.status === 402) {
+          console.warn('Firecrawl payment required or credit error (status 402): falling back to RSS feeds...')
         } else {
-          console.warn("Firecrawl search error:", firecrawlRes.status, await firecrawlRes.text())
+          const errText = await firecrawlRes.text().catch(() => '')
+          const lower = errText.toLowerCase()
+          if (lower.includes('payment') || lower.includes('credit') || lower.includes('quota') || lower.includes('insufficient')) {
+            console.warn('Firecrawl payment required or credit error (status 402): falling back to RSS feeds...')
+          } else {
+            console.warn('Firecrawl search error:', firecrawlRes.status, errText)
+          }
         }
       } catch (crawlErr) {
         console.error("Firecrawl fetch error:", crawlErr)
@@ -258,7 +309,7 @@ serve(async (req) => {
 
     // Token optimization: Clean candidate pool snippets to 300 chars max, omit URLs to save tokens
     const minifiedPool = searchResults.slice(0, 5).map((r: any, idx: number) => {
-      const raw = r.markdown || r.description || ''
+      const raw = r.description || r.snippet || r.content || r.markdown || ''
       const clean = raw
         .replace(/!\[.*?\]\(.*?\)/g, '')
         .replace(/\[(.*?)\]\(.*?\)/g, '$1')
@@ -344,18 +395,24 @@ serve(async (req) => {
     }
 
     // 4. Insert into hardware_opportunities
-    const opsToInsert = newOpps.map((o: any) => ({
-      user_id: user.id,
-      title: o.title,
-      url: o.url,
-      deadline: (o.deadline && String(o.deadline).match(/^\d{4}-\d{2}-\d{2}$/)) ? o.deadline : null,
-      effort: ['low', 'med', 'high'].includes(o.effort) ? o.effort : 'med',
-      profile_match: typeof o.profile_match === 'number' ? Math.min(100, Math.max(0, o.profile_match)) : 70,
-      acceptance_chance: typeof o.acceptance_chance === 'number' ? Math.min(100, Math.max(0, o.acceptance_chance)) : 30,
-      project_fit: o.project_fit || 'Scouted fellowship or funding opportunity matching applicant profile.',
-      what_offered: o.what_offered || 'See program call for full award terms.',
-      status: 'new'
-    }))
+    const opsToInsert = newOpps
+      .filter((o: any) => o.url && /^https?:\/\//i.test(o.url))
+      .map((o: any) => ({
+        user_id: user.id,
+        title: o.title,
+        url: o.url,
+        deadline: (o.deadline && String(o.deadline).match(/^\d{4}-\d{2}-\d{2}$/)) ? o.deadline : null,
+        effort: ['low', 'med', 'high'].includes(o.effort) ? o.effort : 'med',
+        profile_match: typeof o.profile_match === 'number' ? Math.min(100, Math.max(0, o.profile_match)) : 70,
+        acceptance_chance: typeof o.acceptance_chance === 'number' ? Math.min(100, Math.max(0, o.acceptance_chance)) : 30,
+        project_fit: o.project_fit || 'Scouted fellowship or funding opportunity matching applicant profile.',
+        what_offered: o.what_offered || 'See program call for full award terms.',
+        status: 'new'
+      }))
+
+    if (opsToInsert.length === 0) {
+      return await appendPreviousOpps('All found opportunities had invalid URLs')
+    }
 
     const { data: insertedRows, error: insertErr } = await supabaseAdmin
       .from('hardware_opportunities')

@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { offlineSelect, offlineInsert, offlineUpdate, offlineDelete } from '../lib/offlineApi';
 import { generateLlmResponse } from '../lib/llm';
+import { isOpenTask } from '../lib/taskState';
 
 function estimateDurationHeuristic(title) {
   const t = (title || '').toLowerCase();
@@ -115,7 +116,7 @@ const QUADRANTS = [
 
 // Helper: Check if task needs reassessment flag
 function checkReassess(task) {
-  if (task.status === 'done') return false;
+  if (!isOpenTask(task)) return false;
 
   const now = new Date();
   const createdAt = new Date(task.created_at || now);
@@ -434,7 +435,7 @@ Return ONLY a single valid JSON object in this exact format: {"minutes": 45, "me
 
   // Process tasks based on viewMode (Focus vs Planning)
   const processTasksForView = (qId, isUnsorted = false) => {
-    const rootTasks = tasks.filter((t) => !t.parent_task_id && (isUnsorted ? t.quadrant === null : t.quadrant === qId) && (filterDone || t.status !== 'done'));
+    const rootTasks = tasks.filter((t) => !t.parent_task_id && (isUnsorted ? t.quadrant === null : t.quadrant === qId) && (filterDone || isOpenTask(t)));
     
     if (viewMode === 'planning') {
       return rootTasks.map(root => {
@@ -444,7 +445,7 @@ Return ONLY a single valid JSON object in this exact format: {"minutes": 45, "me
     } else {
       // Focus mode (Sequential Focus)
       return rootTasks.map(root => {
-        const activeSubtasks = tasks.filter(t => t.parent_task_id === root.id && t.status !== 'done').sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
+        const activeSubtasks = tasks.filter(t => t.parent_task_id === root.id && isOpenTask(t)).sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
         if (activeSubtasks.length > 0) {
           // Replace parent with the next actionable subtask, injecting parent title for context
           return { ...activeSubtasks[0], _parentTitle: root.title, quadrant: activeSubtasks[0].quadrant || root.quadrant };

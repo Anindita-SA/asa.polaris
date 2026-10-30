@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { offlineSelect, offlineInsert, offlineUpdate, offlineDelete } from '../../lib/offlineApi'
 import { useAuth } from '../../hooks/useAuth'
 import { safeExternalUrl } from '../../lib/urlUtils'
-import { ArrowLeft, Plus, X, BookOpen, Link as LinkIcon, Trash2, ChevronDown, Download, ExternalLink, Calendar, CheckCircle, Sparkles, ShieldCheck, Award } from 'lucide-react'
+import { ArrowLeft, Plus, X, BookOpen, Link as LinkIcon, Trash2, ChevronDown, Download, ExternalLink, Calendar, CheckCircle, Sparkles, ShieldCheck, Award, Cpu, Layers, Code, Globe, Filter } from 'lucide-react'
 import TopicCard from './TopicCard'
 import PracticeScoreTracker from './PracticeScoreTracker'
 
@@ -140,6 +140,89 @@ const makeGCalUrl = (item) => {
   return `https://calendar.google.com/calendar/r/eventedit?text=${text}&details=${details}&dates=${startIso}/${endIso}&ctz=Asia/Kolkata`
 }
 
+const EMBEDDED_PILLARS = [
+  {
+    pillar: 'Pillar 1',
+    title: 'Embedded C & Memory Architecture',
+    hours: '22h (M1 & M2)',
+    focus: 'Bitwise macros, pointer arithmetic, custom libc, struct padding',
+    description: 'Master low-level register manipulation, Brian Kernighan algorithm, storage classes, volatile qualifiers, endianness detection, and cache-line struct alignment.',
+  },
+  {
+    pillar: 'Pillar 2',
+    title: 'Bare-Metal Microcontrollers & Protocols',
+    hours: '25h (M3 & M5)',
+    focus: 'GPIO topologies, timers/PWM, UART/SPI/I2C/CAN, NVIC, FreeRTOS',
+    description: 'Hardware electrical interfaces, Nyquist ADC sampling, protocol timing modes, Cortex-M NVIC preemption priorities, RMS/EDF scheduling, and FreeRTOS task synchronization.',
+  },
+  {
+    pillar: 'Pillar 3',
+    title: 'Project-Driven Systems Programming in C',
+    hours: '27h (M4 & M7)',
+    focus: 'UNIX shell, sbrk memory allocator, ring buffer, epoll socket server',
+    description: 'Build real systems software from scratch: shell with job control, first-fit heap allocator, lock-free circular buffer, table-driven state machine, and non-blocking TCP server.',
+  },
+  {
+    pillar: 'Pillar 4',
+    title: 'Embedded Linux & Device Drivers',
+    hours: '24h (M6 & M8)',
+    focus: 'U-Boot, kernel syscalls, character drivers, split IRQs, Yocto',
+    description: 'Linux kernel space boundaries, character device file operations, top/bottom half interrupt deferral, cross-compilation toolchains, and technical interview drills.',
+  },
+]
+
+const EMBEDDED_SOURCE_REPOS = [
+  {
+    title: 'Project-Based Tutorials in C',
+    author: 'nCally',
+    badge: 'Systems Software',
+    description: 'Practical systems programming in pure C: UNIX shell, heap allocators, socket servers, virtual machine emulators, and state machines.',
+    url: 'https://github.com/nCally/Project-Based-Tutorials-in-C',
+  },
+  {
+    title: 'theEmbeddedNewTestament',
+    author: 'George Li (theEmbeddedGeorge)',
+    badge: 'Hardware & Protocols',
+    description: 'Microcontroller hardware fundamentals, bus protocols (UART, SPI, I2C, CAN), ARM Cortex-M NVIC, and hardware debugging.',
+    url: 'https://github.com/theEmbeddedGeorge/theEmbeddedNewTestament',
+    liveSite: 'https://theembeddednewtestament.github.io/',
+  },
+  {
+    title: 'TheEmbeDEADInterview',
+    author: 'Sunil Vaghela (imsunilvaghela)',
+    badge: 'Embedded Linux & RTOS',
+    description: 'Technical interview prep covering Linux kernel architecture, character device drivers, POSIX IPC, FreeRTOS, and Yocto/Buildroot.',
+    url: 'https://github.com/imsunilvaghela/TheEmbeDEADInterview',
+  },
+  {
+    title: 'Embedded_SWE_Prep',
+    author: 'srnvl',
+    badge: 'Firmware Drills',
+    description: 'Embedded software coding problems, bit manipulation tricks, runtime endianness detection/conversion, and struct padding rules.',
+    url: 'https://github.com/srnvl/Embedded_SWE_Prep',
+  },
+]
+
+const EMBEDDED_MODULE_FILTERS = [
+  { id: 0, label: 'All (56)', shortName: 'All' },
+  { id: 1, label: 'M1: C Mastery', shortName: 'M1: C Mastery' },
+  { id: 2, label: 'M2: Low-Level', shortName: 'M2: Low-Level' },
+  { id: 3, label: 'M3: Hardware', shortName: 'M3: Hardware' },
+  { id: 4, label: 'M4: Systems 1', shortName: 'M4: Systems 1' },
+  { id: 5, label: 'M5: RTOS', shortName: 'M5: RTOS' },
+  { id: 6, label: 'M6: Linux Drivers', shortName: 'M6: Linux Drivers' },
+  { id: 7, label: 'M7: Systems 2', shortName: 'M7: Systems 2' },
+  { id: 8, label: 'M8: Interview Drills', shortName: 'M8: Interview Drills' },
+]
+
+const filterTopicByModule = (topic, moduleId) => {
+  if (moduleId === 0) return true
+  const prefix = `module ${moduleId}:`
+  if (topic.title?.toLowerCase()?.includes(prefix)) return true
+  if (topic.module === moduleId) return true
+  return false
+}
+
 const CurriculumView = ({ curriculum, accentColor, onBack }) => {
   const { user } = useAuth()
   const [topics, setTopics] = useState([])
@@ -226,6 +309,12 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
   }
 
   const isIeltsCurriculum = Boolean(curriculum?.title?.toLowerCase()?.includes('ielts'))
+  const isEmbeddedCurriculum = Boolean(curriculum?.title?.toLowerCase()?.includes('embedded'))
+  const [selectedModule, setSelectedModule] = useState(0)
+
+  useEffect(() => {
+    setSelectedModule(0)
+  }, [curriculum.id])
 
   useEffect(() => { fetchData() }, [curriculum.id])
 
@@ -257,6 +346,9 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
   const totalCount = topics.length
   const pct = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0
   const totalHours = topics.reduce((s, t) => s + (t.estimated_hours || 0), 0)
+  const displayedTopics = isEmbeddedCurriculum && selectedModule > 0
+    ? topics.filter(t => filterTopicByModule(t, selectedModule))
+    : topics
 
   const R = 40, C = 2 * Math.PI * R
   const offset = C - (pct / 100) * C
@@ -297,13 +389,13 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
 
   const deleteTopic = async (id) => {
     if (!user?.id) return
-    await offlineDelete('curriculum_topics', { id })
+    await offlineDelete('curriculum_topics', { id, user_id: user.id })
     fetchData()
   }
 
   const deleteResource = async (id) => {
     if (!user?.id) return
-    await offlineDelete('curriculum_resources', { id })
+    await offlineDelete('curriculum_resources', { id, user_id: user.id })
     fetchData()
   }
 
@@ -572,10 +664,166 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
 
       
 
+      {/* If Embedded Systems Curriculum, render Embedded Systems Architecture dashboard */}
+      {isEmbeddedCurriculum && (
+        <div className="space-y-6 pt-2">
+          {/* Architecture Container */}
+          <div className="glass border border-amber-500/30 bg-amber-500/5 p-4 rounded-xl space-y-4">
+            <div className="flex items-start justify-between gap-3 border-b border-amber-500/20 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400">
+                  <Cpu className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-display text-starlight text-base font-bold flex items-center gap-2">
+                    Embedded Systems & Firmware Architecture
+                  </h3>
+                  <p className="text-xs text-nova/60 mt-0.5">
+                    98-hour progressive roadmap across 4 foundational engineering pillars and 8 modules.
+                  </p>
+                </div>
+              </div>
+              <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 whitespace-nowrap">
+                98h - 8 Modules - 56 Tasks
+              </span>
+            </div>
+
+            {/* 4 Competency Pillars Grid */}
+            <div className="space-y-2">
+              <span className="text-xs font-mono uppercase tracking-wider text-amber-400 font-medium flex items-center gap-1.5">
+                <Layers className="w-3.5 h-3.5" /> 4 Competency Pillars
+              </span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {EMBEDDED_PILLARS.map((pillar, idx) => (
+                  <div
+                    key={idx}
+                    className="bg-void/60 border border-amber-500/20 rounded-xl p-3.5 flex flex-col justify-between space-y-2 hover:border-amber-500/40 transition-colors"
+                  >
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/30">
+                          {pillar.pillar}
+                        </span>
+                        <span className="text-[11px] font-mono text-nova/50">{pillar.hours}</span>
+                      </div>
+                      <h4 className="text-sm font-display font-bold text-starlight leading-snug">
+                        {pillar.title}
+                      </h4>
+                      <p className="text-xs text-amber-300 font-mono text-[11px] leading-tight">
+                        {pillar.focus}
+                      </p>
+                    </div>
+                    <p className="text-[11px] text-nova/60 leading-relaxed border-t border-pulsar/20 pt-2">
+                      {pillar.description}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 4 Source Repositories */}
+            <div className="space-y-2 pt-1">
+              <span className="text-xs font-mono uppercase tracking-wider text-amber-400 font-medium flex items-center gap-1.5">
+                <Code className="w-3.5 h-3.5" /> Curated Open-Source Repositories
+              </span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {EMBEDDED_SOURCE_REPOS.map((repo, idx) => (
+                  <div
+                    key={idx}
+                    className="bg-void/60 border border-pulsar/40 hover:border-amber-500/30 rounded-xl p-3.5 flex flex-col justify-between space-y-2.5 transition-colors"
+                  >
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-void/80 border border-pulsar/30 text-nova/70">
+                          {repo.author}
+                        </span>
+                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                          {repo.badge}
+                        </span>
+                      </div>
+                      <h4 className="text-sm font-display font-bold text-starlight leading-tight">
+                        {repo.title}
+                      </h4>
+                      <p className="text-[11px] text-nova/60 leading-relaxed">
+                        {repo.description}
+                      </p>
+                    </div>
+                    <div className="pt-2 border-t border-pulsar/20 flex items-center justify-between gap-2">
+                      <a
+                        href={repo.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-xs font-mono text-amber-400 hover:text-amber-300 hover:underline transition-colors"
+                      >
+                        View Repository <ExternalLink className="w-3 h-3" />
+                      </a>
+                      {repo.liveSite && (
+                        <a
+                          href={repo.liveSite}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[11px] font-mono text-nova/60 hover:text-starlight hover:underline transition-colors"
+                        >
+                          <Globe className="w-3 h-3" /> Live Notes
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Module Filter Bar */}
+            <div className="space-y-2 pt-2 border-t border-amber-500/20">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-mono uppercase tracking-wider text-amber-400 font-medium flex items-center gap-1.5">
+                  <Filter className="w-3.5 h-3.5" /> Module Filter
+                </span>
+                {selectedModule > 0 && (
+                  <button
+                    onClick={() => setSelectedModule(0)}
+                    className="text-[11px] font-mono text-nova/60 hover:text-amber-400 transition-colors"
+                  >
+                    Reset Filter
+                  </button>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {EMBEDDED_MODULE_FILTERS.map(m => {
+                  const isActive = selectedModule === m.id
+                  const labelText = m.id === 0 ? `All (${topics.length || 56})` : m.label
+
+                  return (
+                    <button
+                      key={m.id}
+                      onClick={() => setSelectedModule(m.id)}
+                      className={`font-mono text-xs px-2.5 py-1 rounded-lg transition-colors ${
+                        isActive
+                          ? 'bg-amber-500/20 text-amber-300 border border-amber-500/50'
+                          : 'bg-void/60 text-nova/60 border border-pulsar/30 hover:text-starlight hover:border-amber-500/30'
+                      }`}
+                    >
+                      {labelText}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Syllabus */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="font-display text-xl font-bold text-starlight">Syllabus</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="font-display text-xl font-bold text-starlight">Syllabus</h2>
+            {isEmbeddedCurriculum && selectedModule > 0 && (
+              <span className="text-xs font-mono text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full">
+                {displayedTopics.length} of {topics.length} shown
+              </span>
+            )}
+          </div>
           <button onClick={() => setAddingTopic(true)}
             className="text-nova/60 hover:text-starlight text-xs font-body flex items-center gap-1 transition-colors">
             <Plus className="w-3 h-3" /> Add topic
@@ -598,7 +846,7 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
           </div>
         )}
 
-        {topics.map(topic => (
+        {displayedTopics.map(topic => (
           <div key={topic.id} className="relative group/topic">
             <TopicCard
               topic={topic} accentColor={accentColor}
@@ -612,9 +860,11 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
           </div>
         ))}
 
-        {topics.length === 0 && !addingTopic && (
-          <div className="text-center py-8 text-nova/60/50 font-body text-sm italic">
-            No topics yet. Click "Add topic" to build your syllabus.
+        {displayedTopics.length === 0 && !addingTopic && (
+          <div className="text-center py-8 text-nova/60 font-body text-sm italic">
+            {isEmbeddedCurriculum && selectedModule > 0
+              ? 'No topics match the selected module filter.'
+              : 'No topics yet. Click "Add topic" to build your syllabus.'}
           </div>
         )}
       </div>

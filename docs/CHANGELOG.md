@@ -1,3 +1,74 @@
+## [2026-10-30] Embedded Systems & C Firmware Mastery Curriculum Ingestion (v1.2.61)
+- **Curriculum Roadmap Ingestion (scripts/ingest_embedded_curriculum.js)**:
+  - Ingested 98-hour, 8-module progressive firmware engineering curriculum synthesizing 4 community-vetted open-source repositories: Project-Based Tutorials in C (nCally), theEmbeddedNewTestament (George Li), TheEmbeDEADInterview (Sunil Vaghela), and Embedded_SWE_Prep (srnvl).
+  - Mapped all 8 learning tracks to curriculum_chapters with sequential position ordering and competency pillar metadata.
+  - Ingested all 56 granular checklist tasks into curriculum_topics with estimated hours, description metadata, and source repository citations.
+  - Linked 4 verified reference repositories into curriculum_resources with direct URLs.
+- **Matrix Protection & Task Ingestion**:
+  - Created 1 parent container task (Embedded Systems & C Firmware Mastery, 5880 min / 98h) and 8 child module tasks in tasks.
+  - Configured with status: 'inbox', quadrant: null, and deadline: null to strictly protect active Day Guide density and uphold the daily 3-primary task cap.
+- **Curriculum Shelf Seed Data (src/data/curriculumDefaults.js)**:
+  - Replaced the 40-hour placeholder stub with the full 98-hour curriculum definition containing all 56 topics, 4 resources, and is_recommended_next: true on Module 1 Topic 1.
+- **Embedded Architecture Dashboard UI (src/components/curriculum/CurriculumView.jsx)**:
+  - Created specialized Embedded Systems Architecture dashboard featuring a 4 Competency Pillars card (Pillars 1 to 4 with hours and descriptions).
+  - Added Curated Repositories grid with 1-click external navigation to GitHub repos and live notes.
+  - Implemented real-time 8-Module Pill Filter (All (56), M1: C Mastery, M2: Low-Level, etc.) dynamically slicing the topic cards without page reload.
+  - Strictly enforced dark void theme with amber accents (#f59e0b / text-amber-400), solid borders, zero CSS gradients, and zero em/en dashes.
+
+## [2026-10-30] Sprint A: Day Guide Fixes, Status Constraint Expansion, Position Backfill (v1.2.60)
+- **Status Constraint & Ghost Task Archival (supabase/migrations/20261030194500_sprint_a_day_guide_fixes.sql)**:
+  - Extended PostgreSQL tasks_status_check constraint to include 'archived' status alongside inbox, active, in_progress, scheduled, done.
+  - Safely archived IELTS ghost subtasks (28129e68-3cc0-45e1-bf99-218a1264ec0c and 54f027fa-e5b9-46ab-b8d1-ee2b433ed5f2), leaving completed parent task and sibling tasks untouched.
+  - Backfilled tasks.position (1 to 12) for child subtasks of Agri Solar Energy Survey Paper in canonical sequence.
+  - Synchronized estimated_minutes from time_estimate_minutes where null.
+- **Recurring Task Expiry Guard (src/hooks/useRecurringTasks.js)**:
+  - Added end_date column to recurring_task_templates and set IELTS template cutoff to milestone deadline (2026-10-03) with is_active = false.
+  - Enforced guard skipping templates where is_active is false or end_date < today (null end_date preserves indefinite recurrence).
+- **Shared Task State Helper (src/lib/taskState.js)**:
+  - Created isOpenTask(t) helper checking neither completed nor archived.
+  - Replaced ad-hoc status filters across useWSJFScore, useTodaysTasks, matrixNodeFilter, MatrixCanvasView, TaskMatrix, TodaysTasksShuffle, PomodoroTimer, and task_triage.
+- **Day Guide & Widget Fixes**:
+  - Excluded archived children from useTodaysTasks subtaskStats denominator, preventing inflated n/N count.
+  - Removed circular completion button from TodayAgendaWidget Primaries, retaining master left square checkbox.
+  - Sorted child subtasks in TodayAgendaWidget by position ASC, created_at ASC, id ASC with completed subtasks remaining in place.
+  - Removed system nudges from RemindersPanel Needs Attention candidate items, eliminating duplicate renders.
+  - Removed dead dailyGoals state and query from DayBriefView.
+  - Added WSJF overdue urgency decay (drops from 4 to 2 with isStale: true when overdue > 3 days) and excluded tasks linked to completed milestones.
+
+## [2026-10-30] Scout Pipeline Hardening & Idempotency Lock (v1.2.59)
+- **Scout Opportunities Hardening (supabase/functions/scout-opportunities/index.ts)**:
+  - Added strict daily idempotency lock checking today's date against morning_briefs and hardware_opportunities records.
+  - Required admin_override or force_admin flag to bypass daily run check, preventing repeated executions even if force: true is passed.
+  - Optimized Firecrawl search payload by removing scrapeOptions markdown parsing, retaining query, limit: 8, and tbs: qdr:m.
+  - Added graceful 402 and payment or quota error handling to fall back directly to RSS feeds without failing or retrying.
+  - Enhanced candidate pool snippet resolution to support description, snippet, content, and markdown fields.
+- **Local Scout Execution Lock (scripts/run_cloud_scouts.js)**:
+  - Added scripts/.last_scout_date tracking to prevent repeated cloud scout runs on the same day unless --force-admin or --admin-override is passed.
+  - Updated payload for scout-opportunities to pass force: false by default.
+  - Added scripts/.last_scout_date to .gitignore.
+- **Windows Task Scheduler & Wrapper Safety (scripts/setup_triage_task.ps1 & scripts/run_triage_wrapper.ps1)**:
+  - Removed SessionUnlock trigger from Task Scheduler configuration, restricting automatic runs exclusively to user logon.
+  - Added robust string trimming to .last_run_date check in run_triage_wrapper.ps1.
+
+## [2026-10-27] Linear Focus Runway Agenda & App Launch Refresh Reliability (v1.2.58)
+- **App Launch & Sync Initialization Fix**:
+  - Fixed silent sync flaw in src/lib/syncManager.js: dispatched polaris-tasks-changed and polaris-sync-complete events upon completion of initSyncManager and table pullData calls so UI components automatically re-render when remote data loads without requiring manual page refreshes.
+  - Resolved service worker precache lock in src/sw.js: added self.skipWaiting() on install and self.clients.claim() on activate so updated builds activate immediately without trapping stale code chunks in waiting state.
+  - Added ChunkErrorBoundary in src/pages/Dashboard.jsx and GlobalChunkErrorBoundary in src/App.jsx to catch stale chunk loading exceptions and provide one-tap recovery instead of crashing or hanging on loading fallback.
+- **Linear Focus Runway (TodayAgendaWidget.jsx)**:
+  - Rebuilt daily agenda UI modeled after analog notebook journal and clinical ADHD executive function principles (Dr. Russell Barkley).
+  - Conversational header: *"what would I like to do today?"* in sky blue (	ext-sky-400 font-bold) with formatted date and Today's Agenda badge.
+  - Large square master checkboxes on the left edge (order-purple-400/80) to mark entire primary tasks complete.
+  - Tactile 15m/1-count segmented tally box grid ([ ][ ][ ]): tapping toggles orange checkmark (✓), logs 15m focus directly into pomodoro_logs, awards 10 XP, plays success chime, and tallies daily focus minutes. Tapping again unchecks and decrements minutes.
+  - Multi-track micro-stream support: split complex tasks into distinct tracks (e.g., draft and sche for cold emails), with "+ add micro-stream" control.
+  - Quick Subtask Search & Intake Popover: added + Subtask button on parent cards to instantly search backlog tasks or create a new subtask attached directly to the parent project.
+  - Bottom legend: [each box is 15min or 1 count] in soft amber.
+  - Collapsible Quick Wins drawer for low-load tasks.
+- **Quality Gates & Testing**:
+  - 35 test files and 380 unit tests passing (100% pass rate; 20/20 in TodayAgendaWidget.test.jsx).
+  - Clean Vite production PWA build in 7.07s (precache 37 entries / 1563.39 KiB).
+  - Zero em dashes, zero en dashes, zero CSS gradients.
+
 ## [2026-10-26] Day Completion Progress Bar, Subtask Bar & Daily Task Audit Alignment (v1.2.57)
 - **Architecture Deepening (agendaPrioritizer.js)**:
   - Extracted pure task prioritization and alignment domain logic from `TodayAgendaWidget.jsx` into dedicated module `src/lib/agendaPrioritizer.js`.
@@ -910,4 +981,5 @@ All notable changes to Polaris will be documented in this file.
 - Refactored src/lib/syncManager.js to batch 36 table sync queries into chunks of 10 via the new get_user_data RPC, preventing client-side HTTP blast and DB connection pool exhaustion on load.
 - Updated DayBriefView.jsx to show Today's Agenda rather than Do First/Strategic splits.
 - Cleaned up obsolete ML curricula from the database.
+
 

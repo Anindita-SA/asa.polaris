@@ -140,16 +140,17 @@ describe("RemindersPanel", () => {
       fetchNudges: vi.fn()
     });
 
-    // 2. Overdue Contact (Score: 4.0 for hearth)
+    // 1. Overdue Contacts (Score: 4.0 for hearth, 3.6 for parlour)
     useContactReminders.mockReturnValue({
       contacts: [
-        { id: "c1", name: "Alice Smith", tier: "hearth", isOverdue: true, daysSince: 10, frequency_days: 7 }
+        { id: "c1", name: "Alice Smith", tier: "hearth", isOverdue: true, daysSince: 10, frequency_days: 7 },
+        { id: "c2", name: "Bob Jones", tier: "parlour", isOverdue: true, daysSince: 8, frequency_days: 7 }
       ],
       markReachedOut: vi.fn()
     });
 
-    // 3. Incomplete Habit (Score: 3.5)
-    // 4. Overdue Task (Score: 2.0)
+    // 2. Incomplete Habit (Score: 3.5)
+    // 3. Overdue Task (Score: 2.0)
     const overdueTask = {
       id: "t1",
       title: "Submit Taxes",
@@ -181,9 +182,9 @@ describe("RemindersPanel", () => {
 
     // Top 2 items by score:
     // 1. Alice Smith (Score 4.0)
-    // 2. Drink Water (Score 3.8)
+    // 2. Bob Jones (Score 3.6)
     expect(within(needsAttentionSection).getByText("Alice Smith")).toBeDefined();
-    expect(within(needsAttentionSection).getByText("Drink Water")).toBeDefined();
+    expect(within(needsAttentionSection).getByText("Bob Jones")).toBeDefined();
 
     // The other 2 lower score items (Morning Run 3.5, Submit Taxes 2.0) should NOT be in the Needs Attention visible 2
     expect(within(needsAttentionSection).queryByText("Submit Taxes")).toBeNull();
@@ -193,8 +194,7 @@ describe("RemindersPanel", () => {
     expect(within(needsAttentionSection).getByText("(+2 more in sections below)")).toBeDefined();
 
     // Verify single-letter tag badges
-    expect(within(needsAttentionSection).getByText("C")).toBeDefined();
-    expect(within(needsAttentionSection).getByText("N")).toBeDefined();
+    expect(within(needsAttentionSection).getAllByText("C").length).toBeGreaterThan(0);
 
     // Verify WSJF score text is not displayed in the card
     expect(within(needsAttentionSection).queryByText(/WSJF/)).toBeNull();
@@ -202,16 +202,15 @@ describe("RemindersPanel", () => {
 
   it("should sort Needs Attention items strictly by score descending", async () => {
     useNudgeScheduler.mockReturnValue({
-      nudges: [
-        { id: "n1", title: "Active Nudge", active: true, isDue: true, isTask: false }
-      ],
+      nudges: [],
       dismissNudge: vi.fn(),
       fetchNudges: vi.fn()
     });
 
     useContactReminders.mockReturnValue({
       contacts: [
-        { id: "c1", name: "Hearth Friend", tier: "hearth", isOverdue: true, daysSince: 5, frequency_days: 3 }
+        { id: "c1", name: "Hearth Friend", tier: "hearth", isOverdue: true, daysSince: 5, frequency_days: 3 },
+        { id: "c2", name: "Parlour Friend", tier: "parlour", isOverdue: true, daysSince: 5, frequency_days: 3 }
       ],
       markReachedOut: vi.fn()
     });
@@ -227,23 +226,22 @@ describe("RemindersPanel", () => {
     const needsAttentionHeading = screen.getByText(/Needs Attention/);
     const needsAttentionSection = needsAttentionHeading.closest(".rounded-xl");
 
-    const itemTitles = within(needsAttentionSection).getAllByText(/Hearth Friend|Active Nudge/).map((el) => el.textContent);
-    // Hearth Friend (score 4.0) should precede Active Nudge (score 3.8)
+    const itemTitles = within(needsAttentionSection).getAllByText(/Hearth Friend|Parlour Friend/).map((el) => el.textContent);
+    // Hearth Friend (score 4.0) should precede Parlour Friend (score 3.6)
     expect(itemTitles[0]).toBe("Hearth Friend");
-    expect(itemTitles[1]).toBe("Active Nudge");
+    expect(itemTitles[1]).toBe("Parlour Friend");
 
     // Since total items = 2, helper badge should not appear
     expect(within(needsAttentionSection).queryByText(/more in sections below/)).toBeNull();
   });
 
   it("should trigger completion action when checkmark is clicked in Needs Attention", async () => {
-    const mockDismissNudge = vi.fn();
-    useNudgeScheduler.mockReturnValue({
-      nudges: [
-        { id: "n1", title: "Drink Water", active: true, isDue: true, isTask: false }
+    const mockMarkReachedOut = vi.fn();
+    useContactReminders.mockReturnValue({
+      contacts: [
+        { id: "c1", name: "Alice Smith", tier: "hearth", isOverdue: true, daysSince: 10, frequency_days: 7 }
       ],
-      dismissNudge: mockDismissNudge,
-      fetchNudges: vi.fn()
+      markReachedOut: mockMarkReachedOut
     });
 
     render(<RemindersPanel onOpenDayGuide={vi.fn()} />);
@@ -255,10 +253,10 @@ describe("RemindersPanel", () => {
     const needsAttentionHeading = screen.getByText(/Needs Attention/);
     const needsAttentionSection = needsAttentionHeading.closest(".rounded-xl");
 
-    const checkButton = within(needsAttentionSection).getByRole("button", { name: /Complete Drink Water/i });
+    const checkButton = within(needsAttentionSection).getByRole("button", { name: /Complete Alice Smith/i });
     fireEvent.click(checkButton);
 
-    expect(mockDismissNudge).toHaveBeenCalledWith("n1");
+    expect(mockMarkReachedOut).toHaveBeenCalledWith("c1");
   });
 
   it("should never render task items inside Manage Nudges modal or Nudges section", async () => {
@@ -595,20 +593,16 @@ describe("RemindersPanel", () => {
     });
   });
 
-  it("should strictly deduplicate Needs Attention items by title even when multiple due nudges with different IDs exist", async () => {
-    // 3 duplicate nudges with different IDs but the same title
-    useNudgeScheduler.mockReturnValue({
-      nudges: [
-        { id: "nudge-1", title: "Drink water", active: true, isDue: true, isTask: false },
-        { id: "nudge-2", title: "drink water", active: true, isDue: true, isTask: false },
-        { id: "nudge-3", title: "Drink water ", active: true, isDue: true, isTask: false },
-        { id: "nudge-4", title: "Posture check", active: true, isDue: true, isTask: false }
-      ],
-      dismissNudge: vi.fn(),
-      fetchNudges: vi.fn()
-    });
+  it("should strictly deduplicate Needs Attention items by title even when multiple duplicate tasks with different IDs exist", async () => {
+    // 3 duplicate tasks with different IDs but the same title
+    const duplicateTasks = [
+      { id: "task-1", title: "Drink water", category: "reminders", deadline: "2020-01-01", status: "active", wsjfScore: 3.0 },
+      { id: "task-2", title: "drink water", category: "reminders", deadline: "2020-01-01", status: "active", wsjfScore: 3.0 },
+      { id: "task-3", title: "Drink water ", category: "reminders", deadline: "2020-01-01", status: "active", wsjfScore: 3.0 },
+      { id: "task-4", title: "Posture check", category: "reminders", deadline: "2020-01-01", status: "active", wsjfScore: 3.0 }
+    ];
 
-    setupSupabaseMock([], []);
+    setupSupabaseMock(duplicateTasks, []);
 
     render(<RemindersPanel onOpenDayGuide={vi.fn()} />);
 
@@ -709,7 +703,7 @@ describe("RemindersPanel", () => {
     expect(within(needsAttentionSection).getByText("T")).toBeDefined();
   });
 
-  it("should deduplicate unicode spacing variations of system nudges in Needs Attention and Nudges section", async () => {
+  it("should deduplicate unicode spacing variations of system nudges in Nudges section and keep them out of Needs Attention", async () => {
     useNudgeScheduler.mockReturnValue({
       nudges: [
         { id: "nudge-1", title: "Posture check", active: true, isDue: true, isTask: false },
@@ -725,16 +719,8 @@ describe("RemindersPanel", () => {
 
     render(<RemindersPanel onOpenDayGuide={vi.fn()} />);
 
-    await waitFor(() => {
-      expect(screen.getByText(/Needs Attention/)).toBeDefined();
-    });
-
-    const needsAttentionHeading = screen.getByText(/Needs Attention/);
-    const needsAttentionSection = needsAttentionHeading.closest(".rounded-xl");
-
-    // "Posture check" should appear exactly once in Needs Attention despite 3 variants
-    const postureItems = within(needsAttentionSection).getAllByText(/Posture.*check/i);
-    expect(postureItems.length).toBe(1);
+    // System nudges should NOT be rendered in Needs Attention
+    expect(screen.queryByText(/Needs Attention/)).toBeNull();
 
     // Section 2: Nudges header count should be 2 unique nudges ('Posture check' and 'Drink water'), NOT 4
     const nudgesHeader = screen.getByRole("button", { name: /Nudges/i });

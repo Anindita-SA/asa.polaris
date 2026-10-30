@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { useTodaysTasks } from '../../hooks/useTodaysTasks'
 import { offlineSelect, offlineInsert, offlineUpdate } from '../../lib/offlineApi'
+import { isOpenTask } from '../../lib/taskState'
 import { Settings, X, Maximize2, Minimize2, RotateCcw, ChevronDown, ChevronUp, Music, CheckCircle2, Target, ExternalLink } from 'lucide-react'
 
 import Starfield from '../layout/Starfield'
@@ -193,7 +194,7 @@ const PomodoroTimer = ({ mobilePill = false }) => {
       const { data } = await offlineSelect('tasks', { user_id: user.id })
       if (data) {
         const filtered = data
-          .filter(t => t.status !== 'done' && t.quadrant !== null && t.quadrant !== undefined)
+          .filter(t => isOpenTask(t) && t.quadrant !== null && t.quadrant !== undefined)
           .map(t => ({ ...t, completed: t.status === 'done' }))
         setMatrixTasks(filtered)
       }

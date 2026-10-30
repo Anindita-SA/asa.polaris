@@ -1,3 +1,5 @@
+import { isOpenTask } from './taskState';
+
 /**
  * Pure task filtering engine for Polaris Matrix Canvas and Constellation Views.
  * Enforces strict invariants for root node display and 14-Day Overlook protection.
@@ -42,8 +44,8 @@ export function filterMatrixNodes(tasks = [], options = {}) {
     // Invariant 2: Tasks without an assigned quadrant stay in the Brain Dump tray
     if (t.quadrant === null || t.quadrant === undefined) return false;
 
-    // Invariant 3: Completed tasks are hidden from active matrix plane
-    if (t.status === 'done') return false;
+    // Invariant 3: Completed or archived tasks are hidden from active matrix plane
+    if (!isOpenTask(t)) return false;
 
     // Invariant 4: Category suppression
     if (t.category === 'habits') return false;

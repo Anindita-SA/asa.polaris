@@ -32,6 +32,15 @@ describe('filterMatrixNodes', () => {
     expect(filtered.map(t => t.id)).toEqual(['2']);
   });
 
+  it('excludes archived tasks (status === archived)', () => {
+    const tasks = [
+      { id: '1', title: 'Archived task', quadrant: 'urgent_important', status: 'archived' },
+      { id: '2', title: 'Active task', quadrant: 'urgent_important', status: 'active' }
+    ];
+    const filtered = filterMatrixNodes(tasks, { currentDate: baseDate });
+    expect(filtered.map(t => t.id)).toEqual(['2']);
+  });
+
   it('protects against unparented inbox tasks with no deadline flooding the canvas plane', () => {
     const tasks = [
       {
