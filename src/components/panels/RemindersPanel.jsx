@@ -395,34 +395,10 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
   const ongoingNeglectedBadge = getNeglectedBadge(currentOngoing);
   const ongoingAlert = isOngoingOverdue || Boolean(ongoingNeglectedBadge);
 
-  // Unified Needs Attention Items
+  // Unified Needs Attention Items (System nudges render in Section 2, excluded here)
   const candidateItems = []
 
-  // 1. Active due system nudges (!n.isTask && n.active && n.isDue)
-  // Deduplicate by normalized title so duplicate system nudges never accumulate
-  const seenSystemNudgeTitles = new Set()
-  nudges.forEach(n => {
-    if (!n.isTask && n.active && n.isDue) {
-      const normTitle = normalizeNudgeTitle(n.title)
-      if (normTitle && !seenSystemNudgeTitles.has(normTitle)) {
-        seenSystemNudgeTitles.add(normTitle)
-        candidateItems.push({
-          id: n.id,
-          title: n.title,
-          type: 'nudge',
-          tag: 'N',
-          tagFull: 'Nudge',
-          score: 3.8,
-          action: () => {
-            dismissNudge(n.id)
-            celebrate()
-          }
-        })
-      }
-    }
-  })
-
-  // 2. Non-focus tasks: quick wins (<= 15 min), same-day deadline, overdue, neglected
+  // 1. Non-focus tasks: quick wins (<= 15 min), same-day deadline, overdue, neglected
   tasks.forEach(t => {
     if (t.category === 'habits') return
     if (focusTaskIds.has(t.id)) return

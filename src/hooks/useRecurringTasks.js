@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { offlineSelect, offlineInsert, offlineUpdate, generateUUID } from '../lib/offlineApi'
 import { useAuth } from './useAuth'
+import { isOpenTask } from '../lib/taskState'
 
 export function useRecurringTasks() {
   const { user } = useAuth()
@@ -16,7 +17,12 @@ export function useRecurringTasks() {
 
       try {
         const { data: allTemplates, error: templateError } = await offlineSelect('recurring_task_templates')
-        const templates = (allTemplates || []).filter(t => t.user_id === user.id && t.is_active)
+        const templates = (allTemplates || []).filter(t => {
+          if (t.user_id !== user.id) return false
+          if (!t.is_active) return false
+          if (t.end_date && t.end_date < today) return false
+          return true
+        })
 
         if (templateError) {
           console.error('Error fetching recurring task templates:', templateError)
@@ -56,8 +62,8 @@ export function useRecurringTasks() {
             (t.source_template_id === template.id || (t.title && t.title.trim().toLowerCase() === templateTitleNorm))
           )
 
-          // If ANY open task (status !== 'done') already exists for that template, DO NOT insert or recycle anything.
-          const openTask = matchingRootTasks.find(t => t.status !== 'done')
+          // If ANY open task (neither completed nor archived) already exists for that template, DO NOT insert or recycle anything.
+          const openTask = matchingRootTasks.find(t => isOpenTask(t))
 
           if (openTask) {
             if (!openTask.source_template_id) {

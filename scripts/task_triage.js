@@ -4,6 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { createSafeClient } from './lib/safe_supabase.js';
 import { generateWithFallbackNode } from './lib/llm_utils.js';
+import { isOpenTask } from '../src/lib/taskState.js';
 
 /**
  * Deterministic heuristic Eisenhower quadrant classifier when LLM is unavailable.
@@ -274,11 +275,11 @@ export function detectStaleParentTasks(allTasks = [], referenceDate = new Date()
   const staleParents = [];
 
   for (const task of allTasks) {
-    if (task.status === 'done') continue;
+    if (!isOpenTask(task)) continue;
     const children = childrenByParentId.get(task.id);
     if (!children || children.length === 0) continue;
 
-    const incompleteChildren = children.filter(c => c.status !== 'done');
+    const incompleteChildren = children.filter(c => isOpenTask(c));
     if (incompleteChildren.length > 0) {
       const hasRecentActivity = children.some(c => {
         const ts = c.updated_at || c.created_at;
@@ -375,7 +376,7 @@ export function evaluateParentTaskQuadrant(parentTask, childSubtasks = [], refer
     return diffDays > 3;
   };
 
-  const incompleteSubtasks = (childSubtasks || []).filter(c => c.status !== 'done');
+  const incompleteSubtasks = (childSubtasks || []).filter(c => isOpenTask(c));
   const hasUrgentIncompleteChild = incompleteSubtasks.some(c => isDueIn48h(c.deadline));
 
   // If any incomplete child subtask is due within 48h, evaluate parent quadrant as urgent_important
@@ -414,7 +415,7 @@ export async function triageParentTasksUrgency(supabase, uid, allTasks = [], isD
     }
   }
 
-  const parentTasks = allTasks.filter(t => !t.parent_task_id && t.status !== 'done' && childrenByParentId.has(t.id));
+  const parentTasks = allTasks.filter(t => !t.parent_task_id && isOpenTask(t) && childrenByParentId.has(t.id));
   const updates = [];
 
   for (const parent of parentTasks) {
@@ -482,10 +483,11 @@ async function exportPolarisFeatures(supabase, uid) {
 
   if (devErr) throw devErr;
 
+  const openDevTasks = (devTasks || []).filter(t => isOpenTask(t));
   const fpPath = path.join(process.cwd(), 'docs', 'plannedfeatures.md');
-  if (devTasks && devTasks.length > 0) {
+  if (openDevTasks && openDevTasks.length > 0) {
     let fpContent = `# Polaris Feature Proposals\n\nGenerated on ${new Date().toISOString()}\n\n`;
-    for (const t of devTasks) {
+    for (const t of openDevTasks) {
       fpContent += `## ${t.title}\n`;
       fpContent += `- **ID:** \`${t.id}\`\n`;
       fpContent += `- **Status:** ${t.status}\n`;
@@ -578,7 +580,7 @@ async function run() {
 
     if (userTasksErr) throw userTasksErr;
 
-    const allActiveTasks = (allUserTasks || []).filter(t => t.status !== 'done');
+    const allActiveTasks = (allUserTasks || []).filter(t => isOpenTask(t));
 
     const { keptTasks, duplicateTaskIds: activeDuplicateIds } = deduplicateActiveTasks(allActiveTasks || []);
     if (activeDuplicateIds.length > 0) {

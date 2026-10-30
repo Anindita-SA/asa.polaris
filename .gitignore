@@ -32,6 +32,7 @@ scripts/logs/
 agent_scout_payload.json
 
 scripts/.last_run_date
+scripts/.last_scout_date
 .vite/
 supabase/functions/_shared/personal_prompts.ts
 docs/_FEATURE_PROPOSALS.md

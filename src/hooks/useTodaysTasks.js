@@ -5,11 +5,13 @@ import { useGoalCompletion } from './useGoalCompletion'
 import { XP } from '../data/xpRewards'
 import { playChime } from '../lib/sound'
 import { offlineSelect, offlineUpdate, offlineInsert } from '../lib/offlineApi'
+import { isOpenTask } from '../lib/taskState'
 
 export function useTodaysTasks() {
   const { user, trackXP } = useAuth()
   const { toggleGoal } = useGoalCompletion()
   const [tasks, setTasks] = useState([])
+  const [allBacklogTasks, setAllBacklogTasks] = useState([])
   const [isLoading, setIsLoading] = useState(true)
 
   const fetchTasks = useCallback(async () => {
@@ -58,9 +60,11 @@ export function useTodaysTasks() {
         const { data: allTasks } = await offlineSelect('tasks', { user_id: user.id })
         allTasksList = allTasks || []
         activeMatrixTasks = allTasksList.filter(t => 
-          t.status === 'active' || 
-          t.status === 'scheduled' || 
-          (t.status === 'done' && t.deadline === todayStr)
+          t.status !== 'archived' && (
+            t.status === 'active' || 
+            t.status === 'scheduled' || 
+            (t.status === 'done' && t.deadline === todayStr)
+          )
         )
       } catch (e3) {
         console.warn('Error fetching matrix tasks:', e3)
@@ -72,6 +76,7 @@ export function useTodaysTasks() {
       for (const t of allTasksList) {
         taskTitleById[t.id] = t.title
         if (t.parent_task_id) {
+          if (t.status === 'archived') continue
           if (!subtaskStats[t.parent_task_id]) {
             subtaskStats[t.parent_task_id] = { total: 0, completed: 0 }
           }
@@ -176,6 +181,7 @@ export function useTodaysTasks() {
       })
 
       setTasks(combined)
+      setAllBacklogTasks(allTasksList)
     } catch (err) {
       console.error('Error fetching today\'s tasks:', err)
     } finally {
@@ -290,5 +296,33 @@ export function useTodaysTasks() {
     }
   }
 
-  return { tasks, isLoading, fetchTasks, toggleComplete, addTask, updateSortOrder }
+  const addSubtask = async (parentTaskId, title) => {
+    if (!user || !title?.trim()) return
+    const todayStr = new Date().toLocaleDateString('en-CA')
+    const { data } = await offlineInsert('tasks', {
+      user_id: user.id,
+      title: title.trim(),
+      parent_task_id: parentTaskId,
+      status: 'active',
+      deadline: todayStr
+    })
+    if (data) {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('polaris-tasks-changed', { detail: { table: 'tasks' } }))
+      }
+      fetchTasks()
+    }
+  }
+
+  const attachSubtask = async (taskId, parentTaskId) => {
+    if (!taskId) return
+    const todayStr = new Date().toLocaleDateString('en-CA')
+    await offlineUpdate('tasks', { id: taskId }, { parent_task_id: parentTaskId, deadline: todayStr, status: 'active' })
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('polaris-tasks-changed', { detail: { table: 'tasks' } }))
+    }
+    fetchTasks()
+  }
+
+  return { tasks, allBacklogTasks, isLoading, fetchTasks, toggleComplete, addTask, addSubtask, attachSubtask, updateSortOrder }
 }

@@ -716,4 +716,75 @@ describe('useRecurringTasks hook', () => {
       { last_generated_date: today }
     );
   });
+
+  it('template with null end_date recycles normally while past end_date is skipped', async () => {
+    const today = new Date().toLocaleDateString('en-CA');
+    const templates = [
+      {
+        id: 'tpl-null-end',
+        user_id: 'test-user-123',
+        title: 'Daily Reflection',
+        is_active: true,
+        end_date: null,
+        frequency: 'daily',
+        last_generated_date: '2026-09-01'
+      },
+      {
+        id: 'tpl-past-end',
+        user_id: 'test-user-123',
+        title: 'IELTS Prep Sprint',
+        is_active: true,
+        end_date: '2026-10-03', // in past relative to today
+        frequency: 'daily',
+        last_generated_date: '2026-10-02'
+      }
+    ];
+
+    const tasks = [
+      {
+        id: 'task-reflection-done',
+        user_id: 'test-user-123',
+        title: 'Daily Reflection',
+        status: 'done',
+        parent_task_id: null,
+        source_template_id: 'tpl-null-end',
+        deadline: '2026-09-01'
+      },
+      {
+        id: 'task-ielts-done',
+        user_id: 'test-user-123',
+        title: 'IELTS Prep Sprint',
+        status: 'done',
+        parent_task_id: null,
+        source_template_id: 'tpl-past-end',
+        deadline: '2026-10-02'
+      }
+    ];
+
+    offlineSelect.mockImplementation(async (table) => {
+      if (table === 'recurring_task_templates') return { data: templates, error: null };
+      if (table === 'tasks') return { data: tasks, error: null };
+      return { data: [], error: null };
+    });
+
+    const { result } = renderHook(() => useRecurringTasks());
+
+    await waitFor(() => {
+      expect(result.current.generated).toBe(1);
+    });
+
+    // tpl-null-end should be recycled
+    expect(offlineUpdate).toHaveBeenCalledWith(
+      'tasks',
+      { id: 'task-reflection-done' },
+      expect.objectContaining({ status: 'active', deadline: today })
+    );
+
+    // tpl-past-end should NOT be recycled
+    expect(offlineUpdate).not.toHaveBeenCalledWith(
+      'tasks',
+      { id: 'task-ielts-done' },
+      expect.anything()
+    );
+  });
 });

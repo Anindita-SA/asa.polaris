@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useState, useEffect } from 'react'
+import React, { lazy, Suspense, useState, useEffect, Component } from 'react'
 import { AuthProvider, useAuth } from './hooks/useAuth'
 import { CelebrationProvider } from './components/CelebrationEffect'
 import './styles/global.css'
@@ -16,6 +16,47 @@ const LoadingFallback = () => (
     </div>
   </div>
 )
+
+class GlobalChunkErrorBoundary extends Component {
+  constructor(props) {
+    super(props)
+    this.state = { hasError: false }
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true }
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('[App] Chunk error caught:', error, errorInfo)
+  }
+
+  handleReload = () => {
+    this.setState({ hasError: false })
+    window.location.reload()
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="h-screen w-screen bg-void flex flex-col items-center justify-center p-6 text-center space-y-3">
+          <div className="w-3 h-3 rounded-full bg-gold mx-auto animate-ping" />
+          <h2 className="font-display text-base font-bold text-starlight">Updating Polaris App...</h2>
+          <p className="text-xs text-nova/60 max-w-sm font-body">
+            An updated version was deployed. Click below to load the latest features.
+          </p>
+          <button
+            onClick={this.handleReload}
+            className="px-4 py-2 text-xs font-mono bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/40 rounded-xl transition-all cursor-pointer"
+          >
+            Reload Polaris
+          </button>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
 
 const getRouteFromLocation = () => {
   const hash = (typeof window !== 'undefined' && window.location.hash ? window.location.hash : '').toLowerCase()
@@ -97,11 +138,13 @@ const AppContent = () => {
 }
 
 const App = () => (
-  <AuthProvider>
-    <CelebrationProvider>
-      <AppContent />
-    </CelebrationProvider>
-  </AuthProvider>
+  <GlobalChunkErrorBoundary>
+    <AuthProvider>
+      <CelebrationProvider>
+        <AppContent />
+      </CelebrationProvider>
+    </AuthProvider>
+  </GlobalChunkErrorBoundary>
 )
 
 export default App

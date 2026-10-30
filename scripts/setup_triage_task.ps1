@@ -7,6 +7,7 @@ Write-Host "Set OLLAMA_MAX_LOADED_MODELS=1 and OLLAMA_KEEP_ALIVE=30s for the cur
 
 $TaskName = "PolarisTaskTriage"
 $WorkingDir = (Get-Item .).FullName
+$EscapedWorkingDir = [System.Security.SecurityElement]::Escape($WorkingDir)
 $PowershellExe = (Get-Command powershell).Source
 
 Write-Host "Creating Scheduled Task: $TaskName" -ForegroundColor Cyan
@@ -18,10 +19,6 @@ $TaskXml = @"
     <LogonTrigger>
       <Enabled>true</Enabled>
     </LogonTrigger>
-    <SessionStateChangeTrigger>
-      <Enabled>true</Enabled>
-      <StateChange>SessionUnlock</StateChange>
-    </SessionStateChangeTrigger>
   </Triggers>
   <Settings>
     <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
@@ -34,11 +31,11 @@ $TaskXml = @"
     <Exec>
       <Command>$PowershellExe</Command>
       <Arguments>-WindowStyle Hidden -ExecutionPolicy Bypass -File "scripts\run_triage_wrapper.ps1"</Arguments>
-      <WorkingDirectory>$WorkingDir</WorkingDirectory>
+      <WorkingDirectory>$EscapedWorkingDir</WorkingDirectory>
     </Exec>
   </Actions>
 </Task>
 "@
 
 Register-ScheduledTask -Xml $TaskXml -TaskName $TaskName -Force
-Write-Host "Scheduled task successfully updated! It will trigger on your FIRST unlock/logon of the day." -ForegroundColor Green
+Write-Host "Scheduled task successfully updated! It will trigger on user logon." -ForegroundColor Green

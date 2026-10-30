@@ -3,6 +3,7 @@ import { useWSJFScore } from '../hooks/useWSJFScore';
 import { supabase } from '../lib/supabase';
 import { offlineUpdate } from '../lib/offlineApi';
 import { useAuth } from '../hooks/useAuth';
+import { isOpenTask } from '../lib/taskState';
 import DayChunker from './DayChunker';
 import { 
   Shuffle, 
@@ -86,8 +87,8 @@ export default function TodaysTasksShuffle() {
   const dayTasks = useMemo(() => {
     if (!tasks || tasks.length === 0) return [];
 
-    const explicitlyAssigned = tasks.filter(t => (scheduledDays[t.id] || t.scheduled_day) === selectedDay && t.status !== 'done');
-    const unassigned = tasks.filter(t => !(scheduledDays[t.id] || t.scheduled_day) && t.status !== 'done');
+    const explicitlyAssigned = tasks.filter(t => (scheduledDays[t.id] || t.scheduled_day) === selectedDay && isOpenTask(t));
+    const unassigned = tasks.filter(t => !(scheduledDays[t.id] || t.scheduled_day) && isOpenTask(t));
 
     const combined = [...explicitlyAssigned];
 

@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, lazy, Suspense } from 'react'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import React, { useState, useEffect, useRef, lazy, Suspense, Component } from 'react'
+import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react'
 import { useRecurringTasks } from '../hooks/useRecurringTasks'
 import { useMorningBrief } from '../hooks/useMorningBrief'
 import { useMorningSequence } from '../hooks/useMorningSequence'
@@ -35,6 +35,49 @@ const ViewFallback = () => (
     </div>
   </div>
 )
+
+class ChunkErrorBoundary extends Component {
+  constructor(props) {
+    super(props)
+    this.state = { hasError: false, error: null }
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error }
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('[Dashboard] Chunk error caught:', error, errorInfo)
+  }
+
+  handleReload = () => {
+    this.setState({ hasError: false, error: null })
+    window.location.reload()
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex flex-col items-center justify-center h-full w-full p-6 text-center space-y-3">
+          <div className="p-3 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400">
+            <RefreshCw className="w-6 h-6 animate-spin" />
+          </div>
+          <h3 className="font-display text-sm font-bold text-starlight">Updating Feature View...</h3>
+          <p className="text-xs text-nova/60 max-w-sm font-body">
+            A new version or updated chunk was detected. Click below to refresh with the latest updates.
+          </p>
+          <button
+            onClick={this.handleReload}
+            className="px-4 py-2 text-xs font-mono bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/40 rounded-xl transition-all cursor-pointer"
+          >
+            Refresh Feature
+          </button>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
 
 const Dashboard = () => {
   const { user } = useAuth()
@@ -134,7 +177,9 @@ const Dashboard = () => {
 
           {activeView !== 'graph' && (
             <div className="absolute inset-0 overflow-hidden">
-              {renderView()}
+              <ChunkErrorBoundary>
+                {renderView()}
+              </ChunkErrorBoundary>
             </div>
           )}
         </div>

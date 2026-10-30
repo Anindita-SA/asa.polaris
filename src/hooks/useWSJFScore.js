@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from './useAuth';
 import { offlineSelect } from '../lib/offlineApi';
+import { isOpenTask } from '../lib/taskState';
 
 /**
  * Quadrant weight map:
@@ -37,7 +38,11 @@ export function calculateDeadlineUrgency(deadlineStr) {
   const diffMs = deadlineDate.getTime() - today.getTime();
   const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
 
-  if (diffDays <= 0) return 4; // Today or overdue
+  if (diffDays <= 0) {
+    // If overdue by more than 3 days, decay urgency from 4 down to 2
+    if (diffDays < -3) return 2;
+    return 4; // Today or 1-3 days overdue
+  }
   if (diffDays < 3) return 3;  // < 3 days
   if (diffDays <= 7) return 2; // 3-7 days
   return 1;                    // > 7 days
@@ -45,7 +50,7 @@ export function calculateDeadlineUrgency(deadlineStr) {
 
 /**
  * Calculates duration score:
- * 1 / (estimated_minutes / 60), capped at 4 (so ≤ 15 min scores max 4)
+ * 1 / (estimated_minutes / 60), capped at 4 (so <= 15 min scores max 4)
  * if estimated_minutes is null / undefined / <= 0, duration_score = 1 (neutral)
  */
 export function calculateDurationScore(estimatedMinutes) {
@@ -66,15 +71,29 @@ export function computeWSJFScore(task) {
   const deadlineUrgency = calculateDeadlineUrgency(task.deadline);
   const durationScore = calculateDurationScore(task.estimated_minutes);
 
+  let isStale = false;
+  if (task.deadline) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const deadlineDate = new Date(task.deadline);
+    deadlineDate.setHours(0, 0, 0, 0);
+    const diffDays = Math.ceil((deadlineDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays < -3) {
+      isStale = true;
+    }
+  }
+
   const totalScore = (quadrantWeight * 0.4) + (deadlineUrgency * 0.35) + (durationScore * 0.25);
   const roundedScore = Math.round(totalScore * 100) / 100;
 
   return {
     score: roundedScore,
+    isStale,
     breakdown: {
       quadrantWeight,
       deadlineUrgency,
       durationScore: Math.round(durationScore * 100) / 100,
+      isStale,
     }
   };
 }
@@ -99,18 +118,30 @@ export function useWSJFScore() {
       setLoading(true);
       setError(null);
 
-      const { data, error: fetchError } = await offlineSelect('tasks', { user_id: user.id });
+      const [tasksRes, milestonesRes] = await Promise.all([
+        offlineSelect('tasks', { user_id: user.id }),
+        offlineSelect('milestones', { user_id: user.id })
+      ]);
 
-      if (fetchError) throw fetchError;
+      if (tasksRes.error) throw tasksRes.error;
 
-      const activeTasks = (data || []).filter(t => t.status !== 'done');
+      const doneMilestoneIds = new Set(
+        (milestonesRes.data || [])
+          .filter(m => m.status === 'done')
+          .map(m => m.id)
+      );
+
+      const activeTasks = (tasksRes.data || []).filter(t => 
+        isOpenTask(t) && (!t.milestone_id || !doneMilestoneIds.has(t.milestone_id))
+      );
 
       const scored = activeTasks.map((t) => {
-        const { score, breakdown } = computeWSJFScore(t);
+        const { score, breakdown, isStale } = computeWSJFScore(t);
         return {
           ...t,
           wsjfScore: score,
           scoreBreakdown: breakdown,
+          isStale: isStale ?? false,
         };
       });
 

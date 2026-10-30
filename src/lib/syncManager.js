@@ -31,6 +31,10 @@ export async function pullData(table, userId) {
         } else {
           await db[table].bulkPut(validRecords);
         }
+
+        if (['tasks', 'daily_tasks', 'goals', 'milestones'].includes(table) && typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('polaris-tasks-changed'));
+        }
       }
     }
   } catch (err) {
@@ -245,6 +249,11 @@ export function initSyncManager(userId) {
         }
 
         await pullProfile(userId);
+
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('polaris-tasks-changed'));
+          window.dispatchEvent(new CustomEvent('polaris-sync-complete'));
+        }
       }
     });
   };

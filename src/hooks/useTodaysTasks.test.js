@@ -238,4 +238,70 @@ describe('useTodaysTasks hook', () => {
     expect(result.current.tasks[0].id).toBe('done-today')
     expect(result.current.tasks[0].completed).toBe(true)
   })
+
+  it('excludes archived tasks from today tasks and excludes archived children from subtaskStats denominator', async () => {
+    const mockTasks = [
+      {
+        id: 'parent-project',
+        user_id: mockUser.id,
+        title: 'Survey Paper Sprint',
+        status: 'active',
+        deadline: todayStr,
+        created_at: '2026-10-25T01:00:00Z'
+      },
+      {
+        id: 'child-done',
+        user_id: mockUser.id,
+        title: 'Done Subtask',
+        parent_task_id: 'parent-project',
+        status: 'done',
+        created_at: '2026-10-25T02:00:00Z'
+      },
+      {
+        id: 'child-active',
+        user_id: mockUser.id,
+        title: 'Active Subtask',
+        parent_task_id: 'parent-project',
+        status: 'active',
+        created_at: '2026-10-25T03:00:00Z'
+      },
+      {
+        id: 'child-archived',
+        user_id: mockUser.id,
+        title: 'Archived Subtask',
+        parent_task_id: 'parent-project',
+        status: 'archived',
+        created_at: '2026-10-25T04:00:00Z'
+      },
+      {
+        id: 'root-archived',
+        user_id: mockUser.id,
+        title: 'Archived Standalone Task',
+        status: 'archived',
+        deadline: todayStr,
+        created_at: '2026-10-25T05:00:00Z'
+      }
+    ]
+
+    offlineSelect.mockImplementation(async (table) => {
+      if (table === 'tasks') return { data: mockTasks, error: null }
+      return { data: [], error: null }
+    })
+
+    const { result } = renderHook(() => useTodaysTasks())
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+    })
+
+    const taskIds = result.current.tasks.map(t => t.id)
+    expect(taskIds).not.toContain('root-archived')
+    expect(taskIds).not.toContain('child-archived')
+
+    const parent = result.current.tasks.find(t => t.id === 'parent-project')
+    expect(parent).toBeDefined()
+    // Total should only count active + done (2), NOT archived (which would make 3)
+    expect(parent.subtasks_total).toBe(2)
+    expect(parent.subtasks_completed).toBe(1)
+  })
 })

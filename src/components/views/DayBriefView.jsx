@@ -26,7 +26,6 @@ export default function DayBriefView() {
   const [savingNewsIds, setSavingNewsIds] = useState(new Set());
   const [dismissTargetOpp, setDismissTargetOpp] = useState(null);
   const [noNewOpp, setNoNewOpp] = useState(false);
-  const [dailyGoals, setDailyGoals] = useState([]);
   const [expandedOppIds, setExpandedOppIds] = useState(new Set());
   const fetchedRef = React.useRef(false);
 
@@ -189,13 +188,8 @@ export default function DayBriefView() {
       .filter(g => g.scope === 'weekly' && !g.completed)
       .sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
 
-    const dailyGoals = (goalRes.data || [])
-      .filter(g => g.scope === 'daily' && !g.completed)
-      .sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
-
     setBriefItems(enhancedItems);
     setWeeklyGoal(weeklyGoals[0]?.title || 'None');
-    setDailyGoals(dailyGoals);
     setNoNewOpp(noNewOpp);
     setLoadingExtras(false);
   };
