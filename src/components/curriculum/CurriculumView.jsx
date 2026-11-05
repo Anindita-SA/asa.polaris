@@ -215,11 +215,156 @@ const EMBEDDED_MODULE_FILTERS = [
   { id: 8, label: 'M8: Interview Drills', shortName: 'M8: Interview Drills' },
 ]
 
-const filterTopicByModule = (topic, moduleId) => {
+const FOUNDATIONAL_TRACKS = [
+  {
+    track: 'Track 1',
+    title: 'Philosophy',
+    hours: '25h',
+    axiom: 'Learn how to think, not just what to think',
+    focus: 'Russell, Yale PHIL 176, Stanford Encyclopedia of Philosophy',
+    description: 'Epistemology, appearance vs reality, personal identity over time, and rational analysis of mortality and meaning.',
+  },
+  {
+    track: 'Track 2',
+    title: 'Economics',
+    hours: '25h',
+    axiom: 'Learn to see incentives in everything',
+    focus: 'Harford, MRU Microeconomics, CORE Econ',
+    description: 'Price discrimination, asymmetric information, market power, externalities, and empirical growth trajectories.',
+  },
+  {
+    track: 'Track 3',
+    title: 'Art History',
+    hours: '25h',
+    axiom: 'Learn to read visual culture like a text',
+    focus: 'Gombrich, Smarthistory, The Met Collection',
+    description: 'Visual language from classical antiquity through Renaissance perspective, Baroque drama, and modern abstraction.',
+  },
+  {
+    track: 'Track 4',
+    title: 'Physics',
+    hours: '25h',
+    axiom: 'Learn the fundamental operating rules of nature',
+    focus: 'Feynman, PBS Space Time, PhET Simulations',
+    description: 'Atoms in motion, fundamental forces, conservation of energy, relativistic gravitation, and quantum probability.',
+  },
+  {
+    track: 'Track 5',
+    title: 'History',
+    hours: '25h',
+    axiom: 'Understand how the present became possible',
+    focus: 'Gombrich, Yale HIST 210, World History Encyclopedia',
+    description: 'Civilizational rise and transformation, late Roman transition, Byzantium, early Islam, and trade networks.',
+  },
+  {
+    track: 'Track 6',
+    title: 'Mathematics',
+    hours: '25h',
+    axiom: 'Learn to recognize patterns and prove things',
+    focus: 'Strogatz, 3Blue1Brown, Project Euler',
+    description: 'Number theory, algebraic relations, calculus foundations, geometric linear algebra, and computational insights.',
+  },
+  {
+    track: 'Track 7',
+    title: 'Politics',
+    hours: '25h',
+    axiom: 'Understand power, freedom, and institutions',
+    focus: 'Sandel, Harvard Justice, Yale PLSC 114',
+    description: 'Utilitarianism, Kantian duty, Rawlsian fairness, Aristotelian telos, state sovereignty, and civic virtue.',
+  },
+  {
+    track: 'Track 8',
+    title: 'Linguistics',
+    hours: '25h',
+    axiom: 'Understand the invisible rules of language',
+    focus: 'Pinker, Crash Course Linguistics, WALS',
+    description: 'Universal grammar, phonetics, syntax constituency trees, language acquisition, and typological distributions.',
+  },
+]
+
+const FOUNDATIONAL_MODULE_FILTERS = [
+  { id: 0, label: 'All (63)', shortName: 'All' },
+  { id: 1, label: 'T1 Philosophy (8)', shortName: 'Philosophy' },
+  { id: 2, label: 'T2 Economics (8)', shortName: 'Economics' },
+  { id: 3, label: 'T3 Art History (8)', shortName: 'Art History' },
+  { id: 4, label: 'T4 Physics (8)', shortName: 'Physics' },
+  { id: 5, label: 'T5 History (9)', shortName: 'History' },
+  { id: 6, label: 'T6 Mathematics (8)', shortName: 'Mathematics' },
+  { id: 7, label: 'T7 Politics (7)', shortName: 'Politics' },
+  { id: 8, label: 'T8 Linguistics (7)', shortName: 'Linguistics' },
+]
+
+const APPLIED_TRACKS = [
+  {
+    track: 'Track A',
+    title: 'EE & Digital Logic',
+    hours: '24h',
+    axiom: 'Demystifying computer architecture and semiconductor physics from bare components',
+    focus: 'Ben Eater 8-bit CPU, The Engineering Mindset, Derive Notes',
+    description: 'Build clock, registers, 8-bit ALU, 16-byte RAM, microcode EEPROM, and breadboard machine code CPU.',
+  },
+  {
+    track: 'Track B',
+    title: 'Cybersecurity & Defense',
+    hours: '18h',
+    axiom: 'Practical defensive and offensive security skills through real terminal environments',
+    focus: 'freeCodeCamp Kali Linux, Hacker Joe Wireshark, Attack Chaining Lab, roadmap.sh',
+    description: 'Kali Linux operations, Nmap port discovery, Wireshark packet capture, protocol analysis, and Dirb fuzzing.',
+  },
+  {
+    track: 'Track C',
+    title: 'Rhetoric & Narrative Craft',
+    hours: '18h',
+    axiom: 'Elevating argumentation for SOPs, grant pitches, and creative fiction',
+    focus: 'Harvard Rhetoric PLL, Open University Creative Writing & Fiction Modules',
+    description: 'Aristotelian appeals (ethos, pathos, logos), Ciceronian arrangement, fiction voice, and personal essay framing.',
+  },
+  {
+    track: 'Track D',
+    title: 'Industrial Design Sketching',
+    hours: '8h',
+    axiom: 'Rapid concept generation, perspective control, and linework confidence for design portfolios',
+    focus: 'Jackie Create 7-day daily ideation drills, perspective grids, volumetric carving',
+    description: 'Line confidence, 1/2-point perspective grids, volumetric carving, ellipses, lineweight hierarchy, and hero concept page.',
+  },
+]
+
+const APPLIED_MODULE_FILTERS = [
+  { id: 0, label: 'All (28)', shortName: 'All' },
+  { id: 1, label: 'Track A: EE & Digital Logic (8)', shortName: 'EE & Logic' },
+  { id: 2, label: 'Track B: Cybersecurity (7)', shortName: 'Cybersecurity' },
+  { id: 3, label: 'Track C: Rhetoric & Writing (6)', shortName: 'Rhetoric' },
+  { id: 4, label: 'Track D: Design Sketching (7)', shortName: 'ID Sketching' },
+]
+
+const filterTopicByModule = (topic, moduleId, isFoundational = false, isApplied = false) => {
   if (moduleId === 0) return true
-  const prefix = `module ${moduleId}:`
-  if (topic.title?.toLowerCase()?.includes(prefix)) return true
   if (topic.module === moduleId) return true
+  const titleLower = topic.title?.toLowerCase() || ''
+  if (isFoundational) {
+    if (
+      titleLower.includes(`track ${moduleId}:`) ||
+      titleLower.includes(`track ${moduleId} -`) ||
+      titleLower.includes(`track ${moduleId} `)
+    ) {
+      return true
+    }
+    return false
+  }
+  if (isApplied) {
+    const letters = ['a', 'b', 'c', 'd']
+    const letter = letters[moduleId - 1]
+    if (letter && (
+      titleLower.includes(`track ${letter}:`) ||
+      titleLower.includes(`track ${letter} -`) ||
+      titleLower.includes(`track ${letter} `)
+    )) {
+      return true
+    }
+    return false
+  }
+  const prefix = `module ${moduleId}:`
+  if (titleLower.includes(prefix)) return true
   return false
 }
 
@@ -310,6 +455,8 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
 
   const isIeltsCurriculum = Boolean(curriculum?.title?.toLowerCase()?.includes('ielts'))
   const isEmbeddedCurriculum = Boolean(curriculum?.title?.toLowerCase()?.includes('embedded'))
+  const isFoundationalCurriculum = Boolean(curriculum?.title?.toLowerCase()?.includes('foundational'))
+  const isAppliedCurriculum = Boolean(curriculum?.title?.toLowerCase()?.includes('applied'))
   const [selectedModule, setSelectedModule] = useState(0)
 
   useEffect(() => {
@@ -346,8 +493,8 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
   const totalCount = topics.length
   const pct = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0
   const totalHours = topics.reduce((s, t) => s + (t.estimated_hours || 0), 0)
-  const displayedTopics = isEmbeddedCurriculum && selectedModule > 0
-    ? topics.filter(t => filterTopicByModule(t, selectedModule))
+  const displayedTopics = (isEmbeddedCurriculum || isFoundationalCurriculum || isAppliedCurriculum) && selectedModule > 0
+    ? topics.filter(t => filterTopicByModule(t, selectedModule, isFoundationalCurriculum, isAppliedCurriculum))
     : topics
 
   const R = 40, C = 2 * Math.PI * R
@@ -813,13 +960,211 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
         </div>
       )}
 
+      {/* If Foundational Disciplines Curriculum, render Foundational Disciplines Framework dashboard */}
+      {isFoundationalCurriculum && (
+        <div className="space-y-6 pt-2">
+          <div className="glass border border-purple-500/30 bg-purple-500/5 p-4 rounded-xl space-y-4">
+            <div className="flex items-start justify-between gap-3 border-b border-purple-500/20 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-lg bg-purple-500/10 border border-purple-500/30 text-purple-400">
+                  <Layers className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-display text-starlight text-base font-bold flex items-center gap-2">
+                    Foundational Disciplines: Intellectual Frameworks
+                  </h3>
+                  <p className="text-xs text-nova/60 mt-0.5">
+                    200-hour structured curriculum across 8 foundational tracks and 63 trackable milestones.
+                  </p>
+                </div>
+              </div>
+              <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-purple-500/10 border border-purple-500/30 text-purple-400 whitespace-nowrap">
+                200h - 8 Tracks - 63 Tasks
+              </span>
+            </div>
+
+            {/* 8 Tracks Grid */}
+            <div className="space-y-2">
+              <span className="text-xs font-mono uppercase tracking-wider text-purple-400 font-medium flex items-center gap-1.5">
+                <Layers className="w-3.5 h-3.5" /> 8 Foundational Tracks
+              </span>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {FOUNDATIONAL_TRACKS.map((track, idx) => (
+                  <div
+                    key={idx}
+                    className="bg-void/60 border border-purple-500/20 rounded-xl p-3.5 flex flex-col justify-between space-y-2 hover:border-purple-500/40 transition-colors"
+                  >
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/30">
+                          {track.track}
+                        </span>
+                        <span className="text-[11px] font-mono text-nova/50">{track.hours}</span>
+                      </div>
+                      <h4 className="text-sm font-display font-bold text-starlight leading-snug">
+                        {track.title}
+                      </h4>
+                      <p className="text-xs text-purple-300 font-mono text-[11px] leading-tight">
+                        {track.axiom}
+                      </p>
+                    </div>
+                    <p className="text-[11px] text-nova/60 leading-relaxed border-t border-pulsar/20 pt-2">
+                      {track.description}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Track Filter Bar */}
+            <div className="space-y-2 pt-2 border-t border-purple-500/20">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-mono uppercase tracking-wider text-purple-400 font-medium flex items-center gap-1.5">
+                  <Filter className="w-3.5 h-3.5" /> Track Filter
+                </span>
+                {selectedModule > 0 && (
+                  <button
+                    onClick={() => setSelectedModule(0)}
+                    className="text-[11px] font-mono text-nova/60 hover:text-purple-400 transition-colors"
+                  >
+                    Reset Filter
+                  </button>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {FOUNDATIONAL_MODULE_FILTERS.map(m => {
+                  const isActive = selectedModule === m.id
+                  const labelText = m.id === 0 ? `All (${topics.length || 63})` : m.label
+
+                  return (
+                    <button
+                      key={m.id}
+                      onClick={() => setSelectedModule(m.id)}
+                      className={`font-mono text-xs px-2.5 py-1 rounded-lg transition-colors ${
+                        isActive
+                          ? 'bg-purple-500/20 text-purple-300 border border-purple-500/50'
+                          : 'bg-void/60 text-nova/60 border border-pulsar/30 hover:text-starlight hover:border-purple-500/30'
+                      }`}
+                    >
+                      {labelText}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* If Applied Skills Curriculum, render Applied Skills Framework dashboard */}
+      {isAppliedCurriculum && (
+        <div className="space-y-6 pt-2">
+          <div className="glass border border-blue-500/30 bg-blue-500/5 p-4 rounded-xl space-y-4">
+            <div className="flex items-start justify-between gap-3 border-b border-blue-500/20 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/30 text-blue-400">
+                  <Cpu className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-display text-starlight text-base font-bold flex items-center gap-2">
+                    Applied Skills: Engineering, Security, Design & Rhetoric
+                  </h3>
+                  <p className="text-xs text-nova/60 mt-0.5">
+                    68-hour structured curriculum across 4 applied tracks and 28 trackable milestones.
+                  </p>
+                </div>
+              </div>
+              <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-blue-500/10 border border-blue-500/30 text-blue-400 whitespace-nowrap">
+                68h - 4 Tracks - 28 Tasks
+              </span>
+            </div>
+
+            {/* 4 Tracks Grid */}
+            <div className="space-y-2">
+              <span className="text-xs font-mono uppercase tracking-wider text-blue-400 font-medium flex items-center gap-1.5">
+                <Layers className="w-3.5 h-3.5" /> 4 Applied Tracks
+              </span>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                {APPLIED_TRACKS.map((track, idx) => (
+                  <div
+                    key={idx}
+                    className="bg-void/60 border border-blue-500/20 rounded-xl p-3.5 flex flex-col justify-between space-y-2 hover:border-blue-500/40 transition-colors"
+                  >
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/30">
+                          {track.track}
+                        </span>
+                        <span className="text-[11px] font-mono text-nova/50">{track.hours}</span>
+                      </div>
+                      <h4 className="text-sm font-display font-bold text-starlight leading-snug">
+                        {track.title}
+                      </h4>
+                      <p className="text-xs text-blue-300 font-mono text-[11px] leading-tight">
+                        {track.axiom}
+                      </p>
+                    </div>
+                    <p className="text-[11px] text-nova/60 leading-relaxed border-t border-pulsar/20 pt-2">
+                      {track.description}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Track Filter Bar */}
+            <div className="space-y-2 pt-2 border-t border-blue-500/20">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-mono uppercase tracking-wider text-blue-400 font-medium flex items-center gap-1.5">
+                  <Filter className="w-3.5 h-3.5" /> Track Filter
+                </span>
+                {selectedModule > 0 && (
+                  <button
+                    onClick={() => setSelectedModule(0)}
+                    className="text-[11px] font-mono text-nova/60 hover:text-blue-400 transition-colors"
+                  >
+                    Reset Filter
+                  </button>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {APPLIED_MODULE_FILTERS.map(m => {
+                  const isActive = selectedModule === m.id
+                  const labelText = m.id === 0 ? `All (${topics.length || 28})` : m.label
+
+                  return (
+                    <button
+                      key={m.id}
+                      onClick={() => setSelectedModule(m.id)}
+                      className={`font-mono text-xs px-2.5 py-1 rounded-lg transition-colors ${
+                        isActive
+                          ? 'bg-blue-500/20 text-blue-300 border border-blue-500/50'
+                          : 'bg-void/60 text-nova/60 border border-pulsar/30 hover:text-starlight hover:border-blue-500/30'
+                      }`}
+                    >
+                      {labelText}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Syllabus */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <h2 className="font-display text-xl font-bold text-starlight">Syllabus</h2>
-            {isEmbeddedCurriculum && selectedModule > 0 && (
-              <span className="text-xs font-mono text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full">
+            {(isEmbeddedCurriculum || isFoundationalCurriculum || isAppliedCurriculum) && selectedModule > 0 && (
+              <span className={`text-xs font-mono px-2 py-0.5 rounded-full border ${
+                isFoundationalCurriculum
+                  ? 'text-purple-400 bg-purple-500/10 border-purple-500/30'
+                  : isAppliedCurriculum
+                  ? 'text-blue-400 bg-blue-500/10 border-blue-500/30'
+                  : 'text-amber-400 bg-amber-500/10 border-amber-500/30'
+              }`}>
                 {displayedTopics.length} of {topics.length} shown
               </span>
             )}
@@ -862,8 +1207,8 @@ const CurriculumView = ({ curriculum, accentColor, onBack }) => {
 
         {displayedTopics.length === 0 && !addingTopic && (
           <div className="text-center py-8 text-nova/60 font-body text-sm italic">
-            {isEmbeddedCurriculum && selectedModule > 0
-              ? 'No topics match the selected module filter.'
+            {(isEmbeddedCurriculum || isFoundationalCurriculum || isAppliedCurriculum) && selectedModule > 0
+              ? (isFoundationalCurriculum || isAppliedCurriculum ? 'No topics match the selected track filter.' : 'No topics match the selected module filter.')
               : 'No topics yet. Click "Add topic" to build your syllabus.'}
           </div>
         )}

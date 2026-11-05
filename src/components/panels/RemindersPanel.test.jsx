@@ -791,6 +791,64 @@ describe("RemindersPanel", () => {
 
     dispatchSpy.mockRestore();
   });
+
+  it("clicking a Focus Task card dispatches nav-task-details and calls onOpenDayGuide", async () => {
+    const onOpenDayGuide = vi.fn();
+    const dispatchSpy = vi.spyOn(window, "dispatchEvent");
+
+    setupSupabaseMock([
+      { id: "focus-1", title: "Dr. Philip Sandwell (Imperial College London)", status: "active", category: "work", wsjfScore: 10.0 },
+      { id: "focus-2", title: "Prof. Geza Joos (McGill Univ)", status: "active", category: "work", wsjfScore: 9.0 }
+    ], []);
+
+    render(<RemindersPanel onOpenDayGuide={onOpenDayGuide} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Dr. Philip Sandwell (Imperial College London)")).toBeDefined();
+    });
+
+    const ongoingCardTitle = screen.getByText("Dr. Philip Sandwell (Imperial College London)");
+    const ongoingCard = ongoingCardTitle.closest(".cursor-pointer");
+    expect(ongoingCard).toBeDefined();
+
+    fireEvent.click(ongoingCard);
+
+    expect(onOpenDayGuide).toHaveBeenCalled();
+    expect(sessionStorage.getItem("polaris_pending_nav_task_id")).toBe("focus-1");
+    expect(dispatchSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "nav-task-details",
+        detail: { taskId: "focus-1" }
+      })
+    );
+
+    dispatchSpy.mockRestore();
+  });
+
+  it("clicking the Start button on a Focus Task does not trigger nav-task-details navigation", async () => {
+    const onOpenDayGuide = vi.fn();
+    const dispatchSpy = vi.spyOn(window, "dispatchEvent");
+
+    setupSupabaseMock([
+      { id: "focus-1", title: "Dr. Philip Sandwell", status: "active", category: "work", wsjfScore: 10.0 },
+      { id: "focus-2", title: "Prof. Geza Joos", status: "active", category: "work", wsjfScore: 9.0 }
+    ], []);
+
+    render(<RemindersPanel onOpenDayGuide={onOpenDayGuide} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Dr. Philip Sandwell")).toBeDefined();
+    });
+
+    const startButton = screen.getByRole("button", { name: /Start/i });
+    fireEvent.click(startButton);
+
+    expect(onOpenDayGuide).not.toHaveBeenCalled();
+    const navDetailsCalls = dispatchSpy.mock.calls.filter(c => c[0]?.type === "nav-task-details");
+    expect(navDetailsCalls.length).toBe(0);
+
+    dispatchSpy.mockRestore();
+  });
 });
 
 

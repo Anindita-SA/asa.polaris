@@ -22,6 +22,7 @@ local_tasks_archive.json
 # Ignored personal and temporary files
 *.sql
 !supabase/migrations/*.sql
+!supabase/unapplied/*.sql
 *.ics
 supabase/.temp/
 application_milestones_sync.md
@@ -39,5 +40,6 @@ docs/_FEATURE_PROPOSALS.md
 docs/plannedfeatures.md
 docs/audit_archive/
 docs/_IMPLEMENTATION_PLAN.md
+scripts/temp_audit_data.json
 docs/task_audit_report.md
 docs/_TRIAGE_REPORT.md

@@ -456,6 +456,10 @@ export function filterTasksForTriage(unsortedTasks = [], parentTaskIdsWithChildr
   return (unsortedTasks || []).filter(t => {
     if (parentTaskIdsWithChildren.has(t.id)) return false;
     if (t.category === 'habits') return false;
+    if (t.category === 'curriculum') return false;
+    // Matrix Protection: Do not triage deadline-less inbox brain dumps into quadrants
+    // Setting quadrant on a deadline: null task leaks it directly into active Day Guide views
+    if (t.status === 'inbox' && !t.deadline) return false;
     return true;
   });
 }
@@ -633,7 +637,7 @@ async function run() {
     // 2. Fetch unsorted tasks
     let { data: unsortedTasks, error: taskErr } = await supabase
       .from('tasks')
-      .select('id, title, notes, deadline, estimated_minutes, skip_count, category')
+      .select('id, title, notes, deadline, estimated_minutes, skip_count, category, status')
       .eq('user_id', uid)
       .is('quadrant', null)
       .is('parent_task_id', null)

@@ -1,3 +1,335 @@
+## [2026-11-05] v1.2.77 - Canadian Professor Outreach Pipeline Ingestion & Orbit Reach Out Sync
+- **Canadian Faculty Pipeline Ingestion (`outreach_targets`)**:
+  - Ingested 4 new Canadian professor targets from `docs/canadian_cold_email_drafts.md` into Supabase `outreach_targets` and `Masters_Tracker.xlsx`:
+    1. Dr. Martin Ordonez (University of British Columbia - ECE): Resonant converters, phase-shift modulation, and interleaved CLLC converters.
+    2. Dr. Majid Pahlevani (Queen's University - ECE): Bidirectional DC-DC converter with direct power transfer.
+    3. Dr. Luiz A. C. Lopes (Concordia University - ECE): Interlink converters and droop control for dual DC bus nanogrids.
+    4. Dr. Amy Bilton (University of Toronto - MIE): Passive Irrigation Controller System (PICS) and decentralized solar-water systems.
+  - Updated 4 existing McGill targets with verified publication hooks (2024 - 2026 literature):
+    - Dr. Xiaozhe Wang (McGill ECE): SINDy microgrid identification and frequency control.
+    - Dr. Shangpeng Sun (McGill Bioresource): Plant growth predictive modeling and sensor fusion.
+    - Prof. Mark Lefsrud (McGill Bioresource): Spectral optimization and amber LEDs in CEA.
+    - Prof. Geza Joos (McGill ECE): Preserved live `sent` status (sent 2026-11-05, follow-up due 2026-11-12) while synchronizing verified source papers and profile URLs.
+  - Total outreach targets in Supabase expanded from 17 to 21, visible directly in the Orbit -> Outreach view (`ReachOutView.jsx`).
+- **Tracker Synchronization (`Masters_Tracker.xlsx`)**:
+  - Synchronized `Cold Mail Pipeline` sheet with all 4 new Canadian targets and updated sent/follow-up tracking for Prof. Geza Joos.
+- **Verification**:
+  - All 46 vitest suites and 505 unit tests passing (100% pass rate).
+  - Production PWA build clean (36 precache entries / 1,729.89 KiB).
+  - Zero em dashes, zero en dashes.
+
+## [2026-11-04] v1.2.76 - Focus Task Navigation, Outreach Nesting, Posture Check & Subtask View Filtering
+- **Focus Task Navigation to Matrix Canvas (`src/components/panels/RemindersPanel.jsx`)**:
+  - Wired task click navigation to `activeTask`, `ongoingTask`, and `nextTask` cards, matching the existing behavior of "Needs Attention" items.
+  - Clicking any Focus Task card sets `polaris_pending_nav_task_id`, dispatches `nav-task-details`, and triggers `onOpenDayGuide()` to switch to the Matrix Canvas and center on the task card.
+  - Action buttons (`Start`, `Play`, `Pause`, `Mark Done`, checkmark) preserve click propagation isolation so task execution remains immediate.
+  - Added unit test coverage in `RemindersPanel.test.jsx`.
+- **Outreach Tab Redundancy Elimination (`src/components/layout/BottomNav.jsx`, `HUD.jsx`, `FitnessBridge.jsx`, `Dashboard.jsx`)**:
+  - Removed top-level `reach_out` tab from bottom navigation bar and desktop HUD.
+  - Confirmed and preserved Outreach nesting inside Orbit (`FitnessBridge.jsx`), with `defaultSubTab` prop support and `localStorage` state persistence.
+- **Database Restorations (Supabase)**:
+  - Restored `Posture check` recurring nudge in `nudges` table (`60m` interval, active).
+  - Restored 4 child subtasks under parent `b56671b3-5f1c-4ab9-9824-1ba10abbef66` (`Prof. S. Arul Daniel LOR draft final review & dispatch`):
+    1. Outline core academic strengths and courses taken under Prof. Daniel (10m, low load).
+    2. Draft 1-page LOR text detailing project contributions and academic standing (20m, medium load).
+    3. Format on institutional letterhead template and verify contact info (10m, low load).
+    4. Transmit draft to Prof. S. Arul Daniel for review and endorsement (10m, low load).
+- **Subtask Isolation in Daily Views (`src/components/widgets/DayPlanBoard.jsx`, `TodaysTasksShuffle.jsx`, `DayGuideView.jsx`)**:
+  - Excluded leaf child subtasks (`parent_task_id != null`) from Quick Wins, TodaysTasksShuffle candidate pool, and AuditorPanel candidate pool, preventing backlog subtask flooding.
+- **Verification**:
+  - All 46 vitest suites and 505 unit tests passing (100% pass rate).
+  - Production PWA build clean (36 precache entries / 1,729.78 KiB).
+  - Zero em dashes, zero en dashes.
+
+## [2026-11-04] Daily Priorities Alignment & Quick Wins Deployment
+- **Daily Priorities Reconciliation (Today: Wednesday, Nov 4, 2026)**:
+  - Reconciled today's 3 primary tasks in Supabase:
+    - Primary 1 (P0): `Draft 1-page conducted EMI paper proposal & scope pitch for Dr. Vignesh` (`e6418e42-782f-4676-a25a-3c1d256e48f6`, 30m, Medium load, `urgent_important`, deadline `2026-11-04`).
+    - Primary 2 (P0 Core Focus): `Integrate 50-ohm LISN blocks & parasitical coupling into DAB Simulink model` (`d0e76b41-4edf-425c-8f9b-a51d36f379ed`, 120m, High load, `urgent_important`, deadline `2026-11-04`).
+    - Primary 3 (P0): Created and scheduled `Prof. S. Arul Daniel LOR draft final review & dispatch` (`b56671b3-5f1c-4ab9-9824-1ba10abbef66`, 30m, Medium load, `urgent_important`, deadline `2026-11-04`).
+  - Deployed today's 2 Quick Wins into active state with deadline `2026-11-04` (< 10 min each):
+    - Quick Win 1: `Prof. Geza Joos (McGill Univ. (ECE))` (`b5d29dc6-25a6-4cbd-a1da-dc0784a48882`, 10m, Low load, `important_not_urgent`).
+    - Quick Win 2: `Dr. Philip Sandwell (Imperial College London (Energy Futures Lab))` (`8c257277-d54c-4444-b306-a80c3f772eb3`, 10m, Low load, `important_not_urgent`).
+    - Set outreach wave parent container (`ab025708-ca89-40d8-a088-b76383f1bce6`) deadline to null to strictly protect the 3-primary daily cap rule.
+  - Parked domestic chore remnants:
+    - `Sort the documents on your cupboard (throw the unimportant ones)` (`395ee464-3cb1-4088-a7fc-54ecc97ae8bb`) set to `category: 'domestic'`, `deadline: null`, `quadrant: null`.
+    - Retired stale `2026-11-03` cupboard plan row (`c8055491-493b-433c-b8ed-b4a70004a0a2`) to status `skipped`.
+  - Created `daily_plan` and `daily_plan_items` for `plan_date = '2026-11-04'`:
+    - Slot 1 (Anchor): Dr. Vignesh Conducted EMI Paper parent (`8255fd8b-...`, 10 target boxes / 150m), holding Proposal (30m) and LISN Simulink (120m).
+    - Slot 2 (Support): Prof. S. Arul Daniel LOR dispatch (`b56671b3-...`, 2 target boxes / 30m).
+    - Slot 3 (Support): Canadian & UK Outreach Wave parent (`ab025708-...`, 2 target boxes / 20m), holding Geza Joos (10m) and Philip Sandwell (10m).
+- **Domain Module Updates (`src/lib/agendaPrioritizer.js`, `src/lib/dayPlanCreator.js`)**:
+  - Updated `DEFAULT_AUDIT_PRIMARIES` to match today's agreed canonical targets: Proposal, LISN Simulink, Arul Daniel LOR dispatch.
+  - Removed outdated `sketch` keyword matching from `getAuditRank`, replacing with conducted EMI / LISN / Vignesh proposal / Simulink simulation, Arul Daniel LOR review/dispatch, and engineering case studies.
+  - Added domestic chore guard to `filterEligibleCandidates` in `src/lib/dayPlanCreator.js` (`task.category === 'domestic' || task.category === 'chores'`) to prevent domestic chores from auto-populating daily plan slots.
+- **Test Suite Updates**:
+  - Updated `src/lib/agendaPrioritizer.test.js` and `src/components/widgets/TodayAgendaWidget.test.jsx` to test and assert the new canonical targets.
+  - All 46 test files and 503 tests passing (100% pass rate). Production build passing in 9.65s (37 precache entries / 1,729.25 KiB).
+
+## [2026-11-04] Database & Strategy Alignment Reconciliation
+- **Database & Strategy Alignment**:
+  - Reconciled Supabase `milestones` table: rescheduled `Conducted EMI/EMC Filter Design & Simulation Study (Dr. Vignesh Kumar)` to `2026-11-10` in progress, `Portfolio Site: Replace Placeholders with Real Engineering Projects` to `2026-11-15` in progress, and `Agri Solar Energy Survey Paper (Collaboration & Synthesis)` to `2026-11-20` in progress.
+  - Cancelled duplicate `EMI / Power Converter Research Placement` and dropped `Aalto University CoID & Finland Scholarship Cutoff`.
+  - Updated notes and titles for `Politecnico di Milano 1st Call - MSc Electrical Engineering`, `TU Delft General Non-Scholarship Cutoff (MSc EE Power Track)`, `Wageningen University Excellence Scholarship (MSc Biosystems Engineering)`, and `Erasmus Mundus SSIs Application Cutoff` to reflect Core P0 status and technical engineering tracks.
+  - Re-scoped all 5 Dr. Vignesh paper subtasks under parent `8255fd8b-977a-40d3-90ea-2cbe750b5d87` to the Conducted EMI/EMC workflow: 1-page proposal pitch, 50-ohm LISN modeling, CM/DM noise separation (150kHz - 30MHz), CISPR Class B limit verification, and manuscript drafting.
+  - Purged obsolete IPD sketching intensive tasks and faculty outreach, updating portfolio tasks to engineering case studies (CHAARG, Concrete Speaker, Deskimon, Polaris).
+  - Cleared overdue task debt from 29 down to 0: parked domestic chores, removed artificial daily deadlines on individual outreach tasks, completed finished feature tasks, and staggered active academic deadlines.
+  - Backfilled `tasks.milestone_id` across 49 parent and child tasks to link daily execution directly to long-term admission and research deadlines.
+- **Audit & Nesting Script Enhancements**:
+  - `scripts/audit_query.js`: Added `'wageningen'` and `'ssis'` to `p0Keywords`, added `'politecnico'` to `p1Keywords`, and added `m.status !== 'cancelled'` filter to exclude dropped milestones from the 90-day pace calculation.
+  - `scripts/nest_project_tasks.js`: Updated canonical parent matching titles for CHAARG hardware/documentation and Dr. Vignesh paper, eliminating mock duplicate parent creation and self-reparenting.
+- **Verification**:
+  - 46 test suites and 503 unit tests passing in vitest (100% pass rate); clean Vite PWA production build in 9.69s (37 precache entries / 1,727.66 KiB); 0 em dashes, 0 en dashes.
+
+## [2026-11-03] Sprint C2: Daily Plan Board UI with Opt-In Feature Flag (v1.2.74)
+- **One-Time Dev Plan Repair Tool (src/lib/resyncTodayPlan.js, src/main.jsx)**:
+  - Created fixTodayPlan strictly locked to 2026-11-03, exposed via window.__fixTodayPlan in dev mode.
+  - In-place updates of Slot 2 (2537be39 updated to parent 28a6d124, target_boxes 4, swapped_from null) and Slot 3 (4305377a updated to parent 8255fd8b, target_boxes 2, swapped_from null).
+  - Never deletes or inserts daily_plan rows.
+  - Inserts the 2 corresponding daily_plan_items via offlineInsert and flushes queue via flushQueue().
+  - Runtime safety guard aborts without writing if any of the 3 plan rows has done_boxes > 0 or status !== 'planned'.
+  - Added unit test suite in src/lib/resyncTodayPlan.test.js covering safety aborts, parameter locking, in-place updates, items insertion, and remote counts verification.
+- **User Settings Sync Bug Fix (src/lib/offlineApi.js, src/lib/offlineApi.test.js)**:
+  - Exempted user_settings table from numeric ID rewrite in validateRowPayload. Because remote user_settings uses integer primary key (id: 1) by design, it was previously rewritten to random UUIDs on every pull, causing orphaned rows to accumulate in Dexie under the 25% deletion guard.
+  - Audited all 40 synced tables: confirmed user_settings is the only table in the system with an integer primary key; all other 39 tables use UUID primary keys.
+  - Added unit test in src/lib/offlineApi.test.js verifying user_settings preserves integer id: 1 while other tables rewrite numeric IDs.
+- **Box Model Refactor: Done Boxes Single Source of Truth (src/hooks/useDailyPlan.js, docs/DATABASE_SCHEMA.md)**:
+  - Made done_boxes the single source of truth for slot tallies.
+  - Tapping a box sets done_boxes directly (tick: +1, untick: -1, floor 0).
+  - Checking a subtask sets done_boxes = max(done_boxes, ceil(sum of ticked subtask minutes / 15)).
+  - Unticking a box lowers done_boxes and stays lowered even if ticked subtasks cover more boxes.
+  - Stopped reading and writing manual_boxes across all runtime code paths. Column marked deprecated in DATABASE_SCHEMA.md.
+  - Pomodoro timer completion increments done_boxes directly by 1.
+- **SwapSlotModal Exclusion & Safety (src/components/widgets/dayplan/SwapSlotModal.jsx, src/components/widgets/DayPlanBoard.jsx)**:
+  - Excluded the slot's current parent task from candidate selection in SwapSlotModal, preventing redundant self-swapping.
+  - Added fallback to plan.task_id when parentTask is pending hydration.
+- **Sync Recovery Engine (src/lib/resyncTodayPlan.js, scripts/resync_today_plan.js)**:
+  - Created resyncTodayPlan and inspectSyncErrors for 2026-11-03 plan recovery.
+  - Re-enqueues local daily_plan_items and updates mismatched daily_plan rows, flushes queue, and clears replayed entries from db.sync_errors.
+  - Created scripts/resync_today_plan.js CLI for remote status audits.
+- **Feature Flag System (src/components/widgets/DayPlanBoard.jsx, src/components/views/DayBriefView.jsx)**:
+  - Added polaris_ff_new_board feature flag (default: false, OFF). Legacy TodayAgendaWidget remains the default active agenda until explicitly opted into.
+  - Added board mode toggle in DayBriefView header allowing immediate switching between Legacy and New (C2) board views.
+  - In new board mode, Curated Opportunities is omitted from the Day Brief flow and Tech Signals (News) is collapsed into a footer drawer toggle ([+ Show Tech Signals (N)]).
+- **TimeboxRow Component (src/components/widgets/dayplan/TimeboxRow.jsx)**:
+  - 44px minimum tap targets on all chips (min-h-[44px] min-w-[44px]).
+  - Shows 15m default interval for full boxes; displays remainder minutes on the final box if total minutes is not a multiple of 15 (e.g., 20m -> 15m + 5m).
+  - Visual indicators for filled vs unfilled boxes using high-contrast amber accents and solid colors (zero gradients).
+- **SubtaskRow Component (src/components/widgets/dayplan/SubtaskRow.jsx)**:
+  - 44px tap target checkboxes with strikethrough and opacity dimming on completion.
+  - Renders ~ prefix on estimated duration when estimate_source === 'heuristic' (e.g., ~30m).
+  - Displays subtask title and duration badge.
+- **SlotCard Component (src/components/widgets/dayplan/SlotCard.jsx)**:
+  - Distinct styling for Anchor (Slot 1, 2px amber border, primary prominence), Support (Slots 2 and 3), and Bonus (Slot 4, dashed border outside cap).
+  - Displays project breadcrumb, parent task title, chosen subtasks list, timebox chip row, Start Focus button, and Swap trigger.
+  - Retains completed cards in place struck through until midnight with cleared badge.
+- **SwapSlotModal Component (src/components/widgets/dayplan/SwapSlotModal.jsx)**:
+  - Mobile-first modal for swapping slot assignments in-place.
+  - 44px tap targets for candidate selection from open parent tasks in the backlog.
+- **RoutineDrawer Component (src/components/widgets/dayplan/RoutineDrawer.jsx)**:
+  - Collapsed drawer for daily routines (habits and daily checks).
+  - Header displays separate completion fraction (e.g., 1/2 done), independent of primary focus slot progress.
+  - 44px tap targets for toggling habits and daily tasks.
+- **DayPlanBoard Component (src/components/widgets/DayPlanBoard.jsx)**:
+  - Single-column max-w-3xl container, strictly two heading sizes, 4-point spacing scale.
+  - Header strip displaying current date, active mode, energy tier selector pills ([Low] [Medium] [High] [Unwell]), and primary focus slot progress bar.
+  - Collapsible drawers for Pool (Backlog) and Quick Wins (low mental load tasks).
+  - Floating 6-second auto-expiring Undo toast for slot auto-completions.
+- **Test Suite & Verification (src/components/widgets/DayPlanBoard.test.jsx, src/components/views/DayBriefView.test.jsx)**:
+  - Added 15 new unit and integration tests covering feature flag toggling, 44px tap targets, zero gradients, slot cards, routine drawer, swap modal, and undo toast.
+  - Full test suite: 44 test files / 490 tests passing (100% pass rate). Production build clean in 7.43s.
+
+## [2026-11-03] Sprint C1: Daily Plan Board Foundations & Reactive Engine (v1.2.73)
+- **SQL Migration (supabase/migrations/20261102190000_create_daily_plan_items.sql)**:
+  - Added manual_boxes column to daily_plan (INT NOT NULL DEFAULT 0).
+  - Created daily_plan_items table (id, user_id, plan_id, task_id, position, completed_by_slot, created_at, UNIQUE on plan_id + task_id).
+  - Configured Row Level Security with double-ownership verification on INSERT and UPDATE (auth.uid() = user_id AND plan_id belongs to auth.uid() in daily_plan AND task_id belongs to auth.uid() in tasks).
+  - Added explicit PostgREST Data API grants for authenticated and service_role.
+  - Added performance indexes on plan_id, user_id, task_id, and (plan_id, position).
+- **Dexie Store Version 13 & Sync Engine Registration (src/lib/offlineStore.js, src/lib/syncManager.js)**:
+  - Upgraded Dexie store to version 13 with daily_plan (manual_boxes indexed) and daily_plan_items ([plan_id+task_id] compound index).
+  - Registered daily_plan_items in SYNC_TABLES for offline synchronization.
+- **Deterministic Day Plan Creator Engine (src/lib/dayPlanCreator.js)**:
+  - Implemented computeDeterministicScore with code-only formula: Score = Value + Urgency + RolloverBonus (size denominator removed; size only decides slot fit).
+  - Implemented candidate filtering: strictly parent tasks (parent_task_id === null), open, not archived, milestone not done. Leaf subtasks strictly excluded.
+  - Implemented slot allocation: Anchor (Slot 1) requires open_minutes >= 60 (or top scorer overall); Support (Slots 2 & 3) prioritizes tasks with deadline <= 48h; Bonus (Slot 4) receives next candidate.
+  - Subtask selection: ordered by position ASC, created_at ASC, id ASC. Unestimated subtasks pre-filled with local heuristic at creation time with estimate_source = 'heuristic' (~ marker); heuristic is never executed at render time.
+  - Added executeSprintCCutover({ userId, todayStr }) to purge today's legacy leaf rows and associated streams.
+- **Reactive Day Plan Hook (src/hooks/useDailyPlan.js)**:
+  - Dexie liveQuery observing db.daily_plan, db.daily_plan_items, and db.tasks in a single transaction.
+  - Zero localStorage plan state: retired polaris_timeboxes_*, polaris_tracks_*, polaris_today_order_*, polaris_primary_candidates_*.
+  - Local timezone midnight rollover timer and visibilitychange listener.
+  - Mathematics: done_boxes = Math.max(manual_boxes, Math.ceil(sum(ticked_subtask_minutes) / 15)).
+  - Slot clearance and parent completion rule: clearing slot auto-completes chosen subtasks; parent completes ONLY IF all child subtasks are done.
+  - Selective reversible untick: reopening a slot reopens ONLY subtasks with completed_by_slot === true; manual checkoffs remain completed.
+  - XP delta discipline: applyPlanXpDelta awards exactly 10 * done_boxes.
+  - Single focus logging: centralized in logFocusSession writing to pomodoro_logs and io_logs with plan_id.
+  - In-place swap: updates daily_plan row in place with swapped_from = oldTaskId and replaces daily_plan_items.
+- **Unit & Sync Loop Test Suite (src/lib/dayPlanCreator.test.js, src/hooks/useDailyPlan.test.js, src/lib/syncLoopDayPlan.test.jsx)**:
+  - Added 34 new tests across plan creation, reactive hook behavior, selective untick, and write loop discipline. All 43 test files and 475 tests passing (100% pass rate).
+
+## [2026-11-02] 4-Track Applied Skills Curriculum & 3 Media/Literature Books Ingestion (v1.2.72)
+- **Media & Literature Database Additions (src/data/curriculumDefaults.js, scripts/ingest_applied_skills_curriculum.js)**:
+  - Added 3 verified books to SEED_MEDIA_LOG and synced into Supabase media_log with canonical Goodreads URLs, genre tags, and one-line takeaways:
+    * "How to Kill Men and Get Away With It" by Katy Brent (Dark Comedy Thriller | status: want_to)
+    * "I Who Have Never Known Men" by Jacqueline Harpman (Dystopian / Speculative Fiction | status: want_to)
+    * "One of the Good Guys" by Araminta Hall (Psychological Thriller | status: want_to)
+- **Applied Skills Curriculum (src/data/curriculumDefaults.js, src/components/curriculum/CurriculumView.jsx)**:
+  - Added master curriculum "Applied Skills: Engineering, Security, Design & Rhetoric" (68h) with 4 specialized tracks covering 28 trackable checkbox tasks and 14 verified canonical resources:
+    * Track A: Electrical Engineering & Digital Logic Mastery (8 tasks, 24h - Ben Eater 8-bit CPU, The Engineering Mindset, eater.net, Derive Notes)
+    * Track B: Hands-On Cybersecurity & Systems Defense (7 tasks, 18h - freeCodeCamp Kali Linux, Hacker Joe Wireshark, Attack Chaining Lab, roadmap.sh)
+    * Track C: Persuasive Rhetoric & Narrative Writing (6 tasks, 18h - Harvard Rhetoric PLL, Open University OpenLearn modules)
+    * Track D: Industrial Product Design 7-Day Rapid Sketching Intensive (7 tasks, 8h - Jackie Create daily ideation drills)
+  - Implemented interactive track filter bar in CurriculumView with individual track tabs for all 4 tracks (All 28, Track A: EE & Digital Logic 8, Track B: Cybersecurity 7, Track C: Rhetoric & Writing 6, Track D: Design Sketching 7), active slice badge, and filter reset.
+- **Matrix Protection & Tasks Integration (scripts/ingest_applied_skills_curriculum.js)**:
+  - Synced 4 curriculum chapters into curriculum_chapters.
+  - Created master container task (4,080 min) and 4 child track tasks in tasks table with status 'inbox', deadline null, and quadrant null to respect the 14-day overlook and 3-primary daily cap rules.
+- **Unit Testing & Verification**:
+  - Added tests in CurriculumView.test.jsx verifying Applied Skills dashboard rendering, 4 track cards, and interactive track filtering. All 40 test files and 441 unit tests passing.
+
+## [2026-11-02] 8-Track Foundational Disciplines Curriculum & 24 Verified Media/Literature Assets Ingestion (v1.2.71)
+- **Media & Literature Master Inventory (src/data/curriculumDefaults.js, scripts/ingest_foundational_curriculum.js)**:
+  - Added 24 verified assets across 8 disciplines (8 Books, 8 Video/Lecture Series, 8 Interactive Exploration Portals) to SEED_MEDIA_LOG and synced into Supabase media_log with canonical URLs, tags, and one-line takeaways.
+  - Curated assets: Russell, Harford, Gombrich (Art History), Feynman, Gombrich (History), Strogatz, Sandel, Pinker, Yale PHIL 176, MRU Microeconomics, Smarthistory, PBS Space Time, Yale HIST 210, 3Blue1Brown Linear Algebra, Harvard Justice, Crash Course Linguistics, SEP, CORE Econ, The Met, PhET, World History Encyclopedia, Project Euler, Yale PLSC 114, and WALS.
+- **Foundational Disciplines Curriculum (src/data/curriculumDefaults.js, src/components/curriculum/CurriculumView.jsx)**:
+  - Added master curriculum "Foundational Disciplines: Intellectual Frameworks" (200h) with 8 modules/tracks covering 63 trackable checkbox tasks and 24 verified resources.
+  - Implemented interactive track filter bar in CurriculumView with individual track tabs for all 8 tracks (T1 Philosophy, T2 Economics, T3 Art History, T4 Physics, T5 History, T6 Mathematics, T7 Politics, T8 Linguistics), active count badge, and filter reset.
+- **Matrix Protection & Tasks Integration (scripts/ingest_foundational_curriculum.js)**:
+  - Synced 8 curriculum chapters into curriculum_chapters.
+  - Created master container task and 8 child track tasks in tasks table with status 'inbox', deadline null, and quadrant null to respect the 14-day overlook and 3-primary daily cap rules.
+- **Unit Testing & Verification**:
+  - Updated CurriculumView unit tests to verify 8 tracks and filter tabs. All 40 test files and 438 unit tests passing. Clean Vite PWA build (5.93s).
+
+## [2026-11-01] Sprint B.6c: Remote Deletion Safety Guards, Queue Decoupling, and Practice Scores Isolation (v1.2.69)
+- **Remote Deletion Safety Guards (src/lib/syncManager.js)**:
+  - Enforced strict deletion preconditions in pullData: delete-missing-rows runs only when the remote request succeeds with no error, returned count is below the page limit (PULL_PAGE_LIMIT = 1000), and response is not empty while local rows exist for that user.
+  - Implemented 25% deletion threshold: never deletes more than 25% of a table's local rows in one pull. If attempted deletions exceed 25%, skips deletion entirely and logs a dev warning.
+  - Pending sync queue protection: rows with a pending mutation in _syncQueue are excluded from deletion even if absent in remote response.
+- **Write Queue Decoupled from Pull Cooldown (src/lib/syncManager.js)**:
+  - Decoupled offline write queue flushing from the 60-second pull cooldown in handleOnline. Reconnecting triggers immediate flushQueue() and pruneDLQ(), while the full table pull remains subject to the 60-second cooldown.
+- **Module State & Sign-Out Hygiene (src/lib/syncManager.js, src/hooks/useAuth.jsx)**:
+  - Added clearSyncManager() resetting currentUserId, lastFullPullTime, fullPullPromise, flushPromise, retryAttempt, clearing missingTables, and removing the active online event listener.
+  - Lifted initializedUserId in useAuth to module level, cleared immediately on signOut() and null auth events. Signing in as a different user triggers an immediate full pull.
+- **PracticeScoreTracker Offline Fallback & Isolation (src/components/curriculum/PracticeScoreTracker.jsx, src/lib/missingTables.js, src/lib/offlineApi.js)**:
+  - PracticeScoreTracker checks isTableMissing('practice_scores') and bypasses all remote Supabase and offlineApi sync calls (load, add, delete), displaying local defaults and caching to localStorage.
+  - offlineSelect Supabase fallback explicitly checks !isTableMissing(table) to avoid redundant 404 network queries.
+- **End-of-Pull Telemetry (src/lib/syncManager.js)**:
+  - Added dev-only console line at the end of each pull reporting rows written, rows deleted, and events dispatched per table.
+- **Verification & Test Bench (src/lib/syncResilience.test.js, src/components/curriculum/PracticeScoreTracker.test.jsx)**:
+  - Added 9 new unit tests covering: remote error response, empty response with local rows, truncated page at 1000 limit, normal deletion (<= 25%), deletion threshold (> 25% skipped with warning), pending queue protection, offline edit reconnect during cooldown (immediate write), sign-out state clearing and user switch pull, and missingTables Supabase call bypass.
+  - Full test suite: 40 test files / 437 unit tests passing (100% pass rate). Production PWA build clean.
+
+## [2026-11-01] Sprint B.6b: Sync Loop Hardening, Idempotency, and Migration Hygiene (v1.2.68)
+- **SyncManager Idempotency and Pull Cooldown (src/lib/syncManager.js, src/hooks/useAuth.jsx)**:
+  - Made initSyncManager idempotent per user id: clears previous online event listeners before adding new ones and maintains currentUserId module state.
+  - In useAuth, re-initialization occurs only when user id changes, completely ignoring TOKEN_REFRESHED and repeated SIGNED_IN events for the same user.
+  - Enforced a 60-second minimum interval between full pulls across all triggers (auth init, online events, manual refreshes).
+  - Added dev-only logs (import.meta.env.DEV) at every pull start reporting trigger reason, table, and user id.
+- **Differential Reconciliation and Remote Deletions (src/lib/syncManager.js)**:
+  - pullData compares incoming remote records against local Dexie state (content and id matching).
+  - Updates Dexie and dispatches polaris-tasks-changed or polaris-io-logs-changed only when records are added, modified, or deleted.
+  - When records for the user are deleted remotely, safely removes corresponding local records in Dexie while protecting pending unsynced offline mutations.
+  - Removed unconditional polaris-tasks-changed event dispatch previously executed at the end of every sync.
+- **Missing Tables Circuit Breaker & Exponential Backoff Retries (src/lib/syncManager.js)**:
+  - Maintains a session-level missingTables set. Missing tables returning 404 (PGRST205 / 42P01) are recorded once and skipped on future pulls as clean no-ops without error logs or sync retries.
+  - Failure retries use exponential backoff with jitter (capped at 5 minutes), applied strictly to genuine network failures and not to normal pulls.
+- **Removed get_user_data RPC Path (src/lib/syncManager.js, supabase/unapplied/)**:
+  - Completely removed the get_user_data RPC query code path from syncManager. Full pulls query tables directly in 5-table chunks.
+  - Moved supabase/migrations/20260928204600_create_sync_rpc.sql to supabase/unapplied/.
+  - Moved the three practice_scores migration files (20260914190000, 20260920205000, 20260928204500) to supabase/unapplied/ pending review.
+- **Morning Sequence Event Filtering (src/hooks/useMorningSequence.js)**:
+  - useMorningSequence strictly filters data change events, reacting only when detail.table === 'morning_briefs' and ignoring all task events.
+- **Removed Mount-Time Estimate Auto-Fill (src/components/widgets/TodayAgendaWidget.jsx)**:
+  - Removed the background useEffect that auto-filled heuristic estimates on unestimated primaries during mount. Estimates now populate only on explicit user click.
+- **Slot Derivation Discipline (src/lib/dayGuidePersistence.js, src/components/widgets/TodayAgendaWidget.jsx)**:
+  - Derived slot assignment from the primary runway index (slot = Math.max(1, Math.min(3, runwayIndex + 1))). Primaries are strictly constrained to slots 1..3 and never assigned slot 4.
+- **Reproduction & Resilience Test Bench (src/lib/syncLoopReproduction.test.jsx, src/lib/syncResilience.test.js, src/lib/dayGuidePersistence.test.js)**:
+  - Extended reproduction test: verified 5 auth events (TOKEN_REFRESHED, SIGNED_IN) and 3 online events within 60s result in exactly 1 full pull with real syncManager and zero RPC calls.
+  - Added fixture tests confirming remote deletions remove local Dexie rows and slot derivation assigns correct runway indices.
+  - Full test suite: 40 test files / 427 unit tests passing (100% pass rate). Production PWA build clean.
+
+## [2026-10-31] Sprint B.4: Single Source of Truth for Box Counts, Manual Overrides, and Plan Reconciliation (v1.2.67)
+- **Single Source of Truth for Box Count (src/components/widgets/TodayAgendaWidget.jsx)**:
+  - Unified chip rendering, daily_plan.target_boxes, and auto-complete threshold into a single canonical resolver `getTaskTargetBoxes(task, track)`.
+  - Fixed divergence where a 5-minute task previously rendered 2 chips (from stale taskTracksMap or rawTracks) while handleChipClick auto-completed after 1 chip.
+- **Manual Box Count Override & Persistence (src/components/widgets/TodayAgendaWidget.jsx, src/lib/dayGuidePersistence.js, src/lib/offlineStore.js)**:
+  - Added `daily_plan.target_overridden` (boolean NOT NULL DEFAULT false) to Dexie v12 store and persistence layer.
+  - When a task estimate changes, target_boxes recomputes as Math.max(1, Math.min(8, Math.ceil(estimate / 15))) unless target_overridden is true.
+  - Clicking `+` or `-` buttons sets `target_overridden: true`, dynamically finds available slots (1..4) to prevent constraint 23505 collisions, and preserves manual user adjustments across subsequent re-renders or estimate recalculations.
+- **Sub-15-Minute Task Discipline (src/components/widgets/TodayAgendaWidget.jsx)**:
+  - Tasks with an estimate of 15 minutes or less do not display a tally box row; only the master checkbox is rendered.
+  - Auto-complete is strictly bypassed for sub-15-minute tasks, eliminating premature auto-completion and micro-task box clutter.
+- **On-Load Estimate & Daily Plan Reconciliation (src/lib/dayGuidePersistence.js, src/components/widgets/TodayAgendaWidget.jsx)**:
+  - Implemented `reconcileDailyPlanEstimates({ plans, tasks, userId, todayStr })` executing on initial day plan load.
+  - Scans active daily plans: if `!plan.target_overridden` and the task estimate has updated since the row was written, reconciles `target_boxes` in state, daily_plan, daily_plan_streams, and localStorage. Prevents stale plan rows from locking a 5-minute task into 3 boxes.
+- **Migration File Sequence Alignment (supabase/migrations/20261031183000_sprint_b2_fixes.sql)**:
+  - Rewrote the B.2 migration file to mirror the exact human execution sequence applied by hand: 1) DROP existing check constraints and NOT NULL on day_state.energy_tier, 2) UPDATE data (mapping 'Unwell' to unwell = true, lowercase values), 3) ADD new check constraints and NOT NULL, 4) ADD auto_completed and target_overridden columns with Data API grants.
+- **Fixture Tests & Verification**:
+  - Full test bench: 38 test suites / 423 unit tests passing (100% pass rate). Production build succeeded in 8.68s.
+  - Comprehensive fixtures added in TodayAgendaWidget.test.jsx and dayGuidePersistence.test.js for box count equality, manual override preservation, sub-15m box hiding, and on-load estimate reconciliation.
+
+## [2026-10-31] Sprint B.3: Done-Today Retention and Undo Toast (v1.2.66)
+- **Done-Today Task Retention (src/hooks/useTodaysTasks.js)**:
+  - Fixed dropped "done-but-not-due-today" case: updated activeMatrixTasks filter to retain completed tasks (status === 'done') when deadline === todayStr, or completion_dates contains todayStr, or todayPlanTaskIds.has(t.id) via daily_plan.
+  - Updated toggleComplete to append todayStr to completion_dates when completing, and strip it when uncompleting, persisting to tasks.
+  - Refactored combined.sort to preserve list position by sorting primarily by sort_order ASC and created_at ASC without pushing completed tasks to the bottom.
+- **6-Second Undo Completion Toast (src/components/widgets/TodayAgendaWidget.jsx)**:
+  - Added an Undo toast banner appearing for 6 seconds upon any completion (manual or auto).
+  - Cleaned up timers on unmount, dismiss, or consecutive completions.
+  - Clicking Undo reopens the task: for auto-completions, it unticks the triggering box, reverses XP via applyPlanXpDelta (delta -10), unlogs focus time, and calls toggleComplete with skipXP: true; for manual completions, it reopens the task and reverses completion XP.
+- **Fixture Tests & Defense-in-Depth (src/components/widgets/TodayAgendaWidget.test.jsx, src/hooks/useTodaysTasks.test.js)**:
+  - Added fixture test ticking the only box on a 1-box task, asserting the row remains visible and struck through (line-through), displaying the Undo toast, and verifying clicking Undo reopens the task, unticks the box, and reverses XP delta.
+  - Added test in useTodaysTasks.test.js confirming tasks with future deadlines completed today are retained in tasks.
+  - Added defensive guards against null titles during deduplication and enforced user_id validation in fillTaskEstimate.
+
+## [2026-10-31] Sprint B.2: Auto-Complete, XP Delta Path, Pomodoro Linkage, and Dev Tools (v1.2.65)
+- **day_state Live Schema Inspection & Migration (supabase/migrations/20261031183000_sprint_b2_fixes.sql)**:
+  - Inspected live PostgreSQL catalogs via PostgREST OpenAPI and confirmed day_state contains (id, user_id, day, energy_tier, unwell, created_at, updated_at). Confirmed mode, energy, and notes do not exist.
+  - Authored non-applied corrective SQL migration 20261031183000_sprint_b2_fixes.sql converting energy_tier check constraint to lowercase ('low', 'medium', 'high') without 'Unwell', and remapping existing 'Unwell' records to unwell = true.
+- **Auto-Complete & Manual Completion Immutability (src/components/widgets/TodayAgendaWidget.jsx, src/lib/dayGuidePersistence.js, src/hooks/useTodaysTasks.js)**:
+  - Added daily_plan.auto_completed (boolean NOT NULL DEFAULT false) to Dexie v11 store and persistence layer.
+  - When tally done_boxes reaches target_boxes on an uncompleted primary, marks task done through toggleComplete with skipXP: true (no second XP award) and sets auto_completed = true.
+  - Unticking below target reopens the task ONLY if auto_completed is true.
+  - Manual completions via checkbox explicitly set auto_completed = false, ensuring they are never reopened by subsequent tally unfill operations.
+- **XP Delta As The Only Path (src/lib/dayGuidePersistence.js, src/components/widgets/TodayAgendaWidget.jsx)**:
+  - Implemented applyPlanXpDelta(plan, nextDoneBoxes, addXP), computing delta = 10 * nextDoneBoxes - xp_awarded.
+  - Removed fixed trackXP(false, true, 10) and trackXP(true, false, 10) from the widget click path; all tally XP now flows through the delta calculation.
+- **PomodoroTimer Primary Plan Linkage (src/components/widgets/PomodoroTimer.jsx, src/components/widgets/PomodoroTimer.test.jsx)**:
+  - When completing a Pomodoro session on a primary task, resolves plan_id from today's daily_plan row and writes plan_id to both pomodoro_logs and io_logs.
+  - Verified single-writer behavior: exactly one pomodoro log and one io log created, with zero calls to tally click writers.
+- **Dynamic task_type Keyword Classification (src/lib/dayGuidePersistence.js)**:
+  - Confirmed tasks.task_type does not exist in schema.
+  - Implemented classifyTaskType(task), classifying titles containing 'read', 'study', 'watch', 'lecture', or 'research' as 'input', and all other tasks as 'output'. Replaced hardcoded 'output' defaults.
+- **Dev-Only Render Counters (src/components/views/DayBriefView.jsx, src/components/widgets/TodayAgendaWidget.jsx)**:
+  - Added render counters guarded by import.meta.env.DEV logging total renders and interval rates every 10 seconds to the console.
+- **Verification & Defense-in-Depth**:
+  - Full test bench: 38 test files / 416 unit tests passing (100% pass rate). Production build passed in 7.18s.
+  - Added user_id filters to all offlineUpdate calls in useTodaysTasks.js for strict client-side tenant isolation.
+
+## [2026-10-31] Sprint B.1: Estimates, XP, io_logs, and Hydration Fixes (v1.2.64)
+- **Subtask Estimate Parsing & Backfill (src/components/panels/Timeline.jsx, supabase/migrations/20261031160000_sprint_b1_fixes.sql)**:
+  - Added title regex parser (/\(~?(\d+)\s*(?:min|m)/i) in Timeline saveSubtasks writing estimated_minutes, time_estimate_minutes, and estimate_source = 'ai'.
+  - Applied migration 20261031160000_sprint_b1_fixes.sql with one-time backfill of estimated_minutes for existing tasks matching (~N min) (22 rows updated).
+  - Allowed 'heuristic' in tasks_estimate_source_check Postgres constraint.
+- **Duration & Fallback Rules (src/components/widgets/TodayAgendaWidget.jsx)**:
+  - Removed silent 30-minute fallback. Unestimated tasks display an amber 'no estimate' badge.
+  - Clicking 'no estimate' auto-fills duration using local heuristic (estimateDurationHeuristic) with estimate_source = 'heuristic' and user_id scoping.
+  - Set box count formula to Math.max(1, Math.min(8, Math.ceil(estimate / 15))).
+- **XP Delta Awarding & Replay Protection (src/lib/dayGuidePersistence.js, src/components/widgets/TodayAgendaWidget.jsx)**:
+  - Added daily_plan.xp_awarded (integer NOT NULL DEFAULT 0) to remote database and Dexie v10 schema.
+  - Box toggles compute delta = 10 * done_boxes - xp_awarded, apply trackXP, and store xp_awarded in daily_plan.
+  - Added unit test verifying 5 alternating tick/untick cycles plus offline replay yields net XP equal to 10 * boxes currently ticked.
+- **IO Logs & Pomodoro Alignment (src/components/widgets/TodayAgendaWidget.jsx, src/components/widgets/IOBalanceBar.jsx, src/lib/syncManager.js)**:
+  - Added nullable plan_id to pomodoro_logs and io_logs in database and Dexie v10 schema.
+  - Single writer pattern: TodayAgendaWidget writes exactly one pomodoro_logs row and one io_logs row on tally check (with task_type || 'output').
+  - The last box of a slot logs remainder minutes instead of 15.
+  - Untick deletes only the newest rows matching plan_id (preventing unrelated IO log deletion).
+  - IOBalanceBar refetches on polaris-io-logs-changed event and on remote sync pulls of io_logs.
+- **Hydration & Zero-Jump Architecture (src/components/widgets/TodayAgendaWidget.jsx, src/hooks/useTodaysTasks.js)**:
+  - Synchronous candidate primaries initialization on frame 0 eliminates paint flash and layout jump.
+  - Memoized deep equality check skips setState when task IDs and order are unchanged.
+  - Audited all polaris-tasks-changed listeners, enforced 300ms debounce in useTodaysTasks, and confirmed 0 refetches across 60s idle.
+
 ## [2026-10-31] Day Brief Refresh Loop & Interaction Lockout Fix (v1.2.63)
 - **Destructive Unmount Gate Removal (src/components/views/DayBriefView.jsx)**:
   - Removed destructive if (tasksLoading || loadingExtras) component tree unmount gate.
@@ -849,9 +1181,9 @@ All notable changes to Polaris will be documented in this file.
 - **Mobile Styling**: Fixed tab pill wrapping in `BottomNav.jsx` and padded the `ConstellationGraph` container to prevent nodes from clipping on small screens.
 - **Service Worker Message Parsing**: Updated `sw-notifications.js` to correctly handle `Array.isArray(event.data)` vs `{ type: 'UPDATE_NUDGES', nudges: [...] }` to fix the Nudge notification bug.
 
--   * * A u t h   B u g   F i x * * :   F i x e d   a   b u g   w h e r e   t h e   G o o g l e   C a l e n d a r   p r o v i d e r   t o k e n   w a s   n o t   p e r s i s t e d   i n   l o c a l S t o r a g e   a c r o s s   p a g e   r e l o a d s ,   c a u s i n g   t h e   a p p   t o   e r r o n e o u s l y   r e q u e s t   r e - a u t h e n t i c a t i o n   e v e r y   t i m e . 
- 
- 
+- **Auth Bug Fix**: Fixed a bug where the Google Calendar provider token was not persisted in localStorage across page reloads, causing the app to erroneously request re-authentication every time.
+
+
 ## [2026-06-09] Database Schema Audit & Fixes
 - **Bug Fix (Goals Panel):** Identified and resolved a constraint issue where the `goals` table's `goals_scope_check` blocked `daily` and `side_quest` goal scopes.
 - **Bug Fix (Goals Panel):** Added missing `description` and `deadline` columns to the `goals` table to ensure the GoalsPanel functions without silently dropping data.
@@ -965,9 +1297,9 @@ All notable changes to Polaris will be documented in this file.
 
 ## [2026-09-04] Scout Opportunities Update
 - **Scout Config Updated**: Updated `scout-opportunities` edge function query and LLM prompt to actively look for fully-funded global travel, international internships, and field research expeditions. 
-- **Groq Rate Limit Fix**: Fixed an issue where the Scout would fail silently due to requesting 1024 max_tokens (Groq free tier limit is 1000). Reduced `max_tokens` to 800.-   * * B u g   F i x   ( H U D ) : * *   A d d e d   m i s s i n g   \ u s e r _ i d \   f i l t e r s   t o   t h e   \ m o r n i n g _ b r i e f s \   a n d   \ 	 a s k s \   q u e r i e s   i n   \ H U D . j s x \   t o   f i x   s c h e m a   d r i f t   w a r n i n g s   a n d   p r e v e n t   p o t e n t i a l   d a t a   l e a k s . 
- 
- 
+- **Groq Rate Limit Fix**: Fixed an issue where the Scout would fail silently due to requesting 1024 max_tokens (Groq free tier limit is 1000). Reduced `max_tokens` to 800.- **Bug Fix (HUD):** Added missing \user_id\ filters to the \morning_briefs\ and \	asks\ queries in \HUD.jsx\ to fix schema drift warnings and prevent potential data leaks.
+
+
 
 
 
@@ -985,24 +1317,26 @@ All notable changes to Polaris will be documented in this file.
 - Rewrote the Edge Function scout-opportunities to prioritize grants/jobs over academic programs and heavily filter for impact hardware.
 - Upgraded the Matrix hide far scheduled button into a dynamic 3-way toggle (7 Days / 14 Days / Show All). This gives finer control over the Overlook Mechanic horizon to reduce backlog visual clutter.
 
- # #   [ 1 . 2 . 3 6 ]   -   
- # # #   A d d e d 
- -   C r e a t e d   d a t a b a s e   m i g r a t i o n   ( 2 0 2 6 0 9 2 8 2 0 4 5 0 0 _ o p t i m i z e _ d i s k _ i o _ i n d e x e s . s q l )   t o   a d d   m i s s i n g   u s e r _ i d   a n d   c o m p o s i t e   i n d e x e s   t o   a l l   t a b l e s ,   f i x i n g   s e v e r e   D i s k   I O   s e q u e n t i a l   s c a n s . 
- -   C r e a t e d   d a t a b a s e   m i g r a t i o n   ( 2 0 2 6 0 9 2 8 2 0 4 6 0 0 _ c r e a t e _ s y n c _ r p c . s q l )   f o r   a   s e r v e r - s i d e   d a t a   a g g r e g a t i o n   R P C . 
- 
- # # #   C h a n g e d 
- -   R e f a c t o r e d   \ s r c / l i b / s y n c M a n a g e r . j s \   t o   b a t c h   3 6   t a b l e   s y n c   q u e r i e s   i n t o   c h u n k s   o f   1 0   v i a   t h e   n e w   \ g e t _ u s e r _ d a t a \   R P C ,   p r e v e n t i n g   c l i e n t - s i d e   H T T P   b l a s t   a n d   D B   c o n n e c t i o n   p o o l   e x h a u s t i o n   o n   l o a d . 
-  
- 
- # #   [ 1 . 2 . 3 6 ]   -   2 0 2 6 - 0 9 - 2 8 
- # # #   A d d e d 
- -   C r e a t e d   d a t a b a s e   m i g r a t i o n   ( 2 0 2 6 0 9 2 8 2 0 4 5 0 0 _ o p t i m i z e _ d i s k _ i o _ i n d e x e s . s q l )   t o   a d d   m i s s i n g   u s e r _ i d   a n d   c o m p o s i t e   i n d e x e s   t o   a l l   t a b l e s ,   f i x i n g   s e v e r e   D i s k   I O   s e q u e n t i a l   s c a n s . 
- -   C r e a t e d   d a t a b a s e   m i g r a t i o n   ( 2 0 2 6 0 9 2 8 2 0 4 6 0 0 _ c r e a t e _ s y n c _ r p c . s q l )   f o r   a   s e r v e r - s i d e   d a t a   a g g r e g a t i o n   R P C . 
- 
- # # #   C h a n g e d 
- -   R e f a c t o r e d   \ s r c / l i b / s y n c M a n a g e r . j s \   t o   b a t c h   3 6   t a b l e   s y n c   q u e r i e s   i n t o   c h u n k s   o f   1 0   v i a   t h e   n e w   \ g e t _ u s e r _ d a t a \   R P C ,   p r e v e n t i n g   c l i e n t - s i d e   H T T P   b l a s t   a n d   D B   c o n n e c t i o n   p o o l   e x h a u s t i o n   o n   l o a d . 
-  
- 
+## [1.2.36] - 
+### Added
+- Created database migration (20260928204500_optimize_disk_io_indexes.sql) to add missing user_id and composite indexes to all tables, fixing severe Disk IO sequential scans.
+- Created database migration (20260928204600_create_sync_rpc.sql) for a server-side data aggregation RPC.
+
+### Changed
+- Refactored \src/lib/syncManager.js\ to batch 36 table sync queries into chunks of 10 via the new \get_user_data\ RPC, preventing client-side HTTP blast and DB connection pool exhaustion on load.
+
+
+
+## [1.2.36] - 2026-09-28
+### Added
+- Created database migration (20260928204500_optimize_disk_io_indexes.sql) to add missing user_id and composite indexes to all tables, fixing severe Disk IO sequential scans.
+- Created database migration (20260928204600_create_sync_rpc.sql) for a server-side data aggregation RPC.
+
+### Changed
+- Refactored \src/lib/syncManager.js\ to batch 36 table sync queries into chunks of 10 via the new \get_user_data\ RPC, preventing client-side HTTP blast and DB connection pool exhaustion on load.
+
+
+
 
 ## [1.2.36] - 2026-09-29
 ### Added

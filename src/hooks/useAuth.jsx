@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { safeMutate } from '../lib/safeMutate'
-import { initSyncManager } from '../lib/syncManager'
+import { initSyncManager, clearSyncManager } from '../lib/syncManager'
 import { offlineSelect, offlineInsert, offlineUpdate, offlineDelete, offlineUpsert } from '../lib/offlineApi'
 import { 
   DEFAULT_MILESTONES, DEFAULT_NODES, DEFAULT_SUBNODES,
@@ -14,6 +14,15 @@ const AuthContext = createContext(null)
 
 let seeding = false
 let seedingPromise = null
+let currentInitializedUserId = null
+
+export function getInitializedUserId() {
+  return currentInitializedUserId
+}
+
+export function _resetInitializedUserIdForTesting() {
+  currentInitializedUserId = null
+}
 
 const seedUserData = async (userId) => {
   if (seeding) return seedingPromise
@@ -207,11 +216,15 @@ export const AuthProvider = ({ children }) => {
       }
       setProviderToken(pToken)
       
-      if (u) { fetchProfile(u.id); initSyncManager(u.id); }
+      if (u) {
+        currentInitializedUserId = u.id
+        fetchProfile(u.id);
+        initSyncManager(u.id);
+      }
       setLoading(false)
     })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!mounted) return
       const u = session?.user ?? null
       setUser(u)
@@ -229,8 +242,17 @@ export const AuthProvider = ({ children }) => {
       }
       setProviderToken(pToken)
 
-      if (u) { fetchProfile(u.id); initSyncManager(u.id); }
+      if (u) {
+        // Re-init only when the user id changes (ignore TOKEN_REFRESHED and repeat SIGNED_IN for the same user)
+        if (u.id !== currentInitializedUserId) {
+          currentInitializedUserId = u.id
+          fetchProfile(u.id);
+          initSyncManager(u.id);
+        }
+      }
       else { 
+        currentInitializedUserId = null
+        clearSyncManager();
         setProfile(null)
         fetchingFor.current = null 
         localStorage.removeItem('polaris_provider_token')
@@ -242,6 +264,8 @@ export const AuthProvider = ({ children }) => {
     return () => {
       mounted = false
       subscription.unsubscribe()
+      currentInitializedUserId = null
+      clearSyncManager();
     }
   }, [])
 
@@ -333,6 +357,8 @@ export const AuthProvider = ({ children }) => {
   const signOut = useCallback(() => {
     fetchingFor.current = null
     seeding = false
+    currentInitializedUserId = null
+    clearSyncManager()
     return supabase.auth.signOut()
   }, [])
 

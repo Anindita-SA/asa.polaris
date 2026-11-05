@@ -1,16 +1,95 @@
 import { supabase } from './supabase';
 import db from './offlineStore';
-import { getPending, markSynced, clearSynced } from './syncQueue';
+import { getPending, clearSynced } from './syncQueue';
 import { validateRowPayload, TABLES_REQUIRING_TITLE } from './offlineApi';
+import { markTableMissing, isTableMissing, clearMissingTables } from './missingTables';
 
-export async function pullData(table, userId) {
+export { isTableMissing, markTableMissing, clearMissingTables };
+
+export const PULL_PAGE_LIMIT = 1000;
+
+export const SYNC_TABLES = [
+  'tasks', 'daily_tasks', 'goals', 'milestones', 'day_plan_blocks',
+  'focus_items', 'backburner', 'subtasks', 'recurring_task_templates',
+  'hardware_opportunities', 'eulogies', 'practice_scores', 'curricula',
+  'curriculum_topics', 'curriculum_resources', 'curriculum_categories',
+  'media_log', 'habits', 'nodes', 'mini_games', 'calendar_events',
+  'calendar_backups', 'nudges', 'contacts', 'wins', 'mood_logs',
+  'highlights', 'io_logs', 'pomodoro_logs', 'morning_briefs',
+  'user_settings', 'outreach_targets', 'habit_logs', 'meal_logs',
+  'workout_logs', 'weight_logs', 'daily_plan', 'daily_plan_items',
+  'daily_plan_streams', 'day_state', 'exam_dates'
+];
+
+// Module-level state
+let currentUserId = null;
+let activeOnlineListener = null;
+let lastFullPullTime = 0;
+let fullPullPromise = null;
+let flushPromise = null;
+let retryAttempt = 0;
+let retryTimer = null;
+const FULL_PULL_MIN_INTERVAL_MS = 60 * 1000;
+
+export function clearSyncManager() {
+  currentUserId = null;
+  lastFullPullTime = 0;
+  fullPullPromise = null;
+  flushPromise = null;
+  retryAttempt = 0;
+  clearMissingTables();
+  if (retryTimer) {
+    clearTimeout(retryTimer);
+    retryTimer = null;
+  }
+  if (activeOnlineListener && typeof window !== 'undefined') {
+    window.removeEventListener('online', activeOnlineListener);
+    activeOnlineListener = null;
+  }
+}
+
+export function _resetSyncManagerForTesting() {
+  clearSyncManager();
+}
+
+export function getLastFullPullTime() {
+  return lastFullPullTime;
+}
+
+export function _setLastFullPullTimeForTesting(time) {
+  lastFullPullTime = time;
+}
+
+export function getCurrentSyncUserId() {
+  return currentUserId;
+}
+
+export function isOnlineListenerActive() {
+  return activeOnlineListener !== null;
+}
+
+export async function pullData(table, userId, triggerReason = 'direct') {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
   if (!userId) return;
+  if (isTableMissing(table)) return;
+
+  if (import.meta.env?.DEV) {
+    console.log(`[SyncManager] Pull start | Reason: ${triggerReason} | Table: ${table} | User: ${userId}`);
+  }
 
   try {
-    const { data, error } = await supabase.from(table).select('*').eq('user_id', userId);
+    let query = supabase
+      .from(table)
+      .select('*')
+      .eq('user_id', userId);
+    if (typeof query?.limit === 'function') {
+      query = query.limit(PULL_PAGE_LIMIT);
+    }
+    const { data, error } = await query;
+
     if (error) {
       if (error.code === 'PGRST205' || error.message?.includes('schema cache') || error.code === '42P01') {
+        markTableMissing(table);
         return;
       }
       throw error;
@@ -18,30 +97,136 @@ export async function pullData(table, userId) {
 
     if (!db || !db[table]) return;
 
-    if (data && data.length > 0) {
-      const validRecords = data.filter(item => {
-        const { valid } = validateRowPayload(table, item);
-        return valid;
-      });
-      if (validRecords.length > 0) {
-        if (typeof db.transaction === 'function') {
-          await db.transaction('rw', db[table], async () => {
-            await db[table].bulkPut(validRecords);
-          });
-        } else {
-          await db[table].bulkPut(validRecords);
-        }
+    const validRecords = (data || []).filter(item => {
+      const { valid } = validateRowPayload(table, item);
+      return valid;
+    });
+    const remoteMap = new Map(validRecords.map(r => [r.id, r]));
 
-        if (['tasks', 'daily_tasks', 'goals', 'milestones', 'daily_plan', 'daily_plan_streams', 'day_state'].includes(table) && typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('polaris-tasks-changed', { detail: { table } }));
+    // Fetch existing local records for this user
+    let localRows = [];
+    if (typeof db[table].where === 'function') {
+      try {
+        localRows = await db[table].where('user_id').equals(userId).toArray();
+      } catch {
+        if (typeof db[table].toArray === 'function') {
+          const all = await db[table].toArray();
+          localRows = all.filter(r => r.user_id === userId);
+        }
+      }
+    } else if (typeof db[table].toArray === 'function') {
+      const all = await db[table].toArray();
+      localRows = all.filter(r => r.user_id === userId);
+    }
+    const localMap = new Map(localRows.map(r => [r.id, r]));
+
+    // Identify remote additions and modifications
+    const toPut = [];
+    for (const remoteRow of validRecords) {
+      const localRow = localMap.get(remoteRow.id);
+      if (!localRow) {
+        toPut.push(remoteRow);
+      } else {
+        if (JSON.stringify(remoteRow) !== JSON.stringify(localRow)) {
+          toPut.push(remoteRow);
         }
       }
     }
+
+    // Safety guards for remote deletions:
+    // 1. Must succeed with no error (we are past error check).
+    // 2. Returned count must be below the page limit (not truncated).
+    const isTruncated = data && data.length >= PULL_PAGE_LIMIT;
+    // 3. Response must NOT be empty while local rows exist for that user.
+    const isEmptyWhileLocalExist = (!data || data.length === 0) && localRows.length > 0;
+
+    let toDelete = [];
+    let deleteSkippedReason = null;
+
+    if (isTruncated) {
+      deleteSkippedReason = `Response reached page limit (${data?.length}/${PULL_PAGE_LIMIT}); skipping deletions to prevent premature pruning`;
+    } else if (isEmptyWhileLocalExist) {
+      deleteSkippedReason = `Remote response was empty while ${localRows.length} local rows exist; skipping deletions`;
+    } else if (data && data.length > 0 && localRows.length > 0) {
+      // Find rows present locally but missing remotely
+      for (const localRow of localRows) {
+        if (!remoteMap.has(localRow.id)) {
+          toDelete.push(localRow.id);
+        }
+      }
+
+      // 4. Never delete rows with a pending item in the sync queue
+      if (toDelete.length > 0 && db._syncQueue) {
+        try {
+          const pending = await getPending();
+          const pendingIds = new Set(
+            pending
+              .filter(p => p.table === table)
+              .map(p => p.payload?.id || p.payload?.match?.id || p.payload?.data?.id)
+              .filter(Boolean)
+          );
+          toDelete = toDelete.filter(id => !pendingIds.has(id));
+        } catch {
+          // If queue check fails, proceed cautiously
+        }
+      }
+
+      // 5. Never delete more than 25% of a table's local rows in one pull
+      if (toDelete.length > localRows.length * 0.25) {
+        const pct = Math.round((toDelete.length / localRows.length) * 100);
+        console.warn(`[SyncManager] Deletion safety guard triggered for ${table}: attempted to delete ${toDelete.length} of ${localRows.length} rows (${pct}% > 25%). Skipping deletions.`);
+        toDelete = [];
+        deleteSkippedReason = `Deletion exceeded 25% threshold (${pct}%)`;
+      }
+    }
+
+    if (deleteSkippedReason && import.meta.env?.DEV) {
+      console.log(`[SyncManager] Deletion guard active for ${table}: ${deleteSkippedReason}`);
+    }
+
+    const hasChanges = toPut.length > 0 || toDelete.length > 0;
+    const dispatchedEvents = [];
+
+    if (hasChanges) {
+      if (typeof db.transaction === 'function') {
+        await db.transaction('rw', db[table], async () => {
+          if (toPut.length > 0) await db[table].bulkPut(toPut);
+          if (toDelete.length > 0) await db[table].bulkDelete(toDelete);
+        });
+      } else {
+        if (toPut.length > 0) await db[table].bulkPut(toPut);
+        if (toDelete.length > 0) await db[table].bulkDelete(toDelete);
+      }
+
+      if (['tasks', 'daily_tasks', 'goals', 'milestones', 'daily_plan', 'daily_plan_streams', 'day_state'].includes(table) && typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('polaris-tasks-changed', { detail: { table } }));
+        dispatchedEvents.push(`polaris-tasks-changed(${table})`);
+      }
+
+      if (table === 'io_logs' && typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('polaris-io-logs-changed', { detail: { table: 'io_logs' } }));
+        dispatchedEvents.push('polaris-io-logs-changed(io_logs)');
+      }
+    }
+
+    // Dev-only console line at end of each pull
+    if (import.meta.env?.DEV) {
+      console.log(`[SyncManager] Pull complete | Table: ${table} | Rows written: ${toPut.length} | Rows deleted: ${toDelete.length} | Events: ${dispatchedEvents.join(', ') || 'none'}`);
+    }
+
+    return {
+      table,
+      rowsWritten: toPut.length,
+      rowsDeleted: toDelete.length,
+      eventsDispatched: dispatchedEvents
+    };
   } catch (err) {
     if (err?.code === 'PGRST205' || err?.message?.includes('schema cache') || err?.code === '42P01') {
+      markTableMissing(table);
       return;
     }
     console.error(`Error pulling data for table ${table}:`, err);
+    throw err;
   }
 }
 
@@ -60,8 +245,6 @@ export async function pullProfile(userId) {
     console.error('Error pulling profile:', err);
   }
 }
-
-let flushPromise = null;
 
 export function flushQueue() {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return Promise.resolve();
@@ -184,90 +367,157 @@ export async function pruneDLQ() {
   }
 }
 
+function scheduleRetry(userId) {
+  if (!userId || typeof window === 'undefined') return;
+  if (retryTimer) clearTimeout(retryTimer);
+
+  retryAttempt++;
+  const baseDelay = Math.min(300000, 1000 * Math.pow(2, retryAttempt));
+  const jitter = Math.random() * 1000;
+  const delay = baseDelay + jitter;
+
+  if (import.meta.env?.DEV) {
+    console.log(`[SyncManager] Scheduling retry in ${Math.round(delay)}ms (attempt ${retryAttempt})`);
+  }
+
+  retryTimer = setTimeout(() => {
+    retryTimer = null;
+    pullAll(userId, `retry (attempt ${retryAttempt})`);
+  }, delay);
+}
+
+export function pullAll(userId, triggerReason = 'manual') {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return Promise.resolve();
+  if (!userId) return Promise.resolve();
+
+  const now = Date.now();
+  if (lastFullPullTime > 0 && now - lastFullPullTime < FULL_PULL_MIN_INTERVAL_MS) {
+    if (import.meta.env?.DEV) {
+      console.log(`[SyncManager] Full pull skipped (cooldown active: ${Math.round((now - lastFullPullTime) / 1000)}s / 60s). Reason: ${triggerReason}`);
+    }
+    return Promise.resolve();
+  }
+
+  if (fullPullPromise) return fullPullPromise;
+
+  fullPullPromise = (async () => {
+    if (import.meta.env?.DEV) {
+      console.log(`[SyncManager] Pull start | Reason: ${triggerReason} | Table: all | User: ${userId}`);
+    }
+
+    try {
+      await flushQueue();
+      await pruneDLQ();
+
+      let totalWritten = 0;
+      let totalDeleted = 0;
+      const allEvents = new Set();
+      const perTableStats = {};
+
+      const chunkSize = 5;
+      for (let i = 0; i < SYNC_TABLES.length; i += chunkSize) {
+        const chunk = SYNC_TABLES.slice(i, i + chunkSize);
+        const results = await Promise.all(chunk.map(table => pullData(table, userId, triggerReason)));
+        for (const res of results) {
+          if (res) {
+            totalWritten += res.rowsWritten;
+            totalDeleted += res.rowsDeleted;
+            res.eventsDispatched.forEach(e => allEvents.add(e));
+            if (res.rowsWritten > 0 || res.rowsDeleted > 0 || res.eventsDispatched.length > 0) {
+              perTableStats[res.table] = {
+                written: res.rowsWritten,
+                deleted: res.rowsDeleted,
+                events: res.eventsDispatched
+              };
+            }
+          }
+        }
+      }
+
+      await pullProfile(userId);
+
+      lastFullPullTime = Date.now();
+      retryAttempt = 0;
+      if (retryTimer) {
+        clearTimeout(retryTimer);
+        retryTimer = null;
+      }
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('polaris-sync-complete'));
+      }
+
+      if (import.meta.env?.DEV) {
+        console.log(`[SyncManager] Full pull summary | Total written: ${totalWritten} | Total deleted: ${totalDeleted} | Events dispatched: ${Array.from(allEvents).join(', ') || 'none'} | Affected tables: ${Object.keys(perTableStats).length}`);
+      }
+    } catch (err) {
+      console.error(`[SyncManager] Full pull failed (${triggerReason}):`, err);
+      scheduleRetry(userId);
+    } finally {
+      fullPullPromise = null;
+    }
+  })();
+
+  return fullPullPromise;
+}
+
 export function initSyncManager(userId) {
-  const handleOnline = () => {
-    flushQueue().then(async () => {
-      pruneDLQ();
-      if (userId) {
-        // Fetch all tables at once via RPC to save connection pool
-        const tables = [
-          'tasks', 'daily_tasks', 'goals', 'milestones', 'day_plan_blocks',
-          'focus_items', 'backburner', 'subtasks', 'recurring_task_templates',
-          'hardware_opportunities', 'eulogies', 'practice_scores', 'curricula',
-          'curriculum_topics', 'curriculum_resources', 'curriculum_categories',
-          'media_log', 'habits', 'nodes', 'mini_games', 'calendar_events',
-          'calendar_backups', 'nudges', 'contacts', 'wins', 'mood_logs',
-          'highlights', 'io_logs', 'pomodoro_logs', 'morning_briefs',
-          'user_settings', 'outreach_targets', 'habit_logs', 'meal_logs',
-          'workout_logs', 'weight_logs', 'daily_plan', 'daily_plan_streams',
-          'day_state', 'exam_dates'
-        ];
+  // Remove any previous online listener before adding
+  if (activeOnlineListener && typeof window !== 'undefined') {
+    window.removeEventListener('online', activeOnlineListener);
+    activeOnlineListener = null;
+  }
 
-        try {
-          const rpcChunkSize = 10;
-          let rpcFailed = false;
+  if (retryTimer) {
+    clearTimeout(retryTimer);
+    retryTimer = null;
+  }
 
-          for (let i = 0; i < tables.length; i += rpcChunkSize) {
-            const chunk = tables.slice(i, i + rpcChunkSize);
-            const { data, error } = await supabase.rpc('get_user_data', { p_user_id: userId, p_tables: chunk });
-            
-            if (error) {
-              console.warn(`RPC batch fetch failed for chunk ${i}:`, error);
-              rpcFailed = true;
-              break;
-            }
-            
-            for (const table of chunk) {
-              if (!db || !db[table]) continue;
-              const records = data[table];
-              if (records && records.length > 0) {
-                const validRecords = records.filter(item => {
-                  const { valid } = validateRowPayload(table, item);
-                  return valid;
-                });
-                if (validRecords.length > 0) {
-                  if (typeof db.transaction === 'function') {
-                    await db.transaction('rw', db[table], async () => {
-                      await db[table].bulkPut(validRecords);
-                    });
-                  } else {
-                    await db[table].bulkPut(validRecords);
-                  }
-                }
-              }
-            }
-          }
-          
-          if (rpcFailed) throw new Error('RPC batch fetch partially failed');
-          
-        } catch (err) {
-          console.warn('RPC batch fetch failed or unavailable, falling back to chunked sync', err);
-          const chunkSize = 5;
-          for (let i = 0; i < tables.length; i += chunkSize) {
-            const chunk = tables.slice(i, i + chunkSize);
-            await Promise.all(chunk.map(table => pullData(table, userId)));
-          }
-        }
+  if (!userId) {
+    clearSyncManager();
+    return () => {};
+  }
 
-        await pullProfile(userId);
+  currentUserId = userId;
 
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('polaris-tasks-changed'));
-          window.dispatchEvent(new CustomEvent('polaris-sync-complete'));
-        }
+  const handleOnline = async () => {
+    // 1. Flush offline write queue immediately upon reconnecting (NEVER blocked by pull cooldown)
+    await flushQueue();
+    await pruneDLQ();
+
+    // 2. Full pull of tables is throttled by the 60-second cooldown
+    pullAll(userId, 'online event').catch(err => {
+      if (import.meta.env?.DEV) {
+        console.warn('[SyncManager] Online event pull background error:', err?.message || err);
       }
     });
   };
 
-  window.addEventListener('online', handleOnline);
+  activeOnlineListener = handleOnline;
+  if (typeof window !== 'undefined') {
+    window.addEventListener('online', activeOnlineListener);
+  }
 
-  // Initial flush when initializing (e.g. app load)
-  if (navigator.onLine) {
-    handleOnline();
+  // Initial pull when initializing (e.g. app load)
+  if (typeof navigator !== 'undefined' && navigator.onLine) {
+    flushQueue().then(() => {
+      return pullAll(userId, 'auth init');
+    }).catch(err => {
+      // Prevent unhandled promise rejection during background init pull
+      if (import.meta.env?.DEV) {
+        console.warn('[SyncManager] Initial pull background error:', err?.message || err);
+      }
+    });
   }
 
   return () => {
-    window.removeEventListener('online', handleOnline);
+    if (activeOnlineListener && typeof window !== 'undefined') {
+      window.removeEventListener('online', activeOnlineListener);
+      activeOnlineListener = null;
+    }
+    if (retryTimer) {
+      clearTimeout(retryTimer);
+      retryTimer = null;
+    }
   };
 }
-

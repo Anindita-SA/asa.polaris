@@ -555,7 +555,15 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
           {/* Ongoing Task Card (Do Now) */}
           {activeTask ? (
             <div 
-              className={`glass border-2 ${ongoingAlert ? 'border-red-500/60 bg-red-950/20' : 'border-[#f5a623] bg-[#f5a623]/10'} rounded-xl p-3 space-y-2 shadow-lg`}
+              onClick={(e) => {
+                if (e.target.closest('button')) return;
+                try {
+                  sessionStorage.setItem('polaris_pending_nav_task_id', activeTask.id);
+                } catch (err) {}
+                window.dispatchEvent(new CustomEvent('nav-task-details', { detail: { taskId: activeTask.id } }));
+                if (onOpenDayGuide) onOpenDayGuide();
+              }}
+              className={`glass border-2 ${ongoingAlert ? 'border-red-500/60 bg-red-950/20' : 'border-[#f5a623] bg-[#f5a623]/10'} rounded-xl p-3 space-y-2 shadow-lg cursor-pointer hover:border-[#f5a623]/80 transition-colors`}
               style={ongoingAlert ? { animation: `shimmer ${shimmerDuration} ease-in-out infinite ${shimmerDelay}` } : undefined}
             >
               <div className="flex items-center justify-between">
@@ -597,7 +605,15 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
             </div>
           ) : ongoingTask ? (
             <div 
-              className={`glass border ${ongoingAlert ? 'border-red-500/50 bg-red-950/20' : 'border-[#f5a623]/30 bg-[#f5a623]/5'} rounded-xl p-3 space-y-2`}
+              onClick={(e) => {
+                if (e.target.closest('button')) return;
+                try {
+                  sessionStorage.setItem('polaris_pending_nav_task_id', ongoingTask.id);
+                } catch (err) {}
+                window.dispatchEvent(new CustomEvent('nav-task-details', { detail: { taskId: ongoingTask.id } }));
+                if (onOpenDayGuide) onOpenDayGuide();
+              }}
+              className={`glass border ${ongoingAlert ? 'border-red-500/50 bg-red-950/20' : 'border-[#f5a623]/30 bg-[#f5a623]/5'} rounded-xl p-3 space-y-2 cursor-pointer hover:border-[#f5a623]/60 transition-colors`}
               style={ongoingAlert ? { animation: `shimmer ${shimmerDuration} ease-in-out infinite ${shimmerDelay}` } : undefined}
             >
               <div className="flex items-center justify-between">
@@ -648,7 +664,15 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
             return (
               <div className="pt-1">
                 <div 
-                  className={`glass border ${nextAlert ? 'border-red-500/50 bg-red-950/20' : 'border-pulsar/30'} p-2.5 rounded-xl flex items-center justify-between`}
+                  onClick={(e) => {
+                    if (e.target.closest('button')) return;
+                    try {
+                      sessionStorage.setItem('polaris_pending_nav_task_id', nextTask.id);
+                    } catch (err) {}
+                    window.dispatchEvent(new CustomEvent('nav-task-details', { detail: { taskId: nextTask.id } }));
+                    if (onOpenDayGuide) onOpenDayGuide();
+                  }}
+                  className={`glass border ${nextAlert ? 'border-red-500/50 bg-red-950/20' : 'border-pulsar/30'} p-2.5 rounded-xl flex items-center justify-between cursor-pointer hover:border-pulsar/60 transition-colors`}
                   style={nextAlert ? { animation: `shimmer ${shimmerDuration} ease-in-out infinite ${shimmerDelay}` } : undefined}
                 >
                   <div className="flex items-center gap-2 truncate mr-2">

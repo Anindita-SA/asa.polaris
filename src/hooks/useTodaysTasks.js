@@ -34,7 +34,7 @@ export function useTodaysTasks() {
         if (unfTasks) {
           for (const t of unfTasks) {
             if (t.date < todayStr) {
-              await offlineUpdate('daily_tasks', { id: t.id }, { date: todayStr })
+              await offlineUpdate('daily_tasks', { id: t.id, ...(user?.id ? { user_id: user.id } : {}) }, { date: todayStr })
             }
           }
         }
@@ -58,6 +58,14 @@ export function useTodaysTasks() {
       let activeMatrixTasks = []
       let allTasksList = []
       try {
+        let todayPlanTaskIds = new Set()
+        try {
+          const { data: todayPlans } = await offlineSelect('daily_plan', { user_id: user.id, plan_date: todayStr })
+          todayPlanTaskIds = new Set((todayPlans || []).map(p => p.task_id).filter(Boolean))
+        } catch (ePlan) {
+          console.warn('Error fetching daily_plan for today:', ePlan)
+        }
+
         // Since we can only equality match, we'll fetch all tasks for user and filter in memory
         const { data: allTasks } = await offlineSelect('tasks', { user_id: user.id })
         allTasksList = allTasks || []
@@ -65,7 +73,11 @@ export function useTodaysTasks() {
           t.status !== 'archived' && (
             t.status === 'active' || 
             t.status === 'scheduled' || 
-            (t.status === 'done' && t.deadline === todayStr)
+            (t.status === 'done' && (
+              t.deadline === todayStr ||
+              (Array.isArray(t.completion_dates) && t.completion_dates.some(d => typeof d === 'string' && d.startsWith(todayStr))) ||
+              todayPlanTaskIds.has(t.id)
+            ))
           )
         )
       } catch (e3) {
@@ -111,6 +123,7 @@ export function useTodaysTasks() {
         deadline: t.date || todayStr,
         parent_task_id: t.parent_task_id || null,
         sort_order: t.sort_order ?? null,
+        created_at: t.created_at || null,
         notes: t.notes || null,
         subtasks_total: 0,
         subtasks_completed: 0,
@@ -133,6 +146,7 @@ export function useTodaysTasks() {
         deadline: g.deadline || todayStr,
         parent_task_id: g.parent_goal_id || null,
         sort_order: null,
+        created_at: g.created_at || null,
         notes: g.description || null,
         subtasks_total: 0,
         subtasks_completed: 0,
@@ -150,8 +164,10 @@ export function useTodaysTasks() {
         mental_load: m.mental_load,
         quadrant: m.quadrant,
         deadline: m.deadline,
+        completion_dates: m.completion_dates || [],
         parent_task_id: m.parent_task_id,
         sort_order: m.sort_order ?? null,
+        created_at: m.created_at || null,
         notes: m.notes,
         subtasks_total: subtaskStats[m.id]?.total || 0,
         subtasks_completed: subtaskStats[m.id]?.completed || 0,
@@ -165,21 +181,24 @@ export function useTodaysTasks() {
       const combined = []
 
       for (const item of [...matrixMapped, ...dailyMapped, ...goalsMapped]) {
-        const key = item.title.trim().toLowerCase()
+        const key = (item.title || '').trim().toLowerCase()
+        if (!key) continue
         if (!seenTitles.has(key)) {
           seenTitles.add(key)
           combined.push(item)
         }
       }
 
-      // Sort: incomplete first, then completed
+      // Sort by sort_order ASC, falling back to created_at ASC
       combined.sort((a, b) => {
-        if (a.completed && !b.completed) return 1
-        if (!a.completed && b.completed) return -1
         const orderA = a.sort_order != null ? a.sort_order : Infinity
         const orderB = b.sort_order != null ? b.sort_order : Infinity
         if (orderA !== orderB) return orderA - orderB
-        return 0
+        const rawDateA = a.created_at || a.raw?.created_at
+        const rawDateB = b.created_at || b.raw?.created_at
+        const dateA = rawDateA ? new Date(rawDateA).getTime() : 0
+        const dateB = rawDateB ? new Date(rawDateB).getTime() : 0
+        return dateA - dateB
       })
 
       setTasks(combined)
@@ -197,17 +216,22 @@ export function useTodaysTasks() {
 
   // Listen for local tasks-changed event across tabs/components
   useEffect(() => {
+    let debounceTimer = null
     const handleTasksChanged = (e) => {
       const changedTable = e?.detail?.table
       if (e?.detail && !['tasks', 'daily_tasks', 'goals'].includes(changedTable)) {
         return
       }
-      fetchTasks(true)
+      if (debounceTimer) clearTimeout(debounceTimer)
+      debounceTimer = setTimeout(() => {
+        fetchTasks(true)
+      }, 300)
     }
     if (typeof window !== 'undefined') {
       window.addEventListener('polaris-tasks-changed', handleTasksChanged)
     }
     return () => {
+      if (debounceTimer) clearTimeout(debounceTimer)
       if (typeof window !== 'undefined') {
         window.removeEventListener('polaris-tasks-changed', handleTasksChanged)
       }
@@ -230,35 +254,49 @@ export function useTodaysTasks() {
     }
   }, [user, fetchTasks])
 
-  const toggleComplete = async (item, e) => {
+  const toggleComplete = async (item, e, options = {}) => {
+    const { skipXP = false } = options || {}
     if (e && e.stopPropagation) e.stopPropagation()
 
     if (item.__type === 'goal') {
       await toggleGoal(item.raw, () => fetchTasks(), e)
     } else {
       const isCompleting = !item.completed
+      const todayStr = new Date().toLocaleDateString('en-CA')
+
+      const existingDates = Array.isArray(item.completion_dates)
+        ? item.completion_dates
+        : (Array.isArray(item.raw?.completion_dates) ? item.raw.completion_dates : [])
+      const updatedDates = isCompleting
+        ? (existingDates.includes(todayStr) ? existingDates : [...existingDates, todayStr])
+        : existingDates.filter(d => typeof d === 'string' ? !d.startsWith(todayStr) : d !== todayStr)
+
+      item.completion_dates = updatedDates
+      if (item.raw) {
+        item.raw.completion_dates = updatedDates
+      }
 
       try {
         if (item.__type === 'daily_task') {
           await offlineUpdate('daily_tasks', 
-            { id: item.id }, 
+            { id: item.id, ...(user?.id ? { user_id: user.id } : {}) }, 
             { completed: isCompleting }
           )
         } else if (item.__type === 'matrix_task') {
           const newStatus = isCompleting ? 'done' : 'active'
           await offlineUpdate('tasks',
-            { id: item.id },
-            { status: newStatus }
+            { id: item.id, ...(user?.id ? { user_id: user.id } : {}) },
+            { status: newStatus, completion_dates: updatedDates }
           )
         } else if (item.id) {
           await offlineUpdate('daily_tasks', 
-            { id: item.id }, 
+            { id: item.id, ...(user?.id ? { user_id: user.id } : {}) }, 
             { completed: isCompleting }
           )
           const newStatus = isCompleting ? 'done' : 'active'
           await offlineUpdate('tasks',
-            { id: item.id },
-            { status: newStatus }
+            { id: item.id, ...(user?.id ? { user_id: user.id } : {}) },
+            { status: newStatus, completion_dates: updatedDates }
           )
         }
       } catch (err) {
@@ -267,9 +305,13 @@ export function useTodaysTasks() {
 
       if (isCompleting) {
         playChime('success')
-        trackXP(false, true, XP?.TASK_COMPLETE || 10)
+        if (!skipXP) {
+          trackXP(false, true, XP?.TASK_COMPLETE || 10)
+        }
       } else {
-        trackXP(true, false, XP?.TASK_COMPLETE || 10)
+        if (!skipXP) {
+          trackXP(true, false, XP?.TASK_COMPLETE || 10)
+        }
       }
       fetchTasks(true)
     }
@@ -292,7 +334,7 @@ export function useTodaysTasks() {
   const updateSortOrder = async (taskId, newOrder) => {
     if (!taskId) return
     try {
-      await offlineUpdate('tasks', { id: taskId }, { sort_order: newOrder })
+      await offlineUpdate('tasks', { id: taskId, ...(user?.id ? { user_id: user.id } : {}) }, { sort_order: newOrder })
       setTasks(prev => prev.map(t => (t.id === taskId ? { ...t, sort_order: newOrder } : t)))
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('polaris-tasks-changed', { detail: { table: 'tasks' } }))
@@ -323,7 +365,7 @@ export function useTodaysTasks() {
   const attachSubtask = async (taskId, parentTaskId) => {
     if (!taskId) return
     const todayStr = new Date().toLocaleDateString('en-CA')
-    await offlineUpdate('tasks', { id: taskId }, { parent_task_id: parentTaskId, deadline: todayStr, status: 'active' })
+    await offlineUpdate('tasks', { id: taskId, ...(user?.id ? { user_id: user.id } : {}) }, { parent_task_id: parentTaskId, deadline: todayStr, status: 'active' })
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('polaris-tasks-changed', { detail: { table: 'tasks' } }))
     }

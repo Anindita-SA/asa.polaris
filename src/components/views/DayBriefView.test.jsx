@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, waitFor, fireEvent, cleanup } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import DayBriefView from './DayBriefView';
 import * as offlineApi from '../../lib/offlineApi';
 
@@ -48,6 +48,12 @@ vi.mock('../widgets/TodayAgendaWidget', () => ({
     passedWidgetProps = props;
     return <div data-testid="today-agenda-widget">Agenda Widget ({props.tasks?.length || 0} tasks)</div>;
   }
+}));
+
+vi.mock('../widgets/DayPlanBoard', () => ({
+  default: () => <div data-testid="day-plan-board">Day Plan Board C2 Mock</div>,
+  isNewBoardEnabled: () => localStorage.getItem('polaris_ff_new_board') === 'true',
+  setNewBoardEnabled: (val) => localStorage.setItem('polaris_ff_new_board', String(val))
 }));
 
 describe('DayBriefView', () => {
@@ -103,6 +109,11 @@ describe('DayBriefView', () => {
     expect(screen.getByTestId('today-agenda-widget')).toBeDefined();
   });
 
+  afterEach(() => {
+    cleanup();
+    localStorage.clear();
+  });
+
   it('shows loading placeholder only on cold initial load when brief items are empty', async () => {
     // Mock cold load with pending promise
     offlineApi.offlineSelect.mockImplementation(() => new Promise(() => {}));
@@ -110,5 +121,38 @@ describe('DayBriefView', () => {
     render(<DayBriefView />);
 
     expect(screen.getByText('Loading your brief...')).toBeDefined();
+  });
+
+  it('toggles between TodayAgendaWidget (legacy default) and DayPlanBoard via feature flag', async () => {
+    // Default is OFF: polaris_ff_new_board is not set
+    render(<DayBriefView />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('today-agenda-widget')).toBeDefined();
+      expect(screen.queryByTestId('day-plan-board')).toBeNull();
+    });
+
+    const toggleBtn = screen.getByTestId('toggle-board-flag');
+    expect(toggleBtn.textContent).toContain('Legacy');
+
+    // Click toggle to switch to new board
+    fireEvent.click(toggleBtn);
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('today-agenda-widget')).toBeNull();
+      expect(screen.getByTestId('day-plan-board')).toBeDefined();
+    });
+    expect(toggleBtn.textContent).toContain('New (C2)');
+    expect(localStorage.getItem('polaris_ff_new_board')).toBe('true');
+
+    // Click toggle again to switch back to legacy
+    fireEvent.click(toggleBtn);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('today-agenda-widget')).toBeDefined();
+      expect(screen.queryByTestId('day-plan-board')).toBeNull();
+    });
+    expect(toggleBtn.textContent).toContain('Legacy');
+    expect(localStorage.getItem('polaris_ff_new_board')).toBe('false');
   });
 });

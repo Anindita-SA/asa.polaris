@@ -306,6 +306,1027 @@ export const SEED_CURRICULA = [
       { title: 'The Fifth Discipline', author: 'Peter Senge', resource_type: 'book' },
     ],
   },
+  {
+    category: "Academic",
+    title: "Foundational Disciplines: Intellectual Frameworks",
+    estimated_hours: 200,
+    description: "Synthesizing 8 core foundational disciplines (Philosophy, Economics, Art History, Physics, History, Mathematics, Politics, Linguistics) into a trackable intellectual framework across 63 milestones.",
+    topics: [
+{
+        title: "Track 1: Reading: Read Bertrand Russell's The Problems of Philosophy (Chapters 1 to 5: Appearance and Reality, Matter, and Idealism)",
+        description: "Pillar 1: Philosophy (Epistemology)",
+        estimated_hours: 3,
+        is_recommended_next: true,
+        module: 1,
+        notes: "Epistemology treatise: Distinguishing appearance from reality, matter, and idealism. Resource: https://www.gutenberg.org/ebooks/5827"
+      },
+{
+        title: "Track 1: Reading: Read Bertrand Russell's The Problems of Philosophy (Chapters 6 to 10: Induction, General Principles, and A Priori Knowledge)",
+        description: "Pillar 1: Philosophy (Epistemology)",
+        estimated_hours: 3,
+        is_recommended_next: false,
+        module: 1,
+        notes: "Induction, general principles, and a priori knowledge limits. Resource: https://www.gutenberg.org/ebooks/5827"
+      },
+{
+        title: "Track 1: Reading: Read Bertrand Russell's The Problems of Philosophy (Chapters 11 to 15: Intuitive Knowledge, Truth vs. Falsehood, and The Value of Philosophy)",
+        description: "Pillar 1: Philosophy (Epistemology)",
+        estimated_hours: 3,
+        is_recommended_next: false,
+        module: 1,
+        notes: "Intuitive knowledge, criteria of truth vs falsehood, and the philosophical value. Resource: https://www.gutenberg.org/ebooks/5827"
+      },
+{
+        title: "Track 1: Lecture Series: Watch Yale PHIL 176 Lectures 1-6 (The Nature of Persons, Physicalism vs. Dualism)",
+        description: "Pillar 1: Philosophy (Metaphysics of Persons)",
+        estimated_hours: 3.5,
+        is_recommended_next: false,
+        module: 1,
+        notes: "Prof. Shelly Kagan: The nature of persons, dualism vs physicalism, and the soul. Resource: https://oyc.yale.edu/philosophy/phil-176"
+      },
+{
+        title: "Track 1: Lecture Series: Watch Yale PHIL 176 Lectures 7-13 (Personal Identity over Time, Bodily vs. Psychological Continuity)",
+        description: "Pillar 1: Philosophy (Personal Identity)",
+        estimated_hours: 3.5,
+        is_recommended_next: false,
+        module: 1,
+        notes: "Prof. Shelly Kagan: Personal identity over time, bodily vs psychological continuity. Resource: https://oyc.yale.edu/philosophy/phil-176"
+      },
+{
+        title: "Track 1: Lecture Series: Watch Yale PHIL 176 Lectures 14-20 (The Badness of Death, The Deprivation Account, Immortality)",
+        description: "Pillar 1: Philosophy (Value of Life)",
+        estimated_hours: 3.5,
+        is_recommended_next: false,
+        module: 1,
+        notes: "Prof. Shelly Kagan: Deprivation account of death, why death is bad, and desirability of immortality. Resource: https://oyc.yale.edu/philosophy/phil-176"
+      },
+{
+        title: "Track 1: Lecture Series: Watch Yale PHIL 176 Lectures 21-26 (Suicide, The Value of Life, Living in the Face of Death)",
+        description: "Pillar 1: Philosophy (Ethics & Meaning)",
+        estimated_hours: 3.5,
+        is_recommended_next: false,
+        module: 1,
+        notes: "Prof. Shelly Kagan: Rationality of suicide, value of life, and living in the face of death. Resource: https://oyc.yale.edu/philosophy/phil-176"
+      },
+{
+        title: "Track 1: Exploration Drill: Search SEP for Epistemology, Personal Identity, and Consequentialism; take synthesis notes",
+        description: "Pillar 1: Philosophy (Academic Drill)",
+        estimated_hours: 2,
+        is_recommended_next: false,
+        module: 1,
+        notes: "Stanford Encyclopedia of Philosophy: Document 3 core distinctions and arguments. Resource: https://plato.stanford.edu/"
+      },
+{
+        title: "Track 2: Reading: Read The Undercover Economist Part 1 (Who Pays for Your Coffee? Supermarkets and Price Targets)",
+        description: "Pillar 2: Economics (Pricing & Rent)",
+        estimated_hours: 3,
+        is_recommended_next: false,
+        module: 2,
+        notes: "Tim Harford: Price discrimination, location rents, market power, and supermarket pricing strategies. Resource: https://timharford.com/books/undercovereconomist/"
+      },
+{
+        title: "Track 2: Reading: Read The Undercover Economist Part 2 (Perfect Markets, Inside Information, Key Failures)",
+        description: "Pillar 2: Economics (Market Failures)",
+        estimated_hours: 3,
+        is_recommended_next: false,
+        module: 2,
+        notes: "Tim Harford: Perfect markets, asymmetric information, adverse selection, and health care failures. Resource: https://timharford.com/books/undercovereconomist/"
+      },
+{
+        title: "Track 2: Reading: Read The Undercover Economist Part 3 (City Traffic, Beer, Global Trade, and Development)",
+        description: "Pillar 2: Economics (Externalities & Development)",
+        estimated_hours: 3,
+        is_recommended_next: false,
+        module: 2,
+        notes: "Tim Harford: Externalities, congestion pricing, globalization, and why poor countries stay poor. Resource: https://timharford.com/books/undercovereconomist/"
+      },
+{
+        title: "Track 2: Video Modules: Complete MRU Microeconomics Block 1 (Supply, Demand, and Equilibrium Dynamics)",
+        description: "Pillar 2: Economics (Equilibrium Theory)",
+        estimated_hours: 3.5,
+        is_recommended_next: false,
+        module: 2,
+        notes: "Marginal Revolution University (Cowen & Tabarrok): Incentives, equilibrium price discovery, and shifting curves. Resource: https://mru.org/principles-economics-microeconomics-0"
+      },
+{
+        title: "Track 2: Video Modules: Complete MRU Microeconomics Block 2 (Elasticity, Taxes, Subsidies, and Price Ceilings/Floors)",
+        description: "Pillar 2: Economics (Policy & Elasticity)",
+        estimated_hours: 3.5,
+        is_recommended_next: false,
+        module: 2,
+        notes: "MRU: Elasticity of demand/supply, tax incidence, deadweight loss, price controls. Resource: https://mru.org/principles-economics-microeconomics-0"
+      },
+{
+        title: "Track 2: Video Modules: Complete MRU Microeconomics Block 3 (Externalities, Public Goods, and Tragedy of the Commons)",
+        description: "Pillar 2: Economics (Public Economics)",
+        estimated_hours: 3.5,
+        is_recommended_next: false,
+        module: 2,
+        notes: "MRU: Negative/positive externalities, Pigouvian taxes, Coase theorem, public goods. Resource: https://mru.org/principles-economics-microeconomics-0"
+      },
+{
+        title: "Track 2: Video Modules: Complete MRU Microeconomics Block 4 (Competition, Monopoly, and Price Discrimination)",
+        description: "Pillar 2: Economics (Market Structures)",
+        estimated_hours: 3.5,
+        is_recommended_next: false,
+        module: 2,
+        notes: "MRU: Perfect competition, monopoly rents, natural monopoly, price discrimination degrees. Resource: https://mru.org/principles-economics-microeconomics-0"
+      },
+{
+        title: "Track 2: Interactive Drill: Explore CORE Econ Unit 1 & Unit 2 interactive figures (The Capitalist Revolution and Technological Progress)",
+        description: "Pillar 2: Economics (Empirical Modeling)",
+        estimated_hours: 2,
+        is_recommended_next: false,
+        module: 2,
+        notes: "CORE Econ: Interactive hockey-stick growth charts, technological progress, and inequality metrics. Resource: https://www.core-econ.org/"
+      },
+{
+        title: "Track 3: Reading: Read E.H. Gombrich's The Story of Art (Introduction on Art & Artists + Ancient Egypt, Greece, and Rome)",
+        description: "Pillar 3: Art History (Ancient Civilizations)",
+        estimated_hours: 3.5,
+        is_recommended_next: false,
+        module: 3,
+        notes: "Gombrich: Introduction on art and artists, magical function in Egypt, balance in Greece, Roman realism. Resource: https://www.phaidon.com/store/art/the-story-of-art-9780714832470/"
+      },
+{
+        title: "Track 3: Reading: Read E.H. Gombrich's The Story of Art (Early Christian, Byzantine, and Gothic Art)",
+        description: "Pillar 3: Art History (Medieval Visual Culture)",
+        estimated_hours: 3,
+        is_recommended_next: false,
+        module: 3,
+        notes: "Gombrich: Church art, Byzantine icons, Romanesque stone vaults, Gothic flying buttresses. Resource: https://www.phaidon.com/store/art/the-story-of-art-9780714832470/"
+      },
+{
+        title: "Track 3: Reading: Read E.H. Gombrich's The Story of Art (The Italian Renaissance: Brunelleschi, Donatello, Masaccio, Da Vinci, Michelangelo)",
+        description: "Pillar 3: Art History (Italian Renaissance)",
+        estimated_hours: 3.5,
+        is_recommended_next: false,
+        module: 3,
+        notes: "Gombrich: Mathematical perspective, naturalism, anatomy, chiaroscuro, High Renaissance masters. Resource: https://www.phaidon.com/store/art/the-story-of-art-9780714832470/"
+      },
+{
+        title: "Track 3: Reading: Read E.H. Gombrich's The Story of Art (Northern Renaissance, Baroque, and Rococo)",
+        description: "Pillar 3: Art History (Northern Masters & Baroque)",
+        estimated_hours: 3,
+        is_recommended_next: false,
+        module: 3,
+        notes: "Gombrich: Oil painting detail (Van Eyck, Durer), dramatic Caravaggio lighting, Bernini, Dutch Golden Age. Resource: https://www.phaidon.com/store/art/the-story-of-art-9780714832470/"
+      },
+{
+        title: "Track 3: Reading: Read E.H. Gombrich's The Story of Art (19th Century Revolutions: Neoclassicism, Romanticism, and Impressionism)",
+        description: "Pillar 3: Art History (19th Century Movements)",
+        estimated_hours: 3.5,
+        is_recommended_next: false,
+        module: 3,
+        notes: "Gombrich: Break in tradition, Neoclassical order, Romantic emotion, plein-air Impressionism. Resource: https://www.phaidon.com/store/art/the-story-of-art-9780714832470/"
+      },
+{
+        title: "Track 3: Reading: Read E.H. Gombrich's The Story of Art (20th Century: Cubism, Abstraction, and Contemporary Perspectives)",
+        description: "Pillar 3: Art History (Modernist Break)",
+        estimated_hours: 3.5,
+        is_recommended_next: false,
+        module: 3,
+        notes: "Gombrich: Cezanne, Van Gogh, Gauguin, Cubist spatial deconstruction, pure abstraction. Resource: https://www.phaidon.com/store/art/the-story-of-art-9780714832470/"
+      },
+{
+        title: "Track 3: Video Series: Watch 10 Smarthistory masterpiece analyses across Renaissance, Dutch Golden Age, and Modernism",
+        description: "Pillar 3: Art History (Visual Museum Analysis)",
+        estimated_hours: 3,
+        is_recommended_next: false,
+        module: 3,
+        notes: "Dr. Harris & Dr. Zucker: On-site conversational visual analysis of landmark works. Resource: https://smarthistory.org/"
+      },
+{
+        title: "Track 3: Exploration Drill: Tour The Met Online Collection by movement; select 3 artworks and document context",
+        description: "Pillar 3: Art History (Curatorial Drill)",
+        estimated_hours: 2,
+        is_recommended_next: false,
+        module: 3,
+        notes: "The Met Heilbrunn Timeline: Document patronage, iconography, and historical context for 3 works. Resource: https://www.metmuseum.org/art/collection"
+      },
+{
+        title: "Track 4: Reading: Read Feynman's Six Easy Pieces Chapter 1 (Atoms in Motion: matter, pressure, and thermal motion)",
+        description: "Pillar 4: Physics (Atomic Hypothesis)",
+        estimated_hours: 2.5,
+        is_recommended_next: false,
+        module: 4,
+        notes: "Richard Feynman: Atomic hypothesis, matter composition, gas pressure, thermal motion. Resource: https://www.feynmanlectures.caltech.edu/"
+      },
+{
+        title: "Track 4: Reading: Read Feynman's Six Easy Pieces Chapter 2 (Basic Physics: fundamental forces and particles)",
+        description: "Pillar 4: Physics (Fundamental Interactions)",
+        estimated_hours: 2.5,
+        is_recommended_next: false,
+        module: 4,
+        notes: "Richard Feynman: Fundamental interactions (gravitational, electromagnetic, nuclear) and quantum fields. Resource: https://www.feynmanlectures.caltech.edu/"
+      },
+{
+        title: "Track 4: Reading: Read Feynman's Six Easy Pieces Chapter 3 (Physics in Relation to Other Sciences)",
+        description: "Pillar 4: Physics (Interdisciplinary Sciences)",
+        estimated_hours: 2,
+        is_recommended_next: false,
+        module: 4,
+        notes: "Richard Feynman: Intersections with chemistry, biology, geology, and astronomy. Resource: https://www.feynmanlectures.caltech.edu/"
+      },
+{
+        title: "Track 4: Reading: Read Feynman's Six Easy Pieces Chapter 4 (Conservation of Energy: potential, kinetic, and heat energy)",
+        description: "Pillar 4: Physics (Conservation Laws)",
+        estimated_hours: 2.5,
+        is_recommended_next: false,
+        module: 4,
+        notes: "Richard Feynman: Abstract nature of energy conservation, gravitational potential, kinetic calculations. Resource: https://www.feynmanlectures.caltech.edu/"
+      },
+{
+        title: "Track 4: Reading: Read Feynman's Six Easy Pieces Chapter 5 (The Theory of Gravitation: Kepler's laws, planetary orbits, and relativity)",
+        description: "Pillar 4: Physics (Gravitation & Relativity)",
+        estimated_hours: 2.5,
+        is_recommended_next: false,
+        module: 4,
+        notes: "Richard Feynman: Universal gravitation, Kepler laws, planetary mechanics, Einsteinian curved spacetime. Resource: https://www.feynmanlectures.caltech.edu/"
+      },
+{
+        title: "Track 4: Reading: Read Feynman's Six Easy Pieces Chapter 6 (Quantum Behavior: double-slit experiment and probability amplitudes)",
+        description: "Pillar 4: Physics (Quantum Foundations)",
+        estimated_hours: 3,
+        is_recommended_next: false,
+        module: 4,
+        notes: "Richard Feynman: Wave-particle duality, double-slit experiment, quantum probability amplitudes. Resource: https://www.feynmanlectures.caltech.edu/"
+      },
+{
+        title: "Track 4: Video Series: Watch PBS Space Time playlists on Spacetime Curvature and The Origin of Entropy",
+        description: "Pillar 4: Physics (Astrophysics & Relativity)",
+        estimated_hours: 3,
+        is_recommended_next: false,
+        module: 4,
+        notes: "Dr. Matt O Dowd: Relativistic spacetime curvature, gravitational singularities, and arrow of time. Resource: https://www.youtube.com/@pbsspacetime"
+      },
+{
+        title: "Track 4: Interactive Lab: Complete 3 PhET simulations (Energy Skate Park, Wave Interference, and Rutherford Scattering)",
+        description: "Pillar 4: Physics (Interactive Modeling)",
+        estimated_hours: 2,
+        is_recommended_next: false,
+        module: 4,
+        notes: "PhET Boulder: Hands-on interactive modeling of mechanical energy, wave interference, and atomic scattering. Resource: https://phet.colorado.edu/"
+      },
+{
+        title: "Track 5: Reading: Read E.H. Gombrich's A Little History of the World (Chapters 1 to 10: Prehistory to Ancient Greece)",
+        description: "Pillar 5: History (Early Civilizations)",
+        estimated_hours: 2.5,
+        is_recommended_next: false,
+        module: 5,
+        notes: "Gombrich: Earliest humans, Nile kingdom, Mesopotamia, Jewish history, and ancient Greek polis. Resource: https://yalebooks.yale.edu/book/9780300143324/a-little-history-of-the-world/"
+      },
+{
+        title: "Track 5: Reading: Read E.H. Gombrich's A Little History of the World (Chapters 11 to 20: Alexander, Rome, Christianity, and Germanic Migrations)",
+        description: "Pillar 5: History (Antiquity to Migrations)",
+        estimated_hours: 2.5,
+        is_recommended_next: false,
+        module: 5,
+        notes: "Gombrich: Hellenistic world, Roman Republic/Empire, early Christianity, and migration era. Resource: https://yalebooks.yale.edu/book/9780300143324/a-little-history-of-the-world/"
+      },
+{
+        title: "Track 5: Reading: Read E.H. Gombrich's A Little History of the World (Chapters 21 to 30: Rise of Islam, Charlemagne, Chivalry, and Renaissance)",
+        description: "Pillar 5: History (Medieval Era to Humanism)",
+        estimated_hours: 2.5,
+        is_recommended_next: false,
+        module: 5,
+        notes: "Gombrich: Rise of Islam, Carolingian empire, medieval knights, Gutenberg printing, and humanism. Resource: https://yalebooks.yale.edu/book/9780300143324/a-little-history-of-the-world/"
+      },
+{
+        title: "Track 5: Reading: Read E.H. Gombrich's A Little History of the World (Chapters 31 to 40: Exploration, Industrial Age, and the Modern World)",
+        description: "Pillar 5: History (Modernity & Global Revolutions)",
+        estimated_hours: 2.5,
+        is_recommended_next: false,
+        module: 5,
+        notes: "Gombrich: Voyages of discovery, Enlightenment, French Revolution, Industrialization, and 20th century. Resource: https://yalebooks.yale.edu/book/9780300143324/a-little-history-of-the-world/"
+      },
+{
+        title: "Track 5: Lecture Series: Watch Yale HIST 210 Lectures 1-6 (The Roman Empire Crisis and Constantine)",
+        description: "Pillar 5: History (Late Roman Empire)",
+        estimated_hours: 3.5,
+        is_recommended_next: false,
+        module: 5,
+        notes: "Prof. Paul Freedman: Third-century crisis, Diocletian reforms, Constantine, Christianization. Resource: https://oyc.yale.edu/history/hist-210"
+      },
+{
+        title: "Track 5: Lecture Series: Watch Yale HIST 210 Lectures 7-12 (Barbarians, Clovis, Monasticism, and Justinian's Byzantium)",
+        description: "Pillar 5: History (Post-Roman West & Byzantium)",
+        estimated_hours: 3.5,
+        is_recommended_next: false,
+        module: 5,
+        notes: "Prof. Paul Freedman: Germanic kingdoms, Merovingians, monastic culture, Justinian reconquest. Resource: https://oyc.yale.edu/history/hist-210"
+      },
+{
+        title: "Track 5: Lecture Series: Watch Yale HIST 210 Lectures 13-17 (The Rise of Islam, The Umayyads and Abbasids, and Frankish Ascent)",
+        description: "Pillar 5: History (Islamic World & Carolingians)",
+        estimated_hours: 3.5,
+        is_recommended_next: false,
+        module: 5,
+        notes: "Prof. Paul Freedman: Emergence of Islam, caliphates, Mediterranean economy, rise of the Carolingians. Resource: https://oyc.yale.edu/history/hist-210"
+      },
+{
+        title: "Track 5: Lecture Series: Watch Yale HIST 210 Lectures 18-22 (Charlemagne, Carolingian Crisis, Viking Invasions, Feudal Transformation)",
+        description: "Pillar 5: History (Feudal Europe)",
+        estimated_hours: 3.5,
+        is_recommended_next: false,
+        module: 5,
+        notes: "Prof. Paul Freedman: Coronation of Charlemagne, disintegration, Viking raids, emergence of feudalism. Resource: https://oyc.yale.edu/history/hist-210"
+      },
+{
+        title: "Track 5: Exploration Drill: Navigate World History Encyclopedia interactive map; track Mediterranean & Silk Road networks (300-1000 CE)",
+        description: "Pillar 5: History (Geographic & Trade Drill)",
+        estimated_hours: 2,
+        is_recommended_next: false,
+        module: 5,
+        notes: "World History Encyclopedia: Interactive trade maps and primary artifacts between late antiquity and early medieval era. Resource: https://www.worldhistory.org/"
+      },
+{
+        title: "Track 6: Reading: Read Steven Strogatz's The Joy of X (Part 1: Numbers - from counting to complex numbers)",
+        description: "Pillar 6: Mathematics (Numbers & Arithmetic)",
+        estimated_hours: 3,
+        is_recommended_next: false,
+        module: 6,
+        notes: "Steven Strogatz: Numbers, counting, place value, and journey to imaginary and complex numbers. Resource: https://www.stevenstrogatz.com/books/the-joy-of-x"
+      },
+{
+        title: "Track 6: Reading: Read Steven Strogatz's The Joy of X (Part 2 & 3: Relationships & Shapes - algebra and geometry)",
+        description: "Pillar 6: Mathematics (Algebra & Geometry)",
+        estimated_hours: 3,
+        is_recommended_next: false,
+        module: 6,
+        notes: "Steven Strogatz: Algebraic relations, balance, triangle geometry, and proof techniques. Resource: https://www.stevenstrogatz.com/books/the-joy-of-x"
+      },
+{
+        title: "Track 6: Reading: Read Steven Strogatz's The Joy of X (Part 4: Change - the foundations of calculus)",
+        description: "Pillar 6: Mathematics (Calculus & Rates of Change)",
+        estimated_hours: 3,
+        is_recommended_next: false,
+        module: 6,
+        notes: "Steven Strogatz: Rates of change, derivatives, integrals, and the fundamental theorem of calculus. Resource: https://www.stevenstrogatz.com/books/the-joy-of-x"
+      },
+{
+        title: "Track 6: Reading: Read Steven Strogatz's The Joy of X (Part 5 & 6: Data & Frontiers - probability, networks, and infinity)",
+        description: "Pillar 6: Mathematics (Probability & Infinity)",
+        estimated_hours: 3,
+        is_recommended_next: false,
+        module: 6,
+        notes: "Steven Strogatz: Statistics, conditional probability, small-world networks, and Cantor infinities. Resource: https://www.stevenstrogatz.com/books/the-joy-of-x"
+      },
+{
+        title: "Track 6: Video Series: Watch 3Blue1Brown Essence of Linear Algebra Episodes 1-4 (Vectors, Span, Basis, and Matrix Transformations)",
+        description: "Pillar 6: Mathematics (Vector Spaces & Linear Maps)",
+        estimated_hours: 3,
+        is_recommended_next: false,
+        module: 6,
+        notes: "Grant Sanderson: Visual geometric intuition for vectors, linear combinations, span, basis, and transformations. Resource: https://www.youtube.com/playlist?list=PLZHQObOWTQDPD3MizzM2xVFitgF8hE_ab"
+      },
+{
+        title: "Track 6: Video Series: Watch 3Blue1Brown Essence of Linear Algebra Episodes 5-9 (Matrix Multiplication, Determinants, Inverses, and Column Space)",
+        description: "Pillar 6: Mathematics (Matrix Operations & Inverses)",
+        estimated_hours: 3.5,
+        is_recommended_next: false,
+        module: 6,
+        notes: "Grant Sanderson: Matrix multiplication as composition, determinant scaling factor, inverse matrices, and null spaces. Resource: https://www.youtube.com/playlist?list=PLZHQObOWTQDPD3MizzM2xVFitgF8hE_ab"
+      },
+{
+        title: "Track 6: Video Series: Watch 3Blue1Brown Essence of Linear Algebra Episodes 10-16 (Dot/Cross Products, Change of Basis, Eigenvectors, and Abstract Vector Spaces)",
+        description: "Pillar 6: Mathematics (Eigenvalues & Abstract Spaces)",
+        estimated_hours: 3.5,
+        is_recommended_next: false,
+        module: 6,
+        notes: "Grant Sanderson: Geometric duality of dot products, coordinate change, eigenvectors, and eigenvalues. Resource: https://www.youtube.com/playlist?list=PLZHQObOWTQDPD3MizzM2xVFitgF8hE_ab"
+      },
+{
+        title: "Track 6: Computational Exploration: Solve Project Euler Problems 1, 2, and 3 using pure mathematical insight and clean code",
+        description: "Pillar 6: Mathematics (Computational Insights)",
+        estimated_hours: 3,
+        is_recommended_next: false,
+        module: 6,
+        notes: "Project Euler: Analytical number theory, multiples of 3 and 5, Fibonacci sums, and prime factors. Resource: https://projecteuler.net/"
+      },
+{
+        title: "Track 7: Reading: Read Michael Sandel's Justice (Chapters 1 to 3: Doing the Right Thing, Utilitarianism, and Libertarianism)",
+        description: "Pillar 7: Politics (Utilitarianism vs Individual Rights)",
+        estimated_hours: 3.5,
+        is_recommended_next: false,
+        module: 7,
+        notes: "Michael Sandel: Trolley problem, Bentham utilitarian calculus, Mill revision, and Nozick libertarian entitlement. Resource: https://justiceharvard.org/"
+      },
+{
+        title: "Track 7: Reading: Read Michael Sandel's Justice (Chapters 4 to 6: Hired Help, Kant's Motive of Duty, and Rawls' Case for Equality)",
+        description: "Pillar 7: Politics (Duty & Distributive Fairness)",
+        estimated_hours: 3.5,
+        is_recommended_next: false,
+        module: 7,
+        notes: "Michael Sandel: Military conscription markets, Kant categorical imperative and autonomy, Rawls veil of ignorance. Resource: https://justiceharvard.org/"
+      },
+{
+        title: "Track 7: Reading: Read Michael Sandel's Justice (Chapters 7 to 10: Affirmative Action, Aristotle's Telos, Loyalties, and The Common Good)",
+        description: "Pillar 7: Politics (Virtue, Telos & Community)",
+        estimated_hours: 3.5,
+        is_recommended_next: false,
+        module: 7,
+        notes: "Michael Sandel: Affirmative action debate, Aristotle teleological justice and honor, obligations of solidarity. Resource: https://justiceharvard.org/"
+      },
+{
+        title: "Track 7: Lecture Series: Watch Harvard Justice Episodes 1-4 (The Moral Side of Murder, The Utilitarian Calculus, Free Markets & Morals)",
+        description: "Pillar 7: Politics (Socratic Moral Debates)",
+        estimated_hours: 3.5,
+        is_recommended_next: false,
+        module: 7,
+        notes: "Prof. Michael Sandel: Sanders Theatre Socratic debate on moral quandaries and utilitarian trade-offs. Resource: https://www.youtube.com/playlist?list=PL30C13C91CFFEFEA6"
+      },
+{
+        title: "Track 7: Lecture Series: Watch Harvard Justice Episodes 5-8 (Kant on Duty, Rawls on Fairness, Affirmative Action Debate)",
+        description: "Pillar 7: Politics (Kant & Rawls In Depth)",
+        estimated_hours: 3.5,
+        is_recommended_next: false,
+        module: 7,
+        notes: "Prof. Michael Sandel: Pure reason in ethics, social contract theory, and distributive justice. Resource: https://www.youtube.com/playlist?list=PL30C13C91CFFEFEA6"
+      },
+{
+        title: "Track 7: Lecture Series: Watch Harvard Justice Episodes 9-12 (Aristotle on Purpose, Community Obligations, Debating Same-Sex Marriage and Justice)",
+        description: "Pillar 7: Politics (Civic Virtue & Telos)",
+        estimated_hours: 3.5,
+        is_recommended_next: false,
+        module: 7,
+        notes: "Prof. Michael Sandel: Flute distribution, telos, moral obligations, and justice in civic society. Resource: https://www.youtube.com/playlist?list=PL30C13C91CFFEFEA6"
+      },
+{
+        title: "Track 7: Deep Dive Exploration: Watch Yale PLSC 114 Lecture 1 (Philosophers and Kings) and Lecture 12 (Hobbes Leviathan); take notes on legitimacy and sovereignty",
+        description: "Pillar 7: Politics (Sovereignty & Legitimacy)",
+        estimated_hours: 4,
+        is_recommended_next: false,
+        module: 7,
+        notes: "Prof. Steven B. Smith: Western political thought, regime legitimacy, state of nature, and social contracts. Resource: https://oyc.yale.edu/political-science/plsc-114"
+      },
+{
+        title: "Track 8: Reading: Read Steven Pinker's The Language Instinct (Chapters 1 to 4: An Instinct to Acquire an Art, Chatterboxes, Mentalese, How Language Works)",
+        description: "Pillar 8: Linguistics (Language as Biology)",
+        estimated_hours: 3.5,
+        is_recommended_next: false,
+        module: 8,
+        notes: "Steven Pinker: Refuting linguistic determinism, mentalese representation, and discrete combinatorial systems. Resource: https://stevenpinker.com/publications/language-instinct"
+      },
+{
+        title: "Track 8: Reading: Read Steven Pinker's The Language Instinct (Chapters 5 to 8: Words, The Sounds of Silence, Talking Heads, The Tower of Babel)",
+        description: "Pillar 8: Linguistics (Phonology & Syntax Engine)",
+        estimated_hours: 3.5,
+        is_recommended_next: false,
+        module: 8,
+        notes: "Steven Pinker: Morphology, coarticulation acoustic waves, phrase trees, and language family trees. Resource: https://stevenpinker.com/publications/language-instinct"
+      },
+{
+        title: "Track 8: Reading: Read Steven Pinker's The Language Instinct (Chapters 9 to 13: Baby Born Talking, Language Organs, Evolution of Speech, The Mind's Eye)",
+        description: "Pillar 8: Linguistics (Acquisition & Evolution)",
+        estimated_hours: 3.5,
+        is_recommended_next: false,
+        module: 8,
+        notes: "Steven Pinker: Child grammar acquisition, Broca and Wernicke aphasias, Darwinian selection of speech. Resource: https://stevenpinker.com/publications/language-instinct"
+      },
+{
+        title: "Track 8: Video Series: Watch Crash Course Linguistics Episodes 1-5 (What is Linguistics, Morphology, Lexicons, Syntax, and Semantics)",
+        description: "Pillar 8: Linguistics (Grammar & Meaning Engines)",
+        estimated_hours: 3.5,
+        is_recommended_next: false,
+        module: 8,
+        notes: "Taylor Behnke: Morphemes, lexical categories, constituency parse trees, and semantic truth conditions. Resource: https://www.youtube.com/playlist?list=PL8dPuuaLjXtP5-b_u6y-neKqXk5c2KkH9"
+      },
+{
+        title: "Track 8: Video Series: Watch Crash Course Linguistics Episodes 6-10 (Pragmatics, Sociolinguistics, Phonetics Consonants/Vowels, and Phonology)",
+        description: "Pillar 8: Linguistics (Sounds & Social Dynamics)",
+        estimated_hours: 3.5,
+        is_recommended_next: false,
+        module: 8,
+        notes: "Taylor Behnke: Gricean maxims, dialect variation, International Phonetic Alphabet, and phonemes. Resource: https://www.youtube.com/playlist?list=PL8dPuuaLjXtP5-b_u6y-neKqXk5c2KkH9"
+      },
+{
+        title: "Track 8: Video Series: Watch Crash Course Linguistics Episodes 11-16 (Psycholinguistics, Language Acquisition, Language Change, World Languages, Computational Linguistics, and Writing Systems)",
+        description: "Pillar 8: Linguistics (Typology & Computation)",
+        estimated_hours: 4,
+        is_recommended_next: false,
+        module: 8,
+        notes: "Taylor Behnke: Critical period hypothesis, sound shift laws, language revival, and natural language processing. Resource: https://www.youtube.com/playlist?list=PL8dPuuaLjXtP5-b_u6y-neKqXk5c2KkH9"
+      },
+{
+        title: "Track 8: Linguistic Mapping Drill: Open WALS and explore Feature 81A (Order of Subject, Object, and Verb); analyze geographic distribution",
+        description: "Pillar 8: Linguistics (Typological Mapping Drill)",
+        estimated_hours: 3.5,
+        is_recommended_next: false,
+        module: 8,
+        notes: "WALS: World Atlas of Language Structures comparative analysis of SOV vs SVO word orders across Eurasia and South Asia. Resource: https://wals.info/"
+      }
+    ],
+    resources: [
+{
+        title: "The Problems of Philosophy",
+        author: "Bertrand Russell",
+        resource_type: "book",
+        url: "https://www.gutenberg.org/ebooks/5827",
+        notes: "Free open-access edition on Project Gutenberg. Epistemology, appearance vs reality, and induction."
+      },
+{
+        title: "Death (Yale PHIL 176)",
+        author: "Prof. Shelly Kagan",
+        resource_type: "course",
+        url: "https://oyc.yale.edu/philosophy/phil-176",
+        notes: "26 lectures examining mortality, personal identity, dualism vs physicalism, and the value of life."
+      },
+{
+        title: "Stanford Encyclopedia of Philosophy",
+        author: "Stanford University",
+        resource_type: "article",
+        url: "https://plato.stanford.edu/",
+        notes: "Peer-reviewed academic reference for precise definitions, bibliographies, and philosophical analysis."
+      },
+{
+        title: "The Undercover Economist",
+        author: "Tim Harford",
+        resource_type: "book",
+        url: "https://timharford.com/books/undercovereconomist/",
+        notes: "Explains economic forces shaping modern life: price discrimination, market power, and development."
+      },
+{
+        title: "Principles of Economics: Microeconomics",
+        author: "Marginal Revolution University",
+        resource_type: "course",
+        url: "https://mru.org/principles-economics-microeconomics-0",
+        notes: "Modular video series covering incentives, supply/demand, price controls, elasticity, and externalities."
+      },
+{
+        title: "CORE Econ Online Textbooks",
+        author: "CORE Econ Team",
+        resource_type: "course",
+        url: "https://www.core-econ.org/",
+        notes: "Interactive open-access economics textbooks grounding theory in empirical data and history."
+      },
+{
+        title: "The Story of Art",
+        author: "E.H. Gombrich",
+        resource_type: "book",
+        url: "https://www.phaidon.com/store/art/the-story-of-art-9780714832470/",
+        notes: "Chronological visual journey from ancient civilizations through Renaissance to 20th century."
+      },
+{
+        title: "Smarthistory",
+        author: "Dr. Beth Harris & Dr. Steven Zucker",
+        resource_type: "video",
+        url: "https://smarthistory.org/",
+        notes: "Conversational visual analysis of masterworks filmed on-site in world museums and cultural landmarks."
+      },
+{
+        title: "The Met Collection & Heilbrunn Timeline",
+        author: "The Metropolitan Museum of Art",
+        resource_type: "article",
+        url: "https://www.metmuseum.org/art/collection",
+        notes: "490,000+ digitized masterworks with curatorial essays and global chronological timelines."
+      },
+{
+        title: "Six Easy Pieces",
+        author: "Richard Feynman",
+        resource_type: "book",
+        url: "https://www.feynmanlectures.caltech.edu/",
+        notes: "Foundational physics explained by its most brilliant teacher: atoms, gravity, energy, quantum behavior."
+      },
+{
+        title: "PBS Space Time",
+        author: "Dr. Matt O'Dowd",
+        resource_type: "video",
+        url: "https://www.youtube.com/@pbsspacetime",
+        notes: "High-production exploration of general relativity, quantum paradoxes, black holes, and entropy."
+      },
+{
+        title: "PhET Interactive Simulations",
+        author: "University of Colorado Boulder",
+        resource_type: "course",
+        url: "https://phet.colorado.edu/",
+        notes: "Interactive simulations modeling mechanics, circuits, energy conservation, and wave interference."
+      },
+{
+        title: "A Little History of the World",
+        author: "E.H. Gombrich",
+        resource_type: "book",
+        url: "https://yalebooks.yale.edu/book/9780300143324/a-little-history-of-the-world/",
+        notes: "Lucid chronological narrative of human civilization across all historical eras."
+      },
+{
+        title: "The Early Middle Ages, 284-1000 (Yale HIST 210)",
+        author: "Prof. Paul Freedman",
+        resource_type: "course",
+        url: "https://oyc.yale.edu/history/hist-210",
+        notes: "22 full lectures on late Roman transition, Byzantium, early Islam, Charlemagne, and feudalism."
+      },
+{
+        title: "World History Encyclopedia",
+        author: "World History Encyclopedia",
+        resource_type: "article",
+        url: "https://www.worldhistory.org/",
+        notes: "Peer-reviewed history articles, interactive timelines, and primary maps of antiquity and trade routes."
+      },
+{
+        title: "The Joy of X",
+        author: "Steven Strogatz",
+        resource_type: "book",
+        url: "https://www.stevenstrogatz.com/books/the-joy-of-x",
+        notes: "Intuitive journey through numbers, geometry, calculus, and infinity."
+      },
+{
+        title: "Essence of Linear Algebra",
+        author: "Grant Sanderson (3Blue1Brown)",
+        resource_type: "video",
+        url: "https://www.youtube.com/playlist?list=PLZHQObOWTQDPD3MizzM2xVFitgF8hE_ab",
+        notes: "Geometric and visual intuition for vectors, matrices, and transformations."
+      },
+{
+        title: "Project Euler",
+        author: "Project Euler Team",
+        resource_type: "course",
+        url: "https://projecteuler.net/",
+        notes: "Challenging mathematical and algorithmic problem-solving puzzles requiring deep insight."
+      },
+{
+        title: "Justice: What's the Right Thing to Do?",
+        author: "Prof. Michael J. Sandel",
+        resource_type: "book",
+        url: "https://justiceharvard.org/",
+        notes: "Moral dilemmas, utilitarianism, Kantian duty, and theories of justice."
+      },
+{
+        title: "Harvard Justice Lecture Series",
+        author: "Prof. Michael Sandel",
+        resource_type: "course",
+        url: "https://www.youtube.com/playlist?list=PL30C13C91CFFEFEA6",
+        notes: "Famous 12-episode filmed course on civic virtue and moral reasoning."
+      },
+{
+        title: "Introduction to Political Philosophy (PLSC 114)",
+        author: "Prof. Steven B. Smith (Yale University)",
+        resource_type: "course",
+        url: "https://oyc.yale.edu/political-science/plsc-114",
+        notes: "Comprehensive study of Plato, Aristotle, Machiavelli, Hobbes, and Locke."
+      },
+{
+        title: "The Language Instinct",
+        author: "Prof. Steven Pinker",
+        resource_type: "book",
+        url: "https://stevenpinker.com/publications/language-instinct",
+        notes: "Language as a biological adaptation, universal grammar, and cognition."
+      },
+{
+        title: "Crash Course Linguistics",
+        author: "Taylor Behnke / CrashCourse",
+        resource_type: "video",
+        url: "https://www.youtube.com/playlist?list=PL8dPuuaLjXtP5-b_u6y-neKqXk5c2KkH9",
+        notes: "16-episode overview of morphology, syntax, phonetics, and sociolinguistics."
+      },
+{
+        title: "World Atlas of Language Structures (WALS)",
+        author: "Max Planck Institute",
+        resource_type: "article",
+        url: "https://wals.info/",
+        notes: "Global comparative database of structural linguistic properties across 2,500+ languages."
+      }
+    ]
+  },
+  {
+    category: "Career",
+    title: "Applied Skills: Engineering, Security, Design & Rhetoric",
+    estimated_hours: 68,
+    description: "Practical engineering, cybersecurity, rhetorical writing, and industrial design sketching across 4 applied tracks and 28 discrete milestones.",
+    topics: [
+      // Track A: Electrical Engineering & Digital Logic Mastery (8 tasks, 24h)
+      {
+        title: "Track A: Digital Logic: Build a 555-timer astable multivibrator clock module with manual stepping",
+        description: "Pillar A: Digital Logic & Hardware (Clock Generation)",
+        estimated_hours: 3.0,
+        is_recommended_next: true,
+        module: 1,
+        notes: "555-timer astable multivibrator clock module with manual single-stepping. Ben Eater 8-bit computer project: https://eater.net/8bit/clock"
+      },
+      {
+        title: "Track A: Computer Registers: Wire up 4-bit and 8-bit registers using 74LS173 D-flip-flops",
+        description: "Pillar A: Digital Logic & Hardware (Registers & Data Latching)",
+        estimated_hours: 3.0,
+        is_recommended_next: false,
+        module: 1,
+        notes: "4-bit and 8-bit registers using 74LS173 D-type flip-flops. Ben Eater: https://eater.net/8bit/registers"
+      },
+      {
+        title: "Track A: ALU Design: Build an 8-bit adder/subtractor with 74LS283 adders and 74LS86 XOR gates",
+        description: "Pillar A: Digital Logic & Hardware (Arithmetic Logic Unit)",
+        estimated_hours: 3.0,
+        is_recommended_next: false,
+        module: 1,
+        notes: "8-bit binary adder and subtractor using 74LS283 4-bit binary adders and 74LS86 XOR gates. Ben Eater: https://eater.net/8bit/alu"
+      },
+      {
+        title: "Track A: Memory Systems: Wire up 16-byte RAM using 74LS189 with memory address register (MAR)",
+        description: "Pillar A: Digital Logic & Hardware (SRAM & Address Bus)",
+        estimated_hours: 3.0,
+        is_recommended_next: false,
+        module: 1,
+        notes: "16-byte random access memory using 74LS189 SRAM with 74LS173 MAR. Ben Eater: https://eater.net/8bit/ram"
+      },
+      {
+        title: "Track A: Control Logic: Build EEPROM microcode instruction decoder and program counter",
+        description: "Pillar A: Digital Logic & Hardware (Microcode & Sequencing)",
+        estimated_hours: 3.0,
+        is_recommended_next: false,
+        module: 1,
+        notes: "Control logic microcode decoder with AT28C16 EEPROMs and 74LS161 program counter. Ben Eater: https://eater.net/8bit/control-logic"
+      },
+      {
+        title: "Track A: Program Execution: Write and execute a Fibonacci program in machine code on the breadboard",
+        description: "Pillar A: Digital Logic & Hardware (Machine Code Execution)",
+        estimated_hours: 3.0,
+        is_recommended_next: false,
+        module: 1,
+        notes: "Hand-assembled machine code to compute Fibonacci sequence on breadboard CPU. Ben Eater: https://eater.net/8bit/"
+      },
+      {
+        title: "Track A: Component Physics: Watch The Engineering Mindset on MOSFETs, BJTs, and PN junction diodes",
+        description: "Pillar A: Digital Logic & Hardware (Semiconductor Physics)",
+        estimated_hours: 3.0,
+        is_recommended_next: false,
+        module: 1,
+        notes: "Transistor physics, PN junctions, depletion zones, enhancement MOSFETs, and switching circuits. The Engineering Mindset: https://www.youtube.com/playlist?list=PLWv9VM947MKi_7yJ0_FCbzPVTDU2VwnEx"
+      },
+      {
+        title: "Track A: Math Derivations: Transcribe 3 complex circuit theorems into Derive Notes for error checking",
+        description: "Pillar A: Digital Logic & Hardware (Analytical Derivations)",
+        estimated_hours: 3.0,
+        is_recommended_next: false,
+        module: 1,
+        notes: "Thevenin, Norton, and Superposition network analysis theorem derivations transcribed in Derive Notes: https://derivenotes.com/"
+      },
+
+      // Track B: Hands-On Cybersecurity & Systems Defense (7 tasks, 18h)
+      {
+        title: "Track B: Kali Linux Environment: Set up Kali Linux VM and master essential terminal navigation and permissions",
+        description: "Pillar B: Cybersecurity & Systems Defense (Linux Operations)",
+        estimated_hours: 2.5,
+        is_recommended_next: false,
+        module: 2,
+        notes: "Kali Linux installation, bash terminal navigation, chmod, chown, sudo, package managers. freeCodeCamp / Cyber Mentor: https://www.youtube.com/watch?v=lZAoFs75_cs"
+      },
+      {
+        title: "Track B: Network Discovery: Execute target host discovery and port scanning with Nmap flags (-sV, -sC, -A)",
+        description: "Pillar B: Cybersecurity & Systems Defense (Reconnaissance)",
+        estimated_hours: 2.5,
+        is_recommended_next: false,
+        module: 2,
+        notes: "Nmap active discovery, service version detection, default NSE scripts, OS fingerprinting. freeCodeCamp: https://www.youtube.com/watch?v=lZAoFs75_cs"
+      },
+      {
+        title: "Track B: Packet Capture: Configure Wireshark packet capture filters and capture a live TCP 3-way handshake",
+        description: "Pillar B: Cybersecurity & Systems Defense (Packet Inspection)",
+        estimated_hours: 2.5,
+        is_recommended_next: false,
+        module: 2,
+        notes: "Wireshark Berkeley packet filters, capture interfaces, SYN-SYN/ACK-ACK handshake analysis. Hacker Joe: https://www.youtube.com/watch?v=lb1Dw0elw0Q"
+      },
+      {
+        title: "Track B: Protocol Analysis: Inspect unencrypted HTTP GET/POST requests and DNS queries in Wireshark",
+        description: "Pillar B: Cybersecurity & Systems Defense (Traffic Analysis)",
+        estimated_hours: 2.5,
+        is_recommended_next: false,
+        module: 2,
+        notes: "Dissecting application layer payloads, cleartext credentials, DNS resolution frames in Wireshark. Hacker Joe: https://www.youtube.com/watch?v=lb1Dw0elw0Q"
+      },
+      {
+        title: "Track B: Web Enumeration: Run Dirb dictionary fuzzing against a local test web server",
+        description: "Pillar B: Cybersecurity & Systems Defense (Web Enumeration)",
+        estimated_hours: 2.5,
+        is_recommended_next: false,
+        module: 2,
+        notes: "Web application directory busting and wordlist fuzzing against local test endpoint. Reference: https://www.youtube.com/results?search_query=What+a+Real+Attack+Looks+Like+in+Wireshark+Nmap+Dirb"
+      },
+      {
+        title: "Track B: Attack Chaining Analysis: Correlate Nmap scans and Dirb enumeration inside Wireshark packet logs",
+        description: "Pillar B: Cybersecurity & Systems Defense (Forensics & Attack Chaining)",
+        estimated_hours: 3.0,
+        is_recommended_next: false,
+        module: 2,
+        notes: "Correlating port scan signatures and directory fuzzing spikes within Wireshark pcap traces. Reference: https://www.youtube.com/results?search_query=What+a+Real+Attack+Looks+Like+in+Wireshark+Nmap+Dirb"
+      },
+      {
+        title: "Track B: Security Roadmap Alignment: Review roadmap.sh/cyber-security and map personal systems security goals",
+        description: "Pillar B: Cybersecurity & Systems Defense (Curriculum Alignment)",
+        estimated_hours: 2.5,
+        is_recommended_next: false,
+        module: 2,
+        notes: "Synthesizing defensive domains, networking basics, system hardening, and certification milestones. Roadmap: https://roadmap.sh/cyber-security"
+      },
+
+      // Track C: Persuasive Rhetoric & Narrative Writing (6 tasks, 18h)
+      {
+        title: "Track C: Classical Rhetoric: Complete Harvard Rhetoric Unit 1 (Ethos, Pathos, and Logos in Argumentation)",
+        description: "Pillar C: Persuasive Rhetoric & Writing (Appeals & Proofs)",
+        estimated_hours: 3.0,
+        is_recommended_next: false,
+        module: 3,
+        notes: "Aristotelian rhetorical appeals: establishing credibility (ethos), emotional resonance (pathos), deductive reasoning (logos). Harvard PLL: https://pll.harvard.edu/course/rhetoric-art-persuasive-writing-and-public-speaking"
+      },
+      {
+        title: "Track C: Speech & Essay Structure: Complete Harvard Rhetoric Unit 2 (Ciceronian arrangement and rhetorical tropes)",
+        description: "Pillar C: Persuasive Rhetoric & Writing (Arrangement & Style)",
+        estimated_hours: 3.0,
+        is_recommended_next: false,
+        module: 3,
+        notes: "Classical six-part rhetorical structure (exordium, narratio, partitio, confirmatio, refutatio, peroratio) and stylistic figures. Harvard PLL: https://pll.harvard.edu/course/rhetoric-art-persuasive-writing-and-public-speaking"
+      },
+      {
+        title: "Track C: Critical Reading: Complete Open University Creative Writing Unit on reading like a writer",
+        description: "Pillar C: Persuasive Rhetoric & Writing (Critical Reading)",
+        estimated_hours: 3.0,
+        is_recommended_next: false,
+        module: 3,
+        notes: "Dissecting authorial craft, subtext, syntactic rhythm, and narrative pacing. OpenLearn: https://www.open.edu/openlearn/history-the-arts/creative-writing-and-critical-reading"
+      },
+      {
+        title: "Track C: Fiction Fundamentals: Complete Open University Start Writing Fiction Unit (Character development and voice)",
+        description: "Pillar C: Persuasive Rhetoric & Writing (Character & Voice)",
+        estimated_hours: 3.0,
+        is_recommended_next: false,
+        module: 3,
+        notes: "Crafting three-dimensional characters, distinct dialogue registers, and psychological agency. OpenLearn: https://www.open.edu/openlearn/history-the-arts/creative-writing/start-writing-fiction/content-section-0"
+      },
+      {
+        title: "Track C: Narrative World-Building: Complete Open University Start Writing Fiction Unit (Setting and conflict arcs)",
+        description: "Pillar C: Persuasive Rhetoric & Writing (Setting & Tension)",
+        estimated_hours: 3.0,
+        is_recommended_next: false,
+        module: 3,
+        notes: "Sensory grounding, atmosphere, rising action, climax, and conflict resolution arcs. OpenLearn: https://www.open.edu/openlearn/history-the-arts/creative-writing/start-writing-fiction/content-section-0"
+      },
+      {
+        title: "Track C: Memory to Prose: Complete Open University Writing What You Know (Channeling lived experience into personal essays)",
+        description: "Pillar C: Persuasive Rhetoric & Writing (Essay & SOP Framing)",
+        estimated_hours: 3.0,
+        is_recommended_next: false,
+        module: 3,
+        notes: "Translating subjective memory and lived experience into structured personal essays and SOP narratives. OpenLearn: https://www.open.edu/openlearn/history-the-arts/creative-writing"
+      },
+
+      // Track D: Industrial Product Design (IPD) 7-Day Rapid Sketching Intensive (7 tasks, 8h)
+      {
+        title: "Track D: Day 1: Line Confidence & Shoulder Motion (Straight lines, smooth ellipses without wrist-flicking)",
+        description: "Pillar D: Product Design Sketching (Linework Warmup)",
+        estimated_hours: 1.0,
+        is_recommended_next: false,
+        module: 4,
+        notes: "Warmup drills: drawing from the shoulder, ghosting lines, continuous ellipse trains, pressure control. Jackie Create: https://www.youtube.com/@jackiecreate"
+      },
+      {
+        title: "Track D: Day 2: 1-Point and 2-Point Perspective Grids (Constructing primitive volumetric boxes with correct convergence)",
+        description: "Pillar D: Product Design Sketching (Perspective Grids)",
+        estimated_hours: 1.0,
+        is_recommended_next: false,
+        module: 4,
+        notes: "Horizon lines, vanishing points, constructing 3D bounding boxes without distortion. Jackie Create: https://www.youtube.com/@jackiecreate"
+      },
+      {
+        title: "Track D: Day 3: Volumetric Carving (Cutting into boxes, creating chamfers, fillets, and rounded corners)",
+        description: "Pillar D: Product Design Sketching (Mass Subtraction)",
+        estimated_hours: 1.0,
+        is_recommended_next: false,
+        module: 4,
+        notes: "Subtracting mass from perspective boxes, drafting planar chamfers, and tangent fillets. Jackie Create: https://www.youtube.com/@jackiecreate"
+      },
+      {
+        title: "Track D: Day 4: Cylinders and Radii (Drawing ellipses in perspective across multiple planes)",
+        description: "Pillar D: Product Design Sketching (Rotational Form)",
+        estimated_hours: 1.0,
+        is_recommended_next: false,
+        module: 4,
+        notes: "Minor and major axis alignment, cylindrical extrusions, drawing knobs and buttons on angled planes. Jackie Create: https://www.youtube.com/@jackiecreate"
+      },
+      {
+        title: "Track D: Day 5: Line Weight Hierarchy (Distinguishing light construction guidelines from bold profile silhouette cuts)",
+        description: "Pillar D: Product Design Sketching (Lineweight Hierarchy)",
+        estimated_hours: 1.0,
+        is_recommended_next: false,
+        module: 4,
+        notes: "3-tier lineweight: construction spiderwebs, parting lines, and bold external silhouette cutlines. Jackie Create: https://www.youtube.com/@jackiecreate"
+      },
+      {
+        title: "Track D: Day 6: Light, Shadow & Shading (Applying single-source directional shading to communicate form curvature)",
+        description: "Pillar D: Product Design Sketching (Form Shading)",
+        estimated_hours: 1.0,
+        is_recommended_next: false,
+        module: 4,
+        notes: "Key light source placement, core shadows, cast shadows, and surface gradient hatching. Jackie Create: https://www.youtube.com/@jackiecreate"
+      },
+      {
+        title: "Track D: Day 7: Complete Product Concept Page (Sketch an ergonomic handheld electronics tool with exploded callouts)",
+        description: "Pillar D: Product Design Sketching (Concept Hero Page)",
+        estimated_hours: 2.0,
+        is_recommended_next: false,
+        module: 4,
+        notes: "Hero perspective view, parting lines, user touchpoints, grip texture, and exploded component callouts. Jackie Create: https://www.youtube.com/@jackiecreate"
+      }
+    ],
+    resources: [
+      {
+        title: "Building an 8-bit computer from scratch (YouTube Playlist)",
+        author: "Ben Eater",
+        resource_type: "video",
+        url: "https://www.youtube.com/playlist?list=PLowKtXNTBypGqImEexZ58KShH-z86Zq07",
+        notes: "Legendary hardware video series building a fully functional breadboard computer from individual 7400-series ICs."
+      },
+      {
+        title: "8-Bit Breadboard Computer Documentation & Schematics",
+        author: "Ben Eater",
+        resource_type: "website",
+        url: "https://eater.net/8bit/",
+        notes: "Complete circuit schematics, module breakdowns, microcode tables, and assembly programming instructions."
+      },
+      {
+        title: "Electronics Explained (YouTube Playlist)",
+        author: "The Engineering Mindset",
+        resource_type: "video",
+        url: "https://www.youtube.com/playlist?list=PLWv9VM947MKi_7yJ0_FCbzPVTDU2VwnEx",
+        notes: "Visual animations explaining MOSFETs, BJTs, diodes, capacitors, and power semiconductor fundamentals."
+      },
+      {
+        title: "Derive Notes: Math & Circuit Derivations",
+        author: "Derive Notes Team",
+        resource_type: "website",
+        url: "https://derivenotes.com/",
+        notes: "Interactive derivations and verification platform for circuit theorems, Laplace transforms, and complex math."
+      },
+      {
+        title: "Linux for Ethical Hackers Course",
+        author: "freeCodeCamp / The Cyber Mentor (Heath Adams)",
+        resource_type: "video",
+        url: "https://www.youtube.com/watch?v=lZAoFs75_cs",
+        notes: "Comprehensive terminal navigation, user privilege escalation, file permissions, and ethical hacking fundamentals in Linux."
+      },
+      {
+        title: "Mastering Wireshark Tutorial",
+        author: "Hacker Joe / freeCodeCamp",
+        resource_type: "video",
+        url: "https://www.youtube.com/watch?v=lb1Dw0elw0Q",
+        notes: "Deep-dive Wireshark packet capture, display filters, protocol analysis, and stream reassembly."
+      },
+      {
+        title: "Real Attack Breakdown in Wireshark (Attack Chaining Lab)",
+        author: "Cyber Security Labs",
+        resource_type: "video",
+        url: "https://www.youtube.com/results?search_query=What+a+Real+Attack+Looks+Like+in+Wireshark+Nmap+Dirb",
+        notes: "Step-by-step trace analysis correlating Nmap port sweeps and Dirb web directory fuzzing inside pcap logs."
+      },
+      {
+        title: "Roadmap.sh: Cybersecurity Career & Skills Path",
+        author: "roadmap.sh Community",
+        resource_type: "website",
+        url: "https://roadmap.sh/cyber-security",
+        notes: "Comprehensive modern guide to defensive security, network protocols, threat modeling, and infrastructure protection."
+      },
+      {
+        title: "Rhetoric: The Art of Persuasive Writing and Public Speaking",
+        author: "Harvard University (Prof. James Engell)",
+        resource_type: "course",
+        url: "https://pll.harvard.edu/course/rhetoric-art-persuasive-writing-and-public-speaking",
+        notes: "Classical rhetorical appeals (ethos, pathos, logos), argument structure, and Ciceronian speech organization."
+      },
+      {
+        title: "Creative Writing and Critical Reading",
+        author: "The Open University",
+        resource_type: "course",
+        url: "https://www.open.edu/openlearn/history-the-arts/creative-writing-and-critical-reading",
+        notes: "OpenLearn course on analyzing authorial craft, subtext, characterization, and narrative prose."
+      },
+      {
+        title: "Start Writing Fiction",
+        author: "The Open University",
+        resource_type: "course",
+        url: "https://www.open.edu/openlearn/history-the-arts/creative-writing/start-writing-fiction/content-section-0",
+        notes: "Core storytelling mechanics: character motivation, dialogue registers, and world-building arcs."
+      },
+      {
+        title: "Writing What You Know",
+        author: "The Open University",
+        resource_type: "course",
+        url: "https://www.open.edu/openlearn/history-the-arts/creative-writing",
+        notes: "Techniques for transforming subjective memory and lived experience into vivid personal essays and SOP narratives."
+      },
+      {
+        title: "Beginner's Guide to Industrial Design Sketching",
+        author: "Jackie Create",
+        resource_type: "video",
+        url: "https://www.youtube.com/@jackiecreate",
+        notes: "Practical video tutorials on pencil/pen line confidence, perspective grids, ellipses, and volumetric carving."
+      },
+      {
+        title: "Jackie Create Design Sketching Portal",
+        author: "Jackie Create",
+        resource_type: "website",
+        url: "https://beacons.page/jackiecreate",
+        notes: "Free design sketching templates, line confidence exercises, and reference work for rapid product ideation."
+      }
+    ]
+  },
 
   // ── SELF ───────────────────────────────────────────────────────────────────
   {
@@ -498,6 +1519,339 @@ export const SEED_MEDIA_LOG = [
   { title: 'How to Think Like a Roman Emperor', author_or_creator: 'Donald Robertson', media_type: 'book', status: 'want_to', tags: ['stoicism'] },
   { title: 'Yotsuba manga Vol 1', author_or_creator: 'Kiyohiko Azuma', media_type: 'book', status: 'want_to', tags: ['japanese'] },
   { title: 'Beyond Good and Evil', author_or_creator: 'Nietzsche', media_type: 'book', status: 'want_to', tags: ['philosophy'] },
+
+  // ── FOUNDATIONAL DISCIPLINES: 24 VERIFIED ASSETS ─────────────────────────
+  {
+    title: "The Problems of Philosophy",
+    author_or_creator: "Bertrand Russell",
+    media_type: "book",
+    status: "want_to",
+    tags: [
+"philosophy",
+"foundational"
+    ],
+    one_line_takeaway: "Appearance vs reality, epistemology, and the limits of knowledge",
+    full_review: "URL: https://www.gutenberg.org/ebooks/5827"
+  },
+  {
+    title: "The Undercover Economist",
+    author_or_creator: "Tim Harford",
+    media_type: "book",
+    status: "want_to",
+    tags: [
+"economics",
+"foundational"
+    ],
+    one_line_takeaway: "Microeconomic incentives, pricing strategies, market failures",
+    full_review: "URL: https://timharford.com/books/undercovereconomist/"
+  },
+  {
+    title: "The Story of Art",
+    author_or_creator: "E.H. Gombrich",
+    media_type: "book",
+    status: "want_to",
+    tags: [
+"art-history",
+"foundational"
+    ],
+    one_line_takeaway: "Master introduction to the visual evolution of human art",
+    full_review: "URL: https://www.phaidon.com/store/art/the-story-of-art-9780714832470/"
+  },
+  {
+    title: "Six Easy Pieces",
+    author_or_creator: "Richard Feynman",
+    media_type: "book",
+    status: "want_to",
+    tags: [
+"physics",
+"foundational"
+    ],
+    one_line_takeaway: "Accessible foundational physics: atoms, energy, gravity, quantum behavior",
+    full_review: "URL: https://www.feynmanlectures.caltech.edu/"
+  },
+  {
+    title: "A Little History of the World",
+    author_or_creator: "E.H. Gombrich",
+    media_type: "book",
+    status: "want_to",
+    tags: [
+"history",
+"foundational"
+    ],
+    one_line_takeaway: "Narrative history of human civilization across all eras",
+    full_review: "URL: https://yalebooks.yale.edu/book/9780300143324/a-little-history-of-the-world/"
+  },
+  {
+    title: "The Joy of X",
+    author_or_creator: "Steven Strogatz",
+    media_type: "book",
+    status: "want_to",
+    tags: [
+"mathematics",
+"foundational"
+    ],
+    one_line_takeaway: "Intuitive journey through numbers, geometry, calculus, and infinity",
+    full_review: "URL: https://www.stevenstrogatz.com/books/the-joy-of-x"
+  },
+  {
+    title: "Justice: What's the Right Thing to Do?",
+    author_or_creator: "Michael Sandel",
+    media_type: "book",
+    status: "want_to",
+    tags: [
+"politics",
+"foundational"
+    ],
+    one_line_takeaway: "Moral dilemmas, utilitarianism, Kantian duty, and theories of justice",
+    full_review: "URL: https://justiceharvard.org/"
+  },
+  {
+    title: "The Language Instinct",
+    author_or_creator: "Steven Pinker",
+    media_type: "book",
+    status: "want_to",
+    tags: [
+"linguistics",
+"foundational"
+    ],
+    one_line_takeaway: "Language as a biological adaptation, universal grammar, and cognition",
+    full_review: "URL: https://stevenpinker.com/publications/language-instinct"
+  },
+  {
+    title: "Death (PHIL 176)",
+    author_or_creator: "Prof. Shelly Kagan",
+    media_type: "course",
+    status: "want_to",
+    tags: [
+"philosophy",
+"foundational",
+"lecture"
+    ],
+    one_line_takeaway: "Philosophical analysis of mortality, personal identity, and the value of life",
+    full_review: "URL: https://oyc.yale.edu/philosophy/phil-176"
+  },
+  {
+    title: "Principles of Economics: Microeconomics",
+    author_or_creator: "Tyler Cowen & Alex Tabarrok (Marginal Revolution University)",
+    media_type: "course",
+    status: "want_to",
+    tags: [
+"economics",
+"foundational",
+"lecture"
+    ],
+    one_line_takeaway: "Supply, demand, elasticity, price mechanisms, externalities",
+    full_review: "URL: https://mru.org/principles-economics-microeconomics-0"
+  },
+  {
+    title: "Smarthistory",
+    author_or_creator: "Dr. Beth Harris & Dr. Steven Zucker",
+    media_type: "video",
+    status: "want_to",
+    tags: [
+"art-history",
+"foundational",
+"video"
+    ],
+    one_line_takeaway: "Conversational, museum-grounded visual analysis of artworks",
+    full_review: "URL: https://smarthistory.org/"
+  },
+  {
+    title: "PBS Space Time",
+    author_or_creator: "Dr. Matt O'Dowd",
+    media_type: "video",
+    status: "want_to",
+    tags: [
+"physics",
+"foundational",
+"video"
+    ],
+    one_line_takeaway: "Astrophysics, relativity, quantum paradoxes, and entropy",
+    full_review: "URL: https://www.youtube.com/@pbsspacetime"
+  },
+  {
+    title: "The Early Middle Ages, 284-1000 (HIST 210)",
+    author_or_creator: "Prof. Paul Freedman",
+    media_type: "course",
+    status: "want_to",
+    tags: [
+"history",
+"foundational",
+"lecture"
+    ],
+    one_line_takeaway: "Late Roman transition, Byzantium, early Islam, Charlemagne, feudalism",
+    full_review: "URL: https://oyc.yale.edu/history/hist-210"
+  },
+  {
+    title: "Essence of Linear Algebra",
+    author_or_creator: "Grant Sanderson (3Blue1Brown)",
+    media_type: "video",
+    status: "want_to",
+    tags: [
+"mathematics",
+"foundational",
+"video"
+    ],
+    one_line_takeaway: "Geometric and visual intuition for vectors, matrices, and transformations",
+    full_review: "URL: https://www.youtube.com/playlist?list=PLZHQObOWTQDPD3MizzM2xVFitgF8hE_ab"
+  },
+  {
+    title: "Harvard Justice Lecture Series",
+    author_or_creator: "Prof. Michael Sandel",
+    media_type: "course",
+    status: "want_to",
+    tags: [
+"politics",
+"foundational",
+"lecture"
+    ],
+    one_line_takeaway: "Famous 12-episode filmed course on civic virtue and moral reasoning",
+    full_review: "URL: https://www.youtube.com/playlist?list=PL30C13C91CFFEFEA6"
+  },
+  {
+    title: "Crash Course Linguistics",
+    author_or_creator: "Taylor Behnke / CrashCourse",
+    media_type: "video",
+    status: "want_to",
+    tags: [
+"linguistics",
+"foundational",
+"video"
+    ],
+    one_line_takeaway: "16-episode overview of morphology, syntax, phonetics, and sociolinguistics",
+    full_review: "URL: https://www.youtube.com/playlist?list=PL8dPuuaLjXtP5-b_u6y-neKqXk5c2KkH9"
+  },
+  {
+    title: "Stanford Encyclopedia of Philosophy",
+    author_or_creator: "Stanford University",
+    media_type: "article",
+    status: "want_to",
+    tags: [
+"philosophy",
+"foundational",
+"reference"
+    ],
+    one_line_takeaway: "Peer-reviewed gold standard reference for philosophical concepts",
+    full_review: "URL: https://plato.stanford.edu/"
+  },
+  {
+    title: "CORE Econ Online Textbooks",
+    author_or_creator: "CORE Econ Team",
+    media_type: "course",
+    status: "want_to",
+    tags: [
+"economics",
+"foundational",
+"interactive"
+    ],
+    one_line_takeaway: "Data-grounded, real-world economics (The Economy 2.0 / ESPP)",
+    full_review: "URL: https://www.core-econ.org/"
+  },
+  {
+    title: "The Met Collection & Heilbrunn Timeline",
+    author_or_creator: "The Metropolitan Museum of Art",
+    media_type: "article",
+    status: "want_to",
+    tags: [
+"art-history",
+"foundational",
+"interactive"
+    ],
+    one_line_takeaway: "490,000+ digitized artworks and historical movement essays",
+    full_review: "URL: https://www.metmuseum.org/art/collection"
+  },
+  {
+    title: "PhET Interactive Simulations",
+    author_or_creator: "University of Colorado Boulder",
+    media_type: "course",
+    status: "want_to",
+    tags: [
+"physics",
+"foundational",
+"interactive"
+    ],
+    one_line_takeaway: "Hands-on simulations of mechanics, waves, and quantum phenomena",
+    full_review: "URL: https://phet.colorado.edu/"
+  },
+  {
+    title: "World History Encyclopedia",
+    author_or_creator: "World History Encyclopedia",
+    media_type: "article",
+    status: "want_to",
+    tags: [
+"history",
+"foundational",
+"reference"
+    ],
+    one_line_takeaway: "Peer-reviewed history articles, timelines, and primary maps",
+    full_review: "URL: https://www.worldhistory.org/"
+  },
+  {
+    title: "Project Euler",
+    author_or_creator: "Project Euler Team",
+    media_type: "course",
+    status: "want_to",
+    tags: [
+"mathematics",
+"foundational",
+"interactive"
+    ],
+    one_line_takeaway: "Challenging mathematical and algorithmic problem-solving puzzles",
+    full_review: "URL: https://projecteuler.net/"
+  },
+  {
+    title: "Introduction to Political Philosophy (PLSC 114)",
+    author_or_creator: "Prof. Steven B. Smith (Yale University)",
+    media_type: "course",
+    status: "want_to",
+    tags: [
+"politics",
+"foundational",
+"interactive"
+    ],
+    one_line_takeaway: "Comprehensive study of Plato, Aristotle, Machiavelli, Hobbes, Locke",
+    full_review: "URL: https://oyc.yale.edu/political-science/plsc-114"
+  },
+  {
+    title: "World Atlas of Language Structures (WALS)",
+    author_or_creator: "Max Planck Institute",
+    media_type: "article",
+    status: "want_to",
+    tags: [
+"linguistics",
+"foundational",
+"reference"
+    ],
+    one_line_takeaway: "Global comparative database of structural linguistic properties across 2,500+ languages",
+    full_review: "URL: https://wals.info/"
+  },
+  {
+    title: "How to Kill Men and Get Away With It",
+    author_or_creator: "Katy Brent",
+    media_type: "book",
+    status: "want_to",
+    tags: ["fiction", "thriller", "satire", "applied"],
+    one_line_takeaway: "Satirical feminist vigilante thriller exploring female friendship and accountability",
+    full_review: "URL: https://www.goodreads.com/book/show/62061266-how-to-kill-men-and-get-away-with-it"
+  },
+  {
+    title: "I Who Have Never Known Men",
+    author_or_creator: "Jacqueline Harpman",
+    media_type: "book",
+    status: "want_to",
+    tags: ["fiction", "dystopian", "existential", "applied"],
+    one_line_takeaway: "Haunting existential classic about women trapped in an underground cage, solitude, and autonomy",
+    full_review: "URL: https://www.goodreads.com/book/show/11996.I_Who_Have_Never_Known_Men"
+  },
+  {
+    title: "One of the Good Guys",
+    author_or_creator: "Araminta Hall",
+    media_type: "book",
+    status: "want_to",
+    tags: ["fiction", "thriller", "psychological", "applied"],
+    one_line_takeaway: "Taut deconstruction of male allyship, media sensationalism, and modern gender dynamics",
+    full_review: "URL: https://www.goodreads.com/book/show/176443425-one-of-the-good-guys"
+  },
 ]
 
 export const DEFAULT_IELTS_PRACTICE_SCORES = [

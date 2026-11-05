@@ -573,4 +573,16 @@ describe('filterTasksForTriage precedence and exclusion logic', () => {
     const filtered = filterTasksForTriage(unsortedTasks, parentTaskIdsWithChildren);
     expect(filtered.map(t => t.id)).toEqual(['standalone-task-1', 'standalone-task-2']);
   });
+
+  it('excludes deadline-less inbox brain dump tasks and curriculum tasks from unsorted triage', () => {
+    const unsortedTasks = [
+      { id: 'inbox-brain-dump', title: 'Random idea captured', status: 'inbox', deadline: null },
+      { id: 'curriculum-container', title: 'Applied Skills Track', category: 'curriculum', status: 'active', deadline: null },
+      { id: 'scheduled-inbox-task', title: 'Future task', status: 'inbox', deadline: '2026-11-15' },
+      { id: 'active-task', title: 'Active Task', status: 'active', deadline: null }
+    ];
+
+    const filtered = filterTasksForTriage(unsortedTasks, new Set());
+    expect(filtered.map(t => t.id)).toEqual(['scheduled-inbox-task', 'active-task']);
+  });
 });

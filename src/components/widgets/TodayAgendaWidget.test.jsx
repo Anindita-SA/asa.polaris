@@ -8,6 +8,7 @@ import * as soundLib from '../../lib/sound'
 
 const mockUser = { id: 'test-user-456' }
 const mockTrackXP = vi.fn()
+const mockAddXP = vi.fn().mockResolvedValue(true)
 const mockToggleComplete = vi.fn()
 const mockAddTask = vi.fn()
 const mockAddSubtask = vi.fn()
@@ -20,7 +21,8 @@ let mockAllBacklogTasks = []
 vi.mock('../../hooks/useAuth', () => ({
   useAuth: () => ({
     user: mockUser,
-    trackXP: mockTrackXP
+    trackXP: mockTrackXP,
+    addXP: mockAddXP
   })
 }))
 
@@ -202,8 +204,11 @@ describe('TodayAgendaWidget', () => {
     // Sound chime called
     expect(soundLib.playChime).toHaveBeenCalledWith('success')
 
-    // XP awarded
-    expect(mockTrackXP).toHaveBeenCalledWith(false, true, 10)
+    // XP awarded via applyPlanXpDelta and addXP
+    await waitFor(() => {
+      expect(mockAddXP).toHaveBeenCalledWith(10)
+    })
+    expect(mockTrackXP).not.toHaveBeenCalled()
 
     // pomodoro_logs record created via offlineInsert
     expect(offlineApi.offlineInsert).toHaveBeenCalledWith(
@@ -414,32 +419,32 @@ describe('TodayAgendaWidget', () => {
         subtasks_total: 0
       },
       {
-        id: 'audit-dab',
-        title: 'DAB Converter & Power Electronics EMC Research (Dr. Vignesh Kumar)',
+        id: 'audit-proposal',
+        title: 'Draft 1-page conducted EMI paper proposal & scope pitch for Dr. Vignesh',
         completed: false,
-        estimated_minutes: 60,
+        estimated_minutes: 30,
         quadrant: 'urgent_important',
-        deadline: '2026-10-18',
+        deadline: '2026-11-04',
         parent_task_id: null,
         subtasks_total: 0
       },
       {
-        id: 'audit-portfolio',
-        title: 'Portfolio: Replace AI Product Sketches with Real ID Sketches',
+        id: 'audit-simulink',
+        title: 'Integrate 50-ohm LISN blocks & parasitical coupling into DAB Simulink model',
         completed: false,
-        estimated_minutes: 60,
+        estimated_minutes: 120,
         quadrant: 'urgent_important',
-        deadline: '2026-10-23',
+        deadline: '2026-11-04',
         parent_task_id: null,
         subtasks_total: 0
       },
       {
-        id: 'audit-agri',
-        title: 'Agri Solar Survey Paper: Phase 2 (Reading & Synthesis)',
+        id: 'audit-lor',
+        title: 'Prof. S. Arul Daniel LOR draft final review & dispatch',
         completed: false,
-        estimated_minutes: 60,
-        quadrant: 'important_not_urgent',
-        deadline: '2026-10-18',
+        estimated_minutes: 30,
+        quadrant: 'urgent_important',
+        deadline: '2026-11-04',
         parent_task_id: null,
         subtasks_total: 0
       }
@@ -448,9 +453,9 @@ describe('TodayAgendaWidget', () => {
     render(<TodayAgendaWidget />)
 
     // All 3 audit primaries must be rendered in primaries list
-    expect(screen.getByText('Portfolio: Replace AI Product Sketches with Real ID Sketches')).toBeDefined()
-    expect(screen.getByText('Agri Solar Survey Paper: Phase 2 (Reading & Synthesis)')).toBeDefined()
-    expect(screen.getByText('DAB Converter & Power Electronics EMC Research (Dr. Vignesh Kumar)')).toBeDefined()
+    expect(screen.getByText('Draft 1-page conducted EMI paper proposal & scope pitch for Dr. Vignesh')).toBeDefined()
+    expect(screen.getByText('Integrate 50-ohm LISN blocks & parasitical coupling into DAB Simulink model')).toBeDefined()
+    expect(screen.getByText('Prof. S. Arul Daniel LOR draft final review & dispatch')).toBeDefined()
 
     // Random task due today must be displaced beyond the 3-primary cap
     expect(screen.queryByText('Random Routine Item Due Today')).toBeNull()
@@ -469,32 +474,32 @@ describe('TodayAgendaWidget', () => {
         subtasks_total: 0
       },
       {
-        id: 't-agri',
-        title: 'Agri Solar Survey Paper: Phase 2 (Reading & Synthesis)',
+        id: 't-simulink',
+        title: 'Integrate 50-ohm LISN blocks & parasitical coupling into DAB Simulink model',
         completed: false,
-        estimated_minutes: 60,
-        quadrant: 'important_not_urgent',
-        deadline: '2026-10-18',
+        estimated_minutes: 120,
+        quadrant: 'urgent_important',
+        deadline: '2026-11-04',
         parent_task_id: null,
         subtasks_total: 0
       },
       {
-        id: 't-port',
-        title: 'Portfolio: Replace AI Product Sketches with Real ID Sketches',
+        id: 't-proposal',
+        title: 'Draft 1-page conducted EMI paper proposal & scope pitch for Dr. Vignesh',
         completed: false,
-        estimated_minutes: 60,
+        estimated_minutes: 30,
         quadrant: 'urgent_important',
-        deadline: '2026-10-23',
+        deadline: '2026-11-04',
         parent_task_id: null,
         subtasks_total: 0
       },
       {
-        id: 't-dab',
-        title: 'DAB Converter & Power Electronics EMC Research (Dr. Vignesh Kumar)',
+        id: 't-lor',
+        title: 'Prof. S. Arul Daniel LOR draft final review & dispatch',
         completed: false,
-        estimated_minutes: 60,
+        estimated_minutes: 30,
         quadrant: 'urgent_important',
-        deadline: '2026-10-18',
+        deadline: '2026-11-04',
         parent_task_id: null,
         subtasks_total: 0
       }
@@ -507,9 +512,9 @@ describe('TodayAgendaWidget', () => {
 
     fireEvent.click(alignBtn)
 
-    // Order saved to localStorage: Portfolio, Agri, DAB
+    // Order saved to localStorage: Proposal, Simulink LISN, LOR
     const savedOrder = JSON.parse(localStorage.getItem(`polaris_today_order_${todayStr}`))
-    expect(savedOrder).toEqual(['t-port', 't-agri', 't-dab'])
+    expect(savedOrder).toEqual(['t-proposal', 't-simulink', 't-lor'])
 
     // UI shows aligned state
     expect(screen.getByText('Aligned!')).toBeDefined()
@@ -796,7 +801,7 @@ describe('TodayAgendaWidget', () => {
     expect(offlineApi.offlineSelect).not.toHaveBeenCalledWith('daily_plan', expect.anything())
   })
 
-  it('accepts tasks and action methods as props, overriding useTodaysTasks fallback', () => {
+  it('accepts tasks and action methods as props, overriding useTodaysTasks fallback', async () => {
     const propTasks = [
       {
         id: 'prop-task-1',
@@ -818,7 +823,7 @@ describe('TodayAgendaWidget', () => {
       />
     )
 
-    expect(screen.getByText('Task Passed Via Props')).toBeDefined()
+    expect(await screen.findByText('Task Passed Via Props')).toBeDefined()
     const checkbox = screen.getByTitle('Mark completed')
     fireEvent.click(checkbox)
     expect(propToggleComplete).toHaveBeenCalledWith(
@@ -895,5 +900,523 @@ describe('TodayAgendaWidget', () => {
     const dailyPlanCallsAfterRerender = offlineApi.offlineSelect.mock.calls.filter(c => c[0] === 'daily_plan').length
     // The second offlineSelect call in loadTimeboxesAndTracks reads daily_plan, but import idempotency check was bypassed
     expect(dailyPlanCallsAfterRerender).toBeLessThanOrEqual(dailyPlanCallsAfterMount + 1)
+  })
+
+  it('auto-completes task with skipXP when ticking the last box reaches target_boxes', async () => {
+    offlineApi.offlineSelect.mockImplementation(async (table) => {
+      if (table === 'daily_plan') {
+        return {
+          data: [{
+            id: 'plan-sb-1',
+            user_id: mockUser.id,
+            plan_date: todayStr,
+            task_id: 'task-single-box',
+            slot: 1,
+            target_boxes: 1,
+            done_boxes: 0,
+            target_overridden: true
+          }],
+          error: null
+        }
+      }
+      return { data: [], error: null }
+    })
+
+    const singleBoxTask = {
+      id: 'task-single-box',
+      title: 'Quick Heuristic Task',
+      completed: false,
+      estimated_minutes: 30,
+      time_estimate_minutes: 30,
+      mental_load: 'medium',
+      quadrant: 'urgent_important',
+      deadline: todayStr,
+      parent_task_id: null,
+      subtasks_total: 1,
+      __type: 'matrix_task'
+    }
+
+    render(
+      <TodayAgendaWidget
+        tasks={[singleBoxTask]}
+        toggleComplete={mockToggleComplete}
+      />
+    )
+
+    const chip = await screen.findByTitle(/focus block/i)
+    fireEvent.click(chip)
+
+    await waitFor(() => {
+      expect(mockToggleComplete).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'task-single-box' }),
+        null,
+        { skipXP: true }
+      )
+    })
+  })
+
+  it('reopens task with skipXP when unticking a box below target and auto_completed is true', async () => {
+    const completedTask = {
+      id: 'task-auto-reopen',
+      title: 'Auto Reopen Task',
+      completed: true,
+      estimated_minutes: 30,
+      time_estimate_minutes: 30,
+      mental_load: 'medium',
+      quadrant: 'urgent_important',
+      deadline: todayStr,
+      parent_task_id: null,
+      subtasks_total: 0,
+      __type: 'matrix_task'
+    }
+
+    offlineApi.offlineSelect.mockImplementation(async (table) => {
+      if (table === 'daily_plan') {
+        return {
+          data: [
+            {
+              id: 'plan-auto-reopen',
+              user_id: mockUser.id,
+              plan_date: todayStr,
+              task_id: 'task-auto-reopen',
+              slot: 1,
+              target_boxes: 2,
+              done_boxes: 2,
+              status: 'cleared',
+              auto_completed: true,
+              xp_awarded: 20
+            }
+          ],
+          error: null
+        }
+      }
+      return { data: [], error: null }
+    })
+
+    localStorage.setItem(
+      `polaris_timeboxes_${todayStr}_task-auto-reopen`,
+      JSON.stringify([true, true])
+    )
+
+    render(
+      <TodayAgendaWidget
+        tasks={[completedTask]}
+        toggleComplete={mockToggleComplete}
+      />
+    )
+
+    await waitFor(() => {
+      const checkedChips = screen.getAllByTitle(/Completed 15m focus session/i)
+      expect(checkedChips.length).toBe(2)
+    })
+
+    const checkedChips = screen.getAllByTitle(/Completed 15m focus session/i)
+    fireEvent.click(checkedChips[1])
+
+    await waitFor(() => {
+      expect(mockToggleComplete).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'task-auto-reopen' }),
+        null,
+        { skipXP: true }
+      )
+    })
+  })
+
+  it('does NOT reopen task on unticking if task was completed manually (auto_completed is false)', async () => {
+    const manuallyCompletedTask = {
+      id: 'task-manual-done',
+      title: 'Manual Done Task',
+      completed: true,
+      estimated_minutes: 30,
+      time_estimate_minutes: 30,
+      mental_load: 'medium',
+      quadrant: 'urgent_important',
+      deadline: todayStr,
+      parent_task_id: null,
+      subtasks_total: 0,
+      __type: 'matrix_task'
+    }
+
+    offlineApi.offlineSelect.mockImplementation(async (table) => {
+      if (table === 'daily_plan') {
+        return {
+          data: [
+            {
+              id: 'plan-manual-done',
+              user_id: mockUser.id,
+              plan_date: todayStr,
+              task_id: 'task-manual-done',
+              slot: 1,
+              target_boxes: 2,
+              done_boxes: 2,
+              status: 'cleared',
+              auto_completed: false,
+              xp_awarded: 20
+            }
+          ],
+          error: null
+        }
+      }
+      return { data: [], error: null }
+    })
+
+    localStorage.setItem(
+      `polaris_timeboxes_${todayStr}_task-manual-done`,
+      JSON.stringify([true, true])
+    )
+
+    render(
+      <TodayAgendaWidget
+        tasks={[manuallyCompletedTask]}
+        toggleComplete={mockToggleComplete}
+      />
+    )
+
+    await waitFor(() => {
+      const checkedChips = screen.getAllByTitle(/Completed 15m focus session/i)
+      expect(checkedChips.length).toBe(2)
+    })
+
+    const checkedChips = screen.getAllByTitle(/Completed 15m focus session/i)
+    fireEvent.click(checkedChips[1])
+
+    await new Promise(r => setTimeout(r, 100))
+    expect(mockToggleComplete).not.toHaveBeenCalled()
+  })
+
+  it('ticks the only box on a 1-box task, keeps row struck through, shows undo toast, and clicking Undo reopens it', async () => {
+    let planData = [{
+      id: 'plan-1',
+      user_id: mockUser.id,
+      plan_date: todayStr,
+      task_id: 'task-fixture-1box',
+      slot: 1,
+      target_boxes: 1,
+      done_boxes: 0,
+      target_overridden: true
+    }]
+    offlineApi.offlineSelect.mockImplementation(async (table) => {
+      if (table === 'daily_plan') return { data: planData, error: null }
+      return { data: [], error: null }
+    })
+    offlineApi.offlineInsert.mockImplementation(async (table, row) => {
+      if (table === 'daily_plan') {
+        planData = [{ ...row }]
+        return { data: [row], error: null }
+      }
+      return { data: [{ id: 'mock-insert-id' }], error: null }
+    })
+    offlineApi.offlineUpdate.mockImplementation(async (table, match, data) => {
+      if (table === 'daily_plan') {
+        planData = planData.map(p => ({ ...p, ...data }))
+        return { data: planData, error: null }
+      }
+      return { data: [{}], error: null }
+    })
+
+    const singleBoxTask = {
+      id: 'task-fixture-1box',
+      title: 'Heuristic One Box Task',
+      completed: false,
+      estimated_minutes: 30,
+      time_estimate_minutes: 30,
+      mental_load: 'medium',
+      quadrant: 'urgent_important',
+      deadline: todayStr,
+      parent_task_id: null,
+      subtasks_total: 1,
+      __type: 'matrix_task'
+    }
+
+    render(
+      <TodayAgendaWidget
+        tasks={[singleBoxTask]}
+        toggleComplete={mockToggleComplete}
+      />
+    )
+
+    // Wait for initial hydration to complete
+    await waitFor(() => {
+      expect(offlineApi.offlineSelect).toHaveBeenCalledWith('daily_plan', expect.anything())
+    })
+
+    // Initially title is visible and not struck through
+    const titleSpan = screen.getByText('Heuristic One Box Task')
+    expect(titleSpan).toBeDefined()
+    expect(titleSpan.className).not.toContain('line-through')
+
+    // Find the 15m focus box chip
+    const chip = screen.getByTitle(/Click to log completed 15m focus block/i)
+    fireEvent.click(chip)
+
+    // Row stays visible and struck through (has line-through)
+    await waitFor(() => {
+      expect(titleSpan.className).toContain('line-through')
+    })
+
+    // Undo toast appears
+    const toast = await screen.findByTestId('undo-completion-toast')
+    expect(toast).toBeDefined()
+    expect(screen.getByText(/"Heuristic One Box Task"/i)).toBeDefined()
+
+    // XP awarded (+10) via applyPlanXpDelta
+    await waitFor(() => {
+      expect(mockAddXP).toHaveBeenCalledWith(10)
+    })
+
+    // Click Undo button
+    const undoBtn = screen.getByTestId('undo-completion-btn')
+    fireEvent.click(undoBtn)
+
+    // Undo toast is dismissed
+    await waitFor(() => {
+      expect(screen.queryByTestId('undo-completion-toast')).toBeNull()
+    })
+
+    // Struck through is removed
+    await waitFor(() => {
+      expect(titleSpan.className).not.toContain('line-through')
+    })
+
+    // Box is unticked (button returns to uncompleted title)
+    expect(screen.getByTitle(/Click to log completed 15m focus block/i)).toBeDefined()
+
+    // XP delta reversed (-10)
+    expect(mockAddXP).toHaveBeenCalledWith(-10)
+
+    // Reopened via toggleComplete with skipXP
+    expect(mockToggleComplete).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'task-fixture-1box' }),
+      null,
+      { skipXP: true }
+    )
+  })
+
+  it('Rule 1 and 4: stale plan with target_boxes: 3 for a 30 min task is reconciled to 2 boxes (chips rendered, target_boxes, and auto-complete threshold all 2)', async () => {
+    let planData = [{
+      id: 'plan-stale-30m',
+      user_id: mockUser.id,
+      plan_date: todayStr,
+      task_id: 'task-reconcile-30m',
+      slot: 1,
+      target_boxes: 3,
+      done_boxes: 0,
+      target_overridden: false,
+      auto_completed: false
+    }]
+
+    offlineApi.offlineSelect.mockImplementation(async (table) => {
+      if (table === 'daily_plan') return { data: planData, error: null }
+      if (table === 'daily_plan_streams') {
+        return {
+          data: [{
+            id: 'stream-1',
+            plan_id: 'plan-stale-30m',
+            user_id: mockUser.id,
+            label: 'default',
+            position: 1,
+            target_boxes: 3,
+            done_boxes: 0
+          }],
+          error: null
+        }
+      }
+      return { data: [], error: null }
+    })
+    offlineApi.offlineUpdate.mockImplementation(async (table, match, data) => {
+      if (table === 'daily_plan') {
+        planData = planData.map(p => p.id === match.id ? { ...p, ...data } : p)
+        return { data: planData, error: null }
+      }
+      return { data: [{}], error: null }
+    })
+
+    const task30m = {
+      id: 'task-reconcile-30m',
+      title: 'Reconcile 30m Task',
+      completed: false,
+      estimated_minutes: 30,
+      time_estimate_minutes: 30,
+      mental_load: 'medium',
+      quadrant: 'urgent_important',
+      deadline: todayStr,
+      parent_task_id: null,
+      subtasks_total: 0,
+      __type: 'matrix_task'
+    }
+
+    render(
+      <TodayAgendaWidget
+        tasks={[task30m]}
+        toggleComplete={mockToggleComplete}
+      />
+    )
+
+    // Wait for DB hydration and reconciliation to complete
+    await waitFor(() => {
+      expect(offlineApi.offlineSelect).toHaveBeenCalledWith('daily_plan', expect.anything())
+    })
+
+    // Exactly 2 chips rendered (not 3!)
+    await waitFor(() => {
+      const chips = screen.getAllByTitle(/Click to log completed 15m focus block/i)
+      expect(chips.length).toBe(2)
+    })
+
+    const chips = screen.getAllByTitle(/Click to log completed 15m focus block/i)
+    expect(chips.length).toBe(2)
+
+    // Target boxes in daily_plan was reconciled to 2
+    expect(planData[0].target_boxes).toBe(2)
+
+    // Click first chip: 1/2 boxes, does NOT auto-complete
+    fireEvent.click(chips[0])
+    expect(mockToggleComplete).not.toHaveBeenCalled()
+
+    // Click second chip: 2/2 boxes, auto-complete threshold is 2, triggers auto-completion
+    const remainingChips = screen.getAllByTitle(/Click to log completed 15m focus block/i)
+    expect(remainingChips.length).toBe(1)
+    fireEvent.click(remainingChips[0])
+
+    await waitFor(() => {
+      expect(mockToggleComplete).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'task-reconcile-30m' }),
+        null,
+        { skipXP: true }
+      )
+    })
+  })
+
+  it('Rule 2: clicking + on tally boxes sets target_overridden = true in daily_plan and prevents reconciliation overwrite', async () => {
+    let planData = [{
+      id: 'plan-plus-test',
+      user_id: mockUser.id,
+      plan_date: todayStr,
+      task_id: 'task-plus-test',
+      slot: 1,
+      target_boxes: 2,
+      done_boxes: 0,
+      target_overridden: false,
+      auto_completed: false
+    }]
+
+    offlineApi.offlineSelect.mockImplementation(async (table) => {
+      if (table === 'daily_plan') return { data: planData, error: null }
+      if (table === 'daily_plan_streams') return { data: [], error: null }
+      return { data: [], error: null }
+    })
+    offlineApi.offlineUpdate.mockImplementation(async (table, match, data) => {
+      if (table === 'daily_plan') {
+        planData = planData.map(p => p.id === match.id ? { ...p, ...data } : p)
+        return { data: planData, error: null }
+      }
+      return { data: [{}], error: null }
+    })
+
+    const taskPlus = {
+      id: 'task-plus-test',
+      title: 'Task for Plus Button',
+      completed: false,
+      estimated_minutes: 30,
+      time_estimate_minutes: 30,
+      mental_load: 'medium',
+      quadrant: 'urgent_important',
+      deadline: todayStr,
+      parent_task_id: null,
+      subtasks_total: 0,
+      __type: 'matrix_task'
+    }
+
+    render(
+      <TodayAgendaWidget
+        tasks={[taskPlus]}
+        toggleComplete={mockToggleComplete}
+      />
+    )
+
+    await waitFor(() => {
+      expect(screen.getAllByTitle(/Click to log completed 15m focus block/i).length).toBe(2)
+    })
+
+    // Click the + button
+    const plusBtn = screen.getByTitle('Add a tally box')
+    fireEvent.click(plusBtn)
+
+    // Now 3 chips rendered
+    await waitFor(() => {
+      expect(screen.getAllByTitle(/Click to log completed 15m focus block/i).length).toBe(3)
+    })
+
+    // Verify offlineUpdate was called with target_overridden: true and target_boxes: 3
+    expect(offlineApi.offlineUpdate).toHaveBeenCalledWith(
+      'daily_plan',
+      { id: 'plan-plus-test', user_id: mockUser.id },
+      expect.objectContaining({
+        target_overridden: true,
+        target_boxes: 3
+      })
+    )
+  })
+
+  it('Rule 3: task with estimated_minutes: 10 (or 15) displays NO box strip (only checkbox), and auto-complete cannot trigger', async () => {
+    const quickTask10 = {
+      id: 'task-quick-10m',
+      title: 'Quick 10m Task',
+      completed: false,
+      estimated_minutes: 10,
+      time_estimate_minutes: 10,
+      mental_load: 'medium',
+      quadrant: 'urgent_important',
+      deadline: todayStr,
+      parent_task_id: null,
+      subtasks_total: 1,
+      __type: 'matrix_task'
+    }
+
+    const quickTask15 = {
+      id: 'task-quick-15m',
+      title: 'Quick 15m Task',
+      completed: false,
+      estimated_minutes: 15,
+      time_estimate_minutes: 15,
+      mental_load: 'medium',
+      quadrant: 'urgent_important',
+      deadline: todayStr,
+      parent_task_id: null,
+      subtasks_total: 1,
+      __type: 'matrix_task'
+    }
+
+    render(
+      <TodayAgendaWidget
+        tasks={[quickTask10, quickTask15]}
+        toggleComplete={mockToggleComplete}
+      />
+    )
+
+    // Wait for titles to appear
+    expect(screen.getByText('Quick 10m Task')).toBeDefined()
+    expect(screen.getByText('Quick 15m Task')).toBeDefined()
+
+    // No box strip buttons exist!
+    expect(screen.queryByTitle(/focus block/i)).toBeNull()
+    expect(screen.queryByTitle(/Add a tally box/i)).toBeNull()
+    expect(screen.queryByTitle(/add micro-stream/i)).toBeNull()
+
+    // Master checkboxes are present
+    const masterCheckboxes = screen.getAllByTitle('Mark completed')
+    expect(masterCheckboxes.length).toBe(2)
+
+    // Clicking master checkbox calls toggleComplete directly without skipXP (not auto-completed)
+    fireEvent.click(masterCheckboxes[0])
+    expect(mockToggleComplete).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'task-quick-10m' }),
+      expect.anything()
+    )
+    expect(mockToggleComplete).not.toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      { skipXP: true }
+    )
   })
 })

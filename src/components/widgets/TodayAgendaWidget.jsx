@@ -23,7 +23,7 @@ import {
 import { useAuth } from '../../hooks/useAuth'
 import { useTodaysTasks } from '../../hooks/useTodaysTasks'
 import { playChime } from '../../lib/sound'
-import { offlineInsert, offlineSelect, offlineDelete } from '../../lib/offlineApi'
+import { offlineInsert, offlineSelect, offlineUpdate, offlineDelete, generateUUID } from '../../lib/offlineApi'
 import {
   DEFAULT_AUDIT_PRIMARIES,
   getAuditRank,
@@ -37,8 +37,11 @@ import {
   mapDbPlanToUiState,
   persistTimeboxToggleDual,
   persistAdjustBoxCountDual,
+  reconcileDailyPlanEstimates,
   persistAddTrackDual,
-  persistOrderDual
+  persistOrderDual,
+  estimateDurationHeuristic,
+  classifyTaskType
 } from '../../lib/dayGuidePersistence'
 
 // Re-export for backward compatibility
@@ -55,7 +58,7 @@ export default function TodayAgendaWidget({
   attachSubtask: propAttachSubtask,
   updateSortOrder: propUpdateSortOrder
 }) {
-  const { user, trackXP } = useAuth()
+  const { user, trackXP, addXP } = useAuth()
   const hookResult = useTodaysTasks()
 
   const tasks = propTasks !== undefined ? propTasks : hookResult.tasks
@@ -68,6 +71,41 @@ export default function TodayAgendaWidget({
   const updateSortOrder = propUpdateSortOrder || hookResult.updateSortOrder
 
   const hasImportedTodayRef = useRef(false)
+  const autoCompletedMapRef = useRef({})
+  const targetOverriddenMapRef = useRef({})
+  const dailyPlansMapRef = useRef({})
+  const [dailyPlansMap, setDailyPlansMap] = useState({})
+  const renderCountRef = useRef(0)
+
+  const getTaskTargetBoxes = useCallback((task, track = null) => {
+    const plan = dailyPlansMap[task?.id] || dailyPlansMapRef.current[task?.id]
+    const isOverridden = Boolean(
+      plan?.target_overridden ||
+      track?.target_overridden ||
+      targetOverriddenMapRef.current[task?.id]
+    )
+    if (isOverridden) {
+      if (track?.count != null) return track.count
+      if (plan?.target_boxes != null) return plan.target_boxes
+    }
+    const mins = task?.estimated_minutes || task?.time_estimate_minutes
+    if (mins != null && mins > 0) {
+      return Math.max(1, Math.min(8, Math.ceil(mins / 15)))
+    }
+    return 1
+  }, [dailyPlansMap])
+
+  if (import.meta?.env?.DEV) {
+    renderCountRef.current++
+  }
+
+  useEffect(() => {
+    if (!import.meta?.env?.DEV) return
+    const interval = setInterval(() => {
+      console.log('[RENDER COUNTER] TodayAgendaWidget: ' + renderCountRef.current + ' renders')
+    }, 10000)
+    return () => clearInterval(interval)
+  }, [])
 
   const todayStr = useMemo(() => new Date().toLocaleDateString('en-CA'), [])
   const formattedToday = useMemo(() => {
@@ -105,6 +143,19 @@ export default function TodayAgendaWidget({
 
   // Multi-stream tracks per task: { [taskId]: [ { id, name, count, boxes: [boolean] }, ... ] }
   const [taskTracksMap, setTaskTracksMap] = useState({})
+  const [isHydratedFromDb, setIsHydratedFromDb] = useState(false)
+
+  // Undo completion toast state
+  const [undoToast, setUndoToast] = useState(null)
+  const undoTimeoutRef = useRef(null)
+
+  useEffect(() => {
+    return () => {
+      if (undoTimeoutRef.current) {
+        clearTimeout(undoTimeoutRef.current)
+      }
+    }
+  }, [])
 
   // Total focus minutes logged today
   const [loggedMinutesToday, setLoggedMinutesToday] = useState(0)
@@ -116,8 +167,83 @@ export default function TodayAgendaWidget({
   // Quick Wins collapsible section
   const [showQuickWins, setShowQuickWins] = useState(false)
 
-  // Primaries state for Framer Motion Reorder
-  const [primaries, setPrimaries] = useState([])
+  // Helper: check if a task is a Quick Win
+  const isQuickWin = useCallback((t) => {
+    if (t.parent_task_id) return false;
+    if (t.subtasks_total && t.subtasks_total > 0) return false
+    const mins = t.estimated_minutes || t.time_estimate_minutes
+    return t.mental_load === 'low' || (mins != null && mins > 0 && mins <= 15)
+  }, [])
+
+  // Classify tasks into Primaries candidates and Quick Wins
+  const { candidatePrimaries, quickWins } = useMemo(() => {
+    const qWins = []
+    const pCandidates = []
+
+    tasks.forEach(t => {
+      if (isQuickWin(t)) {
+        qWins.push(t)
+      } else {
+        pCandidates.push(t)
+      }
+    })
+
+    // Sort candidate primaries via extracted domain module
+    let savedOrder = []
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        const raw = localStorage.getItem(`polaris_today_order_${todayStr}`)
+        if (raw) savedOrder = JSON.parse(raw)
+      } catch (e) {}
+    }
+
+    const auditList = getStoredAuditList(todayStr)
+    const sortedPrimaries = sortCandidatePrimaries(pCandidates, { savedOrder, auditList, todayStr })
+
+    return { candidatePrimaries: sortedPrimaries, quickWins: qWins }
+  }, [tasks, isQuickWin, todayStr])
+
+  // Primaries state for Framer Motion Reorder (hydrated synchronously before first paint)
+  const [primaries, setPrimaries] = useState(() => candidatePrimaries.slice(0, 3))
+  const primariesRef = useRef(primaries)
+  const planIdMapRef = useRef({})
+  useEffect(() => {
+    primariesRef.current = primaries
+  }, [primaries])
+
+  // Sync primaries state with top 3 candidate primaries, skipping setState when unchanged
+  useEffect(() => {
+    const top3 = candidatePrimaries.slice(0, 3)
+    const current = primariesRef.current || []
+    const isSame = current.length === top3.length &&
+      current.every((curr, idx) => {
+        const next = top3[idx]
+        return curr?.id === next?.id &&
+          curr?.title === next?.title &&
+          curr?.completed === next?.completed &&
+          curr?.estimated_minutes === next?.estimated_minutes &&
+          curr?.time_estimate_minutes === next?.time_estimate_minutes
+      })
+    if (!isSame) {
+      setPrimaries(top3)
+    }
+  }, [candidatePrimaries])
+
+  const fillTaskEstimate = useCallback(async (task) => {
+    if (!user?.id || !task?.title) return
+    const heuristic = estimateDurationHeuristic(task.title)
+    const mins = heuristic.minutes
+    const table = task.__type === 'daily_task' ? 'daily_tasks' : 'tasks'
+    await offlineUpdate(table, { id: task.id, ...(user?.id ? { user_id: user.id } : {}) }, {
+      estimated_minutes: mins,
+      time_estimate_minutes: mins,
+      mental_load: heuristic.mentalLoad,
+      estimate_source: 'heuristic'
+    })
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('polaris-tasks-changed', { detail: { table } }))
+    }
+  }, [user?.id])
 
   // Subtask search popover state
   const [subtaskTargetTask, setSubtaskTargetTask] = useState(null)
@@ -138,13 +264,6 @@ export default function TodayAgendaWidget({
     })
     setDayAliases(aliases)
   }, [tasks, todayStr])
-
-  // Helper: check if a task is a Quick Win
-  const isQuickWin = useCallback((t) => {
-    if (t.subtasks_total && t.subtasks_total > 0) return false
-    const mins = t.estimated_minutes || t.time_estimate_minutes
-    return t.mental_load === 'low' || (mins != null && mins > 0 && mins <= 15)
-  }, [])
 
   // Load timeboxes and multi-tracks from Database (with localStorage dual-read / rollback)
   const loadTimeboxesAndTracks = useCallback(() => {
@@ -170,8 +289,8 @@ export default function TodayAgendaWidget({
             trMap[t.id] = JSON.parse(rawTracks)
           } else {
             const title = (t.title || '').toLowerCase()
-            const totalMins = t.estimated_minutes || t.time_estimate_minutes || (boxMins * 2)
-            const defCount = Math.max(1, Math.min(8, Math.ceil(totalMins / boxMins)))
+            const estimate = t.estimated_minutes || t.time_estimate_minutes
+            const defCount = estimate ? Math.max(1, Math.min(8, Math.ceil(estimate / 15))) : 1
             const existingBoxes = tMap[t.id] || []
 
             if (/cold\s*mail|outreach|email\s*outreach/i.test(title)) {
@@ -180,11 +299,11 @@ export default function TodayAgendaWidget({
                 { id: 'sche', name: 'sche', count: 3, boxes: existingBoxes.slice(3, 6) }
               ]
             } else {
-              const isCountMode = /(\b\d+\b|sketches|sketch|papers|paper|articles|calls|items)\b/i.test(title)
+              const isCount = t.box_unit === 'count' || Boolean(t.target_count)
               trMap[t.id] = [
                 {
                   id: 'default',
-                  name: isCountMode ? 'count' : `${boxMins}m units`,
+                  name: isCount ? 'count' : `${boxMins}m units`,
                   count: defCount,
                   boxes: existingBoxes
                 }
@@ -222,16 +341,63 @@ export default function TodayAgendaWidget({
           ])
 
           if (plans && plans.length > 0) {
-            const mapped = mapDbPlanToUiState({
+            const reconciledPlans = await reconcileDailyPlanEstimates({
               plans,
+              tasks,
+              userId: user.id,
+              todayStr
+            })
+            const effectivePlans = reconciledPlans || plans
+
+            setIsHydratedFromDb(true)
+            const pMap = {}
+            effectivePlans.forEach(p => {
+              if (p.task_id) {
+                pMap[p.task_id] = p
+                planIdMapRef.current[p.task_id] = p.id
+                autoCompletedMapRef.current[p.task_id] = Boolean(p.auto_completed)
+                targetOverriddenMapRef.current[p.task_id] = Boolean(p.target_overridden)
+              }
+            })
+            dailyPlansMapRef.current = pMap
+            setDailyPlansMap(pMap)
+
+            if (streams && Array.isArray(streams)) {
+              streams.forEach(s => {
+                const matchingPlan = effectivePlans.find(p => p.id === s.plan_id)
+                if (matchingPlan && (s.label === 'default' || s.position === 1)) {
+                  s.target_boxes = matchingPlan.target_boxes
+                }
+              })
+            }
+
+            const mapped = mapDbPlanToUiState({
+              plans: effectivePlans,
               streams: streams || [],
               tasks,
               boxMins
             })
             setTimeboxesMap(prev => ({ ...prev, ...mapped.timeboxesMap }))
             setTaskTracksMap(prev => ({ ...prev, ...mapped.taskTracksMap }))
+
+            if (typeof window !== 'undefined' && window.localStorage) {
+              try {
+                Object.entries(mapped.taskTracksMap).forEach(([taskId, trs]) => {
+                  localStorage.setItem(`polaris_tracks_${todayStr}_${taskId}`, JSON.stringify(trs))
+                })
+                Object.entries(mapped.timeboxesMap).forEach(([taskId, bxs]) => {
+                  localStorage.setItem(`polaris_timeboxes_${todayStr}_${taskId}`, JSON.stringify(bxs))
+                })
+              } catch (e) {}
+            }
+
             if (mapped.orderedTasks.length > 0) {
-              setPrimaries(mapped.orderedTasks)
+              const currentIds = (primariesRef.current || []).map(t => t.id)
+              const newIds = mapped.orderedTasks.map(t => t.id)
+              const isSameOrder = currentIds.length === newIds.length && currentIds.every((id, idx) => id === newIds[idx])
+              if (!isSameOrder) {
+                setPrimaries(mapped.orderedTasks)
+              }
             }
           }
         } catch (err) {
@@ -284,40 +450,6 @@ export default function TodayAgendaWidget({
     refreshLoggedMinutes()
   }, [loadAliases, loadTimeboxesAndTracks, refreshLoggedMinutes])
 
-  // Classify tasks into Primaries candidates and Quick Wins
-  const { candidatePrimaries, quickWins } = useMemo(() => {
-    const qWins = []
-    const pCandidates = []
-
-    tasks.forEach(t => {
-      if (isQuickWin(t)) {
-        qWins.push(t)
-      } else {
-        pCandidates.push(t)
-      }
-    })
-
-    // Sort candidate primaries via extracted domain module
-    let savedOrder = []
-    if (typeof window !== 'undefined' && window.localStorage) {
-      try {
-        const raw = localStorage.getItem(`polaris_today_order_${todayStr}`)
-        if (raw) savedOrder = JSON.parse(raw)
-      } catch (e) {}
-    }
-
-    const auditList = getStoredAuditList(todayStr)
-    const sortedPrimaries = sortCandidatePrimaries(pCandidates, { savedOrder, auditList, todayStr })
-
-    return { candidatePrimaries: sortedPrimaries, quickWins: qWins }
-  }, [tasks, isQuickWin, todayStr])
-
-  // Sync primaries state with top 3 candidate primaries
-  useEffect(() => {
-    const top3 = candidatePrimaries.slice(0, 3)
-    setPrimaries(top3)
-  }, [candidatePrimaries])
-
   // Feedback state for Align Audit button
   const [alignedFeedback, setAlignedFeedback] = useState(false)
 
@@ -347,8 +479,9 @@ export default function TodayAgendaWidget({
     playChime('success')
   }, [tasks, candidatePrimaries, todayStr, updateSortOrder, user?.id])
 
-  // Lock primaries into saved order on completion toggle
-  const toggleTaskComplete = async (task, e) => {
+  // Manual checkbox completion toggle
+  const handleCheckboxClick = (task, e) => {
+    const isCompleting = !task.completed
     if (primaries.length > 0) {
       persistOrderDual({
         userId: user?.id,
@@ -356,7 +489,62 @@ export default function TodayAgendaWidget({
         taskIds: primaries.map(t => t.id)
       })
     }
-    await toggleComplete(task, e)
+
+    if (isCompleting) {
+      if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current)
+      setUndoToast({
+        task: { ...task, completed: true },
+        type: 'manual',
+        title: dayAliases[task.id] || task.title
+      })
+      undoTimeoutRef.current = setTimeout(() => {
+        setUndoToast(null)
+      }, 6000)
+    } else {
+      if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current)
+      setUndoToast(null)
+    }
+
+    setPrimaries(prev => prev.map(p => p.id === task.id ? { ...p, completed: isCompleting } : p))
+
+    autoCompletedMapRef.current[task.id] = false
+    if (user?.id) {
+      offlineSelect('daily_plan', {
+        user_id: user.id,
+        plan_date: todayStr,
+        task_id: task.id
+      }).then(({ data: plans }) => {
+        if (plans && plans.length > 0) {
+          offlineUpdate(
+            'daily_plan',
+            { id: plans[0].id, user_id: user.id },
+            { auto_completed: false, updated_at: new Date().toISOString() }
+          )
+        }
+      }).catch(err => {
+        console.warn('Error setting auto_completed false in daily_plan:', err)
+      })
+    }
+
+    return toggleComplete(task, e)
+  }
+  const toggleTaskComplete = handleCheckboxClick
+
+  const handleUndo = async () => {
+    if (!undoToast) return
+    if (undoTimeoutRef.current) {
+      clearTimeout(undoTimeoutRef.current)
+      undoTimeoutRef.current = null
+    }
+    const currentToast = undoToast
+    setUndoToast(null)
+
+    if (currentToast.type === 'auto') {
+      await handleChipClick(currentToast.task, currentToast.chipIdx, currentToast.chipMinutes, currentToast.trackId)
+    } else if (currentToast.type === 'manual') {
+      setPrimaries(prev => prev.map(p => p.id === currentToast.task.id ? { ...p, completed: false } : p))
+      await toggleComplete(currentToast.task, null)
+    }
   }
 
   // Drag and drop reordering handler
@@ -427,78 +615,202 @@ export default function TodayAgendaWidget({
       setTaskTracksMap(prev => ({ ...prev, [task.id]: updatedTracks }))
     }
 
-    // Dual-write: updates localStorage AND daily_plan / daily_plan_streams
-    persistTimeboxToggleDual({
+    const displayTitle = dayAliases[task.id] || task.title
+    const isQW = isQuickWin(task)
+    let totalMins = task.estimated_minutes || task.time_estimate_minutes
+    if (!totalMins) {
+      const heuristic = estimateDurationHeuristic(task.title)
+      totalMins = heuristic.minutes
+    }
+    const track = trackId && taskTracksMap[task.id] ? taskTracksMap[task.id].find(tr => tr.id === trackId) : null
+    const targetBoxes = getTaskTargetBoxes(task, track)
+    const remainder = totalMins - (targetBoxes - 1) * 15
+    const isLastBox = chipIdx === targetBoxes - 1
+    const boxDuration = isQW ? 15 : (isLastBox && remainder > 0 ? remainder : (chipMinutes || 15))
+
+    const nextDoneBoxes = nextList.filter(Boolean).length
+    let nextAutoCompleted = undefined
+
+    if (nextChecked) {
+      setLoggedMinutesToday(prev => prev + boxDuration)
+      playChime('success')
+
+      if (user?.id) {
+        const planId = planIdMapRef.current[task.id] || null
+        const now = new Date().toISOString()
+        offlineInsert('pomodoro_logs', {
+          id: generateUUID(),
+          user_id: user.id,
+          date: todayStr,
+          duration_minutes: boxDuration,
+          label: displayTitle,
+          plan_id: planId,
+          created_at: now
+        }).catch(err => console.warn('Error inserting pomodoro_logs:', err))
+
+        offlineInsert('io_logs', {
+          id: generateUUID(),
+          user_id: user.id,
+          date: todayStr,
+          minutes: boxDuration,
+          type: classifyTaskType(task),
+          category: task.category || 'other',
+          plan_id: planId,
+          created_at: now
+        }).catch(err => console.warn('Error inserting io_logs:', err))
+
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('polaris-io-logs-changed', { detail: { table: 'io_logs' } }))
+        }
+      }
+
+      // Auto-complete if reaching target boxes
+      if (nextDoneBoxes >= targetBoxes) {
+        if (!task.completed) {
+          if (primaries.length > 0) {
+            persistOrderDual({
+              userId: user?.id,
+              todayStr,
+              taskIds: primaries.map(t => t.id)
+            })
+          }
+          if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current)
+          setUndoToast({
+            task: { ...task, completed: true },
+            type: 'auto',
+            chipIdx,
+            chipMinutes,
+            trackId,
+            title: displayTitle
+          })
+          undoTimeoutRef.current = setTimeout(() => {
+            setUndoToast(null)
+          }, 6000)
+
+          setPrimaries(prev => prev.map(p => p.id === task.id ? { ...p, completed: true } : p))
+          await toggleComplete(task, null, { skipXP: true })
+          nextAutoCompleted = true
+          autoCompletedMapRef.current[task.id] = true
+        }
+      }
+    } else {
+      setLoggedMinutesToday(prev => Math.max(0, prev - boxDuration))
+
+      // Unfill logic: if task completed and auto_completed is true, reopen task
+      if (nextDoneBoxes < targetBoxes) {
+        const isTaskCurrentlyDone = Boolean(task.completed || primariesRef.current?.find(p => p.id === task.id)?.completed || autoCompletedMapRef.current[task.id])
+        if (isTaskCurrentlyDone) {
+          let wasAutoCompleted = autoCompletedMapRef.current[task.id]
+          if (wasAutoCompleted === undefined && user?.id) {
+            try {
+              const { data: plans } = await offlineSelect('daily_plan', {
+                user_id: user.id,
+                plan_date: todayStr,
+                task_id: task.id
+              })
+              if (plans && plans.length > 0) {
+                wasAutoCompleted = Boolean(plans[0].auto_completed)
+              }
+            } catch (e) {}
+          }
+          if (wasAutoCompleted === true) {
+            setPrimaries(prev => prev.map(p => p.id === task.id ? { ...p, completed: false } : p))
+            await toggleComplete(task, null, { skipXP: true })
+            nextAutoCompleted = false
+            autoCompletedMapRef.current[task.id] = false
+          }
+        }
+      }
+
+      if (user?.id) {
+        const planId = planIdMapRef.current[task.id] || null
+        ;(async () => {
+          try {
+            const pomoQuery = planId
+              ? { user_id: user.id, plan_id: planId }
+              : { user_id: user.id, date: todayStr, label: displayTitle }
+            const { data: logs } = await offlineSelect('pomodoro_logs', pomoQuery)
+            if (logs && logs.length > 0) {
+              const sortedLogs = [...logs].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
+              await offlineDelete('pomodoro_logs', { id: sortedLogs[0].id, user_id: user.id })
+            }
+
+            if (planId) {
+              const { data: ioLogs } = await offlineSelect('io_logs', { user_id: user.id, plan_id: planId })
+              if (ioLogs && ioLogs.length > 0) {
+                const sortedIo = [...ioLogs].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
+                await offlineDelete('io_logs', { id: sortedIo[0].id, user_id: user.id })
+              }
+            }
+
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('polaris-io-logs-changed', { detail: { table: 'io_logs' } }))
+            }
+          } catch (unfillErr) {
+            console.warn('Error removing log on unfill:', unfillErr)
+          }
+        })()
+      }
+    }
+
+    // Dual-write: updates localStorage, daily_plan, XP delta
+    const runwayIndex = primaries.findIndex(p => p.id === task.id)
+    const result = await persistTimeboxToggleDual({
       userId: user?.id,
       todayStr,
       task,
       nextList,
       trackId,
-      updatedTracks: updatedTracks || taskTracksMap[task.id]
+      updatedTracks: updatedTracks || taskTracksMap[task.id],
+      chipIdx,
+      nextChecked,
+      trackXP: null,
+      addXP,
+      displayTitle,
+      autoCompleted: nextAutoCompleted,
+      runwayIndex: runwayIndex >= 0 ? runwayIndex : null
     })
-
-    if (nextChecked) {
-      setLoggedMinutesToday(prev => prev + chipMinutes)
-      playChime('success')
-      if (trackXP) {
-        trackXP(false, true, 10)
-      }
-
-      // Log to pomodoro_logs
-      if (user?.id) {
-        const displayTitle = dayAliases[task.id] || task.title
-        try {
-          await offlineInsert('pomodoro_logs', {
-            user_id: user.id,
-            date: todayStr,
-            duration_minutes: chipMinutes,
-            label: displayTitle,
-            created_at: new Date().toISOString()
-          })
-        } catch (err) {
-          console.warn('Error inserting pomodoro_logs:', err)
-        }
-      }
-    } else {
-      setLoggedMinutesToday(prev => Math.max(0, prev - chipMinutes))
-
-      // Unfill: remove latest matching pomodoro log for this task today
-      if (user?.id) {
-        const displayTitle = dayAliases[task.id] || task.title
-        try {
-          const { data: logs } = await offlineSelect('pomodoro_logs', {
-            user_id: user.id,
-            date: todayStr,
-            label: displayTitle
-          })
-          if (logs && logs.length > 0) {
-            const sortedLogs = [...logs].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
-            await offlineDelete('pomodoro_logs', { id: sortedLogs[0].id, user_id: user.id })
-          }
-        } catch (unfillErr) {
-          console.warn('Error removing pomodoro_log on unfill:', unfillErr)
-        }
-      }
+    if (result?.planId) {
+      planIdMapRef.current[task.id] = result.planId
     }
   }
 
   // Adjust box count on a track (+ or -)
   const handleAdjustBoxCount = (task, trackId, delta) => {
     const tracks = taskTracksMap[task.id] || []
+    let newCount = 3
     const updated = tracks.map(tr => {
       if (tr.id === trackId) {
-        const newCount = Math.max(1, Math.min(12, (tr.count || 3) + delta))
+        newCount = Math.max(1, Math.min(12, (tr.count || 3) + delta))
         return { ...tr, count: newCount }
       }
       return tr
     })
     setTaskTracksMap(prev => ({ ...prev, [task.id]: updated }))
+    targetOverriddenMapRef.current[task.id] = true
+    setDailyPlansMap(prev => {
+      const existing = prev[task.id] || {}
+      return {
+        ...prev,
+        [task.id]: {
+          ...existing,
+          target_boxes: newCount,
+          target_overridden: true
+        }
+      }
+    })
+    if (dailyPlansMapRef.current[task.id]) {
+      dailyPlansMapRef.current[task.id].target_boxes = newCount
+      dailyPlansMapRef.current[task.id].target_overridden = true
+    }
+    const runwayIndex = primaries.findIndex(p => p.id === task.id)
     persistAdjustBoxCountDual({
       userId: user?.id,
       todayStr,
       task,
       trackId,
-      updatedTracks: updated
+      updatedTracks: updated,
+      runwayIndex: runwayIndex >= 0 ? runwayIndex : null
     })
   }
 
@@ -740,8 +1052,9 @@ export default function TodayAgendaWidget({
             {primaries.map((task) => {
               const displayTitle = dayAliases[task.id] || task.title
               const isAliased = Boolean(dayAliases[task.id] && dayAliases[task.id] !== task.title)
-              const totalMins = task.estimated_minutes || task.time_estimate_minutes || (boxMins * 2)
-              const chipCount = Math.max(1, Math.min(8, Math.ceil(totalMins / boxMins)))
+              const estMins = task.estimated_minutes || task.time_estimate_minutes
+              const taskMins = estMins
+              const chipCount = getTaskTargetBoxes(task)
               const taskBoxes = timeboxesMap[task.id] || []
               const tracks = taskTracksMap[task.id] || [
                 { id: 'default', name: '15m blocks', count: chipCount, boxes: taskBoxes }
@@ -815,6 +1128,23 @@ export default function TodayAgendaWidget({
                       {task.deadline === todayStr && (
                         <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
                           Due Today
+                        </span>
+                      )}
+
+                      {!task.estimated_minutes && !task.time_estimate_minutes ? (
+                        <button
+                          type="button"
+                          onClick={() => fillTaskEstimate(task)}
+                          className="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/30 hover:bg-amber-500/20 transition-colors cursor-pointer"
+                          title="Click to estimate using heuristic"
+                        >
+                          <Clock className="w-3 h-3" />
+                          <span>no estimate</span>
+                        </button>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded bg-pulsar/20 text-nova/80 border border-pulsar/30">
+                          <Clock className="w-3 h-3" />
+                          <span>{task.estimated_minutes || task.time_estimate_minutes}m</span>
                         </span>
                       )}
                     </div>
@@ -901,104 +1231,106 @@ export default function TodayAgendaWidget({
                   </div>
 
                   {/* Multi-track Tally Boxes (The Tactile Analog Grid) */}
-                  <div className="pl-7 space-y-2 pt-1 border-t border-pulsar/20">
-                    {tracks.map((track) => {
-                      const count = track.count || chipCount
-                      const trackBoxes = track.boxes || taskBoxes
+                  {!(taskMins != null && taskMins > 0 && taskMins <= 15) && (
+                    <div className="pl-7 space-y-2 pt-1 border-t border-pulsar/20">
+                      {tracks.map((track) => {
+                        const count = getTaskTargetBoxes(task, track)
+                        const trackBoxes = track.boxes || taskBoxes
 
-                      return (
-                        <div key={track.id} className="flex items-center justify-between gap-2 flex-wrap py-0.5">
-                          <div className="flex items-center gap-2 text-xs font-mono text-purple-300/90">
-                            {tracks.length > 1 && <CornerDownRight className="w-3 h-3 text-purple-400/60" />}
-                            <span>{track.name}:</span>
-                          </div>
-
-                          <div className="flex items-center gap-1.5">
-                            {/* Connected Tally Box Strip */}
-                            <div className="flex border border-purple-500/40 rounded overflow-hidden shadow-inner bg-void/90">
-                              {Array.from({ length: count }).map((_, idx) => {
-                                const isChecked = Boolean(trackBoxes[idx])
-                                return (
-                                  <button
-                                    key={idx}
-                                    onClick={() => handleChipClick(task, idx, boxMins, track.id)}
-                                    className={`w-7 h-7 flex items-center justify-center font-mono font-bold text-xs transition-colors cursor-pointer border-r border-purple-500/30 last:border-r-0 ${
-                                      isChecked
-                                        ? 'bg-amber-500/20 text-amber-400'
-                                        : 'bg-void/60 text-transparent hover:bg-purple-500/10 hover:text-amber-400/40'
-                                    }`}
-                                    title={
-                                      isChecked
-                                        ? `Completed ${boxMins}m focus session (click to uncheck)`
-                                        : `Click to log completed ${boxMins}m focus block`
-                                    }
-                                  >
-                                    {isChecked ? '✓' : ''}
-                                  </button>
-                                )
-                              })}
+                        return (
+                          <div key={track.id} className="flex items-center justify-between gap-2 flex-wrap py-0.5">
+                            <div className="flex items-center gap-2 text-xs font-mono text-purple-300/90">
+                              {tracks.length > 1 && <CornerDownRight className="w-3 h-3 text-purple-400/60" />}
+                              <span>{track.name}:</span>
                             </div>
 
-                            {/* + / - Tally Box count controls */}
-                            <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button
-                                onClick={() => handleAdjustBoxCount(task, track.id, 1)}
-                                className="p-0.5 text-nova/40 hover:text-amber-400"
-                                title="Add a tally box"
-                              >
-                                <Plus className="w-3 h-3" />
-                              </button>
-                              <button
-                                onClick={() => handleAdjustBoxCount(task, track.id, -1)}
-                                className="p-0.5 text-nova/40 hover:text-amber-400"
-                                title="Remove a tally box"
-                              >
-                                <Minus className="w-3 h-3" />
-                              </button>
+                            <div className="flex items-center gap-1.5">
+                              {/* Connected Tally Box Strip */}
+                              <div className="flex border border-purple-500/40 rounded overflow-hidden shadow-inner bg-void/90">
+                                {Array.from({ length: count }).map((_, idx) => {
+                                  const isChecked = Boolean(trackBoxes[idx])
+                                  return (
+                                    <button
+                                      key={idx}
+                                      onClick={() => handleChipClick(task, idx, boxMins, track.id)}
+                                      className={`w-7 h-7 flex items-center justify-center font-mono font-bold text-xs transition-colors cursor-pointer border-r border-purple-500/30 last:border-r-0 ${
+                                        isChecked
+                                          ? 'bg-amber-500/20 text-amber-400'
+                                          : 'bg-void/60 text-transparent hover:bg-purple-500/10 hover:text-amber-400/40'
+                                      }`}
+                                      title={
+                                        isChecked
+                                          ? `Completed ${boxMins}m focus session (click to uncheck)`
+                                          : `Click to log completed ${boxMins}m focus block`
+                                      }
+                                    >
+                                      {isChecked ? '✓' : ''}
+                                    </button>
+                                  )
+                                })}
+                              </div>
+
+                              {/* + / - Tally Box count controls */}
+                              <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button
+                                  onClick={() => handleAdjustBoxCount(task, track.id, 1)}
+                                  className="p-0.5 text-nova/40 hover:text-amber-400"
+                                  title="Add a tally box"
+                                >
+                                  <Plus className="w-3 h-3" />
+                                </button>
+                                <button
+                                  onClick={() => handleAdjustBoxCount(task, track.id, -1)}
+                                  className="p-0.5 text-nova/40 hover:text-amber-400"
+                                  title="Remove a tally box"
+                                >
+                                  <Minus className="w-3 h-3" />
+                                </button>
+                              </div>
                             </div>
                           </div>
+                        )
+                      })}
+
+                      {/* Inline Stream Adder */}
+                      {addingStreamForTask === task.id ? (
+                        <div className="flex items-center gap-2 pt-1">
+                          <input
+                            type="text"
+                            value={newStreamName}
+                            onChange={(e) => setNewStreamName(e.target.value)}
+                            placeholder="Stream name (e.g., draft, notes, sche)..."
+                            autoFocus
+                            className="bg-void/90 border border-amber-500/40 rounded px-2 py-0.5 text-xs text-starlight focus:outline-none font-mono"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleAddTrack(task)
+                              if (e.key === 'Escape') setAddingStreamForTask(null)
+                            }}
+                          />
+                          <button
+                            onClick={() => handleAddTrack(task)}
+                            disabled={!newStreamName.trim()}
+                            className="px-2 py-0.5 text-[11px] font-mono bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded disabled:opacity-40"
+                          >
+                            Add
+                          </button>
+                          <button
+                            onClick={() => setAddingStreamForTask(null)}
+                            className="p-0.5 text-nova/40 hover:text-starlight"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
                         </div>
-                      )
-                    })}
-
-                    {/* Inline Stream Adder */}
-                    {addingStreamForTask === task.id ? (
-                      <div className="flex items-center gap-2 pt-1">
-                        <input
-                          type="text"
-                          value={newStreamName}
-                          onChange={(e) => setNewStreamName(e.target.value)}
-                          placeholder="Stream name (e.g., draft, notes, sche)..."
-                          autoFocus
-                          className="bg-void/90 border border-amber-500/40 rounded px-2 py-0.5 text-xs text-starlight focus:outline-none font-mono"
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleAddTrack(task)
-                            if (e.key === 'Escape') setAddingStreamForTask(null)
-                          }}
-                        />
+                      ) : (
                         <button
-                          onClick={() => handleAddTrack(task)}
-                          disabled={!newStreamName.trim()}
-                          className="px-2 py-0.5 text-[11px] font-mono bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded disabled:opacity-40"
+                          onClick={() => setAddingStreamForTask(task.id)}
+                          className="text-[10px] font-mono text-nova/40 hover:text-amber-400 transition-colors pt-0.5 inline-block"
                         >
-                          Add
+                          + add micro-stream
                         </button>
-                        <button
-                          onClick={() => setAddingStreamForTask(null)}
-                          className="p-0.5 text-nova/40 hover:text-starlight"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => setAddingStreamForTask(task.id)}
-                        className="text-[10px] font-mono text-nova/40 hover:text-amber-400 transition-colors pt-0.5 inline-block"
-                      >
-                        + add micro-stream
-                      </button>
-                    )}
-                  </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Nested Child Subtasks List (if any exist) */}
                   {childSubtasks.length > 0 && (
@@ -1167,7 +1499,7 @@ export default function TodayAgendaWidget({
 
                     {/* Circular completion button */}
                     <button
-                      onClick={(e) => toggleComplete(task, e)}
+                      onClick={(e) => handleCheckboxClick(task, e)}
                       className="p-1 text-nova/40 hover:text-amber-400 transition-colors"
                       title={task.completed ? 'Mark active' : 'Mark completed'}
                     >
@@ -1182,6 +1514,39 @@ export default function TodayAgendaWidget({
               )
             })
           )}
+        </div>
+      )}
+
+      {undoToast && (
+        <div
+          data-testid="undo-completion-toast"
+          className="fixed bottom-6 right-6 z-50 flex items-center justify-between gap-3 px-4 py-3 rounded-lg bg-void border border-amber-500/50 shadow-2xl min-w-[280px] max-w-md"
+        >
+          <div className="flex items-center gap-2 text-sm text-starlight truncate">
+            <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0" />
+            <span className="truncate">
+              Completed <span className="font-semibold text-amber-200">"{undoToast.title}"</span>
+            </span>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              data-testid="undo-completion-btn"
+              onClick={handleUndo}
+              className="px-2.5 py-1 text-xs font-semibold text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 rounded transition-colors cursor-pointer"
+            >
+              Undo
+            </button>
+            <button
+              onClick={() => {
+                if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current)
+                setUndoToast(null)
+              }}
+              className="p-1 text-nova/50 hover:text-starlight transition-colors cursor-pointer"
+              title="Dismiss"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       )}
     </div>

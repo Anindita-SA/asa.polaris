@@ -11,7 +11,6 @@ import {
   Orbit,
   Anchor,
   Bell,
-  Send,
 } from 'lucide-react'
 
 const NAV_ITEMS = [
@@ -23,7 +22,6 @@ const NAV_ITEMS = [
   { id: 'journal', label: 'Journal', icon: BookOpen },
   { id: 'calendar', label: 'Calendar', icon: CalendarDays },
   { id: 'curriculum', label: 'Curriculum', icon: GraduationCap },
-  { id: 'reach_out', label: 'Outreach', icon: Send },
   { id: 'fitness', label: 'Orbit', icon: Orbit },
   { id: 'anchor', label: 'Anchor', icon: Anchor, isSheet: true },
   { id: 'reminders', label: 'Reminders', icon: Bell, isSheet: true },

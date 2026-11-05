@@ -90,7 +90,7 @@ export function useMorningSequence() {
     checkSequence()
 
     const handleUpdate = (e) => {
-      if (e?.detail?.table && e.detail.table !== 'morning_briefs') return
+      if (e?.detail?.table !== 'morning_briefs') return
       checkSequence()
     }
 
@@ -104,13 +104,13 @@ export function useMorningSequence() {
       setStage((prev) => (prev === 'loading' ? 'brief' : prev))
     }, 12000)
 
-    window.addEventListener('polaris-morning-brief-updated', handleUpdate)
+    window.addEventListener('polaris-morning-brief-updated', checkSequence)
     window.addEventListener('polaris-tasks-changed', handleUpdate)
     window.addEventListener('polaris-morning-brief-failed', handleFailed)
 
     return () => {
       clearTimeout(timer)
-      window.removeEventListener('polaris-morning-brief-updated', handleUpdate)
+      window.removeEventListener('polaris-morning-brief-updated', checkSequence)
       window.removeEventListener('polaris-tasks-changed', handleUpdate)
       window.removeEventListener('polaris-morning-brief-failed', handleFailed)
     }

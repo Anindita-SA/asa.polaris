@@ -18,17 +18,17 @@ describe('agendaPrioritizer domain module', () => {
   describe('DEFAULT_AUDIT_PRIMARIES', () => {
     it('contains the 3 canonical Master\'s application critical P0 targets', () => {
       expect(DEFAULT_AUDIT_PRIMARIES).toHaveLength(3)
-      expect(DEFAULT_AUDIT_PRIMARIES[0]).toBe('Portfolio: Replace AI Product Sketches with Real ID Sketches')
-      expect(DEFAULT_AUDIT_PRIMARIES[1]).toBe('Agri Solar Survey Paper: Phase 2 (Reading & Synthesis)')
-      expect(DEFAULT_AUDIT_PRIMARIES[2]).toBe('DAB Converter & Power Electronics EMC Research (Dr. Vignesh Kumar)')
+      expect(DEFAULT_AUDIT_PRIMARIES[0]).toBe('Draft 1-page conducted EMI paper proposal & scope pitch for Dr. Vignesh')
+      expect(DEFAULT_AUDIT_PRIMARIES[1]).toBe('Integrate 50-ohm LISN blocks & parasitical coupling into DAB Simulink model')
+      expect(DEFAULT_AUDIT_PRIMARIES[2]).toBe('Prof. S. Arul Daniel LOR draft final review & dispatch')
     })
   })
 
   describe('getAuditRank', () => {
     it('returns exact index for matching canonical titles', () => {
-      expect(getAuditRank({ title: 'Portfolio: Replace AI Product Sketches with Real ID Sketches' }, DEFAULT_AUDIT_PRIMARIES)).toBe(0)
-      expect(getAuditRank({ title: 'Agri Solar Survey Paper: Phase 2 (Reading & Synthesis)' }, DEFAULT_AUDIT_PRIMARIES)).toBe(1)
-      expect(getAuditRank({ title: 'DAB Converter & Power Electronics EMC Research (Dr. Vignesh Kumar)' }, DEFAULT_AUDIT_PRIMARIES)).toBe(2)
+      expect(getAuditRank({ title: 'Draft 1-page conducted EMI paper proposal & scope pitch for Dr. Vignesh' }, DEFAULT_AUDIT_PRIMARIES)).toBe(0)
+      expect(getAuditRank({ title: 'Integrate 50-ohm LISN blocks & parasitical coupling into DAB Simulink model' }, DEFAULT_AUDIT_PRIMARIES)).toBe(1)
+      expect(getAuditRank({ title: 'Prof. S. Arul Daniel LOR draft final review & dispatch' }, DEFAULT_AUDIT_PRIMARIES)).toBe(2)
     })
 
     it('matches by task.id when directives specify IDs', () => {
@@ -48,10 +48,10 @@ describe('agendaPrioritizer domain module', () => {
       expect(getAuditRank({ id: 'obj-3', title: 'Third' }, objectDirectives)).toBe(-1)
     })
 
-    it('matches semantic keywords for Portfolio, Agri Solar, and DAB Converter tasks', () => {
-      expect(getAuditRank({ title: 'Refine portfolio sketches for TU Delft' }, DEFAULT_AUDIT_PRIMARIES)).toBe(0)
-      expect(getAuditRank({ title: 'Agri solar literature survey reading' }, DEFAULT_AUDIT_PRIMARIES)).toBe(1)
-      expect(getAuditRank({ title: 'DAB converter modeling and EMC study' }, DEFAULT_AUDIT_PRIMARIES)).toBe(2)
+    it('matches semantic keywords for EMI proposal, LISN Simulink, and Arul Daniel LOR tasks', () => {
+      expect(getAuditRank({ title: 'Draft conducted EMI pitch proposal for Dr. Vignesh' }, DEFAULT_AUDIT_PRIMARIES)).toBe(0)
+      expect(getAuditRank({ title: 'DAB converter 50-ohm LISN Simulink modeling' }, DEFAULT_AUDIT_PRIMARIES)).toBe(1)
+      expect(getAuditRank({ title: 'Final review of Arul Daniel LOR draft' }, DEFAULT_AUDIT_PRIMARIES)).toBe(2)
     })
 
     it('returns -1 for non-matching tasks and handles null/undefined inputs gracefully', () => {
@@ -113,14 +113,14 @@ describe('agendaPrioritizer domain module', () => {
     it('auto-aligns audit P0 primaries over random tasks due today', () => {
       const candidates = [
         { id: 'routine', title: 'Routine Task Due Today', completed: false, deadline: todayStr, quadrant: 'urgent_important' },
-        { id: 'agri', title: 'Agri Solar Survey Paper: Phase 2 (Reading & Synthesis)', completed: false, deadline: '2026-10-18' },
-        { id: 'port', title: 'Portfolio: Replace AI Product Sketches with Real ID Sketches', completed: false, deadline: '2026-10-23' },
-        { id: 'dab', title: 'DAB Converter & Power Electronics EMC Research (Dr. Vignesh Kumar)', completed: false, deadline: '2026-10-18' }
+        { id: 'lor', title: 'Prof. S. Arul Daniel LOR draft final review & dispatch', completed: false, deadline: '2026-11-04' },
+        { id: 'prop', title: 'Draft 1-page conducted EMI paper proposal & scope pitch for Dr. Vignesh', completed: false, deadline: '2026-11-04' },
+        { id: 'lisn', title: 'Integrate 50-ohm LISN blocks & parasitical coupling into DAB Simulink model', completed: false, deadline: '2026-11-04' }
       ]
       const sorted = sortCandidatePrimaries(candidates, { todayStr })
-      expect(sorted[0].id).toBe('port')
-      expect(sorted[1].id).toBe('agri')
-      expect(sorted[2].id).toBe('dab')
+      expect(sorted[0].id).toBe('prop')
+      expect(sorted[1].id).toBe('lisn')
+      expect(sorted[2].id).toBe('lor')
       expect(sorted[3].id).toBe('routine')
     })
   })
@@ -128,21 +128,20 @@ describe('agendaPrioritizer domain module', () => {
   describe('buildAlignedOrder', () => {
     it('matches tasks in directive order and fills remaining slots with candidates', () => {
       const tasks = [
-        { id: 't-agri', title: 'Agri Solar Survey Paper: Phase 2 (Reading & Synthesis)' },
-        { id: 't-port', title: 'Portfolio: Replace AI Product Sketches with Real ID Sketches' },
+        { id: 't-lisn', title: 'Integrate 50-ohm LISN blocks & parasitical coupling into DAB Simulink model' },
+        { id: 't-prop', title: 'Draft 1-page conducted EMI paper proposal & scope pitch for Dr. Vignesh' },
         { id: 't-extra', title: 'Extra Candidate 1' },
         { id: 't-other', title: 'Unrelated' }
       ]
       const candidates = [
-        { id: 't-port', title: 'Portfolio: Replace AI Product Sketches with Real ID Sketches' },
-        { id: 't-agri', title: 'Agri Solar Survey Paper: Phase 2 (Reading & Synthesis)' },
-        { id: 't-extra', title: 'Extra Candidate 1' }
+        { id: 't-extra', title: 'Extra Candidate 1' },
+        { id: 't-other', title: 'Unrelated' }
       ]
 
       const aligned = buildAlignedOrder(tasks, candidates, DEFAULT_AUDIT_PRIMARIES)
       expect(aligned).toHaveLength(3)
-      expect(aligned[0].id).toBe('t-port')
-      expect(aligned[1].id).toBe('t-agri')
+      expect(aligned[0].id).toBe('t-prop')
+      expect(aligned[1].id).toBe('t-lisn')
       expect(aligned[2].id).toBe('t-extra')
     })
   })

@@ -207,8 +207,8 @@ async function main() {
   const ratio14d = Math.round((dueIn14dMinutes / capacity14dMinutes) * 100) / 100;
 
   // ---- Milestone Pace Calculations (Next 90 Days) ----
-  const p0Keywords = ['delft', 'agri solar', 'vignesh', 'emc', 'converter', 'steps', 'erasmus', 'portfolio', 'van effen'];
-  const p1Keywords = ['sweden', 'scholarship', 'polimi', 'aalto', 'outreach'];
+  const p0Keywords = ['delft', 'agri solar', 'vignesh', 'emc', 'converter', 'steps', 'erasmus', 'portfolio', 'van effen', 'wageningen', 'ssis'];
+  const p1Keywords = ['sweden', 'scholarship', 'polimi', 'politecnico', 'aalto', 'outreach'];
 
   function assignPriority(title) {
     const lower = (title || '').toLowerCase();
@@ -218,7 +218,7 @@ async function main() {
   }
 
   const milestones90d = (milestones || []).filter(m => {
-    return m.status !== 'done' && m.deadline && m.deadline >= auditDate && m.deadline <= ninetyDaysAhead;
+    return m.status !== 'done' && m.status !== 'cancelled' && m.deadline && m.deadline >= auditDate && m.deadline <= ninetyDaysAhead;
   });
 
   const milestonePace = milestones90d.map(m => {

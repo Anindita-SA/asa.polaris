@@ -13,6 +13,7 @@ import PracticeScoreTracker, {
 import { DEFAULT_IELTS_PRACTICE_SCORES } from '../../data/curriculumDefaults';
 import { supabase } from '../../lib/supabase';
 import { offlineInsert, offlineSelect, offlineDelete, generateUUID } from '../../lib/offlineApi';
+import { markTableMissing, clearMissingTables } from '../../lib/missingTables';
 
 const mockUser = { id: 'user-ielts-123' };
 
@@ -713,6 +714,25 @@ describe('PracticeScoreTracker - Component UI, Persistence & Migration', () => {
     // Verify localStorage cache was updated synchronously with the merged 12 tests
     const cached = JSON.parse(localStorage.getItem(cacheKey));
     expect(cached.length).toBe(12);
+  });
+
+  it('does not call Supabase or offlineApi when practice_scores is in missingTables, showing local defaults only', async () => {
+    markTableMissing('practice_scores');
+    offlineSelect.mockClear();
+    offlineInsert.mockClear();
+    if (supabase.from.mockClear) supabase.from.mockClear();
+
+    render(<PracticeScoreTracker curriculumId="curr-ielts-2026" />);
+
+    // Verify local defaults render cleanly
+    expect(screen.getAllByText('IELTS Reading Practice Test 310').length).toBeGreaterThan(0);
+    expect(screen.getByText('9 Tests Logged')).toBeTruthy();
+
+    // Verify neither offlineSelect nor supabase.from were called
+    expect(offlineSelect).not.toHaveBeenCalled();
+    expect(supabase.from).not.toHaveBeenCalled();
+
+    clearMissingTables();
   });
 });
 

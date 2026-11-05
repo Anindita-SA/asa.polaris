@@ -83,6 +83,25 @@ db.version(9).stores({
   exam_dates: 'id, user_id, exam_date'
 });
 
+db.version(10).stores({
+  pomodoro_logs: 'id, user_id, date, plan_id',
+  io_logs: 'id, user_id, date, plan_id',
+  daily_plan: 'id, user_id, plan_date, slot, task_id, status, xp_awarded'
+});
+
+db.version(11).stores({
+  daily_plan: 'id, user_id, plan_date, slot, task_id, status, xp_awarded, auto_completed'
+});
+
+db.version(12).stores({
+  daily_plan: 'id, user_id, plan_date, slot, task_id, status, xp_awarded, auto_completed, target_overridden'
+});
+
+db.version(13).stores({
+  daily_plan: 'id, user_id, plan_date, slot, task_id, status, xp_awarded, auto_completed, target_overridden, manual_boxes',
+  daily_plan_items: 'id, user_id, plan_id, task_id, position, completed_by_slot, created_at, [plan_id+task_id]'
+});
+
 export default db;
 
 

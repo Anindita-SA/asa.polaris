@@ -5,24 +5,34 @@ import { createSafeClient } from './lib/safe_supabase.js';
 
 export const CANONICAL_PARENTS = [
   {
-    key: 'chaarg',
+    key: 'chaarg_hw',
     title: 'CHAARG Hardware & PCB Documentation',
     category: 'career',
-    quadrant: 'important_not_urgent',
-    deadline: '2026-09-15',
+    quadrant: 'urgent_important',
+    deadline: '2026-11-07',
     mental_load: 'high',
     status: 'active',
-    notes: 'Canonical parent sprint task for CHAARG Hardware and PCB Documentation.'
+    notes: 'Canonical parent sprint task for CHAARG KiCad hardware design and manufacturing package.'
+  },
+  {
+    key: 'chaarg_doc',
+    title: 'CHAARG: Hardware Case Study & Portfolio Documentation',
+    category: 'career',
+    quadrant: 'important_not_urgent',
+    deadline: '2026-11-09',
+    mental_load: 'medium',
+    status: 'scheduled',
+    notes: 'Canonical parent sprint task for CHAARG Hardware Case Study and Portfolio Documentation.'
   },
   {
     key: 'agri',
-    title: 'Agri Solar Energy Survey Paper (MDPI Energies)',
+    title: 'Agri Solar Energy Survey Paper (Collaboration & Synthesis)',
     category: 'academic',
     quadrant: 'important_not_urgent',
-    deadline: '2026-10-20',
-    mental_load: 'high',
-    status: 'active',
-    notes: 'Canonical parent sprint task for Agri Solar Energy Survey Paper submission to MDPI Energies.'
+    deadline: '2026-11-20',
+    mental_load: 'medium',
+    status: 'scheduled',
+    notes: 'Canonical parent sprint task for Agri Solar Energy Survey Paper (Collaboration & Synthesis).'
   },
   {
     key: 'masters',
@@ -46,14 +56,14 @@ export const CANONICAL_PARENTS = [
   },
   {
     key: 'vignesh',
-    title: 'DAB Converter & Power Electronics EMC Research (Dr. Vignesh Kumar)',
+    title: 'Conducted EMI/EMC Filter Design & Simulation Paper (Dr. Vignesh Kumar)',
     category: 'academic',
-    quadrant: 'important_not_urgent',
-    deadline: '2026-10-31',
-    milestone_id: '6a7f4ba0-57bb-49f3-8f69-7784aa65259f',
+    quadrant: 'urgent_important',
+    deadline: '2026-11-10',
+    milestone_id: '1586bc04-8175-4535-8007-0926e97f7cbe',
     mental_load: 'high',
     status: 'active',
-    notes: 'Canonical parent sprint task for MATLAB simulation, custom PCB design/fabrication for power conversion, hardware testing, and standard EMC for power converter topologies under Dr. Vignesh Kumar at NIT Trichy.'
+    notes: 'Canonical parent sprint task for simulation-based research paper on Dual Active Bridge (DAB) converter closed-loop control under Dr. Vignesh Kumar at NIT Trichy.'
   },
   {
     key: 'nptel',
@@ -128,7 +138,8 @@ export async function nestProjectTasks(supabaseClient = null, isDryRun = false) 
     console.log(`Canonical Parent [${pDef.key}] ID: ${parentIds[pDef.key]}`);
   }
 
-  const chaargParentId = parentIds.chaarg;
+  const chaargHwParentId = parentIds.chaarg_hw;
+  const chaargDocParentId = parentIds.chaarg_doc;
   const agriParentId = parentIds.agri;
   const mastersParentId = parentIds.masters;
   const speakerParentId = parentIds.speaker;
@@ -223,7 +234,7 @@ export async function nestProjectTasks(supabaseClient = null, isDryRun = false) 
     'nptel'
   ];
 
-  const updatedChildCounts = { chaarg: 0, agri: 0, masters: 0, speaker: 0, vignesh: 0, nptel: 0 };
+  const updatedChildCounts = { chaarg_hw: 0, chaarg_doc: 0, agri: 0, masters: 0, speaker: 0, vignesh: 0, nptel: 0 };
 
   for (const t of tasks) {
     // Never reparent canonical parent tasks themselves
@@ -250,13 +261,16 @@ export async function nestProjectTasks(supabaseClient = null, isDryRun = false) 
 
     // Match CHAARG child tasks
     if (chaargKeywords.some(kw => titleLower.includes(kw))) {
-      if (t.parent_task_id !== chaargParentId) {
-        console.log(`Reparenting CHAARG task: "${t.title}" (${t.id}) -> parent ${chaargParentId}`);
-        updatedChildCounts.chaarg++;
+      const isDocTask = titleLower.includes('case study') || titleLower.includes('render') || titleLower.includes('documentation') || titleLower.includes('portfolio');
+      const targetParentId = isDocTask ? chaargDocParentId : chaargHwParentId;
+      const countKey = isDocTask ? 'chaarg_doc' : 'chaarg_hw';
+      if (t.parent_task_id !== targetParentId && t.parent_task_id !== chaargHwParentId && t.parent_task_id !== chaargDocParentId) {
+        console.log(`Reparenting CHAARG task: "${t.title}" (${t.id}) -> parent ${targetParentId}`);
+        updatedChildCounts[countKey]++;
         if (!isDryRun) {
           const { error: cErr } = await supabase
             .from('tasks')
-            .update({ parent_task_id: chaargParentId })
+            .update({ parent_task_id: targetParentId })
             .eq('id', t.id)
             .eq('user_id', uid);
           if (cErr) throw cErr;

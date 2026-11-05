@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { renderHook, waitFor, act } from '@testing-library/react'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { renderHook, waitFor, act, cleanup } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { useTodaysTasks } from './useTodaysTasks'
 import { offlineSelect, offlineUpdate, offlineInsert } from '../lib/offlineApi'
 
@@ -48,6 +48,10 @@ describe('useTodaysTasks hook', () => {
     vi.clearAllMocks()
     offlineInsert.mockResolvedValue({ data: [{}], error: null })
     offlineUpdate.mockResolvedValue({ data: [{}], error: null })
+  })
+
+  afterEach(() => {
+    cleanup()
   })
 
   it('exposes sort_order, parent_task_id, deadline, and mental_load on mapped task objects', async () => {
@@ -193,7 +197,7 @@ describe('useTodaysTasks hook', () => {
       await result.current.updateSortOrder('task-1', 0)
     })
 
-    expect(offlineUpdate).toHaveBeenCalledWith('tasks', { id: 'task-1' }, { sort_order: 0 })
+    expect(offlineUpdate).toHaveBeenCalledWith('tasks', { id: 'task-1', user_id: mockUser.id }, { sort_order: 0 })
     expect(result.current.tasks[0].sort_order).toBe(0)
     expect(dispatchSpy).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -395,5 +399,45 @@ describe('useTodaysTasks hook', () => {
 
     expect(observedLoadingStateDuringToggle).toBe(false)
     expect(result.current.isLoading).toBe(false)
+  })
+
+  it('retains task with a future deadline marked done today with completion_dates containing today', async () => {
+    const futureDate = '2026-11-20'
+    const mockTasks = [
+      {
+        id: 'future-done-today',
+        user_id: mockUser.id,
+        title: 'Future Task Completed Today',
+        status: 'done',
+        deadline: futureDate,
+        completion_dates: [todayStr],
+        created_at: '2026-10-25T01:00:00Z'
+      },
+      {
+        id: 'future-done-prior',
+        user_id: mockUser.id,
+        title: 'Future Task Completed in Past',
+        status: 'done',
+        deadline: futureDate,
+        completion_dates: ['2026-10-01'],
+        created_at: '2026-10-25T01:00:00Z'
+      }
+    ]
+
+    offlineSelect.mockImplementation(async (table) => {
+      if (table === 'tasks') return { data: mockTasks, error: null }
+      return { data: [], error: null }
+    })
+
+    const { result } = renderHook(() => useTodaysTasks())
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+      expect(result.current.tasks.length).toBe(1)
+    })
+
+    expect(result.current.tasks[0].id).toBe('future-done-today')
+    expect(result.current.tasks[0].completed).toBe(true)
+    expect(result.current.tasks[0].deadline).toBe(futureDate)
   })
 })

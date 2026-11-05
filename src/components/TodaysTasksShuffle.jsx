@@ -87,8 +87,8 @@ export default function TodaysTasksShuffle() {
   const dayTasks = useMemo(() => {
     if (!tasks || tasks.length === 0) return [];
 
-    const explicitlyAssigned = tasks.filter(t => (scheduledDays[t.id] || t.scheduled_day) === selectedDay && isOpenTask(t));
-    const unassigned = tasks.filter(t => !(scheduledDays[t.id] || t.scheduled_day) && isOpenTask(t));
+    const explicitlyAssigned = tasks.filter(t => (scheduledDays[t.id] || t.scheduled_day) === selectedDay && isOpenTask(t) && !t.parent_task_id);
+    const unassigned = tasks.filter(t => !(scheduledDays[t.id] || t.scheduled_day) && isOpenTask(t) && !t.parent_task_id);
 
     const combined = [...explicitlyAssigned];
 

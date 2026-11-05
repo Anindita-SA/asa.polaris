@@ -24,6 +24,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { DEFAULT_IELTS_PRACTICE_SCORES } from '../../data/curriculumDefaults';
 import { safeExternalUrl } from '../../lib/urlUtils';
 import { offlineSelect, offlineInsert, offlineDelete, generateUUID } from '../../lib/offlineApi';
+import { isTableMissing } from '../../lib/missingTables';
 
 export const mergeScoresWithDefaults = (currentScores = [], defaultScores = DEFAULT_IELTS_PRACTICE_SCORES) => {
   const current = Array.isArray(currentScores) ? currentScores : [];
@@ -382,6 +383,16 @@ export default function PracticeScoreTracker({ curriculumId }) {
         return;
       }
 
+      // If practice_scores is known to be missing in Supabase schema, show local default scores only and skip network calls
+      if (isTableMissing('practice_scores')) {
+        const mergedData = mergeScoresWithDefaults(initialScores, DEFAULT_IELTS_PRACTICE_SCORES);
+        if (isMounted) {
+          setScores(mergedData);
+          setLoading(false);
+        }
+        return;
+      }
+
       try {
         // Check for legacy localStorage scores to migrate safely
         const legacyRaw = localStorage.getItem(legacyKey);
@@ -564,6 +575,9 @@ data.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
     }
 
     if (user?.id) {
+      if (isTableMissing('practice_scores')) {
+        return;
+      }
       try {
         const dbPayload = { 
           id: newId,
@@ -593,6 +607,9 @@ data.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
     } catch (storageErr) {}
 
     if (user?.id) {
+      if (isTableMissing('practice_scores')) {
+        return;
+      }
       try {
         await offlineDelete('practice_scores', { id: id, user_id: user.id });
       } catch (err) {

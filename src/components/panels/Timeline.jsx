@@ -198,11 +198,16 @@ Rules:
   const saveSubtasks = async () => {
     if (!generatedSteps.length || !breakdownTarget || !user?.id) return
     for (const title of generatedSteps) {
+      const match = title.match(/\(~?(\d+)\s*(?:min|m)\b/i)
+      const estMins = match ? parseInt(match[1], 10) : null
       await offlineInsert('tasks', {
         id: crypto.randomUUID(),
         user_id: user.id,
         milestone_id: breakdownTarget.id,
         title,
+        estimated_minutes: estMins,
+        time_estimate_minutes: estMins,
+        estimate_source: estMins ? 'ai' : null,
         status: 'active',
         quadrant: 'important_not_urgent',
         category: 'academic',

@@ -18,8 +18,17 @@ const IOBalanceBar = () => {
   const today = new Date().toISOString().slice(0, 10)
 
   useEffect(() => {
-    if (user?.id) fetchLogs()
-  }, [user?.id])
+    if (!user?.id) return
+    fetchLogs()
+
+    const handleIoLogsChanged = () => {
+      fetchLogs()
+    }
+    window.addEventListener('polaris-io-logs-changed', handleIoLogsChanged)
+    return () => {
+      window.removeEventListener('polaris-io-logs-changed', handleIoLogsChanged)
+    }
+  }, [user?.id, today])
 
   const fetchLogs = async () => {
     const { data } = await offlineSelect('io_logs', {

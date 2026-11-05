@@ -10,7 +10,22 @@ import {
   generateUUID,
   TABLES_REQUIRING_TITLE
 } from './offlineApi';
-import { pullData, pullProfile, flushQueue, pruneDLQ, initSyncManager } from './syncManager';
+import { 
+  pullData, 
+  pullProfile, 
+  flushQueue, 
+  pruneDLQ, 
+  initSyncManager, 
+  clearSyncManager,
+  getCurrentSyncUserId,
+  isOnlineListenerActive,
+  getLastFullPullTime,
+  _setLastFullPullTimeForTesting,
+  PULL_PAGE_LIMIT,
+  _resetSyncManagerForTesting 
+} from './syncManager';
+import { getInitializedUserId, _resetInitializedUserIdForTesting } from '../hooks/useAuth';
+import { markTableMissing, isTableMissing, clearMissingTables } from './missingTables';
 import { enqueue, getPending, markSynced, clearSynced, moveToDLQ } from './syncQueue';
 import db from './offlineStore';
 import { supabase } from './supabase';
@@ -32,6 +47,7 @@ vi.mock('./supabase', () => ({
 describe('Polaris Sync & Data Resilience Test Bench', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
+    _resetSyncManagerForTesting();
   });
 
   describe('1. Sync Lifecycle & Non-Destructive Ingestion', () => {
@@ -81,6 +97,53 @@ describe('Polaris Sync & Data Resilience Test Bench', () => {
       expect(mockBulkPut).toHaveBeenCalledWith(remoteRecords);
 
       db.practice_scores = originalTable;
+      db.transaction = originalTx;
+    });
+
+    it('pullData removes row locally when it has been deleted remotely (within <= 25% threshold)', async () => {
+      const mockBulkDelete = vi.fn().mockResolvedValue(true);
+      const mockBulkPut = vi.fn().mockResolvedValue(true);
+
+      const originalTable = db.tasks;
+      const originalTx = db.transaction;
+      db.tasks = {
+        where: vi.fn().mockReturnValue({
+          equals: vi.fn().mockReturnValue({
+            toArray: vi.fn().mockResolvedValue([
+              { id: 'task-keep-1', user_id: 'user-abc', title: 'Task 1' },
+              { id: 'task-keep-2', user_id: 'user-abc', title: 'Task 2' },
+              { id: 'task-keep-3', user_id: 'user-abc', title: 'Task 3' },
+              { id: 'task-del', user_id: 'user-abc', title: 'Task Deleted On Server' }
+            ])
+          })
+        }),
+        bulkDelete: mockBulkDelete,
+        bulkPut: mockBulkPut
+      };
+      db.transaction = vi.fn().mockImplementation(async (mode, table, fn) => { await fn(); });
+
+      // Remote returns all except task-del (1 deletion out of 4 = 25% <= 25%)
+      supabase.from.mockImplementation(() => ({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            limit: vi.fn().mockResolvedValue({
+              data: [
+                { id: 'task-keep-1', user_id: 'user-abc', title: 'Task 1' },
+                { id: 'task-keep-2', user_id: 'user-abc', title: 'Task 2' },
+                { id: 'task-keep-3', user_id: 'user-abc', title: 'Task 3' }
+              ],
+              error: null
+            })
+          })
+        })
+      }));
+
+      await pullData('tasks', 'user-abc');
+
+      expect(mockBulkDelete).toHaveBeenCalledWith(['task-del']);
+      expect(mockBulkPut).not.toHaveBeenCalled();
+
+      db.tasks = originalTable;
       db.transaction = originalTx;
     });
 
@@ -595,6 +658,417 @@ describe('Polaris Sync & Data Resilience Test Bench', () => {
       expect(data[0].name).toBe('Dr. Smith');
 
       db.contacts = origContacts;
+    });
+  });
+
+  describe('6. Sprint B.6c Remote Deletion Safety Guards & Cooldown Resilience', () => {
+    let origTasks;
+    let origTx;
+    let origSyncQueue;
+    let origSyncErrors;
+
+    beforeEach(() => {
+      origTasks = db.tasks;
+      origTx = db.transaction;
+      origSyncQueue = db._syncQueue;
+      origSyncErrors = db.sync_errors;
+      _resetSyncManagerForTesting();
+      _resetInitializedUserIdForTesting();
+    });
+
+    afterEach(() => {
+      db.tasks = origTasks;
+      db.transaction = origTx;
+      db._syncQueue = origSyncQueue;
+      db.sync_errors = origSyncErrors;
+      clearSyncManager();
+      _resetInitializedUserIdForTesting();
+    });
+
+    it('deletions skipped when remote returns an error response', async () => {
+      const mockBulkDelete = vi.fn().mockResolvedValue(true);
+      db.tasks = {
+        where: vi.fn().mockReturnValue({
+          equals: vi.fn().mockReturnValue({
+            toArray: vi.fn().mockResolvedValue([
+              { id: 't1', user_id: 'u1', title: 'Task 1' },
+              { id: 't2', user_id: 'u1', title: 'Task 2' }
+            ])
+          })
+        }),
+        bulkDelete: mockBulkDelete,
+        bulkPut: vi.fn()
+      };
+      db.transaction = vi.fn().mockImplementation(async (m, t, fn) => { await fn(); });
+
+      // Supabase returns error
+      supabase.from.mockImplementation(() => ({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            limit: vi.fn().mockResolvedValue({
+              data: null,
+              error: { message: 'Internal Server Error', code: 'PGRST500' }
+            })
+          })
+        })
+      }));
+
+      await expect(pullData('tasks', 'u1')).rejects.toThrow('Internal Server Error');
+      expect(mockBulkDelete).not.toHaveBeenCalled();
+    });
+
+    it('deletions skipped when remote returns empty response while local rows exist', async () => {
+      const mockBulkDelete = vi.fn().mockResolvedValue(true);
+      db.tasks = {
+        where: vi.fn().mockReturnValue({
+          equals: vi.fn().mockReturnValue({
+            toArray: vi.fn().mockResolvedValue([
+              { id: 't1', user_id: 'u1', title: 'Task 1' },
+              { id: 't2', user_id: 'u1', title: 'Task 2' }
+            ])
+          })
+        }),
+        bulkDelete: mockBulkDelete,
+        bulkPut: vi.fn()
+      };
+      db.transaction = vi.fn().mockImplementation(async (m, t, fn) => { await fn(); });
+
+      // Remote returns empty array
+      supabase.from.mockImplementation(() => ({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            limit: vi.fn().mockResolvedValue({
+              data: [],
+              error: null
+            })
+          })
+        })
+      }));
+
+      const res = await pullData('tasks', 'u1');
+      expect(res.rowsDeleted).toBe(0);
+      expect(mockBulkDelete).not.toHaveBeenCalled();
+    });
+
+    it('deletions skipped when remote response reaches page limit (truncated page at 1000)', async () => {
+      const mockBulkDelete = vi.fn().mockResolvedValue(true);
+      // Simulate 1000 remote items
+      const remote1000 = Array.from({ length: PULL_PAGE_LIMIT }, (_, i) => ({
+        id: `t-${i}`,
+        user_id: 'u1',
+        title: `Task ${i}`
+      }));
+
+      // Local has those 1000 plus 1 extra
+      const local1001 = [
+        ...remote1000,
+        { id: 't-extra', user_id: 'u1', title: 'Extra Local Task' }
+      ];
+
+      db.tasks = {
+        where: vi.fn().mockReturnValue({
+          equals: vi.fn().mockReturnValue({
+            toArray: vi.fn().mockResolvedValue(local1001)
+          })
+        }),
+        bulkDelete: mockBulkDelete,
+        bulkPut: vi.fn()
+      };
+      db.transaction = vi.fn().mockImplementation(async (m, t, fn) => { await fn(); });
+
+      supabase.from.mockImplementation(() => ({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            limit: vi.fn().mockResolvedValue({
+              data: remote1000,
+              error: null
+            })
+          })
+        })
+      }));
+
+      const res = await pullData('tasks', 'u1');
+      expect(res.rowsDeleted).toBe(0);
+      expect(mockBulkDelete).not.toHaveBeenCalled();
+    });
+
+    it('normal deletion proceeds when missing rows are <= 25% of local rows', async () => {
+      const mockBulkDelete = vi.fn().mockResolvedValue(true);
+      const localRows = [
+        { id: 't1', user_id: 'u1', title: 'Task 1' },
+        { id: 't2', user_id: 'u1', title: 'Task 2' },
+        { id: 't3', user_id: 'u1', title: 'Task 3' },
+        { id: 't4', user_id: 'u1', title: 'Task 4' },
+        { id: 't5', user_id: 'u1', title: 'Task 5' },
+        { id: 't6', user_id: 'u1', title: 'Task 6' },
+        { id: 't7', user_id: 'u1', title: 'Task 7' },
+        { id: 't8-del', user_id: 'u1', title: 'Task 8 Deleted Remotely' }
+      ];
+
+      db.tasks = {
+        where: vi.fn().mockReturnValue({
+          equals: vi.fn().mockReturnValue({
+            toArray: vi.fn().mockResolvedValue(localRows)
+          })
+        }),
+        bulkDelete: mockBulkDelete,
+        bulkPut: vi.fn()
+      };
+      db.transaction = vi.fn().mockImplementation(async (m, t, fn) => { await fn(); });
+
+      // Remote has 7 rows (1 missing = 12.5% <= 25%)
+      const remoteRows = localRows.slice(0, 7);
+      supabase.from.mockImplementation(() => ({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            limit: vi.fn().mockResolvedValue({
+              data: remoteRows,
+              error: null
+            })
+          })
+        })
+      }));
+
+      const res = await pullData('tasks', 'u1');
+      expect(res.rowsDeleted).toBe(1);
+      expect(mockBulkDelete).toHaveBeenCalledWith(['t8-del']);
+    });
+
+    it('deletions skipped and dev warning logged when attempted deletion exceeds 25% of local rows', async () => {
+      const mockBulkDelete = vi.fn().mockResolvedValue(true);
+      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      const localRows = [
+        { id: 't1', user_id: 'u1', title: 'Task 1' },
+        { id: 't2', user_id: 'u1', title: 'Task 2' },
+        { id: 't3-del', user_id: 'u1', title: 'Task 3 Deleted' },
+        { id: 't4-del', user_id: 'u1', title: 'Task 4 Deleted' }
+      ];
+
+      db.tasks = {
+        where: vi.fn().mockReturnValue({
+          equals: vi.fn().mockReturnValue({
+            toArray: vi.fn().mockResolvedValue(localRows)
+          })
+        }),
+        bulkDelete: mockBulkDelete,
+        bulkPut: vi.fn()
+      };
+      db.transaction = vi.fn().mockImplementation(async (m, t, fn) => { await fn(); });
+
+      // Remote only has 2 rows (2 deleted out of 4 = 50% > 25%)
+      const remoteRows = localRows.slice(0, 2);
+      supabase.from.mockImplementation(() => ({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            limit: vi.fn().mockResolvedValue({
+              data: remoteRows,
+              error: null
+            })
+          })
+        })
+      }));
+
+      const res = await pullData('tasks', 'u1');
+      expect(res.rowsDeleted).toBe(0);
+      expect(mockBulkDelete).not.toHaveBeenCalled();
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Deletion safety guard triggered for tasks: attempted to delete 2 of 4 rows (50% > 25%)')
+      );
+
+      consoleWarnSpy.mockRestore();
+    });
+
+    it('never deletes local rows that have a pending item in the sync queue', async () => {
+      const mockBulkDelete = vi.fn().mockResolvedValue(true);
+      const localRows = [
+        { id: 't1', user_id: 'u1', title: 'Task 1' },
+        { id: 't2', user_id: 'u1', title: 'Task 2' },
+        { id: 't3', user_id: 'u1', title: 'Task 3' },
+        { id: 't4-pending', user_id: 'u1', title: 'Pending Task' }
+      ];
+
+      db.tasks = {
+        where: vi.fn().mockReturnValue({
+          equals: vi.fn().mockReturnValue({
+            toArray: vi.fn().mockResolvedValue(localRows)
+          })
+        }),
+        bulkDelete: mockBulkDelete,
+        bulkPut: vi.fn()
+      };
+      db.transaction = vi.fn().mockImplementation(async (m, t, fn) => { await fn(); });
+
+      // Pending queue contains t4-pending
+      db._syncQueue = {
+        where: vi.fn().mockReturnValue({
+          equals: vi.fn().mockReturnValue({
+            sortBy: vi.fn().mockResolvedValue([
+              {
+                id: 999,
+                table: 'tasks',
+                operation: 'insert',
+                payload: { id: 't4-pending', user_id: 'u1', title: 'Pending Task' },
+                status: 'pending'
+              }
+            ])
+          })
+        })
+      };
+
+      // Remote only has t1, t2, t3 (t4-pending is missing remotely because it is not synced yet)
+      const remoteRows = localRows.slice(0, 3);
+      supabase.from.mockImplementation(() => ({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            limit: vi.fn().mockResolvedValue({
+              data: remoteRows,
+              error: null
+            })
+          })
+        })
+      }));
+
+      const res = await pullData('tasks', 'u1');
+      // t4-pending was protected by the sync queue check!
+      expect(res.rowsDeleted).toBe(0);
+      expect(mockBulkDelete).not.toHaveBeenCalled();
+    });
+
+    it('confirms 60 second cooldown applies only to full pulls and never blocks flushing the offline write queue', async () => {
+      const mockUpsert = vi.fn().mockResolvedValue({ error: null });
+      supabase.from.mockImplementation(() => ({
+        upsert: mockUpsert,
+        insert: mockUpsert,
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            limit: vi.fn().mockResolvedValue({ data: [], error: null }),
+            single: vi.fn().mockResolvedValue({ data: { id: 'u1' }, error: null })
+          })
+        })
+      }));
+
+      // Set lastFullPullTime to 10 seconds ago (simulating pull completed 10s ago)
+      _setLastFullPullTimeForTesting(Date.now() - 10000);
+      expect(getLastFullPullTime()).toBeGreaterThan(0);
+
+      // Simulate offline before init so app is offline
+      const origOnLine = navigator.onLine;
+      Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
+
+      // Initialize syncManager for u1 while offline
+      const cleanup = initSyncManager('u1');
+      expect(isOnlineListenerActive()).toBe(true);
+
+      // User performs edit while offline, which is queued
+      const offlineItem = {
+        id: 777,
+        localId: 777,
+        table: 'tasks',
+        operation: 'insert',
+        payload: { id: 'offline-task-99', user_id: 'u1', title: 'Created Offline' },
+        status: 'pending',
+        timestamp: Date.now()
+      };
+
+      db._syncQueue = {
+        where: vi.fn().mockReturnValue({
+          equals: vi.fn().mockReturnValue({
+            sortBy: vi.fn().mockResolvedValue([offlineItem]),
+            toArray: vi.fn().mockResolvedValue([offlineItem]),
+            delete: vi.fn().mockResolvedValue(true)
+          })
+        }),
+        bulkDelete: vi.fn().mockResolvedValue(true),
+        add: vi.fn().mockResolvedValue(true)
+      };
+
+      db.sync_errors = {
+        add: vi.fn().mockResolvedValue(true),
+        where: vi.fn().mockReturnValue({
+          below: vi.fn().mockReturnValue({
+            primaryKeys: vi.fn().mockResolvedValue([])
+          })
+        })
+      };
+
+      mockUpsert.mockClear();
+
+      // User reconnects (simulating reconnecting 10s after initial pull)
+      Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
+      window.dispatchEvent(new Event('online'));
+      await new Promise(r => setTimeout(r, 50));
+
+      // Assert queued write was flushed immediately to Supabase
+      expect(mockUpsert).toHaveBeenCalledWith(offlineItem.payload);
+
+      cleanup();
+      Object.defineProperty(navigator, 'onLine', { value: origOnLine, configurable: true });
+    });
+
+    it('confirms sign-out clears syncManager module state and initializedUserId in useAuth and removes online listener', () => {
+      initSyncManager('user-A');
+      expect(getCurrentSyncUserId()).toBe('user-A');
+      expect(isOnlineListenerActive()).toBe(true);
+
+      // Call clearSyncManager (which signOut invokes)
+      clearSyncManager();
+      _resetInitializedUserIdForTesting();
+
+      expect(getCurrentSyncUserId()).toBeNull();
+      expect(isOnlineListenerActive()).toBe(false);
+      expect(getInitializedUserId()).toBeNull();
+      expect(getLastFullPullTime()).toBe(0);
+
+      // Signing in as different user triggers init and full pull
+      initSyncManager('user-B');
+      expect(getCurrentSyncUserId()).toBe('user-B');
+      expect(isOnlineListenerActive()).toBe(true);
+      clearSyncManager();
+    });
+
+    it('logs one dev-only console line at the end of each pull with written, deleted, and events dispatched', async () => {
+      const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      const localRows = [
+        { id: 't1', user_id: 'u1', title: 'Task 1' },
+        { id: 't2', user_id: 'u1', title: 'Task 2' },
+        { id: 't3', user_id: 'u1', title: 'Task 3' },
+        { id: 't4', user_id: 'u1', title: 'Task 4' }
+      ];
+
+      db.tasks = {
+        where: vi.fn().mockReturnValue({
+          equals: vi.fn().mockReturnValue({
+            toArray: vi.fn().mockResolvedValue(localRows)
+          })
+        }),
+        bulkDelete: vi.fn().mockResolvedValue(true),
+        bulkPut: vi.fn().mockResolvedValue(true)
+      };
+      db.transaction = vi.fn().mockImplementation(async (m, t, fn) => { await fn(); });
+
+      // Remote has 3 rows (t4 deleted -> 1 of 4 = 25% <= 25%)
+      const remoteRows = localRows.slice(0, 3);
+      supabase.from.mockImplementation(() => ({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            limit: vi.fn().mockResolvedValue({
+              data: remoteRows,
+              error: null
+            })
+          })
+        })
+      }));
+
+      await pullData('tasks', 'u1');
+
+      // Check for dev-only end-of-pull log
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        expect.stringMatching(/\[SyncManager\] Pull complete \| Table: tasks \| Rows written: 0 \| Rows deleted: 1 \| Events: polaris-tasks-changed\(tasks\)/)
+      );
+
+      consoleLogSpy.mockRestore();
     });
   });
 });

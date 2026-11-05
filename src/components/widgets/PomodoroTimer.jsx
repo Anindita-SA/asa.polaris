@@ -5,6 +5,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { useTodaysTasks } from '../../hooks/useTodaysTasks'
 import { offlineSelect, offlineInsert, offlineUpdate } from '../../lib/offlineApi'
 import { isOpenTask } from '../../lib/taskState'
+import { classifyTaskType } from '../../lib/dayGuidePersistence'
 import { Settings, X, Maximize2, Minimize2, RotateCcw, ChevronDown, ChevronUp, Music, CheckCircle2, Target, ExternalLink } from 'lucide-react'
 
 import Starfield from '../layout/Starfield'
@@ -74,6 +75,7 @@ const PomodoroTimer = ({ mobilePill = false }) => {
   })
 
   const [ioType, setIoType] = useState(() => localStorage.getItem('polaris_pomo_iotype') || 'input')
+  const [userOverrodeIo, setUserOverrodeIo] = useState(false)
   const [comment, setComment] = useState('')
   const [selectedTaskId, setSelectedTaskId] = useState('')
   const [nodes, setNodes] = useState([])
@@ -260,8 +262,9 @@ const PomodoroTimer = ({ mobilePill = false }) => {
     const task = todaysTasks.find(t => t.id === taskId) || matrixTasks.find(t => t.id === taskId)
     if (task) {
       setComment(task.title)
-      const inferred = inferIO(task)
+      const inferred = classifyTaskType(task)
       setIoType(inferred)
+      setUserOverrodeIo(false)
       localStorage.setItem('polaris_pomo_iotype', inferred)
     }
   }
@@ -323,12 +326,31 @@ const PomodoroTimer = ({ mobilePill = false }) => {
 
         const handleFocusCompletion = async () => {
           try {
+            const todayStr = new Date().toLocaleDateString('en-CA')
+            let planId = null
+            if (currentTask?.id) {
+              try {
+                const { data: plans } = await offlineSelect('daily_plan', {
+                  user_id: user.id,
+                  plan_date: todayStr,
+                  task_id: currentTask.id
+                })
+                if (plans && plans.length > 0) {
+                  planId = plans[0].id
+                }
+              } catch (planErr) {
+                console.warn('Error querying daily_plan for plan_id:', planErr)
+              }
+            }
+
             const { error: pomoErr } = await offlineInsert('pomodoro_logs', {
               user_id: user.id,
               task_id: currentTask?.id || null,
               duration_minutes: mins,
               completed_at: new Date().toISOString(),
-              xp_earned: xpEarned
+              date: todayStr,
+              xp_earned: xpEarned,
+              plan_id: planId
             })
 
             if (pomoErr) {
@@ -337,13 +359,18 @@ const PomodoroTimer = ({ mobilePill = false }) => {
               addXP(xpEarned)
             }
 
+            const resolvedIoType = userOverrodeIo
+              ? ioType
+              : (currentTask ? classifyTaskType(currentTask) : ioType)
+
             // Sync with IO Tracker automatically
             const { error: ioErr } = await offlineInsert('io_logs', {
               user_id: user.id,
-              type: ioType,
-              category: ioType === 'input' ? 'reading' : 'creating',
+              type: resolvedIoType,
+              category: resolvedIoType === 'input' ? 'reading' : 'creating',
               minutes: mins,
-              date: new Date().toISOString().slice(0, 10)
+              date: todayStr,
+              plan_id: planId
             })
 
             if (ioErr) {
@@ -367,7 +394,7 @@ const PomodoroTimer = ({ mobilePill = false }) => {
         setIsRunning(true)
       }
     }
-  }, [timeLeft, isRunning, mode, durations, linkedItem, linkedGoal, comment, user?.id, ioType, autoRestart, addXP, currentTask])
+  }, [timeLeft, isRunning, mode, durations, linkedItem, linkedGoal, comment, user?.id, ioType, autoRestart, addXP, currentTask, userOverrodeIo])
 
   const prevModeRef = useRef(mode)
   useEffect(() => {
@@ -526,11 +553,11 @@ const PomodoroTimer = ({ mobilePill = false }) => {
         <div className="mt-8 flex flex-col gap-3 w-full">
           {/* IO Type toggle */}
           <div className="flex rounded-lg overflow-hidden border border-pulsar/30 bg-stardust/20">
-            <button onClick={() => { setIoType('input'); localStorage.setItem('polaris_pomo_iotype', 'input') }}
+            <button onClick={() => { setIoType('input'); setUserOverrodeIo(true); localStorage.setItem('polaris_pomo_iotype', 'input') }}
               className={`flex-1 text-xs py-2 font-body transition-all ${ioType === 'input' ? 'bg-blue-900/50 text-amber-400 border-r border-pulsar/30  font-bold' : 'text-nova/60 hover:text-starlight border-r border-pulsar/30'}`}>
               📥 Input
             </button>
-            <button onClick={() => { setIoType('output'); localStorage.setItem('polaris_pomo_iotype', 'output') }}
+            <button onClick={() => { setIoType('output'); setUserOverrodeIo(true); localStorage.setItem('polaris_pomo_iotype', 'output') }}
               className={`flex-1 text-xs py-2 font-body transition-all ${ioType === 'output' ? 'bg-blue-900/50 text-emerald-400  font-bold' : 'text-nova/60 hover:text-starlight'}`}>
               📤 Output
             </button>
@@ -590,6 +617,8 @@ const PomodoroTimer = ({ mobilePill = false }) => {
           <p className="text-lg font-mono text-starlight">{mins}:{secs}</p>
           <div className="flex items-center gap-2">
             <button onClick={handleClockClick}
+              title={isRunning ? 'Pause Timer' : 'Start Timer'}
+              aria-label={isRunning ? 'Pause Timer' : 'Start Timer'}
               className="w-7 h-7 rounded-lg border border-pulsar/40 flex items-center justify-center transition-all"
               style={{ color, borderColor: `${color}50` }}>
               {isRunning ? (
@@ -643,6 +672,8 @@ const PomodoroTimer = ({ mobilePill = false }) => {
             {/* Controls row */}
             <div className="flex items-center gap-3 mt-2">
               <button onClick={handleClockClick}
+                title={isRunning ? 'Pause Timer' : 'Start Timer'}
+                aria-label={isRunning ? 'Pause Timer' : 'Start Timer'}
                 className="w-8 h-8 rounded-lg border border-pulsar/40 flex items-center justify-center transition-all hover:bg-blue-900/20"
                 style={{ color, borderColor: `${color}50` }}>
                 {isRunning ? (
@@ -706,11 +737,11 @@ const PomodoroTimer = ({ mobilePill = false }) => {
             {/* IO Type toggle + Comment */}
             <div className="mt-2 w-full space-y-1.5">
               <div className="flex rounded-lg overflow-hidden border border-pulsar/30 bg-stardust/20">
-                <button onClick={() => { setIoType('input'); localStorage.setItem('polaris_pomo_iotype', 'input') }}
+                <button onClick={() => { setIoType('input'); setUserOverrodeIo(true); localStorage.setItem('polaris_pomo_iotype', 'input') }}
                   className={`flex-1 text-xs py-1.5 font-body transition-all ${ioType === 'input' ? 'bg-blue-900/50 text-amber-400 border-r border-pulsar/30  font-bold' : 'text-nova/60 hover:text-starlight border-r border-pulsar/30'}`}>
                   📥 Input
                 </button>
-                <button onClick={() => { setIoType('output'); localStorage.setItem('polaris_pomo_iotype', 'output') }}
+                <button onClick={() => { setIoType('output'); setUserOverrodeIo(true); localStorage.setItem('polaris_pomo_iotype', 'output') }}
                   className={`flex-1 text-xs py-1.5 font-body transition-all ${ioType === 'output' ? 'bg-blue-900/50 text-emerald-400  font-bold' : 'text-nova/60 hover:text-starlight'}`}>
                   📤 Output
                 </button>

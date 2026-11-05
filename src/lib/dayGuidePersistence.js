@@ -13,6 +13,86 @@ import { offlineSelect, offlineInsert, offlineUpdate, offlineDelete, generateUUI
 export const FF_DAY_GUIDE_DB_READ = 'polaris_ff_day_guide_db_read';
 
 /**
+ * Heuristic duration estimator for tasks lacking explicit estimates.
+ * Returns { minutes, mentalLoad, taskType }.
+ */
+export function estimateDurationHeuristic(title) {
+  const t = (title || '').toLowerCase();
+  const minMatch = t.match(/(\d+)\s*(?:m|min|mins|minutes)\b/);
+  const hrMatch = t.match(/(\d+(?:\.\d+)?)\s*(?:h|hr|hrs|hours)\b/);
+
+  let explicitMinutes = null;
+  if (minMatch) {
+    explicitMinutes = Math.min(240, Math.max(5, parseInt(minMatch[1], 10)));
+  } else if (hrMatch) {
+    explicitMinutes = Math.min(240, Math.max(5, Math.round(parseFloat(hrMatch[1]) * 60)));
+  }
+
+  // High Load (45-60m)
+  if (/(code|write|build|design|derive|simulate|implement|architect|pcb|hardware|math|proof|sop)\b/i.test(t)) {
+    return {
+      minutes: explicitMinutes || 45,
+      mentalLoad: 'high',
+      taskType: 'output'
+    };
+  }
+
+  // Medium Load (30-40m)
+  if (/(draft|outline|email|reach out|fill|plan|submit|apply|test|debug|solve|practice|prep)\b/i.test(t)) {
+    return {
+      minutes: explicitMinutes || 30,
+      mentalLoad: 'medium',
+      taskType: 'output'
+    };
+  }
+
+  // Low Load (20-25m)
+  if (/(read|research|survey|review|explore|watch|listen|skim|browse|check|organize|tag|clean|request)\b/i.test(t)) {
+    return {
+      minutes: explicitMinutes || 20,
+      mentalLoad: 'low',
+      taskType: /(read|research|survey|explore|watch|listen|skim|browse)/i.test(t) ? 'input' : 'output'
+    };
+  }
+
+  return {
+    minutes: explicitMinutes || 30,
+    mentalLoad: 'medium',
+    taskType: 'output'
+  };
+}
+
+/**
+ * Classifies task as 'input' or 'output'.
+ * Uses explicit task_type if set, otherwise tests title against input keywords.
+ */
+export function classifyTaskType(task) {
+  if (task?.task_type === 'input' || task?.task_type === 'output') {
+    return task.task_type;
+  }
+  if (/\b(read|study|watch|lecture|research)\b/i.test(task?.title || '')) {
+    return 'input';
+  }
+  return 'output';
+}
+
+/**
+ * Computes and applies XP delta for daily plan timebox progress.
+ * Awards or deducts 10 XP per box change relative to xp_awarded.
+ */
+export async function applyPlanXpDelta(plan, nextDoneBoxes, addXP) {
+  const currentXp = plan?.xp_awarded || 0;
+  const nextXpAwarded = 10 * nextDoneBoxes;
+  const delta = nextXpAwarded - currentXp;
+
+  if (delta !== 0 && typeof addXP === 'function') {
+    await addXP(delta);
+  }
+
+  return { delta, nextXpAwarded };
+}
+
+/**
  * Checks whether database-backed reading is enabled.
  * Defaults to true (ON). Setting to 'false' enables safe rollback to localStorage.
  */
@@ -107,8 +187,12 @@ export async function importTodayLocalStorageToDb({ userId, todayStr, candidateT
         } catch (e) {}
       }
 
-      const totalMins = task.estimated_minutes || task.time_estimate_minutes || (boxMins * 2);
-      const defCount = Math.max(1, Math.min(8, Math.ceil(totalMins / boxMins)));
+      let totalMins = task.estimated_minutes || task.time_estimate_minutes;
+      if (!totalMins) {
+        const heuristic = estimateDurationHeuristic(task.title);
+        totalMins = heuristic.minutes;
+      }
+      const defCount = Math.max(1, Math.min(8, Math.ceil(totalMins / 15)));
       const unit = task.box_unit || (task.target_count ? 'count' : 'min');
       const targetBoxes = rawTracks && rawTracks[0]?.count
         ? rawTracks[0].count
@@ -128,7 +212,10 @@ export async function importTodayLocalStorageToDb({ userId, todayStr, candidateT
         source: 'auto',
         locked: false,
         status,
-        energy_tier: 'Medium'
+        energy_tier: 'medium',
+        auto_completed: false,
+        target_overridden: false,
+        xp_awarded: 10 * Math.max(0, doneBoxes)
       };
 
       await offlineInsert('daily_plan', planRow);
@@ -234,7 +321,15 @@ export async function persistTimeboxToggleDual({
   task,
   nextList,
   trackId,
-  updatedTracks = null
+  updatedTracks = null,
+  chipIdx = 0,
+  nextChecked = true,
+  trackXP = null,
+  addXP = null,
+  displayTitle = '',
+  autoCompleted = undefined,
+  slot = null,
+  runwayIndex = null
 }) {
   // 1. Write to localStorage
   if (typeof window !== 'undefined' && window.localStorage) {
@@ -256,45 +351,114 @@ export async function persistTimeboxToggleDual({
       task_id: task.id
     });
 
-    if (plans && plans.length > 0) {
-      const plan = plans[0];
-      const newDoneBoxes = nextList.filter(Boolean).length;
-      const isCleared = newDoneBoxes >= plan.target_boxes;
-      await offlineUpdate(
-        'daily_plan',
-        { id: plan.id, user_id: userId },
-        {
-          done_boxes: newDoneBoxes,
-          status: isCleared ? 'cleared' : 'planned',
-          updated_at: new Date().toISOString()
-        }
-      );
+    let plan = plans && plans.length > 0 ? plans[0] : null;
+    const nextDoneBoxes = nextList.filter(Boolean).length;
+    let resolvedAutoCompleted = autoCompleted;
 
-      // If a specific stream track was updated, sync stream done_boxes
-      if (trackId && updatedTracks) {
-        const targetTrack = updatedTracks.find(tr => tr.id === trackId);
-        if (targetTrack) {
-          const streamDone = Array.isArray(targetTrack.boxes) ? targetTrack.boxes.filter(Boolean).length : 0;
-          const { data: streams } = await offlineSelect('daily_plan_streams', {
-            user_id: userId,
-            plan_id: plan.id
-          });
-          const stream = streams?.find(s => s.id === trackId || s.label === targetTrack.name);
-          if (stream) {
-            await offlineUpdate(
-              'daily_plan_streams',
-              { id: stream.id, user_id: userId },
-              {
-                done_boxes: streamDone,
-                target_boxes: targetTrack.count || stream.target_boxes
-              }
-            );
-          }
+    if (!plan) {
+      let totalMins = task.estimated_minutes || task.time_estimate_minutes;
+      if (!totalMins) {
+        const heuristic = estimateDurationHeuristic(task.title);
+        totalMins = heuristic.minutes;
+      }
+      const targetBoxes = Math.max(1, Math.min(8, Math.ceil(totalMins / 15)));
+      if (resolvedAutoCompleted === undefined) {
+        resolvedAutoCompleted = nextDoneBoxes >= targetBoxes;
+      }
+      const { data: allDayPlans } = await offlineSelect('daily_plan', {
+        user_id: userId,
+        plan_date: todayStr
+      });
+      const occupiedSlots = new Set((allDayPlans || []).map(p => p.slot));
+      let availableSlot = 1;
+      while (occupiedSlots.has(availableSlot) && availableSlot <= 3) {
+        availableSlot++;
+      }
+      const derivedSlot = runwayIndex != null
+        ? Math.max(1, Math.min(3, runwayIndex + 1))
+        : (slot != null
+          ? Math.max(1, Math.min(3, slot))
+          : (task?.runwayIndex != null
+            ? Math.max(1, Math.min(3, task.runwayIndex + 1))
+            : Math.min(3, Math.max(1, availableSlot))));
+
+      plan = {
+        id: generateUUID(),
+        user_id: userId,
+        plan_date: todayStr,
+        slot: derivedSlot,
+        task_id: task.id,
+        unit: 'min',
+        target_boxes: targetBoxes,
+        done_boxes: nextDoneBoxes,
+        source: 'manual',
+        locked: false,
+        status: nextDoneBoxes >= targetBoxes ? 'cleared' : 'planned',
+        energy_tier: 'medium',
+        xp_awarded: 0,
+        auto_completed: Boolean(resolvedAutoCompleted),
+        target_overridden: false
+      };
+      await offlineInsert('daily_plan', plan);
+    }
+
+    const targetBoxes = plan.target_boxes || 1;
+    const isCleared = nextDoneBoxes >= targetBoxes;
+
+    if (resolvedAutoCompleted === undefined) {
+      if (isCleared && !task.completed) {
+        resolvedAutoCompleted = true;
+      } else if (!isCleared && plan.auto_completed) {
+        resolvedAutoCompleted = false;
+      }
+    }
+
+    const { nextXpAwarded } = await applyPlanXpDelta(plan, nextDoneBoxes, addXP);
+
+    const updatePayload = {
+      done_boxes: nextDoneBoxes,
+      status: isCleared ? 'cleared' : 'planned',
+      xp_awarded: nextXpAwarded,
+      updated_at: new Date().toISOString()
+    };
+
+    if (resolvedAutoCompleted !== undefined) {
+      updatePayload.auto_completed = resolvedAutoCompleted;
+    }
+
+    await offlineUpdate(
+      'daily_plan',
+      { id: plan.id, user_id: userId },
+      updatePayload
+    );
+
+    // If a specific stream track was updated, sync stream done_boxes
+    if (trackId && updatedTracks) {
+      const targetTrack = updatedTracks.find(tr => tr.id === trackId);
+      if (targetTrack) {
+        const streamDone = Array.isArray(targetTrack.boxes) ? targetTrack.boxes.filter(Boolean).length : 0;
+        const { data: streams } = await offlineSelect('daily_plan_streams', {
+          user_id: userId,
+          plan_id: plan.id
+        });
+        const stream = streams?.find(s => s.id === trackId || s.label === targetTrack.name);
+        if (stream) {
+          await offlineUpdate(
+            'daily_plan_streams',
+            { id: stream.id, user_id: userId },
+            {
+              done_boxes: streamDone,
+              target_boxes: targetTrack.count || stream.target_boxes
+            }
+          );
         }
       }
     }
+
+    return { planId: plan.id };
   } catch (err) {
     console.warn('Error in persistTimeboxToggleDual DB write:', err);
+    return null;
   }
 }
 
@@ -306,7 +470,9 @@ export async function persistAdjustBoxCountDual({
   todayStr,
   task,
   trackId,
-  updatedTracks
+  updatedTracks,
+  slot = null,
+  runwayIndex = null
 }) {
   // 1. Write to localStorage
   if (typeof window !== 'undefined' && window.localStorage) {
@@ -316,7 +482,7 @@ export async function persistAdjustBoxCountDual({
   }
 
   // 2. Write to Database
-  if (!userId) return;
+  if (!userId) return null;
 
   try {
     const { data: plans } = await offlineSelect('daily_plan', {
@@ -325,9 +491,11 @@ export async function persistAdjustBoxCountDual({
       task_id: task.id
     });
 
+    const targetTrack = updatedTracks.find(tr => tr.id === trackId);
+    const count = targetTrack ? targetTrack.count : 3;
+
     if (plans && plans.length > 0) {
       const plan = plans[0];
-      const targetTrack = updatedTracks.find(tr => tr.id === trackId);
       if (targetTrack) {
         const { data: streams } = await offlineSelect('daily_plan_streams', {
           user_id: userId,
@@ -341,19 +509,92 @@ export async function persistAdjustBoxCountDual({
             { target_boxes: targetTrack.count }
           );
         }
-        // Update main plan target boxes if primary track
-        if (updatedTracks[0]?.id === trackId) {
-          await offlineUpdate(
-            'daily_plan',
-            { id: plan.id, user_id: userId },
-            { target_boxes: targetTrack.count, updated_at: new Date().toISOString() }
-          );
-        }
+        await offlineUpdate(
+          'daily_plan',
+          { id: plan.id, user_id: userId },
+          { target_overridden: true, target_boxes: targetTrack.count, updated_at: new Date().toISOString() }
+        );
+        plan.target_overridden = true;
+        plan.target_boxes = targetTrack.count;
+        return { planId: plan.id, target_overridden: true, target_boxes: targetTrack.count };
       }
+    } else {
+      const { data: allDayPlans } = await offlineSelect('daily_plan', {
+        user_id: userId,
+        plan_date: todayStr
+      });
+      const occupiedSlots = new Set((allDayPlans || []).map(p => p.slot));
+      let availableSlot = 1;
+      while (occupiedSlots.has(availableSlot) && availableSlot <= 3) {
+        availableSlot++;
+      }
+      const derivedSlot = runwayIndex != null
+        ? Math.max(1, Math.min(3, runwayIndex + 1))
+        : (slot != null
+          ? Math.max(1, Math.min(3, slot))
+          : (task?.runwayIndex != null
+            ? Math.max(1, Math.min(3, task.runwayIndex + 1))
+            : Math.min(3, Math.max(1, availableSlot))));
+
+      const newPlan = {
+        id: generateUUID(),
+        user_id: userId,
+        plan_date: todayStr,
+        slot: derivedSlot,
+        task_id: task.id,
+        unit: 'min',
+        target_boxes: count,
+        done_boxes: 0,
+        source: 'manual',
+        locked: false,
+        status: 'planned',
+        energy_tier: 'medium',
+        xp_awarded: 0,
+        auto_completed: false,
+        target_overridden: true
+      };
+      await offlineInsert('daily_plan', newPlan);
+      return { planId: newPlan.id, target_overridden: true, target_boxes: count };
     }
   } catch (err) {
     console.warn('Error in persistAdjustBoxCountDual DB write:', err);
+    return null;
   }
+}
+
+/**
+ * Reconciles daily plan target_boxes against task estimated minutes on load.
+ * Preserves user overrides (target_overridden: true).
+ */
+export async function reconcileDailyPlanEstimates({ plans = [], tasks = [], userId, todayStr }) {
+  if (!Array.isArray(plans) || plans.length === 0) return plans || [];
+
+  for (const plan of plans) {
+    const task = tasks.find(t => t.id === plan.task_id);
+    if (task && !plan.target_overridden) {
+      const mins = task.estimated_minutes || task.time_estimate_minutes;
+      if (mins != null && mins > 0) {
+        const expectedBoxes = Math.max(1, Math.min(8, Math.ceil(mins / 15)));
+        if (plan.target_boxes !== expectedBoxes) {
+          plan.target_boxes = expectedBoxes;
+          if (userId) {
+            await offlineUpdate(
+              'daily_plan',
+              { id: plan.id, user_id: userId },
+              { target_boxes: expectedBoxes, updated_at: new Date().toISOString() }
+            );
+            await offlineUpdate(
+              'daily_plan_streams',
+              { plan_id: plan.id, user_id: userId },
+              { target_boxes: expectedBoxes }
+            );
+          }
+        }
+      }
+    }
+  }
+
+  return plans;
 }
 
 /**

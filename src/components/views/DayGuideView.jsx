@@ -193,7 +193,7 @@ function AuditorPanel({ onAuditDone }) {
       let capacityMins = 0;
       const todayPickIds = [];
       for (const t of scored) {
-        if (t.status === 'done') continue;
+        if (t.status === 'done' || t.parent_task_id) continue;
         const dur = t.estimated_minutes || 30;
         if (capacityMins + dur <= 240 || todayPickIds.length === 0) {
           todayPickIds.push(t.id);

@@ -1,9 +1,9 @@
 // Domain module for Daily Task Audit alignment, priority ranking, and candidate sorting
 
 export const DEFAULT_AUDIT_PRIMARIES = [
-  'Portfolio: Replace AI Product Sketches with Real ID Sketches',
-  'Agri Solar Survey Paper: Phase 2 (Reading & Synthesis)',
-  'DAB Converter & Power Electronics EMC Research (Dr. Vignesh Kumar)'
+  'Draft 1-page conducted EMI paper proposal & scope pitch for Dr. Vignesh',
+  'Integrate 50-ohm LISN blocks & parasitical coupling into DAB Simulink model',
+  'Prof. S. Arul Daniel LOR draft final review & dispatch'
 ]
 
 /**
@@ -25,17 +25,29 @@ export function getAuditRank(task, auditList) {
       if (titleLower.includes(itemLower) || itemLower.includes(titleLower)) return i
 
       // Semantic keywords for standard daily audit targets
-      const isPortfolioTarget = itemLower.includes('portfolio') && (itemLower.includes('sketch') || itemLower.includes('replace'))
-      const isPortfolioTask = titleLower.includes('portfolio') && titleLower.includes('sketch')
+      const isEmiTarget = itemLower.includes('emi') || itemLower.includes('lisn') || (itemLower.includes('vignesh') && (itemLower.includes('proposal') || itemLower.includes('pitch') || itemLower.includes('simulink') || itemLower.includes('model') || itemLower.includes('simulation') || itemLower.includes('paper')))
+      const isEmiTask = titleLower.includes('emi') || titleLower.includes('lisn') || (titleLower.includes('vignesh') && (titleLower.includes('proposal') || titleLower.includes('pitch') || titleLower.includes('simulink') || titleLower.includes('model') || titleLower.includes('simulation') || titleLower.includes('paper')))
+      if (isEmiTarget && isEmiTask) {
+        // If the item specifies proposal/pitch vs simulink/lisn, distinguish them
+        const isProposalTarget = itemLower.includes('proposal') || itemLower.includes('pitch')
+        const isProposalTask = titleLower.includes('proposal') || titleLower.includes('pitch')
+        if (isProposalTarget && isProposalTask) return i
+        if (!isProposalTarget && !isProposalTask) return i
+        // If neither specifically distinguishes, match
+        if (!isProposalTarget && !itemLower.includes('lisn')) return i
+      }
+
+      const isLorTarget = itemLower.includes('arul') || itemLower.includes('daniel') || (itemLower.includes('lor') && (itemLower.includes('review') || itemLower.includes('dispatch') || itemLower.includes('draft')))
+      const isLorTask = titleLower.includes('arul') || titleLower.includes('daniel') || (titleLower.includes('lor') && (titleLower.includes('review') || titleLower.includes('dispatch') || titleLower.includes('draft')))
+      if (isLorTarget && isLorTask) return i
+
+      const isPortfolioTarget = itemLower.includes('portfolio') && (itemLower.includes('case studies') || itemLower.includes('engineering') || itemLower.includes('replace') || itemLower.includes('showcase'))
+      const isPortfolioTask = titleLower.includes('portfolio') && (titleLower.includes('case studies') || titleLower.includes('engineering') || titleLower.includes('showcase'))
       if (isPortfolioTarget && isPortfolioTask) return i
 
-      const isAgriTarget = itemLower.includes('agri') && (itemLower.includes('solar') || itemLower.includes('survey') || itemLower.includes('phase 2'))
+      const isAgriTarget = itemLower.includes('agri') && (itemLower.includes('solar') || itemLower.includes('survey'))
       const isAgriTask = titleLower.includes('agri') && (titleLower.includes('solar') || titleLower.includes('survey'))
       if (isAgriTarget && isAgriTask) return i
-
-      const isDabTarget = itemLower.includes('dab converter') || (itemLower.includes('vignesh') && itemLower.includes('emc'))
-      const isDabTask = titleLower.includes('dab converter') || (titleLower.includes('vignesh') && titleLower.includes('emc'))
-      if (isDabTarget && isDabTask) return i
     } else if (typeof item === 'object') {
       if (item.id && item.id === task.id) return i
       if (item.title) {
@@ -43,17 +55,27 @@ export function getAuditRank(task, auditList) {
         if (titleLower === itemLower) return i
         if (titleLower.includes(itemLower) || itemLower.includes(titleLower)) return i
 
-        const isPortfolioTarget = itemLower.includes('portfolio') && (itemLower.includes('sketch') || itemLower.includes('replace'))
-        const isPortfolioTask = titleLower.includes('portfolio') && titleLower.includes('sketch')
+        const isEmiTarget = itemLower.includes('emi') || itemLower.includes('lisn') || (itemLower.includes('vignesh') && (itemLower.includes('proposal') || itemLower.includes('pitch') || itemLower.includes('simulink') || itemLower.includes('model') || itemLower.includes('simulation') || itemLower.includes('paper')))
+        const isEmiTask = titleLower.includes('emi') || titleLower.includes('lisn') || (titleLower.includes('vignesh') && (titleLower.includes('proposal') || titleLower.includes('pitch') || titleLower.includes('simulink') || titleLower.includes('model') || titleLower.includes('simulation') || titleLower.includes('paper')))
+        if (isEmiTarget && isEmiTask) {
+          const isProposalTarget = itemLower.includes('proposal') || itemLower.includes('pitch')
+          const isProposalTask = titleLower.includes('proposal') || titleLower.includes('pitch')
+          if (isProposalTarget && isProposalTask) return i
+          if (!isProposalTarget && !isProposalTask) return i
+          if (!isProposalTarget && !itemLower.includes('lisn')) return i
+        }
+
+        const isLorTarget = itemLower.includes('arul') || itemLower.includes('daniel') || (itemLower.includes('lor') && (itemLower.includes('review') || itemLower.includes('dispatch') || itemLower.includes('draft')))
+        const isLorTask = titleLower.includes('arul') || titleLower.includes('daniel') || (titleLower.includes('lor') && (titleLower.includes('review') || titleLower.includes('dispatch') || titleLower.includes('draft')))
+        if (isLorTarget && isLorTask) return i
+
+        const isPortfolioTarget = itemLower.includes('portfolio') && (itemLower.includes('case studies') || itemLower.includes('engineering') || itemLower.includes('replace') || itemLower.includes('showcase'))
+        const isPortfolioTask = titleLower.includes('portfolio') && (titleLower.includes('case studies') || titleLower.includes('engineering') || titleLower.includes('showcase'))
         if (isPortfolioTarget && isPortfolioTask) return i
 
-        const isAgriTarget = itemLower.includes('agri') && (itemLower.includes('solar') || itemLower.includes('survey') || itemLower.includes('phase 2'))
+        const isAgriTarget = itemLower.includes('agri') && (itemLower.includes('solar') || itemLower.includes('survey'))
         const isAgriTask = titleLower.includes('agri') && (titleLower.includes('solar') || titleLower.includes('survey'))
         if (isAgriTarget && isAgriTask) return i
-
-        const isDabTarget = itemLower.includes('dab converter') || (itemLower.includes('vignesh') && itemLower.includes('emc'))
-        const isDabTask = titleLower.includes('dab converter') || (titleLower.includes('vignesh') && titleLower.includes('emc'))
-        if (isDabTarget && isDabTask) return i
       }
     }
   }

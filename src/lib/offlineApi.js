@@ -2,6 +2,7 @@ import db from './offlineStore';
 import { supabase } from './supabase';
 import { enqueue } from './syncQueue';
 import { flushQueue } from './syncManager';
+import { isTableMissing } from './missingTables';
 
 export const TABLES_REQUIRING_TITLE = [
   'tasks',
@@ -59,16 +60,17 @@ export function validateRowPayload(table, row) {
   }
 
   const validatedRow = { ...row };
+  // user_settings uses an integer primary key by design (id: 1) and is exempt from numeric ID rewriting
+  const isNumericId = typeof validatedRow.id === 'number' || /^\d+$/.test(String(validatedRow.id));
   const isInvalidId = !validatedRow.id ||
-    typeof validatedRow.id === 'number' ||
-    /^\d+$/.test(String(validatedRow.id)) ||
+    (table !== 'user_settings' && isNumericId) ||
     (typeof validatedRow.id === 'string' && (validatedRow.id.startsWith('temp') || validatedRow.id.startsWith('ielts-mock-')));
 
   if (isInvalidId) {
     validatedRow.id = generateUUID();
   }
 
-  if (!row.id || typeof row.id === 'number' || /^\d+$/.test(String(row.id)) || (typeof row.id === 'string' && (row.id.startsWith('temp') || row.id.startsWith('ielts-mock-')))) {
+  if (!row.id || (table !== 'user_settings' && isNumericId) || (typeof row.id === 'string' && (row.id.startsWith('temp') || row.id.startsWith('ielts-mock-')))) {
     row.id = validatedRow.id;
   }
 
@@ -126,7 +128,7 @@ export async function offlineSelect(table, match = {}) {
   } catch (error) {
     console.error(`offlineSelect error on ${table}:`, error);
     // Fallback to Supabase if IndexedDB / Dexie is missing or throwing
-    if (typeof navigator !== 'undefined' && navigator.onLine && supabase?.from) {
+    if (typeof navigator !== 'undefined' && navigator.onLine && supabase?.from && !isTableMissing(table)) {
       try {
         let query = supabase.from(table).select('*');
         for (const key in match) {

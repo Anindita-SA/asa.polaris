@@ -240,6 +240,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.<table_name> TO service_role;
 | `duration_minutes` | `int4` |  |
 | `node_id` | `uuid` |  Nullable |
 | `label` | `text` |  Nullable |
+| `plan_id` | `uuid` | Nullable, References `daily_plan(id)` on delete set null |
 | `created_at` | `timestamptz` |  Nullable |
 
 ## Table `subtasks`
@@ -355,6 +356,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.<table_name> TO service_role;
 | `category` | `text` |  |
 | `minutes` | `int4` |  |
 | `date` | `date` |  Nullable |
+| `plan_id` | `uuid` | Nullable, References `daily_plan(id)` on delete set null |
 | `created_at` | `timestamptz` |  Nullable |
 
 ## Table `curriculum_chapters`
@@ -954,11 +956,15 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.<table_name> TO service_role;
 | `unit` | `text` | Not Null, Default `'min'`, Check `(unit IN ('min', 'count'))` |
 | `target_boxes` | `int4` | Not Null, Default `1`, Check `(target_boxes >= 1)` |
 | `done_boxes` | `int4` | Not Null, Default `0`, Check `(done_boxes >= 0)` |
+| `manual_boxes` | `int4` | Deprecated. Default `0`. Maintained in DB and Dexie for schema safety; done_boxes is the single source of truth |
 | `source` | `text` | Not Null, Default `'auto'`, Check `(source IN ('auto', 'manual', 'rollover'))` |
 | `locked` | `bool` | Not Null, Default `false` |
 | `status` | `text` | Not Null, Default `'planned'`, Check `(status IN ('planned', 'cleared', 'swapped', 'skipped'))` |
 | `energy_tier` | `text` | Nullable, Check `(energy_tier IN ('Low', 'Medium', 'High', 'Unwell'))` |
 | `swapped_from` | `uuid` | Nullable, References `tasks(id)` on delete set null |
+| `xp_awarded` | `int4` | Not Null, Default `0` |
+| `auto_completed` | `bool` | Not Null, Default `false` |
+| `target_overridden` | `bool` | Not Null, Default `false` |
 | `created_at` | `timestamptz` | Not Null, Default `now()` |
 | `updated_at` | `timestamptz` | Not Null, Default `now()` |
 
@@ -1010,5 +1016,22 @@ Unique Constraint: `UNIQUE (user_id, day)`
 | `created_at` | `timestamptz` | Not Null, Default `now()` |
 
 Unique Constraint: `UNIQUE (user_id, name, exam_date)`
+
+## Table `daily_plan_items`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `id` | `uuid` | Primary, Default `gen_random_uuid()` |
+| `user_id` | `uuid` | Not Null, References `auth.users(id)` on delete cascade |
+| `plan_id` | `uuid` | Not Null, References `daily_plan(id)` on delete cascade |
+| `task_id` | `uuid` | Not Null, References `tasks(id)` on delete cascade |
+| `position` | `int4` | Not Null, Default `0` |
+| `completed_by_slot` | `bool` | Not Null, Default `false` |
+| `created_at` | `timestamptz` | Not Null, Default `now()` |
+
+Unique Constraint: `UNIQUE (plan_id, task_id)`
+
 
 

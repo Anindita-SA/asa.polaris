@@ -24,7 +24,6 @@ const Timeline = lazy(() => import('../components/panels/Timeline'))
 const Journal = lazy(() => import('../components/journal/Journal'))
 const CalendarView = lazy(() => import('../components/panels/CalendarView'))
 const Curriculum = lazy(() => import('../components/panels/Curriculum'))
-const ReachOutView = lazy(() => import('../components/panels/ReachOutView'))
 const FitnessBridge = lazy(() => import('../components/panels/FitnessBridge'))
 
 const ViewFallback = () => (
@@ -86,7 +85,12 @@ const Dashboard = () => {
   const { stage, briefItems, markSparkSeen } = useMorningSequence()
   const [activeView, setActiveViewState] = useState(() => {
     try {
-      return localStorage.getItem('polaris_active_view') || 'graph'
+      const stored = localStorage.getItem('polaris_active_view')
+      if (stored === 'reach_out') {
+        localStorage.setItem('polaris_active_view', 'fitness')
+        return 'fitness'
+      }
+      return stored || 'graph'
     } catch {
       return 'graph'
     }
@@ -142,7 +146,7 @@ const Dashboard = () => {
       case 'journal': content = <Journal />; break
       case 'calendar': content = <CalendarView />; break
       case 'curriculum': content = <Curriculum />; break
-      case 'reach_out': content = <div className="h-full overflow-y-auto p-4 sm:p-6"><ReachOutView /></div>; break
+      case 'reach_out': content = <FitnessBridge defaultSubTab="reach_out" />; break
       case 'fitness': content = <FitnessBridge />; break
       default: content = null
     }

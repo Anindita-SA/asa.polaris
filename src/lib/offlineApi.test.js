@@ -160,6 +160,23 @@ describe('offlineApi - validateRowPayload', () => {
     expect(res2.row.id).toBe('custom-uuid-123');
   });
 
+  it('exempts user_settings from numeric ID rewrite while rewriting numeric IDs for UUID tables', () => {
+    // user_settings uses integer pk by design (id: 1)
+    const settingsPayload = { id: 1, user_id: 'user-abc', feature_flags: {} };
+    const resSettings = validateRowPayload('user_settings', settingsPayload);
+    expect(resSettings.valid).toBe(true);
+    expect(resSettings.row.id).toBe(1);
+    expect(settingsPayload.id).toBe(1);
+
+    // Other tables with UUID pk must still rewrite numeric IDs to UUIDs
+    const taskPayload = { id: 12345, title: 'Numeric ID Task' };
+    const resTask = validateRowPayload('tasks', taskPayload);
+    expect(resTask.valid).toBe(true);
+    expect(typeof resTask.row.id).toBe('string');
+    expect(resTask.row.id).not.toBe(12345);
+    expect(resTask.row.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+  });
+
   it('accepts valid rows for tables not requiring title', () => {
     const result = validateRowPayload('eulogies', { content: 'My life philosophy' });
     expect(result.valid).toBe(true);

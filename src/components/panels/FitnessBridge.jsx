@@ -14,10 +14,10 @@ const FITNESS_SUB_TABS = [
   { id: 'relationships', label: 'Social', icon: Users },
   { id: 'play', label: 'Play', icon: Gamepad2 },
   { id: 'scout', label: 'Scout', icon: Compass },
-  { id: 'reach_out', label: 'Reach Out', icon: Send },
+  { id: 'reach_out', label: 'Outreach', icon: Send },
 ]
 
-const FitnessBridge = () => {
+const FitnessBridge = ({ defaultSubTab = null }) => {
   const { user, addXP } = useAuth()
   const [workouts, setWorkouts] = useState([])
   const [meals, setMeals] = useState([])
@@ -129,7 +129,21 @@ const FitnessBridge = () => {
     ? (parseFloat(latestWeight.weight_kg) - parseFloat(prevWeight.weight_kg)).toFixed(1)
     : null
 
-  const [activeSubTab, setActiveSubTab] = useState('fitness')
+  const [activeSubTab, setActiveSubTabState] = useState(() => {
+    if (defaultSubTab && FITNESS_SUB_TABS.some(t => t.id === defaultSubTab)) return defaultSubTab;
+    try {
+      const saved = localStorage.getItem('polaris_orbit_subtab');
+      if (saved && FITNESS_SUB_TABS.some(t => t.id === saved)) return saved;
+    } catch (e) {}
+    return 'fitness';
+  });
+
+  const setActiveSubTab = (id) => {
+    setActiveSubTabState(id);
+    try {
+      localStorage.setItem('polaris_orbit_subtab', id);
+    } catch (e) {}
+  };
   const [isMenuOpen, setIsMenuOpen] = useState(false)
 
   const currentSubTab = FITNESS_SUB_TABS.find(t => t.id === activeSubTab) || FITNESS_SUB_TABS[0]

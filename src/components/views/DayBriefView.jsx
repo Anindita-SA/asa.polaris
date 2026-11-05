@@ -7,6 +7,7 @@ import { Flame, Check, Target, ChevronRight, Sparkles, RefreshCw, Rocket, X, Boo
 import { motion, AnimatePresence } from 'framer-motion';
 import DismissFeedbackModal from '../modals/DismissFeedbackModal';
 import TodayAgendaWidget from '../widgets/TodayAgendaWidget';
+import DayPlanBoard, { isNewBoardEnabled, setNewBoardEnabled } from '../widgets/DayPlanBoard';
 import { safeExternalUrl } from '../../lib/urlUtils';
 import { offlineSelect, offlineInsert, offlineUpdate } from '../../lib/offlineApi';
 import db from '../../lib/offlineStore';
@@ -36,7 +37,22 @@ export default function DayBriefView() {
   const [dismissTargetOpp, setDismissTargetOpp] = useState(null);
   const [noNewOpp, setNoNewOpp] = useState(false);
   const [expandedOppIds, setExpandedOppIds] = useState(new Set());
+  const [newBoardActive, setNewBoardActive] = useState(() => isNewBoardEnabled());
+  const [isTechSignalsOpen, setIsTechSignalsOpen] = useState(false);
   const fetchedRef = React.useRef(false);
+  const renderCountRef = React.useRef(0);
+
+  if (import.meta?.env?.DEV) {
+    renderCountRef.current++;
+  }
+
+  useEffect(() => {
+    if (!import.meta?.env?.DEV) return;
+    const interval = setInterval(() => {
+      console.log('[RENDER COUNTER] DayBriefView: ' + renderCountRef.current + ' renders');
+    }, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   const toggleOppExpand = (id) => {
     setExpandedOppIds(prev => {
@@ -57,8 +73,9 @@ export default function DayBriefView() {
   useEffect(() => {
     if (!user?.id) return;
     const handleBriefUpdated = (e) => {
-      if (e?.detail?.table && e.detail.table !== 'morning_briefs') return;
-      fetchExtras();
+      if (e?.type === 'polaris-morning-brief-updated' || e?.detail?.table === 'morning_briefs') {
+        fetchExtras();
+      }
     };
     window.addEventListener('polaris-morning-brief-updated', handleBriefUpdated);
     window.addEventListener('polaris-tasks-changed', handleBriefUpdated);
@@ -394,25 +411,50 @@ export default function DayBriefView() {
         </button>
       </div>
       
-      <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center gap-4">
         <button onClick={() => handleManualGenerate(briefItems.length > 0)} disabled={isGenerating} className="flex items-center gap-2 px-3 py-1.5 text-xs font-mono uppercase tracking-wider text-nova/60 hover:text-amber-400 bg-pulsar/10 hover:bg-amber-500/10 border border-pulsar/30 hover:border-amber-500/30 rounded-lg transition-all">
           <RefreshCw className={`w-3.5 h-3.5 ${isGenerating ? 'animate-spin text-amber-500' : ''}`} />
           {isGenerating ? 'GENERATING...' : (briefItems.length > 0 || briefAttempted) ? 'REGENERATE BRIEF' : 'GENERATE BRIEF'}
         </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            const next = !newBoardActive;
+            setNewBoardEnabled(next);
+            setNewBoardActive(next);
+          }}
+          className={`min-h-[44px] px-3 py-1.5 text-xs font-mono uppercase tracking-wider border rounded-lg transition-all ${
+            newBoardActive
+              ? 'bg-amber-500/20 text-amber-400 border-amber-500/40 font-semibold'
+              : 'bg-pulsar/10 text-nova/60 border-pulsar/30 hover:text-starlight'
+          }`}
+          title="Toggle between legacy TodayAgendaWidget and new DayPlanBoard"
+          data-testid="toggle-board-flag"
+        >
+          Board: {newBoardActive ? 'New (C2)' : 'Legacy'}
+        </button>
       </div>
 
-      <TodayAgendaWidget
-        tasks={todaysTasks}
-        allBacklogTasks={allBacklogTasks}
-        isLoading={tasksLoading}
-        toggleComplete={toggleComplete}
-        addTask={addTask}
-        addSubtask={addSubtask}
-        attachSubtask={attachSubtask}
-        updateSortOrder={updateSortOrder}
-      />
+      {newBoardActive ? (
+        <DayPlanBoard
+          todayStr={new Date().toLocaleDateString('en-CA')}
+          allBacklogTasks={allBacklogTasks}
+        />
+      ) : (
+        <TodayAgendaWidget
+          tasks={todaysTasks}
+          allBacklogTasks={allBacklogTasks}
+          isLoading={tasksLoading}
+          toggleComplete={toggleComplete}
+          addTask={addTask}
+          addSubtask={addSubtask}
+          attachSubtask={attachSubtask}
+          updateSortOrder={updateSortOrder}
+        />
+      )}
 
-      {oppItems.length > 0 && (
+      {!newBoardActive && oppItems.length > 0 && (
         <div className="glass border border-amber-500/30 rounded-xl p-6">
           <h3 className="text-lg font-display text-amber-400 flex items-center gap-2 mb-4">
             <Rocket className="w-5 h-5" /> Curated Opportunities
@@ -610,7 +652,56 @@ export default function DayBriefView() {
         </div>
       )}
 
-      {newsItems.length > 0 && (
+      {newBoardActive && newsItems.length > 0 && (
+        <div className="border border-pulsar/30 bg-void/60 rounded-xl overflow-hidden" data-testid="tech-signals-footer">
+          <button
+            type="button"
+            onClick={() => setIsTechSignalsOpen(prev => !prev)}
+            className="w-full min-h-[44px] px-4 py-3 flex items-center justify-between text-left hover:bg-void/80 transition-colors"
+            data-testid="toggle-tech-signals-footer"
+          >
+            <span className="text-sm font-semibold font-display text-starlight flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-pulsar" />
+              {isTechSignalsOpen ? 'Hide' : 'Show'} Tech Signals ({newsItems.length})
+            </span>
+            <span className="text-xs font-mono text-nova/50 uppercase">Signals</span>
+          </button>
+          {isTechSignalsOpen && (
+            <div className="p-4 pt-1 space-y-3 border-t border-pulsar/20">
+              {newsItems.map((item, i) => {
+                const originalIndex = briefItems.indexOf(item);
+                const isSaving = savingNewsIds.has(originalIndex);
+                return (
+                  <div key={i} className="glass bg-void/70 border border-pulsar/20 p-4 rounded-xl">
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-2">
+                      <h4 className="text-base font-display text-starlight leading-tight">{item.title}</h4>
+                      <div className="shrink-0 flex items-center gap-2">
+                        <span className="text-xs font-mono text-pulsar/80 border border-pulsar/20 bg-pulsar/10 px-2 py-1 rounded">{item.source_name || item.source || 'News'}</span>
+                        <button
+                          onClick={() => handleSaveNewsItem(item, originalIndex)}
+                          disabled={item.isSaved || isSaving}
+                          title={item.isSaved ? 'Saved to Curriculum' : 'Save to Curriculum'}
+                          className={`flex items-center justify-center p-1.5 rounded-lg transition-colors border ${
+                            item.isSaved
+                              ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30 opacity-70'
+                              : 'bg-pulsar/20 text-pulsar hover:bg-pulsar/30 border-pulsar/40'
+                          }`}
+                        >
+                          {item.isSaved ? <Check className="w-3.5 h-3.5" /> : <Bookmark className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+                    </div>
+                    <p className="font-body text-nova/60 text-sm leading-relaxed">{item.summary}</p>
+                    {safeExternalUrl(item.url) && <a href={safeExternalUrl(item.url)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 mt-2.5 text-xs font-mono text-pulsar hover:text-blue-300 hover:underline">Read more &rarr;</a>}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {!newBoardActive && newsItems.length > 0 && (
         <div className="glass border border-pulsar/30 rounded-xl p-6">
           <h3 className="text-lg font-display text-pulsar flex items-center gap-2 mb-4">
             <Sparkles className="w-5 h-5" /> News & Tech Breakthroughs
