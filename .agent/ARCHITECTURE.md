@@ -18,7 +18,6 @@ This document maps features/tabs/panels to their component files, hooks, Supabas
 ## 2. Matrix Canvas (Task Matrix)
 **Files:**
 - `src/components/views/MatrixCanvasView.jsx`
-- `src/components/TaskMatrix.jsx`
 - `src/lib/matrixNodeFilter.js`
 **Hooks:** `useWSJFScore.js`
 **Tables:** `tasks`, `milestones`, `recurring_task_templates`, `task_estimate_calibration`
@@ -58,7 +57,7 @@ This document maps features/tabs/panels to their component files, hooks, Supabas
 - `src/components/widgets/GoalsPanel.jsx`
 - `src/components/graph/ConstellationGraph.jsx`
 - `src/components/graph/GoalConstellation.jsx`
-**Hooks:** `useGoalCompletion.js`, `useGoogleTasks.js`
+**Hooks:** `useGoalCompletion.js`
 **Tables:** `goals`, `nodes`
 **Shared By:** Journal, Timeline, Node Panel (shares `nodes`); Pomodoro Timer (shares `goals`).
 
@@ -113,7 +112,6 @@ This document maps features/tabs/panels to their component files, hooks, Supabas
 ## 14. Settings
 **Files:**
 - `src/components/panels/SettingsPanel.jsx`
-- `src/components/modals/NotificationSettingsModal.jsx`
 **Hooks:** `useUserSettings.js`, `useNotificationSettings.js`
 **Tables:** `user_settings`, `recurring_task_templates`
 
@@ -125,4 +123,4 @@ This document maps features/tabs/panels to their component files, hooks, Supabas
 - **`src/lib/sound.js`**: App-wide UI interaction sounds.
 - **`src/hooks/useAuth.jsx`**: Global app auth and initial context hydration.
 - **`src/components/layout/*`** (`HUD.jsx`, `BottomNav.jsx`, `Starfield.jsx`, `BottomSheet.jsx`): Shared shell layout.
-- **`src/components/widgets/*`** (`PomodoroTimer.jsx`, `TimerTaskSearch.jsx`, `MusicPlayer.jsx`): Floating global tools.
+- **`src/components/widgets/*`** (`PomodoroTimer.jsx`, `TimerTaskSearch.jsx`): Floating global tools.

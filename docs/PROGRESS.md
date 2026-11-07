@@ -3,6 +3,17 @@
 RUBRIC BREAK: v2 starts here, earlier composite scores are v1 and not comparable.
 
 
+## Nov 7, 2026 - Dead Code Elimination & Repository Cleanup (v1.2.83)
+- **What**: Executed deep repository code audit and dead code elimination:
+  1. Audited all 155 JS/JSX files in `src/` via dependency graph analysis, identifying and pruning 4 dead/unreferenced components: `src/components/TaskMatrix.jsx` (70KB legacy matrix component replaced by `MatrixCanvasView.jsx`), `src/components/widgets/MusicPlayer.jsx` (unmounted since August; replaced by Pomodoro audio), `src/hooks/useGoogleTasks.js` (deprecated Google Tasks OAuth sync), and `src/components/modals/NotificationSettingsModal.jsx` (redundant wrapper superseded by direct `SettingsPanel.jsx` routing).
+  2. Preserved components that have active unit test coverage (`src/components/journal/DailyTasks.jsx` and `src/lib/newsDiversity.js`).
+  3. Identified, safely backed up, and removed 11 obsolete one-off scripts from `scripts/` to `private_backups/scripts/`: `migrate_reading_tasks_to_media_log.js`, `migrate_subtasks_to_tasks.js`, `migrate_tasks_to_milestones.js`, `nest_ielts_tasks.js` (exam date passed Oct 3, 2026), `resync_today_plan.js`, `test_groq.js`, `test_scout.js`, `verify_day_guide_persistence.js`, `auto_patcher.js`, `agent_outreach_insert.js`, and `agent_scout_insert.js`.
+  4. Backed up all untracked scratch debug tools and mockups (`scratch/check_active.js`, `scratch/check_ielts.js`, `scratch/check_ielts_direct.js`, `scratch/check_orphans.js`, `scratch/TaskMatrix_copy.jsx`, `scratch/architecture_review_20261007.html`) to `private_backups/scratch/` and removed the workspace `scratch/` directory.
+  5. Cleaned up `package.json`: removed dead `"scout:report"` script pointing to non-existent file, and bumped version to `1.2.83`.
+  6. Aligned documentation across `.agent/ARCHITECTURE.md`, `docs/ARCHITECTURE.md`, and `docs/COMPONENT_MAP.md` removing deleted component references.
+- **Evidence**: Vitest test suite running 47 test files with 534 unit tests (100% pass rate). Clean Vite production PWA build with 36 precache entries (1740.57 KiB). Schema drift check passed with 0 errors. Zero em dashes, zero en dashes, zero CSS gradients across all created and edited files.
+
+
 ## Nov 7, 2026 - Documentation Reorganization & Working Tree Sanitization (v1.2.82)
 - **What**: Executed full documentation reorganization and working tree sanitization for public repository readiness:
   1. Archived 12 completed sprint/feature plans and 4 redundant documents to `private_backups/docs_plans_archive/`; removed obsolete root `polaris_features_guide.md`, `docs/starred_opportunities_report.md`, and `docs/LEVELING_ENGINE.md`.

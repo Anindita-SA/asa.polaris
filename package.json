@@ -1,15 +1,14 @@
 {
   "name": "asa-polaris",
   "private": true,
-  "version": "1.2.82",
+  "version": "1.2.83",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
     "check:schema": "node scripts/schema_drift_check.js",
-    "test": "vitest run",
-    "scout:report": "node scripts/generate_starred_report.mjs"
+    "test": "vitest run"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",

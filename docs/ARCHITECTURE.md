@@ -19,7 +19,6 @@ State is managed via custom React hooks that interface with the local IndexedDB 
 - `useMorningSequence` & `useMorningBrief`: Wires up the Morning Brief and SparkPopup.
 - `useNudgeScheduler`: Handles background timers and service worker push notifications.
 - `useContactReminders`: Manages relationship tiers and calculates overdue communication.
-- `useGoogleTasks`: Handles OAuth synchronization with Google APIs.
 
 ## UI/UX Paradigms
 - **Glassmorphism**: UI components heavily utilize backdrop blurs (`glass` class), subtle translucent borders, and hover lift animations (`glass-hover`, `hover:-translate-y-1`).

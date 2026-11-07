@@ -1,3 +1,23 @@
+## [2026-11-07] v1.2.83 - Dead Code Elimination & Repository Cleanup
+- **Dead Component and Hook Pruning (`src/`)**:
+  - Removed deprecated, unreferenced `src/components/TaskMatrix.jsx` (70KB legacy matrix component replaced by `MatrixCanvasView.jsx`).
+  - Removed deprecated, unmounted `src/components/widgets/MusicPlayer.jsx` (retired in favor of Pomodoro-integrated audio).
+  - Removed deprecated `src/hooks/useGoogleTasks.js` (Google Tasks OAuth sync retired in favor of native Dexie and Supabase task state).
+  - Removed redundant `src/components/modals/NotificationSettingsModal.jsx` (superseded by direct `SettingsPanel.jsx` routing).
+  - Preserved all components with test suites (`DailyTasks.jsx`, `newsDiversity.js`).
+- **Obsolete Script Elimination (`scripts/`)**:
+  - Safely backed up 11 obsolete one-off scripts to `private_backups/scripts/` and removed them from git tracking:
+    - One-off migrations: `migrate_reading_tasks_to_media_log.js`, `migrate_subtasks_to_tasks.js`, `migrate_tasks_to_milestones.js`.
+    - One-off runners and test scripts: `test_groq.js`, `test_scout.js`, `resync_today_plan.js`, `auto_patcher.js`.
+    - Retired sprint scripts: `nest_ielts_tasks.js` (exam passed Oct 3, 2026; replaced by `nest_project_tasks.js`).
+    - Obsolete persistence check: `verify_day_guide_persistence.js` (Sprint B tool covered by unit tests).
+    - Legacy CLI ingestion pipes: `agent_outreach_insert.js`, `agent_scout_insert.js`.
+- **Scratch Directory Removal**:
+  - Backed up all untracked scratch debug tools and mockups (`scratch/check_active.js`, `scratch/check_ielts.js`, `scratch/check_ielts_direct.js`, `scratch/check_orphans.js`, `scratch/TaskMatrix_copy.jsx`, `scratch/architecture_review_20261007.html`) to `private_backups/scratch/` and removed `scratch/` folder.
+- **Package.json and Documentation Alignment**:
+  - Removed dead `"scout:report"` command pointing to non-existent `generate_starred_report.mjs`.
+  - Updated `.agent/ARCHITECTURE.md`, `docs/ARCHITECTURE.md`, and `docs/COMPONENT_MAP.md` removing deleted component references.
+
 ## [2026-11-07] v1.2.82 - Documentation Reorganization & Working Tree Sanitization
 - **Documentation Architecture & Modularization**:
   - Created modular technical specifications in `docs/features/`: `constellation_graph.md`, `focus_board.md`, `task_matrix.md`, `day_guide.md`, `morning_brief_scout.md`, `pomodoro_leveling.md` (incorporating `docs/LEVELING_ENGINE.md`), `daily_rituals_journal.md`, `curriculum_media.md`, `reachout_crm.md`, and `fitness_bridge.md`.

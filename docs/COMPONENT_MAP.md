@@ -29,5 +29,4 @@ Dashboard (Main Entry)
 - `SparkPopup`: Morning brief climate signal popup.
 
 ## Widgets
-- `MusicPlayer`: Handles background Lofi tracks.
 - `PomodoroTimer`: Global timer hook.
