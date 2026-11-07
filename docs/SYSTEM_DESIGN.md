@@ -26,7 +26,7 @@ To reflect your true multifaceted identity, Polaris separates goals into two dis
 - **Structure:** Hierarchical parent-linked targets (Daily $\rightarrow$ Weekly $\rightarrow$ Monthly) to ensure long-term focus.
 
 ### B. Side Quests (Curiosity & Soul)
-- **Focus:** Stands as the essential part of your identity—sketching, cooking, learning languages, reading fiction, fitness milestones, or spontaneous creative outlets.
+- **Focus:** Stands as the essential part of your identity - sketching, cooking, learning languages, reading fiction, fitness milestones, or spontaneous creative outlets.
 - **Structure:** Standalone, flexible "Side Quests" that do not require any parent linkage. Displayed in a dedicated, gamified **Side Quests Guild** panel with unique compass badges, rewarding you for feeding your curiosity and soul.
 
 ---
@@ -36,7 +36,7 @@ To reflect your true multifaceted identity, Polaris separates goals into two dis
 To keep your dashboard sleek and minimalist without losing the vital emotional/strategic context of your goals:
 
 ### The Layout:
-1. **The Card Face:** Minimalist and clean—showing only the goal title, progress metrics, and deadline.
+1. **The Card Face:** Minimalist and clean: showing only the goal title, progress metrics, and deadline.
 2. **The "Whispering" Context Drawer:** A small, elegant "Info" icon is added to each card. Clicking it smoothly expands a glassmorphic accordion/drawer revealing your custom **Why-Now Context, Guiding Quotes, or Creative Descriptions**. It keeps your emotional anchors just one click away without cluttering your daily view.
 
 ---
@@ -130,7 +130,7 @@ The AI Goal Auditor in the `GoalsPanel` will be configured as follows:
 Tone Guidelines:
 - Heartfelt & Empathetic: Sincerely appreciate their effort, understand their personal context, and celebrate well-structured links.
 - Highly Structured: Deliver advice in clear, scannable bullet points (categorized into Alignment, Gaps, and Overcomplications).
-- Constructive Criticism: Do not hesitate to call out weak or vague goals (e.g., 'Do some research' is too vague — suggest replacing with a SMART alternative like 'Read 2 papers'). Point out 'floating' goals that have no parents or children.
+- Constructive Criticism: Do not hesitate to call out weak or vague goals (e.g., 'Do some research' is too vague - suggest replacing with a SMART alternative like 'Read 2 papers'). Point out 'floating' goals that have no parents or children.
 
 Audit their goal-set using the Star-Map Algorithm (SMART for daily/weekly, HARD for yearly/5-year)."
 ```

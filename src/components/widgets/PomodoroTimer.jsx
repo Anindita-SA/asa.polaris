@@ -9,6 +9,7 @@ import { classifyTaskType } from '../../lib/dayGuidePersistence'
 import { Settings, X, Maximize2, Minimize2, RotateCcw, ChevronDown, ChevronUp, Music, CheckCircle2, Target, ExternalLink } from 'lucide-react'
 
 import Starfield from '../layout/Starfield'
+import TimerTaskSearch from './TimerTaskSearch'
 
 const MODE_CONFIG = {
   focus: { label: 'Pomodoro', default: 25, color: '#3b82f6' },
@@ -287,7 +288,7 @@ const PomodoroTimer = ({ mobilePill = false }) => {
   // Service Worker Alarm Integration
   useEffect(() => {
     if (isRunning && timeLeft > 0) {
-      if (currentTask && currentTask.id) {
+      if (currentTask && currentTask.id && user?.id) {
         offlineUpdate('tasks', { id: currentTask.id, user_id: user.id }, { skip_count: 0 })
           .then(({ error }) => {
             if (error) console.error('Failed to reset skip_count:', error)
@@ -513,22 +514,13 @@ const PomodoroTimer = ({ mobilePill = false }) => {
         {/* Today's Task Selector */}
         {taskGroups.length > 0 && (
           <div className="mb-4 w-full">
-            <select
-              value={selectedTaskId}
-              onChange={e => handleSelectTodayTask(e.target.value)}
-              className="w-full bg-stardust/80 text-xs text-starlight border border-amber-400/40 rounded-xl px-3 py-2 outline-none font-body text-center appearance-none shadow-lg"
-            >
-              <option value="">🎯 Select Task to Focus On...</option>
-              {taskGroups.map(group => (
-                <optgroup key={group.label} label={group.label} className="bg-void text-starlight">
-                  {group.tasks.map(t => (
-                    <option key={t.id} value={t.id}>
-                      {t.completed || t.status === 'done' ? '✓ ' : ''}{t.title}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
+            <TimerTaskSearch
+              taskGroups={taskGroups}
+              selectedTaskId={selectedTaskId}
+              onSelectTask={handleSelectTodayTask}
+              onSetCustomTopic={(topic) => { setSelectedTaskId(''); setComment(topic); }}
+              isExpanded={true}
+            />
           </div>
         )}
 
@@ -696,22 +688,13 @@ const PomodoroTimer = ({ mobilePill = false }) => {
             {/* Tasks Selector */}
             {taskGroups.length > 0 && (
               <div className="mt-3 w-full">
-                <select
-                  value={selectedTaskId}
-                  onChange={e => handleSelectTodayTask(e.target.value)}
-                  className="w-full bg-stardust/60 text-xs text-starlight border border-pulsar/40 focus:border-amber-400/60 rounded-lg px-2 py-1.5 outline-none font-body truncate"
-                >
-                  <option value="">🎯 Select Task to Focus On...</option>
-                  {taskGroups.map(group => (
-                    <optgroup key={group.label} label={group.label} className="bg-void text-starlight">
-                      {group.tasks.map(t => (
-                        <option key={t.id} value={t.id}>
-                          {t.completed || t.status === 'done' ? '✓ ' : ''}{t.title}
-                        </option>
-                      ))}
-                    </optgroup>
-                  ))}
-                </select>
+                <TimerTaskSearch
+                  taskGroups={taskGroups}
+                  selectedTaskId={selectedTaskId}
+                  onSelectTask={handleSelectTodayTask}
+                  onSetCustomTopic={(topic) => { setSelectedTaskId(''); setComment(topic); }}
+                  isExpanded={false}
+                />
               </div>
             )}
 

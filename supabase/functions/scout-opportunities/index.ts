@@ -3,6 +3,12 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
 import Parser from 'npm:rss-parser'
 import { extractJsonFromLlm, getBestGroqModel, generateWithFallback } from '../_shared/llm_utils.ts'
 import { opportunitiesPrompt } from '../_shared/personal_prompts.ts'
+import {
+  syncAndRotateWindow,
+  buildFirecrawlOpportunityQuery,
+  incrementCategoryFetchCounts,
+  matchCanonicalCategory
+} from '../_shared/scout_tracker.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -198,8 +204,11 @@ serve(async (req) => {
     // 1. Opportunity Ingestion (Firecrawl with resilient RSS fallback)
     let searchResults: any[] = []
 
+    const { lowestCountCategories } = await syncAndRotateWindow(supabaseAdmin, user.id, today)
+
     if (firecrawlApiKey) {
-      const query = "(\"fully funded\" OR stipend OR paid) (internship OR grant OR \"seed funding\" OR \"open call\" OR fellowship OR \"job listing\") (\"agritech\" OR \"off-grid\" OR \"impact hardware\" OR \"product design\" OR \"power electronics\" OR \"climate tech\") 2026 2027 -newsletter -roundup"
+      const query = buildFirecrawlOpportunityQuery(lowestCountCategories)
+      console.log('Dynamic Firecrawl opportunity search targeting categories:', lowestCountCategories.join(', '))
       try {
         const firecrawlRes = await fetch('https://api.firecrawl.dev/v1/search', {
           method: 'POST',
@@ -420,6 +429,16 @@ serve(async (req) => {
       .select('id, title, url, project_fit, profile_match, acceptance_chance, effort, deadline, what_offered')
 
     if (insertErr) throw insertErr
+
+    // Increment category fetch counts in scout_category_tracker
+    const categoriesFound: string[] = []
+    for (const opp of (insertedRows || [])) {
+      const matched = matchCanonicalCategory(opp.project_fit) ||
+                      matchCanonicalCategory(opp.title) ||
+                      (lowestCountCategories.length > 0 ? lowestCountCategories[0] : null)
+      if (matched) categoriesFound.push(matched)
+    }
+    await incrementCategoryFetchCounts(supabaseAdmin, user.id, categoriesFound)
 
     // 5. Append to morning_briefs
     const briefItems = (insertedRows || []).map((o: any) => ({

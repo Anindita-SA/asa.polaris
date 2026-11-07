@@ -76,7 +76,7 @@ export async function fetchOpportunityFeeds() {
   return pool;
 }
 
-export const APPLICANT_PROFILE = `Bangladeshi national, Indian student visa (non-resident). Final-year BTech EEE at NIT Trichy (7th sem), power electronics research + fine arts (drawing, painting, writing) and product design background. Parallel tracks: (1) hardware, power electronics, conservation/agri/climate tech (2) industrial/product design, independent art/creative writing grants, and free certified technical/design training. Treat all tracks as equal priority without default bias.`;
+export const APPLICANT_PROFILE = process.env.APPLICANT_PROFILE || `Engineering undergraduate with interdisciplinary background in hardware, power electronics, embedded systems, industrial design, and creative technology. Parallel tracks: (1) hardware, power electronics, conservation/agri/climate tech (2) industrial/product design, independent creative writing grants, and free certified technical/design training. Treat all tracks as equal priority without default bias.`;
 
 export function buildOpportunitiesPrompt(minifiedPool, learnedFeedback = '') {
   return `Opportunity pool:
@@ -94,18 +94,18 @@ For each item, determine if the page is:
 ONLY items classified as "application" may proceed. Reject all others.
 
 STEP 2 - ELIGIBILITY & REALISTIC SCORING:
-- Bangladeshi nationals must be eligible (reject if restricted to other regions/citizenships or requires Indian citizenship/residency).
+- Applicant must be eligible under program regional and national criteria (reject if restricted to ineligible citizenships/regions).
 - Must have funding (reject self-funded or paid fee programs).
 - If unconfirmed, note in project_fit instead of rejecting outright.
 
 CRITICAL SCORING & OUTPUT RULES:
 - DO NOT use default scores like 80/85 or 60. Calibrate realistic numbers:
-  * profile_match (0-100): Alignment with applicant background and citizenship (90+ = exact match with EEE/design/conservation and verified Bangladesh eligibility, 60-80 = moderate alignment, <50 = weak alignment).
+  * profile_match (0-100): Alignment with applicant background and eligibility (90+ = exact match with technical/design background and verified eligibility, 60-80 = moderate alignment, <50 = weak alignment).
   * acceptance_chance (0-100): Realistic selection probability based on competition (competitive international programs are typically 10-35%).
 - what_offered: Specify exact funding terms, grant amount, stipend, or travel terms (e.g. '$20,000 research grant', 'Full tuition + €1,400/month stipend'). NEVER output vague text like 'Travel and project funding' or 'Grant funding'.
 - project_fit: Generate a clean 2-3 sentence structured summary:
   Sentence 1 (Program Overview): Program scope, focus, and host organization.
-  Sentence 2-3 (Strategic Fit & Eligibility): Direct alignment with applicant background (hardware/EEE, product design/art, or certified technical training) and nationality/visa eligibility confirmation.
+  Sentence 2-3 (Strategic Fit & Eligibility): Direct alignment with applicant background (hardware/electronics, product design, or certified technical training) and regional eligibility confirmation.
 - effort: low (simple form) | med (1-2 essays/portfolio) | high (multi-stage/interview).
 
 Pick 0-3 best fits. Return ZERO if nothing qualifies - an empty array is the correct answer when no direct applications match.

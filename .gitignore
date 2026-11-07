@@ -26,6 +26,12 @@ local_tasks_archive.json
 *.ics
 supabase/.temp/
 application_milestones_sync.md
+scripts/ingest_*.js
+scripts/update_tracker_*.js
+scripts/deploy_masters_*.js
+scripts/export_*.js
+scripts/sync_milestones.js
+scripts/verify_*.js
 
 # Security Layer
 scripts/logs/

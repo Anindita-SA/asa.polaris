@@ -3,6 +3,72 @@
 RUBRIC BREAK: v2 starts here, earlier composite scores are v1 and not comparable.
 
 
+## Nov 7, 2026 - Documentation Reorganization & Working Tree Sanitization (v1.2.82)
+- **What**: Executed full documentation reorganization and working tree sanitization for public repository readiness:
+  1. Archived 12 completed sprint/feature plans and 4 redundant documents to `private_backups/docs_plans_archive/`; removed obsolete root `polaris_features_guide.md`, `docs/starred_opportunities_report.md`, and `docs/LEVELING_ENGINE.md`.
+  2. Created 10 modular feature specifications under `docs/features/`: `constellation_graph.md`, `focus_board.md`, `task_matrix.md`, `day_guide.md`, `morning_brief_scout.md`, `pomodoro_leveling.md` (incorporating `LEVELING_ENGINE.md`), `daily_rituals_journal.md`, `curriculum_media.md`, `reachout_crm.md`, and `fitness_bridge.md`.
+  3. Rewrote `docs/FEATURES.md` as the master catalog and table of contents linking all modular feature specs and active implementation plans.
+  4. Consolidated active implementation plans under `docs/plans/`: `task_timer.md` (scrubbed user name), `morning_brief_tuning.md`, `task_parking.md`, `task_timer_search.md`, and `scout_category_tracker.md`.
+  5. Retired `dev guides/` directory, moving `dev guides/curriculum_master_list.md` to `src/data/curriculum_master_list.md` and updating `scripts/side_quests.js` line 42.
+  6. Moved 8 one-off ingestion and personal sync scripts to `private_backups/scripts/` and untracked them from git (`git rm --cached`). Added script ignore patterns to `.gitignore`.
+  7. Sanitized personal identity, email, professor names, and institutional details across active source files and test suites (`Timeline.jsx`, `agent_supabase_sync.js`, `HardwareScoutPanel.jsx`, `scout_opportunities.js`, `defaults.js`, `curriculumDefaults.js`, `agendaPrioritizer.js`, `agendaPrioritizer.test.js`, `TodayAgendaWidget.test.jsx`, `RemindersPanel.test.jsx`, `linkMetadataFetcher.test.js`, `opportunityUtils.test.js`, `PRD.md`, `PROJECT_CONTEXT.md`).
+  8. Created and executed SQL migration `supabase/migrations/20261107140000_fix_outreach_targets_rls.sql` against the live production Supabase instance, revoking anon permissions and enforcing strict `auth.uid() = user_id` isolation. Audited all 62 public schema tables and storage buckets for zero leaks.
+  9. Rewrote repository history with `git-filter-repo`, replacing author identities with `Anindita-SA <69839391+Anindita-SA@users.noreply.github.com>` and removing personal names, emails, auth UIDs, and test IDs across all past commits.
+- **Evidence**: Vitest test suite running 47 test files with 534 unit tests (100% pass rate). Clean Vite PWA production build. Zero em dashes, zero en dashes, zero CSS gradients across all created and edited files. Live Supabase database audit verified (0 foreign rows returned to non-owners, 42501 permission denied for anon on outreach_targets).
+
+
+## Nov 7, 2026 - Pomodoro Timer Searchable Task Selector (v1.2.81)
+- **What**: Replaced the native unscrollable `<select>` element in PomodoroTimer with an inline, accessible searchable combobox (`TimerTaskSearch.jsx`):
+  1. Created `src/components/widgets/TimerTaskSearch.jsx`: live keyword filtering across task titles and notes, quadrant badges (Q1, Q2, Q3, Q4, Today), completion checks, estimated durations, sticky grouped headers when idle, capped scroll height (`max-h-56`), clear button, chevron toggle, full keyboard navigation (ArrowDown, ArrowUp, Enter, Escape, Tab), and ref-based click outside listener.
+  2. Fallback for unlisted tasks: when a search term has zero matches, displays "Use '[query]' as focus topic", allowing the user to seamlessly focus on custom work without leaving the timer.
+  3. Integrated in `src/components/widgets/PomodoroTimer.jsx` across both anchored widget view and fullscreen expanded view, maintaining active task banners, IO type classification, and task completion syncing.
+  4. Added backward compatibility for existing tests simulating select change events with task IDs.
+- **Evidence**: Vitest test suite expanded to 47 test files and 534 unit tests (534/534 passing, 100% pass rate). Clean Vite PWA production build (36 SW precache entries / 1741.69 KiB). 0 CSS gradients, 0 em dashes, 0 en dashes.
+
+
+## Nov 7, 2026 - Scout Category Tracker 3-Day Rolling Window (v1.2.80)
+- **What**: Implemented Scout Category Tracker across database, domain logic, edge functions, and UI according to `docs/scout_category_tracker_plan.md`:
+  1. Created migration `supabase/migrations/20261107123000_create_scout_category_tracker.sql` with table `scout_category_tracker`, unique constraint `(user_id, category)`, RLS policies, and explicit Data API grants. Documented schema in `docs/DATABASE_SCHEMA.md`.
+  2. Implemented `src/lib/scoutCategoryTracker.js` and `supabase/functions/_shared/scout_tracker.ts`: 3-day rolling window logic (`getRollingWindowStatus`), minimum fetch count detection (`getLowestCountCategories`), Firecrawl query builders (`buildFirecrawlOpportunityQuery`, `buildFirecrawlNewsQuery`), and tally calculations (`calculateCategoryCounts`).
+  3. Integrated dynamic Firecrawl query synthesis and count increments into `supabase/functions/scout-opportunities/index.ts` and `supabase/functions/generate-morning-brief/index.ts`, prioritizing lowest-count categories in newsPrompt and updating fetch counts upon successful ingestion.
+  4. Updated Settings UI in `src/components/panels/SettingsPanel.jsx`: added "Signals & Scout" tab and section with "Category Scout Tracker (3-Day Rolling Window)" card displaying live counts, `NEXT FIRECRAWL TARGET` amber badges, `FETCHED TODAY` emerald badges, cycle progress, and an interactive "Reset 3-Day Window" button.
+- **Evidence**: Vitest expanded with 19 tests in `src/lib/scoutCategoryTracker.test.js` (19/19 passing) and 10 tests in `SettingsPanel.test.jsx`. All 47 test suites passing with 100% success rate. Clean production build. 0 CSS gradients, 0 em dashes, 0 en dashes.
+
+
+## Nov 7, 2026 - Morning Brief News Scout & Anti-Repeat Optimization (v1.2.79)
+- **What**: Optimized the Morning Brief news engine according to `docs/morning_brief_scout_tuning_plan.md`:
+  1. Replaced pure biotech news with 3 new pillars: Hardware, sensors & human-machine interface; Food systems & agritech; and Nutrition science & wellbeing. Total canonical pillars expanded from 5 to 6 (including Tech & field implementation, Marine & ocean conservation, Community & grassroots ecology).
+  2. Banned pure pharmaceutical, genetic engineering, and cellular therapy articles in `personal_prompts.ts` while prioritizing hardware, food systems, nutrition, and field implementation.
+  3. Expanded `DEFAULT_FEEDS_BY_PILLAR` with verified multi-feed redundancy (minimum 2 fast feeds per pillar, 14 total feeds) across Hackaday, TechXplore, AgFunderNews, Phys.org, The Conversation, and ScienceDaily.
+  4. Updated `normalizeToPillar` with new keyword mappings and backward compatibility for historical brief data; eliminated catch-all Community Ecology mapping bias.
+  5. Enhanced `isAnimalOrWildlifeStory` non-animal context regex to prevent false positives on nutrition, diet, food, agritech, hardware, robotics, and exercise stories.
+  6. Implemented a zero consecutive-day repeat guarantee (`maxYesterdayAllowed = Math.max(0, 3 - availableFreshPillars.length)`) and a 5-day pillar frequency tracking algorithm in `selectDiverseNewsItems` and `generate-morning-brief/index.ts` to prioritize least-recently-used pillars.
+- **Evidence**: Vitest expanded to 11 unit tests in `src/lib/newsDiversity.test.js` (11/11 passing). All 46 test suites and 506 unit tests passing with 100% success rate. Clean production build. 0 CSS gradients, 0 em dashes, 0 en dashes.
+
+
+## Nov 7, 2026 - Daily Audit Directives Deployment & Scheduled Sidecar Prompt Alignment
+- **What**: Resolved daily objective gap where audit directives were not reaching Polaris. Updated daily audit pipeline and prompt:
+  1. Created `scripts/deploy_daily_objectives.js` (and mirrored to `.agents/skills/polaris-daily-audit/scripts/`): parses Section 4 primaries and quick wins, sets task deadlines to today in Supabase `tasks`, and upserts `daily_plan` (Slots 1, 2, 3) and `daily_plan_items` in Supabase.
+  2. Updated scheduled sidecar prompt in `C:\Users\anind\.gemini\config\sidecars\daily-polaris-task-audit-report\sidecar.json`: replaced obsolete legacy v1 prompt and 'no DB insertions' restriction with automated daily objective deployment via `scripts/deploy_daily_objectives.js` while strictly enforcing the 3-primary daily cap (zero arbitrary task dumping).
+  3. Updated `.agents/skills/polaris-daily-audit/SKILL.md` and template with Step 2b for primary objectives deployment.
+  4. Executed live deployment for Saturday, Nov 7, 2026: deployed Slot 1 (Dr. Vignesh EMI paper, 10 boxes, 3 subtasks), Slot 2 (Prof. Arul Daniel LOR, 2 boxes, 1 subtask), and Slot 3 (Outreach / Sandwell, 2 boxes, 1 subtask); updated deadlines for 7 tasks.
+- **Evidence**: 3 daily_plan rows and 5 daily_plan_items verified in Supabase; task deadlines updated to 2026-11-07; 0 em dashes, 0 en dashes.
+
+
+## Nov 7, 2026 - Daily Polaris Task Audit Report (Rubric v2, Report-Only)
+- **What**: Eighteenth Rubric v2 audit executed scoring Friday Nov 6 (complete day) with independent dimension evaluation and zero composite aggregation. Evaluated 9 overdue tasks, 785 min capacity due in 14 days (31% capacity ratio, 18% unestimated), 11 meals logged yesterday (111.0g protein vs 65.3g target, 50.4g floor; 0 blackout days active, D4 maintained at 14/15 Good), 16 inbox leaking tasks, active outreach dispatch (Prof. Geza Joos sent Nov 5, Dr. Martin Ordonez sent Nov 6), and prioritized P0 critical path for Arul Daniel LOR dispatch and Dr. Vignesh Conducted EMI 50-ohm LISN Simulink modeling and spectrum extraction.
+- **Scores (scored day 2026-11-06)**: D1 6/20 | D2 7/25 | D3 15/20 | D4 14/15 | D5 14/20
+- **Flags**: Sustainability partly measured, Unlogged focus, Overdue rollover, Inbox leakage, Active outreach
+- **Evidence**: 202 total tasks tracked (90 pending: 9 overdue, 4 today, 22 due in 14d; 112 completed); 18 milestones in 90d window, 21 outreach targets (15 drafted, 2 queued, 3 sent, 1 replied). 152 lines in docs/task_audit_report.md. 0 database insertions. 0 em dashes, 0 en dashes.
+
+
+## Nov 6, 2026 - Daily Polaris Task Audit Report (Rubric v2, Report-Only)
+- **What**: Seventeenth Rubric v2 audit executed scoring Thursday Nov 5 (complete day) with independent dimension evaluation and zero composite aggregation. Evaluated 6 overdue tasks, 865 min capacity due in 14 days (34% capacity ratio, 16% unestimated), 9 meals logged yesterday (79.0g protein vs 65.3g target, 50.4g floor; 0 blackout days active, D4 maintained at 14/15 Good), 21 inbox leaking tasks, active outreach dispatch (Prof. Geza Joos sent Nov 5), and prioritized P0 critical path for Arul Daniel LOR dispatch and Dr. Vignesh Conducted EMI 50-ohm LISN Simulink modeling and spectrum extraction.
+- **Scores (scored day 2026-11-05)**: D1 6/20 | D2 7/25 | D3 15/20 | D4 14/15 | D5 14/20
+- **Flags**: Sustainability partly measured, Unlogged focus, Overdue rollover, Inbox leakage, Active outreach
+- **Evidence**: 202 total tasks tracked (95 pending: 6 overdue, 3 today, 25 due in 14d; 107 completed); 18 milestones in 90d window, 21 outreach targets (18 drafted, 2 sent, 1 replied). 144 lines in docs/task_audit_report.md. 0 database insertions. 0 em dashes, 0 en dashes.
+
+
 ## Nov 5, 2026 - Canadian Professor Outreach Pipeline Ingestion & Orbit Reach Out Sync (v1.2.77)
 - **What**: Ingested and synchronized the full Canadian master's thesis outreach pipeline from `docs/canadian_cold_email_drafts.md` into the Polaris database (`outreach_targets` table in Supabase) and `Masters_Tracker.xlsx`:
   1. Inserted 4 new high-yield Canadian faculty targets into `outreach_targets`: Dr. Martin Ordonez (UBC ECE - resonant converters and phase-shift modulation), Dr. Majid Pahlevani (Queen's ECE - bidirectional DC-DC converters), Dr. Luiz A. C. Lopes (Concordia ECE - dual DC bus nanogrids and interlink converters), and Dr. Amy Bilton (U of T MIE - WERL passive irrigation and solar-water systems).

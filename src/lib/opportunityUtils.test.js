@@ -4,13 +4,13 @@ import { parseOpportunityBreakdown, formatTwoSentenceSummary } from './opportuni
 describe('opportunityUtils', () => {
   it('parses multi-sentence project_fit into overview and fit cleanly', () => {
     const opp = {
-      project_fit: 'Global research fellowship supporting early-career scientists and practitioners working on coastal wetlands in the Indo-Pacific region. Bangladeshi nationals are eligible to apply with independent research proposals.',
+      project_fit: 'Global research fellowship supporting early-career scientists and practitioners working on coastal wetlands in the Indo-Pacific region. International researchers are eligible to apply with independent research proposals.',
       what_offered: 'Up to $60,000 research grant covering field equipment and travel stipend.'
     }
 
     const breakdown = parseOpportunityBreakdown(opp)
     expect(breakdown.overview).toBe('Global research fellowship supporting early-career scientists and practitioners working on coastal wetlands in the Indo-Pacific region.')
-    expect(breakdown.fit).toBe('Bangladeshi nationals are eligible to apply with independent research proposals.')
+    expect(breakdown.fit).toBe('International researchers are eligible to apply with independent research proposals.')
     expect(breakdown.offered).toBe('Up to $60,000 research grant covering field equipment and travel stipend.')
   })
 

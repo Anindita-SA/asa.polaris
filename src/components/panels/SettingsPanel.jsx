@@ -22,7 +22,8 @@ import {
   Eye,
   Bot,
   RefreshCw,
-  Trash2
+  Trash2,
+  Radio
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { safeMutate } from '../../lib/safeMutate'
@@ -32,6 +33,11 @@ import {
   DEFAULT_FEATURE_FLAGS,
   DEFAULT_NOTIFICATION_SETTINGS
 } from '../../hooks/useUserSettings'
+import {
+  CANONICAL_CATEGORIES,
+  getRollingWindowStatus,
+  getLowestCountCategories
+} from '../../lib/scoutCategoryTracker'
 
 const TABLES = [
   'profiles',
@@ -49,7 +55,8 @@ const TABLES = [
   'tasks',
   'recurring_task_templates',
   'practice_scores',
-  'user_settings'
+  'user_settings',
+  'scout_category_tracker'
 ]
 
 const TASK_MODES = [
@@ -212,8 +219,68 @@ const SettingsPanel = ({ open, isOpen, onClose, initialSection = 'all' }) => {
   useEffect(() => {
     if (isVisible && user?.id) {
       fetchTemplates()
+      fetchScoutTracker()
     }
   }, [isVisible, user?.id])
+
+  const [scoutRows, setScoutRows] = useState([])
+  const [loadingScout, setLoadingScout] = useState(false)
+  const [resettingWindow, setResettingWindow] = useState(false)
+
+  const fetchScoutTracker = async () => {
+    if (!user?.id) return
+    try {
+      setLoadingScout(true)
+      const { data, error } = await supabase
+        .from('scout_category_tracker')
+        .select('*')
+        .eq('user_id', user.id)
+
+      if (!error && data) {
+        setScoutRows(data)
+      }
+    } catch (e) {
+      console.warn('Error fetching scout tracker in settings:', e)
+    } finally {
+      setLoadingScout(false)
+    }
+  }
+
+  const handleResetScoutWindow = async () => {
+    if (!user?.id || resettingWindow) return
+    setResettingWindow(true)
+    const today = new Date().toISOString().slice(0, 10)
+    const nowIso = new Date().toISOString()
+
+    const resetRows = CANONICAL_CATEGORIES.map(cat => {
+      const existing = scoutRows.find(r => r.category === cat)
+      return {
+        ...(existing?.id ? { id: existing.id } : {}),
+        user_id: user.id,
+        category: cat,
+        fetch_count: 0,
+        window_start_date: today,
+        last_fetched_at: existing?.last_fetched_at || null,
+        updated_at: nowIso
+      }
+    })
+
+    setScoutRows(resetRows)
+
+    try {
+      await safeMutate(
+        supabase
+          .from('scout_category_tracker')
+          .upsert(resetRows, { onConflict: 'user_id, category' }),
+        { throwOnError: true, context: 'SettingsPanel:resetScoutWindow' }
+      )
+    } catch (e) {
+      console.warn('Error resetting scout window:', e)
+      fetchScoutTracker()
+    } finally {
+      setResettingWindow(false)
+    }
+  }
 
   const handleToggleTemplateActive = async (templateId, isActive) => {
     if (!user?.id) return
@@ -312,13 +379,20 @@ const SettingsPanel = ({ open, isOpen, onClose, initialSection = 'all' }) => {
     { id: 'matrix', label: 'Triage & Matrix' },
     { id: 'reminders', label: 'Reminders & Nudges' },
     { id: 'focus', label: 'Focus & Audio' },
+    { id: 'scout', label: 'Signals & Scout' },
     { id: 'account', label: 'Data & Account' }
   ]
 
   const showMatrix = activeSection === 'all' || activeSection === 'matrix'
   const showReminders = activeSection === 'all' || activeSection === 'reminders'
   const showFocus = activeSection === 'all' || activeSection === 'focus'
+  const showScout = activeSection === 'all' || activeSection === 'scout'
   const showAccount = activeSection === 'all' || activeSection === 'account'
+
+  const windowStartDate = scoutRows[0]?.window_start_date || new Date().toISOString().slice(0, 10)
+  const windowStatus = getRollingWindowStatus(windowStartDate)
+  const lowestCategories = getLowestCountCategories(scoutRows)
+  const todayStr = new Date().toISOString().slice(0, 10)
 
   return (
     <div
@@ -747,7 +821,88 @@ const SettingsPanel = ({ open, isOpen, onClose, initialSection = 'all' }) => {
           </div>
         )}
 
-        {/* SECTION 4: Data & Account */}
+        {/* SECTION 4: Signals & Scout */}
+        {showScout && (
+          <div className="space-y-4 pt-1">
+            <div className="flex items-center gap-2 pb-1 border-b border-pulsar/20">
+              <Radio className="w-4 h-4 text-gold" />
+              <h4 className="text-xs font-mono text-gold uppercase tracking-wider font-bold">
+                Signals &amp; Scout
+              </h4>
+            </div>
+
+            <div className="p-4 rounded-xl bg-void/50 border border-pulsar/30 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-pulsar/20">
+                <div>
+                  <h5 className="text-xs font-display text-starlight font-bold">
+                    Category Scout Tracker (3-Day Rolling Window)
+                  </h5>
+                  <p className="text-[11px] font-body text-nova/60 mt-0.5">
+                    Dynamically rotates opportunity and news crawlers across the 6 canonical pillars.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <div className="px-2.5 py-1 rounded-lg bg-pulsar/20 border border-pulsar/30 text-xs font-mono text-starlight">
+                    Window Day {windowStatus.cycleDay} of 3
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleResetScoutWindow}
+                    disabled={resettingWindow}
+                    className="px-2.5 py-1 rounded-lg bg-void/60 hover:bg-pulsar/20 border border-pulsar/30 hover:border-gold/40 text-nova/80 hover:text-gold text-xs font-mono transition-colors flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                    title="Reset 3-Day Window"
+                  >
+                    <RotateCcw className={`w-3.5 h-3.5 ${resettingWindow ? 'animate-spin' : ''}`} />
+                    <span>Reset 3-Day Window</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                {CANONICAL_CATEGORIES.map(cat => {
+                  const row = scoutRows.find(r => r.category === cat)
+                  const count = row?.fetch_count ?? 0
+                  const isTarget = lowestCategories.includes(cat)
+                  const fetchedToday = Boolean(row?.last_fetched_at && row.last_fetched_at.slice(0, 10) === todayStr)
+
+                  return (
+                    <div
+                      key={cat}
+                      className="flex items-center justify-between p-2.5 rounded-lg bg-void/60 border border-pulsar/20 hover:border-pulsar/40 transition-colors"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                        <div className={`w-2 h-2 rounded-full shrink-0 ${isTarget ? 'bg-amber-400' : 'bg-pulsar/40'}`} />
+                        <span className="text-xs font-display text-starlight truncate">
+                          {cat}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        {isTarget && (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                            NEXT FIRECRAWL TARGET
+                          </span>
+                        )}
+                        {fetchedToday && (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                            FETCHED TODAY
+                          </span>
+                        )}
+                        <span className="px-2 py-0.5 rounded bg-pulsar/10 border border-pulsar/20 text-xs font-mono text-nova/80">
+                          {count} / 3d
+                        </span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* SECTION 5: Data & Account */}
         {showAccount && (
           <div className="space-y-4 pt-1">
             <div className="flex items-center gap-2 pb-1 border-b border-pulsar/20">
@@ -872,7 +1027,7 @@ const SettingsPanel = ({ open, isOpen, onClose, initialSection = 'all' }) => {
 
         {/* Contact info footer */}
         <div className="text-[11px] text-nova/40 font-mono text-center pt-1 border-t border-pulsar/10">
-          <span>Polaris v1.2.6 . Created by Anindita-SA</span>
+          <span>Polaris v1.2.82</span>
         </div>
       </div>
     </div>

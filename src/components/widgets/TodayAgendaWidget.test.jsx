@@ -420,7 +420,7 @@ describe('TodayAgendaWidget', () => {
       },
       {
         id: 'audit-proposal',
-        title: 'Draft 1-page conducted EMI paper proposal & scope pitch for Dr. Vignesh',
+        title: 'Draft 1-page conducted EMI paper proposal & research scope pitch',
         completed: false,
         estimated_minutes: 30,
         quadrant: 'urgent_important',
@@ -440,7 +440,7 @@ describe('TodayAgendaWidget', () => {
       },
       {
         id: 'audit-lor',
-        title: 'Prof. S. Arul Daniel LOR draft final review & dispatch',
+        title: 'Academic recommendation letter draft final review & dispatch',
         completed: false,
         estimated_minutes: 30,
         quadrant: 'urgent_important',
@@ -453,9 +453,9 @@ describe('TodayAgendaWidget', () => {
     render(<TodayAgendaWidget />)
 
     // All 3 audit primaries must be rendered in primaries list
-    expect(screen.getByText('Draft 1-page conducted EMI paper proposal & scope pitch for Dr. Vignesh')).toBeDefined()
+    expect(screen.getByText('Draft 1-page conducted EMI paper proposal & research scope pitch')).toBeDefined()
     expect(screen.getByText('Integrate 50-ohm LISN blocks & parasitical coupling into DAB Simulink model')).toBeDefined()
-    expect(screen.getByText('Prof. S. Arul Daniel LOR draft final review & dispatch')).toBeDefined()
+    expect(screen.getByText('Academic recommendation letter draft final review & dispatch')).toBeDefined()
 
     // Random task due today must be displaced beyond the 3-primary cap
     expect(screen.queryByText('Random Routine Item Due Today')).toBeNull()
@@ -485,7 +485,7 @@ describe('TodayAgendaWidget', () => {
       },
       {
         id: 't-proposal',
-        title: 'Draft 1-page conducted EMI paper proposal & scope pitch for Dr. Vignesh',
+        title: 'Draft 1-page conducted EMI paper proposal & research scope pitch',
         completed: false,
         estimated_minutes: 30,
         quadrant: 'urgent_important',
@@ -495,7 +495,7 @@ describe('TodayAgendaWidget', () => {
       },
       {
         id: 't-lor',
-        title: 'Prof. S. Arul Daniel LOR draft final review & dispatch',
+        title: 'Academic recommendation letter draft final review & dispatch',
         completed: false,
         estimated_minutes: 30,
         quadrant: 'urgent_important',

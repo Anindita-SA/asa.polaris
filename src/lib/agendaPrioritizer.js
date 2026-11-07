@@ -1,9 +1,9 @@
 // Domain module for Daily Task Audit alignment, priority ranking, and candidate sorting
 
 export const DEFAULT_AUDIT_PRIMARIES = [
-  'Draft 1-page conducted EMI paper proposal & scope pitch for Dr. Vignesh',
+  'Draft 1-page conducted EMI paper proposal & research scope pitch',
   'Integrate 50-ohm LISN blocks & parasitical coupling into DAB Simulink model',
-  'Prof. S. Arul Daniel LOR draft final review & dispatch'
+  'Academic recommendation letter draft final review & dispatch'
 ]
 
 /**
@@ -25,8 +25,8 @@ export function getAuditRank(task, auditList) {
       if (titleLower.includes(itemLower) || itemLower.includes(titleLower)) return i
 
       // Semantic keywords for standard daily audit targets
-      const isEmiTarget = itemLower.includes('emi') || itemLower.includes('lisn') || (itemLower.includes('vignesh') && (itemLower.includes('proposal') || itemLower.includes('pitch') || itemLower.includes('simulink') || itemLower.includes('model') || itemLower.includes('simulation') || itemLower.includes('paper')))
-      const isEmiTask = titleLower.includes('emi') || titleLower.includes('lisn') || (titleLower.includes('vignesh') && (titleLower.includes('proposal') || titleLower.includes('pitch') || titleLower.includes('simulink') || titleLower.includes('model') || titleLower.includes('simulation') || titleLower.includes('paper')))
+      const isEmiTarget = /\bemi\b/i.test(itemLower) || itemLower.includes('lisn') || itemLower.includes('simulink') || (itemLower.includes('proposal') && (itemLower.includes('pitch') || itemLower.includes('scope')))
+      const isEmiTask = /\bemi\b/i.test(titleLower) || titleLower.includes('lisn') || titleLower.includes('simulink') || (titleLower.includes('proposal') && (titleLower.includes('pitch') || titleLower.includes('scope')))
       if (isEmiTarget && isEmiTask) {
         // If the item specifies proposal/pitch vs simulink/lisn, distinguish them
         const isProposalTarget = itemLower.includes('proposal') || itemLower.includes('pitch')
@@ -37,8 +37,8 @@ export function getAuditRank(task, auditList) {
         if (!isProposalTarget && !itemLower.includes('lisn')) return i
       }
 
-      const isLorTarget = itemLower.includes('arul') || itemLower.includes('daniel') || (itemLower.includes('lor') && (itemLower.includes('review') || itemLower.includes('dispatch') || itemLower.includes('draft')))
-      const isLorTask = titleLower.includes('arul') || titleLower.includes('daniel') || (titleLower.includes('lor') && (titleLower.includes('review') || titleLower.includes('dispatch') || titleLower.includes('draft')))
+      const isLorTarget = itemLower.includes('recommendation') || itemLower.includes('reference') || (itemLower.includes('lor') && (itemLower.includes('review') || itemLower.includes('dispatch') || itemLower.includes('draft'))) || (itemLower.includes('letter') && (itemLower.includes('review') || itemLower.includes('dispatch') || itemLower.includes('draft')))
+      const isLorTask = titleLower.includes('recommendation') || titleLower.includes('reference') || (titleLower.includes('lor') && (titleLower.includes('review') || titleLower.includes('dispatch') || titleLower.includes('draft'))) || (titleLower.includes('letter') && (titleLower.includes('review') || titleLower.includes('dispatch') || titleLower.includes('draft')))
       if (isLorTarget && isLorTask) return i
 
       const isPortfolioTarget = itemLower.includes('portfolio') && (itemLower.includes('case studies') || itemLower.includes('engineering') || itemLower.includes('replace') || itemLower.includes('showcase'))
@@ -55,8 +55,8 @@ export function getAuditRank(task, auditList) {
         if (titleLower === itemLower) return i
         if (titleLower.includes(itemLower) || itemLower.includes(titleLower)) return i
 
-        const isEmiTarget = itemLower.includes('emi') || itemLower.includes('lisn') || (itemLower.includes('vignesh') && (itemLower.includes('proposal') || itemLower.includes('pitch') || itemLower.includes('simulink') || itemLower.includes('model') || itemLower.includes('simulation') || itemLower.includes('paper')))
-        const isEmiTask = titleLower.includes('emi') || titleLower.includes('lisn') || (titleLower.includes('vignesh') && (titleLower.includes('proposal') || titleLower.includes('pitch') || titleLower.includes('simulink') || titleLower.includes('model') || titleLower.includes('simulation') || titleLower.includes('paper')))
+        const isEmiTarget = /\bemi\b/i.test(itemLower) || itemLower.includes('lisn') || itemLower.includes('simulink') || (itemLower.includes('proposal') && (itemLower.includes('pitch') || itemLower.includes('scope')))
+        const isEmiTask = /\bemi\b/i.test(titleLower) || titleLower.includes('lisn') || titleLower.includes('simulink') || (titleLower.includes('proposal') && (titleLower.includes('pitch') || titleLower.includes('scope')))
         if (isEmiTarget && isEmiTask) {
           const isProposalTarget = itemLower.includes('proposal') || itemLower.includes('pitch')
           const isProposalTask = titleLower.includes('proposal') || titleLower.includes('pitch')
@@ -65,8 +65,8 @@ export function getAuditRank(task, auditList) {
           if (!isProposalTarget && !itemLower.includes('lisn')) return i
         }
 
-        const isLorTarget = itemLower.includes('arul') || itemLower.includes('daniel') || (itemLower.includes('lor') && (itemLower.includes('review') || itemLower.includes('dispatch') || itemLower.includes('draft')))
-        const isLorTask = titleLower.includes('arul') || titleLower.includes('daniel') || (titleLower.includes('lor') && (titleLower.includes('review') || titleLower.includes('dispatch') || titleLower.includes('draft')))
+        const isLorTarget = itemLower.includes('recommendation') || itemLower.includes('reference') || (itemLower.includes('lor') && (itemLower.includes('review') || itemLower.includes('dispatch') || itemLower.includes('draft'))) || (itemLower.includes('letter') && (itemLower.includes('review') || itemLower.includes('dispatch') || itemLower.includes('draft')))
+        const isLorTask = titleLower.includes('recommendation') || titleLower.includes('reference') || (titleLower.includes('lor') && (titleLower.includes('review') || titleLower.includes('dispatch') || titleLower.includes('draft'))) || (titleLower.includes('letter') && (titleLower.includes('review') || titleLower.includes('dispatch') || titleLower.includes('draft')))
         if (isLorTarget && isLorTask) return i
 
         const isPortfolioTarget = itemLower.includes('portfolio') && (itemLower.includes('case studies') || itemLower.includes('engineering') || itemLower.includes('replace') || itemLower.includes('showcase'))

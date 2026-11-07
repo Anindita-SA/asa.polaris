@@ -39,9 +39,8 @@ async function syncTasks() {
   
   console.log(`Syncing ${tasks.length} tasks to Supabase...`);
 
-  // First, we need her user_id. Since we are using service_role, we need to assign the tasks to her user.
-  // We'll fetch her user ID based on her email.
-  const userEmail = "69839391+Anindita-SA@users.noreply.github.com"; // Adjust if different
+  // Fetch user ID based on configured agent email or fallback to first user
+  const userEmail = process.env.AGENT_USER_EMAIL || "";
   
   const { data: users, error: userError } = await supabase.auth.admin.listUsers();
   if (userError) {
@@ -49,9 +48,11 @@ async function syncTasks() {
     return;
   }
   
-  const user = users.users.find(u => u.email.toLowerCase() === userEmail.toLowerCase());
+  const user = userEmail
+    ? users.users.find(u => u.email.toLowerCase() === userEmail.toLowerCase())
+    : users.users[0];
   if (!user) {
-      console.error(`Could not find a Supabase user with email: ${userEmail}. Check the email address.`);
+      console.error(`Could not find a Supabase user. Provide AGENT_USER_EMAIL or check auth table.`);
       return;
   }
   

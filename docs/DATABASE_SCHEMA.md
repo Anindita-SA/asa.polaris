@@ -889,6 +889,12 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.<table_name> TO service_role;
 | `profile_url` | `text` | Nullable |
 | `created_at` | `timestamptz` | Nullable, Default `now()` |
 
+### RLS Policies & Grants
+
+- **RLS Enabled**: Yes
+- **Policy**: `Users can manage their own outreach targets` (`FOR ALL TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id)`)
+- **Data API Grants**: `SELECT, INSERT, UPDATE, DELETE` to `authenticated`; full access to `service_role`. `anon` access revoked.
+
 ## Table `task_estimate_calibration`
 
 ### Columns
@@ -1032,6 +1038,24 @@ Unique Constraint: `UNIQUE (user_id, name, exam_date)`
 | `created_at` | `timestamptz` | Not Null, Default `now()` |
 
 Unique Constraint: `UNIQUE (plan_id, task_id)`
+
+## Table `scout_category_tracker`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `id` | `uuid` | Primary, Default `gen_random_uuid()` |
+| `user_id` | `uuid` | Not Null, References `auth.users(id)` on delete cascade |
+| `category` | `text` | Not Null |
+| `fetch_count` | `int4` | Not Null, Default `0` |
+| `window_start_date` | `date` | Not Null, Default `CURRENT_DATE` |
+| `last_fetched_at` | `timestamptz` | Nullable |
+| `created_at` | `timestamptz` | Not Null, Default `now()` |
+| `updated_at` | `timestamptz` | Not Null, Default `now()` |
+
+Unique Constraint: `UNIQUE (user_id, category)`
+
 
 
 

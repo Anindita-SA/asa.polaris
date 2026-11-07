@@ -39,7 +39,7 @@ export function generateHeuristicSideQuestTasks(quests = []) {
  * Reads the curriculum and extracts current [NEXT] side quests.
  */
 export function extractNextQuests() {
-  const curriculumPath = path.resolve(__dirname, '../dev guides/curriculum_master_list.md');
+  const curriculumPath = path.resolve(__dirname, '../src/data/curriculum_master_list.md');
   const content = fs.readFileSync(curriculumPath, 'utf8');
   
   // Extract all lines containing [NEXT]

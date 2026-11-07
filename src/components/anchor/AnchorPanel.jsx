@@ -4,7 +4,7 @@ import { offlineSelect, offlineInsert } from '../../lib/offlineApi'
 import { useAuth } from '../../hooks/useAuth'
 import { ChevronLeft, ChevronRight, Edit2, History } from 'lucide-react'
 
-const DEFAULT_EULOGY = `Anindita-SA was a kind hearted, honest, empathetic woman who loved to help others in need and be around the people whom she loved. She was always devoted to her morals and values and to education -- not academic learning in general -- and she always looked forward to bettering herself in all the ways possible. She had an endless thirst of knowledge and tickling hands for making cool stuff.`
+const DEFAULT_EULOGY = `A dedicated engineer and designer devoted to making impactful technology, sustainable products, and creative systems that empower communities. Devoted to lifelong learning and building things that matter, combining technical rigor with human-centered design, and achieving independence through creative invention.`
 
 const AnchorPanel = ({ collapsed, onToggle, mobile = false }) => {
   const { user, profile, updateProfile } = useAuth()

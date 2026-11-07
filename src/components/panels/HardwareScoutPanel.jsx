@@ -476,7 +476,7 @@ const HardwareScoutPanel = () => {
                             <div className="text-xs font-mono text-nova/80 space-y-1 border-t border-pulsar/20 pt-2">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <span className="text-amber-400/90 font-medium">Verified Constraints:</span>
-                                <span className="text-starlight/90">Bangladeshi national, EEE undergrad, Indian student visa</span>
+                                <span className="text-starlight/90">Engineering undergrad, verified eligibility criteria</span>
                               </div>
                               <div className="flex items-center gap-3 text-xs text-nova/70">
                                 <span>Profile Match: <strong className="text-emerald-400">{opp.profile_match != null ? `${opp.profile_match}%` : 'Pending'}</strong></span>

@@ -57,8 +57,8 @@ describe('linkMetadataFetcher unit tests', () => {
         <title>Dual Active Bridge Converter Control for Fast Dynamic Response</title>
         <summary>This paper investigates modulation strategies for DAB converters.</summary>
         <published>2026-05-10T12:00:00Z</published>
-        <author><name>Dr. Vignesh Kumar</name></author>
-        <author><name>A. Researcher</name></author>
+        <author><name>Dr. Alex Taylor</name></author>
+        <author><name>Jordan Smith</name></author>
         <category term="eess.SY"/>
       </entry>
     </feed>`
@@ -72,7 +72,7 @@ describe('linkMetadataFetcher unit tests', () => {
     const { metadata, source } = await autoFetchLinkMetadata('https://arxiv.org/abs/2605.12345')
     expect(source).toBe('arXiv API')
     expect(metadata.title).toBe('Dual Active Bridge Converter Control for Fast Dynamic Response')
-    expect(metadata.author_or_creator).toBe('Dr. Vignesh Kumar, A. Researcher')
+    expect(metadata.author_or_creator).toBe('Dr. Alex Taylor, Jordan Smith')
     expect(metadata.media_type).toBe('paper')
     expect(metadata.tags).toContain('arxiv')
     expect(metadata.full_review).toContain('https://arxiv.org/abs/2605.12345')

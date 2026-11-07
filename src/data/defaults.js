@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// POLARIS - Complete Default Data for Anindita-SA
+// POLARIS - Complete Default Data
 // Generated: May 2026
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -11,31 +11,31 @@ export const DEFAULT_CLARITY_ANCHOR =
 export const DEFAULT_CURRENT_CHAPTER = "Chapter I: The Foundation";
 
 export const DEFAULT_EULOGY = {
-  version_label: "Original - June 2024",
+  version_label: "Original Blueprint",
   written_date: "2024-06-25",
   content:
-    "Anindita-SA was a kind hearted, honest, empathetic woman who loved to help others in need and be around the people whom she loved. She was always devoted to her morals and values and to education - not academic learning in general - and she always looked forward to bettering herself in all the ways possible. She had an endless thirst of knowledge and tickling hands for making cool stuff. All her life, she devoted herself to make a good life for her family and the needy. She always advocated for sustainable living, reusing trash to form treasure and teach and motivate others to do the same. She built a brand and multiple companies that focused on creative output, expression, sustainable products, agri-tech and robotics with a non profit working towards a better future for ecosystems. She was one of the greatest artists of her time, using her art as a guide and a vessel for growing the things that she held dear. She pursued her MSc in Europe not as an end goal but as a launchpad - building toward companies at the intersection of engineering, design, and sustainability. She achieved financial independence through invention, not employment, within a decade. A Renaissance woman in the truest sense: engineer, designer, artist, inventor. She never left her family's side and was always present for her mother and father. She might not have been a perfect human being, but she always strived to be a good, loving, caring person and a good daughter, sister and friend.",
+    "A dedicated engineer and designer devoted to making impactful technology, sustainable products, and creative systems that empower communities. Devoted to lifelong learning and building things that matter, combining technical rigor with human-centered design, and achieving independence through creative invention.",
 };
 
 // ── Constellation Nodes ───────────────────────────────────────────────────────
 
 export const DEFAULT_NODES = [
-  { type: "root",     title: "POLARIS",   description: "North star - MSc Europe → FI through invention",        x_pos: 0.5,  y_pos: 0.5  },
+  { type: "root",     title: "POLARIS",   description: "North star - Graduate studies -> Independence through invention", x_pos: 0.5,  y_pos: 0.5  },
   { type: "career",   title: "Career",    description: "Portfolio, research, applications, internships",         x_pos: 0.25, y_pos: 0.25 },
-  { type: "academic", title: "Academic",  description: "NIT Trichy coursework, CGPA, lab exams",                 x_pos: 0.75, y_pos: 0.25 },
+  { type: "academic", title: "Academic",  description: "Coursework, GPA maintenance, lab exams",                 x_pos: 0.75, y_pos: 0.25 },
   { type: "self",     title: "Self",      description: "Fitness, creative work, financial health, wellbeing",    x_pos: 0.5,  y_pos: 0.8  },
 ];
 
 export const DEFAULT_SUBNODES = [
   { type: "career",   title: "Portfolio",        description: "Projects documented with design process",                    x_pos: 0.08, y_pos: 0.1,  parentTitle: "Career"    },
-  { type: "career",   title: "MSc Applications", description: "37 targets across Europe, Jan 2027 submission",              x_pos: 0.18, y_pos: 0.05, parentTitle: "Career"    },
+  { type: "career",   title: "MSc Applications", description: "Target programs across Europe, Jan 2027 submission",         x_pos: 0.18, y_pos: 0.05, parentTitle: "Career"    },
   { type: "career",   title: "CHAARG",           description: "LiPo mod board - CHAARG-L and CHAARG-P variants",            x_pos: 0.28, y_pos: 0.1,  parentTitle: "Career"    },
   { type: "career",   title: "Survey Paper",     description: "DAB converter control strategies - IEEE Access target",      x_pos: 0.18, y_pos: 0.2,  parentTitle: "Career"    },
   { type: "career",   title: "Solar Scheduler",  description: "Solar-aware deferrable load scheduler - IEEE conference",    x_pos: 0.08, y_pos: 0.25, parentTitle: "Career"    },
   { type: "career",   title: "Deskimon",         description: "Desk companion with pomodoro - product, not just concept",   x_pos: 0.28, y_pos: 0.25, parentTitle: "Career"    },
-  { type: "academic", title: "Coursework",       description: "PSPS, MPMC, electives - protect CGPA floor 7.75+",          x_pos: 0.72, y_pos: 0.1,  parentTitle: "Academic"  },
-  { type: "academic", title: "DAB Research",     description: "DAB converter hardware under Dr. Vignesh Kumar",             x_pos: 0.82, y_pos: 0.15, parentTitle: "Academic"  },
-  { type: "self",     title: "Fitness",          description: "Greek Commoner Workout → Athena physique",                   x_pos: 0.38, y_pos: 0.85, parentTitle: "Self"      },
+  { type: "academic", title: "Coursework",       description: "Core modules and electives - protect GPA floor",             x_pos: 0.72, y_pos: 0.1,  parentTitle: "Academic"  },
+  { type: "academic", title: "DAB Research",     description: "DAB converter hardware and control validation",               x_pos: 0.82, y_pos: 0.15, parentTitle: "Academic"  },
+  { type: "self",     title: "Fitness",          description: "Consistent athletic training and movement habit",            x_pos: 0.38, y_pos: 0.85, parentTitle: "Self"      },
   { type: "self",     title: "Creative",         description: "Substack, conservation art, music, storytelling",            x_pos: 0.5,  y_pos: 0.92, parentTitle: "Self"      },
   { type: "self",     title: "Financial",        description: "FI roadmap - entrepreneurship not employment",               x_pos: 0.62, y_pos: 0.85, parentTitle: "Self"      },
 ];
@@ -64,7 +64,7 @@ export const DEFAULT_GOALS = [
   { node_title: "Fitness",          scope: "weekly", title: "Complete 4 resistance band sessions",                        target: 4,  unit: "sessions", xp_reward: 50 },
   { node_title: "Creative",         scope: "weekly", title: "Write one Substack draft or creative entry",                 target: 1,  unit: "draft",    xp_reward: 50 },
   { node_title: "Coursework",       scope: "weekly", title: "Stay on top of assigned coursework - no backlogs",           target: 1,  unit: "review",   xp_reward: 50 },
-  { node_title: "DAB Research",     scope: "weekly", title: "Meet with or update Dr. Vignesh Kumar on DAB progress",      target: 1,  unit: "update",   xp_reward: 50 },
+  { node_title: "DAB Research",     scope: "weekly", title: "Meet with or update research advisor on DAB progress",      target: 1,  unit: "update",   xp_reward: 50 },
 
   // ── MONTHLY ──────────────────────────────────────────────────────────────────
   { node_title: "Survey Paper",     scope: "monthly", title: "Complete one full section of the survey paper",             target: 1,  unit: "section",    xp_reward: 50 },
@@ -96,7 +96,7 @@ export const DEFAULT_GOALS = [
   { node_title: "Portfolio",        scope: "yearly", title: "Portfolio fully populated - 4 real projects live",          target: 4,  unit: "projects",    xp_reward: 50 },
   { node_title: "MSc Applications", scope: "yearly", title: "Submit all 37 MSc applications by January 2027",           target: 37, unit: "applications", xp_reward: 50 },
   { node_title: "MSc Applications", scope: "yearly", title: "Retake IELTS - score 7.5 or above",                        target: 1,  unit: "test",        xp_reward: 50 },
-  { node_title: "MSc Applications", scope: "yearly", title: "Obtain MOI certificate from NIT Trichy registrar",         target: 1,  unit: "document",    xp_reward: 50 },
+  { node_title: "MSc Applications", scope: "yearly", title: "Obtain MOI certificate from university registrar",         target: 1,  unit: "document",    xp_reward: 50 },
   { node_title: "MSc Applications", scope: "yearly", title: "Secure at least 2 strong recommendation letters",          target: 2,  unit: "letters",     xp_reward: 50 },
   { node_title: "DAB Research",     scope: "yearly", title: "Make meaningful hardware contribution to DAB converter",    target: 1,  unit: "milestone",   xp_reward: 50 },
   { node_title: "Fitness",          scope: "yearly", title: "Build foundation - consistent strength and movement habit", target: 1,  unit: "year",        xp_reward: 50 },
@@ -167,7 +167,7 @@ export const DEFAULT_BACKBURNER = [
     title: "oikos International - Communications Role",
     why_deferred: "Email drafted, not yet sent. Low urgency but high network value if it lands. Send when exams are over.",
     context_snapshot:
-      "Impact Communications & Content Creator role, 3-5 hrs/week remote, info@oikos-international.org. Draft: introduce as NIT Trichy EEE student from Bangladesh, link portfolio + Substack. Role requires Canva + storytelling. Fits creative identity. Keep only if it energizes - drop if it feels like obligation.",
+      "Impact Communications & Content Creator role, 3-5 hrs/week remote, info@oikos-international.org. Draft: introduce as an engineering student, link portfolio + Substack. Role requires design + storytelling. Fits creative identity. Keep only if it energizes - drop if it feels like obligation.",
   },
   {
     title: "ME3+ / MESPOM Erasmus Mundus",
@@ -177,9 +177,9 @@ export const DEFAULT_BACKBURNER = [
   },
   {
     title: "UN Environmental Track & YPP Roadmap",
-    why_deferred: "Immediate focus is post-IELTS freelance cash generation, European MSc applications (Jan 2027 deadline), and graduating NIT Trichy. Full YPP preparation and monitoring begins next semester.",
+    why_deferred: "Immediate focus is freelance work, European MSc applications (Jan 2027 deadline), and completing degree. Full YPP preparation and monitoring begins next semester.",
     context_snapshot:
-      "Track annual participating country eligibility for Bangladesh at careers.un.org/ypp (Development & Sustainability or IT/Engineering tracks). Complete UN CC:Learn core primer and openLCA modeling as portfolio proof. Target P-1/P-2 entry or UNV specialist roles post-Master's.",
+      "Track annual participating country eligibility at careers.un.org/ypp (Development & Sustainability or IT/Engineering tracks). Complete UN CC:Learn core primer and openLCA modeling as portfolio proof. Target P-1/P-2 entry or UNV specialist roles post-Master's.",
     revisit_after: "2027-02-15",
   },
 ];

@@ -797,17 +797,17 @@ describe("RemindersPanel", () => {
     const dispatchSpy = vi.spyOn(window, "dispatchEvent");
 
     setupSupabaseMock([
-      { id: "focus-1", title: "Dr. Philip Sandwell (Imperial College London)", status: "active", category: "work", wsjfScore: 10.0 },
-      { id: "focus-2", title: "Prof. Geza Joos (McGill Univ)", status: "active", category: "work", wsjfScore: 9.0 }
+      { id: "focus-1", title: "Dr. Sarah Mitchell (Research Lab)", status: "active", category: "work", wsjfScore: 10.0 },
+      { id: "focus-2", title: "Prof. David Clark (Tech Institute)", status: "active", category: "work", wsjfScore: 9.0 }
     ], []);
 
     render(<RemindersPanel onOpenDayGuide={onOpenDayGuide} />);
 
     await waitFor(() => {
-      expect(screen.getByText("Dr. Philip Sandwell (Imperial College London)")).toBeDefined();
+      expect(screen.getByText("Dr. Sarah Mitchell (Research Lab)")).toBeDefined();
     });
 
-    const ongoingCardTitle = screen.getByText("Dr. Philip Sandwell (Imperial College London)");
+    const ongoingCardTitle = screen.getByText("Dr. Sarah Mitchell (Research Lab)");
     const ongoingCard = ongoingCardTitle.closest(".cursor-pointer");
     expect(ongoingCard).toBeDefined();
 
@@ -830,14 +830,14 @@ describe("RemindersPanel", () => {
     const dispatchSpy = vi.spyOn(window, "dispatchEvent");
 
     setupSupabaseMock([
-      { id: "focus-1", title: "Dr. Philip Sandwell", status: "active", category: "work", wsjfScore: 10.0 },
-      { id: "focus-2", title: "Prof. Geza Joos", status: "active", category: "work", wsjfScore: 9.0 }
+      { id: "focus-1", title: "Dr. Sarah Mitchell", status: "active", category: "work", wsjfScore: 10.0 },
+      { id: "focus-2", title: "Prof. David Clark", status: "active", category: "work", wsjfScore: 9.0 }
     ], []);
 
     render(<RemindersPanel onOpenDayGuide={onOpenDayGuide} />);
 
     await waitFor(() => {
-      expect(screen.getByText("Dr. Philip Sandwell")).toBeDefined();
+      expect(screen.getByText("Dr. Sarah Mitchell")).toBeDefined();
     });
 
     const startButton = screen.getByRole("button", { name: /Start/i });

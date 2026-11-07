@@ -1,73 +1,125 @@
 export const CANONICAL_PILLARS = [
-  'Biotechnology & genetic engineering',
-  'Health & medicine',
+  'Hardware, sensors & human-machine interface',
+  'Food systems & agritech',
+  'Nutrition science & wellbeing',
+  'Tech & field implementation',
   'Marine & ocean conservation',
-  'Community & grassroots ecology',
-  'Tech & field implementation'
+  'Community & grassroots ecology'
 ];
 
 export const SOURCE_TO_PILLAR = {
-  'Phys.org Biotechnology': 'Biotechnology & genetic engineering',
-  'The Conversation Health': 'Health & medicine',
+  'Hackaday': 'Hardware, sensors & human-machine interface',
+  'TechXplore Robotics': 'Hardware, sensors & human-machine interface',
+  'TechXplore Hardware': 'Hardware, sensors & human-machine interface',
+  'AgFunderNews': 'Food systems & agritech',
+  'Phys.org Agriculture & Plants': 'Food systems & agritech',
+  'The Conversation Health & Wellbeing': 'Nutrition science & wellbeing',
+  'The Conversation Health': 'Nutrition science & wellbeing',
+  'ScienceDaily Nutrition': 'Nutrition science & wellbeing',
+  'ScienceDaily Fitness & Wellbeing': 'Nutrition science & wellbeing',
+  'ScienceDaily Fitness': 'Nutrition science & wellbeing',
+  'Phys.org Engineering': 'Tech & field implementation',
+  'TechXplore Tech News': 'Tech & field implementation',
+  'Wildlabs': 'Tech & field implementation',
+  'Innovation Origins': 'Tech & field implementation',
   'Ocean Conservancy': 'Marine & ocean conservation',
   'Phys.org Oceanography': 'Marine & ocean conservation',
   'Hakai Magazine': 'Marine & ocean conservation',
+  'Phys.org Environment': 'Community & grassroots ecology',
+  'Phys.org Ecology': 'Community & grassroots ecology',
   'Mongabay India': 'Community & grassroots ecology',
   'Mongabay Global': 'Community & grassroots ecology',
-  'AgFunderNews': 'Tech & field implementation',
-  'Phys.org Engineering': 'Tech & field implementation',
-  'Wildlabs': 'Tech & field implementation',
-  'Innovation Origins': 'Tech & field implementation'
+  'Phys.org Biotechnology': 'Food systems & agritech'
 };
 
 export const DEFAULT_FEEDS_BY_PILLAR = {
-  'Biotechnology & genetic engineering': [
-    { name: 'Phys.org Biotechnology', url: 'https://phys.org/rss-feed/biology-news/biotechnology/' }
+  'Hardware, sensors & human-machine interface': [
+    { name: 'Hackaday', url: 'https://hackaday.com/feed/' },
+    { name: 'TechXplore Robotics', url: 'https://techxplore.com/rss-feed/robotics-news/' },
+    { name: 'TechXplore Hardware', url: 'https://techxplore.com/rss-feed/hardware-news/' }
   ],
-  'Health & medicine': [
-    { name: 'The Conversation Health', url: 'https://theconversation.com/global/health/articles.atom' }
+  'Food systems & agritech': [
+    { name: 'AgFunderNews', url: 'https://agfundernews.com/feed' },
+    { name: 'Phys.org Agriculture & Plants', url: 'https://phys.org/rss-feed/biology-news/plants-animals/' }
+  ],
+  'Nutrition science & wellbeing': [
+    { name: 'The Conversation Health & Wellbeing', url: 'https://theconversation.com/global/health/articles.atom' },
+    { name: 'ScienceDaily Nutrition', url: 'https://www.sciencedaily.com/rss/health_medicine/nutrition.xml' },
+    { name: 'ScienceDaily Fitness & Wellbeing', url: 'https://www.sciencedaily.com/rss/health_medicine/fitness.xml' }
+  ],
+  'Tech & field implementation': [
+    { name: 'Phys.org Engineering', url: 'https://phys.org/rss-feed/technology-news/engineering/' },
+    { name: 'TechXplore Tech News', url: 'https://techxplore.com/rss-feed/' }
   ],
   'Marine & ocean conservation': [
     { name: 'Ocean Conservancy', url: 'https://oceanconservancy.org/feed/' },
     { name: 'Phys.org Oceanography', url: 'https://phys.org/rss-feed/earth-news/oceanography/' }
   ],
   'Community & grassroots ecology': [
-    { name: 'Mongabay India', url: 'https://india.mongabay.com/feed/' },
-    { name: 'Mongabay Global', url: 'https://news.mongabay.com/feed/' }
-  ],
-  'Tech & field implementation': [
-    { name: 'AgFunderNews', url: 'https://agfundernews.com/feed' },
-    { name: 'Phys.org Engineering', url: 'https://phys.org/rss-feed/technology-news/engineering/' }
+    { name: 'Phys.org Environment', url: 'https://phys.org/rss-feed/earth-news/environment/' },
+    { name: 'Phys.org Ecology', url: 'https://phys.org/rss-feed/biology-news/ecology/' }
   ]
 };
 
 export function normalizeToPillar(str) {
   if (!str) return null;
   const s = String(str).toLowerCase();
+
+  // 1. Hardware, sensors & human-machine interface
   if (
-    s.includes('biotech') ||
-    s.includes('genetic') ||
-    s.includes('cellular') ||
-    s.includes('phys.org biology') ||
-    s.includes('tissue engineering')
+    s.includes('hardware') ||
+    s.includes('sensor') ||
+    s.includes('hmi') ||
+    s.includes('human-machine') ||
+    s.includes('interface') ||
+    s.includes('robotics') ||
+    s.includes('robot') ||
+    s.includes('hackaday') ||
+    s.includes('techxplore hardware') ||
+    s.includes('techxplore robotics') ||
+    s.includes('embedded')
   ) {
-    return 'Biotechnology & genetic engineering';
+    return 'Hardware, sensors & human-machine interface';
   }
+
+  // 2. Food systems & agritech
   if (
+    s.includes('food') ||
+    s.includes('agritech') ||
+    s.includes('agfunder') ||
+    s.includes('agriculture') ||
+    s.includes('farming') ||
+    s.includes('hydroponic') ||
+    s.includes('vertical farm') ||
+    s.includes('crop') ||
+    s.includes('plants-animals')
+  ) {
+    return 'Food systems & agritech';
+  }
+
+  // 3. Nutrition science & wellbeing (also maps legacy Health & medicine)
+  if (
+    s.includes('nutrition') ||
+    s.includes('wellbeing') ||
+    s.includes('diet') ||
+    s.includes('fitness') ||
     s.includes('health') ||
     s.includes('medicine') ||
     s.includes('medical') ||
-    s.includes('vaccine') ||
-    s.includes('disease') ||
+    s.includes('metabolic') ||
+    s.includes('sciencedaily nutrition') ||
+    s.includes('sciencedaily fitness') ||
     s.includes('conversation health')
   ) {
-    return 'Health & medicine';
+    return 'Nutrition science & wellbeing';
   }
+
+  // 4. Marine & ocean conservation
   if (
     s.includes('marine') ||
     s.includes('ocean') ||
-    s.includes('hakai') ||
     s.includes('oceanography') ||
+    s.includes('hakai') ||
     s.includes('coastal') ||
     s.includes('coral') ||
     s.includes('fisheries') ||
@@ -75,30 +127,44 @@ export function normalizeToPillar(str) {
   ) {
     return 'Marine & ocean conservation';
   }
+
+  // 5. Community & grassroots ecology
   if (
     s.includes('community') ||
     s.includes('grassroots') ||
+    s.includes('ecology') ||
+    s.includes('environment') ||
     s.includes('mongabay') ||
     s.includes('indigenous') ||
     s.includes('forest') ||
-    s.includes('biodiversity') ||
-    s.includes('wildlife')
+    s.includes('biodiversity')
   ) {
     return 'Community & grassroots ecology';
   }
+
+  // 6. Legacy fallback: map old Biotechnology & genetic engineering to Food systems & agritech
+  if (
+    s.includes('biotech') ||
+    s.includes('genetic') ||
+    s.includes('cellular') ||
+    s.includes('phys.org biology') ||
+    s.includes('tissue engineering')
+  ) {
+    return 'Food systems & agritech';
+  }
+
+  // 7. Tech & field implementation
   if (
     s.includes('tech') ||
+    s.includes('engineering') ||
+    s.includes('field implementation') ||
     s.includes('wildlabs') ||
     s.includes('innovation') ||
-    s.includes('agfunder') ||
-    s.includes('agriculture') ||
-    s.includes('hardware') ||
-    s.includes('sensor') ||
-    s.includes('telemetry') ||
-    s.includes('engineering')
+    s.includes('telemetry')
   ) {
     return 'Tech & field implementation';
   }
+
   return null;
 }
 
@@ -108,7 +174,7 @@ export function isAnimalOrWildlifeStory(item) {
   
   const animalPattern = /\b(animal|animals|wildlife|fauna|fish|fishes|mammal|mammals|bird|birds|reptile|reptiles|amphibian|amphibians|primate|primates|shark|sharks|whale|whales|ray|rays|tiger|tigers|elephant|elephants|insect|insects|bear|bears|wolf|wolves|frog|frogs|turtle|turtles|coral|corals|zooplankton|crustacean|crustaceans|subterranean fishes)\b/i;
   
-  const nonAnimalContext = /\b(patient|patients|clinical trial|human health|hospital|cancer|vaccine|blood|diagnostic|wearable|sensor|sensors|crop|crops|grain|wheat|rice|forestry|satellite|irrigation)\b/i;
+  const nonAnimalContext = /\b(patient|patients|clinical trial|human health|hospital|cancer|vaccine|blood|diagnostic|wearable|sensor|sensors|crop|crops|grain|wheat|rice|forestry|satellite|irrigation|nutrition|diet|food|agritech|hardware|robot|interface|wellbeing|mental health|exercise)\b/i;
   
   if (animalPattern.test(text) && !nonAnimalContext.test(text)) {
     return true;
@@ -132,7 +198,8 @@ export function selectDiverseNewsItems(
   parsedItems = [],
   pool = [],
   yesterdayPillars = new Set(),
-  freshPillars = []
+  freshPillars = [],
+  recentPillarCounts = {}
 ) {
   const selected = [];
   const selectedPillars = new Set();
@@ -149,7 +216,7 @@ export function selectDiverseNewsItems(
     pool.some(candidate => candidate.pillar === fresh)
   );
 
-  const maxYesterdayAllowed = Math.max(1, 3 - availableFreshPillars.length);
+  const maxYesterdayAllowed = Math.max(0, 3 - availableFreshPillars.length);
 
   const parseId = (id) => {
     if (typeof id === 'number') return id;
@@ -217,8 +284,12 @@ export function selectDiverseNewsItems(
   }
 
   // 2. Programmatic Backfill
-  // Pass A: Unrepresented fresh pillars from yesterday (anti-repeat rotation)
-  for (const freshPillar of (freshPillars || [])) {
+  // Pass A: Unrepresented fresh pillars from yesterday sorted ascending by 5-day frequency count
+  const sortedFreshPillars = [...(freshPillars || [])].sort(
+    (a, b) => (recentPillarCounts[a] || 0) - (recentPillarCounts[b] || 0)
+  );
+
+  for (const freshPillar of sortedFreshPillars) {
     if (selected.length >= 3) break;
     if (selectedPillars.has(freshPillar)) continue;
 
@@ -240,8 +311,12 @@ export function selectDiverseNewsItems(
     }
   }
 
-  // Pass B: Any other unrepresented canonical pillar not yet selected today
-  for (const pillar of CANONICAL_PILLARS) {
+  // Pass B: Any other unrepresented canonical pillar not yet selected today, sorted ascending by 5-day frequency count
+  const remainingPillarsForB = CANONICAL_PILLARS
+    .filter(p => !selectedPillars.has(p))
+    .sort((a, b) => (recentPillarCounts[a] || 0) - (recentPillarCounts[b] || 0));
+
+  for (const pillar of remainingPillarsForB) {
     if (selected.length >= 3) break;
     if (selectedPillars.has(pillar)) continue;
 
@@ -264,7 +339,11 @@ export function selectDiverseNewsItems(
   }
 
   // Pass C: Relax animal constraint if no non-animal candidate is available for unrepresented pillars
-  for (const pillar of CANONICAL_PILLARS) {
+  const remainingPillarsForC = CANONICAL_PILLARS
+    .filter(p => !selectedPillars.has(p))
+    .sort((a, b) => (recentPillarCounts[a] || 0) - (recentPillarCounts[b] || 0));
+
+  for (const pillar of remainingPillarsForC) {
     if (selected.length >= 3) break;
     if (selectedPillars.has(pillar)) continue;
 

@@ -77,3 +77,10 @@ Modifications to the following shared files require full app regression testing 
 ## 14. Settings
 - **Check 1:** Open Settings. Change the theme or toggle a notification setting. Verify the setting saves and the UI updates (if applicable).
 - **Check 2:** Edit user profile details (e.g., birth year, activity level). Save and verify the changes persist.
+
+## 15. Pomodoro Timer & Floating Widgets
+- **Check 1:** Click the task picker input on the Pomodoro Timer widget. Verify the searchable dropdown opens with sticky category headers and capped height.
+- **Check 2:** Type a keyword into the timer search box. Verify the list filters live matching task titles and notes, displaying quadrant badges (Q1-Q4, Today).
+- **Check 3:** Type a query with zero matches. Verify the "Use '[query]' as focus topic" fallback button appears and clicking it populates the session comment without selecting a missing task.
+- **Check 4:** Select a task from the filtered list. Verify the active task banner displays with the correct IO type and title, and the dropdown dismisses.
+

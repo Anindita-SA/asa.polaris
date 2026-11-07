@@ -18,17 +18,17 @@ describe('agendaPrioritizer domain module', () => {
   describe('DEFAULT_AUDIT_PRIMARIES', () => {
     it('contains the 3 canonical Master\'s application critical P0 targets', () => {
       expect(DEFAULT_AUDIT_PRIMARIES).toHaveLength(3)
-      expect(DEFAULT_AUDIT_PRIMARIES[0]).toBe('Draft 1-page conducted EMI paper proposal & scope pitch for Dr. Vignesh')
+      expect(DEFAULT_AUDIT_PRIMARIES[0]).toBe('Draft 1-page conducted EMI paper proposal & research scope pitch')
       expect(DEFAULT_AUDIT_PRIMARIES[1]).toBe('Integrate 50-ohm LISN blocks & parasitical coupling into DAB Simulink model')
-      expect(DEFAULT_AUDIT_PRIMARIES[2]).toBe('Prof. S. Arul Daniel LOR draft final review & dispatch')
+      expect(DEFAULT_AUDIT_PRIMARIES[2]).toBe('Academic recommendation letter draft final review & dispatch')
     })
   })
 
   describe('getAuditRank', () => {
     it('returns exact index for matching canonical titles', () => {
-      expect(getAuditRank({ title: 'Draft 1-page conducted EMI paper proposal & scope pitch for Dr. Vignesh' }, DEFAULT_AUDIT_PRIMARIES)).toBe(0)
+      expect(getAuditRank({ title: 'Draft 1-page conducted EMI paper proposal & research scope pitch' }, DEFAULT_AUDIT_PRIMARIES)).toBe(0)
       expect(getAuditRank({ title: 'Integrate 50-ohm LISN blocks & parasitical coupling into DAB Simulink model' }, DEFAULT_AUDIT_PRIMARIES)).toBe(1)
-      expect(getAuditRank({ title: 'Prof. S. Arul Daniel LOR draft final review & dispatch' }, DEFAULT_AUDIT_PRIMARIES)).toBe(2)
+      expect(getAuditRank({ title: 'Academic recommendation letter draft final review & dispatch' }, DEFAULT_AUDIT_PRIMARIES)).toBe(2)
     })
 
     it('matches by task.id when directives specify IDs', () => {
@@ -48,10 +48,10 @@ describe('agendaPrioritizer domain module', () => {
       expect(getAuditRank({ id: 'obj-3', title: 'Third' }, objectDirectives)).toBe(-1)
     })
 
-    it('matches semantic keywords for EMI proposal, LISN Simulink, and Arul Daniel LOR tasks', () => {
-      expect(getAuditRank({ title: 'Draft conducted EMI pitch proposal for Dr. Vignesh' }, DEFAULT_AUDIT_PRIMARIES)).toBe(0)
+    it('matches semantic keywords for EMI proposal, LISN Simulink, and recommendation letter tasks', () => {
+      expect(getAuditRank({ title: 'Draft conducted EMI pitch proposal for faculty advisor' }, DEFAULT_AUDIT_PRIMARIES)).toBe(0)
       expect(getAuditRank({ title: 'DAB converter 50-ohm LISN Simulink modeling' }, DEFAULT_AUDIT_PRIMARIES)).toBe(1)
-      expect(getAuditRank({ title: 'Final review of Arul Daniel LOR draft' }, DEFAULT_AUDIT_PRIMARIES)).toBe(2)
+      expect(getAuditRank({ title: 'Final review of recommendation letter draft' }, DEFAULT_AUDIT_PRIMARIES)).toBe(2)
     })
 
     it('returns -1 for non-matching tasks and handles null/undefined inputs gracefully', () => {
@@ -113,8 +113,8 @@ describe('agendaPrioritizer domain module', () => {
     it('auto-aligns audit P0 primaries over random tasks due today', () => {
       const candidates = [
         { id: 'routine', title: 'Routine Task Due Today', completed: false, deadline: todayStr, quadrant: 'urgent_important' },
-        { id: 'lor', title: 'Prof. S. Arul Daniel LOR draft final review & dispatch', completed: false, deadline: '2026-11-04' },
-        { id: 'prop', title: 'Draft 1-page conducted EMI paper proposal & scope pitch for Dr. Vignesh', completed: false, deadline: '2026-11-04' },
+        { id: 'lor', title: 'Academic recommendation letter draft final review & dispatch', completed: false, deadline: '2026-11-04' },
+        { id: 'prop', title: 'Draft 1-page conducted EMI paper proposal & research scope pitch', completed: false, deadline: '2026-11-04' },
         { id: 'lisn', title: 'Integrate 50-ohm LISN blocks & parasitical coupling into DAB Simulink model', completed: false, deadline: '2026-11-04' }
       ]
       const sorted = sortCandidatePrimaries(candidates, { todayStr })
@@ -129,7 +129,7 @@ describe('agendaPrioritizer domain module', () => {
     it('matches tasks in directive order and fills remaining slots with candidates', () => {
       const tasks = [
         { id: 't-lisn', title: 'Integrate 50-ohm LISN blocks & parasitical coupling into DAB Simulink model' },
-        { id: 't-prop', title: 'Draft 1-page conducted EMI paper proposal & scope pitch for Dr. Vignesh' },
+        { id: 't-prop', title: 'Draft 1-page conducted EMI paper proposal & research scope pitch' },
         { id: 't-extra', title: 'Extra Candidate 1' },
         { id: 't-other', title: 'Unrelated' }
       ]

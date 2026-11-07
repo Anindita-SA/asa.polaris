@@ -47,7 +47,7 @@ export const SEED_CURRICULA = [
     resources: [
       { title: 'TU Delft IPD portfolio examples', resource_type: 'article' },
       { title: 'IDEO design thinking toolkit', resource_type: 'article' },
-      { title: 'anindita-sa.github.io', resource_type: 'article', url: 'https://anindita-sa.github.io' },
+      { title: 'Portfolio Showcase Reference', resource_type: 'article' },
     ],
   },
   {
@@ -60,7 +60,7 @@ export const SEED_CURRICULA = [
       { title: 'CV for European MSc applications', estimated_hours: 2 },
       { title: 'Contacting faculty: cold email strategy that works', estimated_hours: 2 },
       { title: 'IELTS preparation: 4-week front-loaded sprint strategy', estimated_hours: 15 },
-      { title: 'MOI and document logistics: NIT Trichy specific', estimated_hours: 2 },
+      { title: 'MOI and document logistics: university specific', estimated_hours: 2 },
       { title: 'Scholarship research and application', estimated_hours: 3 },
       { title: 'Interview preparation', estimated_hours: 2 },
     ],
@@ -155,7 +155,7 @@ export const SEED_CURRICULA = [
     resources: [
       { title: 'Dissertation by Kheraluwala', resource_type: 'book' },
       { title: 'IEEE TPEL papers', resource_type: 'article' },
-      { title: 'Dr. Vignesh Kumar guidance', resource_type: 'article' },
+      { title: 'Faculty advisor research guidance', resource_type: 'article' },
     ],
   },
   {

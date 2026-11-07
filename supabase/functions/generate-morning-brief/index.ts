@@ -3,6 +3,10 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
 import Parser from 'npm:rss-parser'
 import { extractJsonFromLlm, getBestGroqModel, generateWithFallback } from '../_shared/llm_utils.ts'
 import { newsPrompt } from '../_shared/personal_prompts.ts'
+import {
+  syncAndRotateWindow,
+  incrementCategoryFetchCounts
+} from '../_shared/scout_tracker.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -39,13 +43,9 @@ serve(async (req) => {
 
     let resolvedUserId: string | null = null
 
-    let isServiceRole = false
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]))
-      if (payload.role === 'service_role') isServiceRole = true
-    } catch (e) {}
+    const isServiceRole = (token === serviceRoleKey)
 
-    if (!isServiceRole && token !== serviceRoleKey) {
+    if (!isServiceRole) {
       const { data: { user: callerUser }, error: authErr } = await supabaseClient.auth.getUser(token)
       if (authErr || !callerUser) {
         return new Response(JSON.stringify({ error: 'Unauthorized' }), {
@@ -101,47 +101,67 @@ serve(async (req) => {
     if (sourcesError) throw sourcesError
 
     const CANONICAL_PILLARS = [
-      'Biotechnology & genetic engineering',
-      'Health & medicine',
+      'Hardware, sensors & human-machine interface',
+      'Food systems & agritech',
+      'Nutrition science & wellbeing',
+      'Tech & field implementation',
       'Marine & ocean conservation',
-      'Community & grassroots ecology',
-      'Tech & field implementation'
+      'Community & grassroots ecology'
     ] as const
 
     type CanonicalPillar = typeof CANONICAL_PILLARS[number]
 
     const SOURCE_TO_PILLAR: Record<string, CanonicalPillar> = {
-      'Phys.org Biotechnology': 'Biotechnology & genetic engineering',
-      'The Conversation Health': 'Health & medicine',
+      'Hackaday': 'Hardware, sensors & human-machine interface',
+      'TechXplore Robotics': 'Hardware, sensors & human-machine interface',
+      'TechXplore Hardware': 'Hardware, sensors & human-machine interface',
+      'AgFunderNews': 'Food systems & agritech',
+      'Phys.org Agriculture & Plants': 'Food systems & agritech',
+      'The Conversation Health & Wellbeing': 'Nutrition science & wellbeing',
+      'The Conversation Health': 'Nutrition science & wellbeing',
+      'ScienceDaily Nutrition': 'Nutrition science & wellbeing',
+      'ScienceDaily Fitness & Wellbeing': 'Nutrition science & wellbeing',
+      'ScienceDaily Fitness': 'Nutrition science & wellbeing',
+      'Phys.org Engineering': 'Tech & field implementation',
+      'TechXplore Tech News': 'Tech & field implementation',
+      'Wildlabs': 'Tech & field implementation',
+      'Innovation Origins': 'Tech & field implementation',
       'Ocean Conservancy': 'Marine & ocean conservation',
       'Phys.org Oceanography': 'Marine & ocean conservation',
       'Hakai Magazine': 'Marine & ocean conservation',
+      'Phys.org Environment': 'Community & grassroots ecology',
+      'Phys.org Ecology': 'Community & grassroots ecology',
       'Mongabay India': 'Community & grassroots ecology',
       'Mongabay Global': 'Community & grassroots ecology',
-      'AgFunderNews': 'Tech & field implementation',
-      'Phys.org Engineering': 'Tech & field implementation',
-      'Wildlabs': 'Tech & field implementation',
-      'Innovation Origins': 'Tech & field implementation'
+      'Phys.org Biotechnology': 'Food systems & agritech'
     }
 
     const DEFAULT_FEEDS_BY_PILLAR: Record<CanonicalPillar, Array<{ name: string; url: string; type: string }>> = {
-      'Biotechnology & genetic engineering': [
-        { type: 'fixed', name: 'Phys.org Biotechnology', url: 'https://phys.org/rss-feed/biology-news/biotechnology/' }
+      'Hardware, sensors & human-machine interface': [
+        { type: 'fixed', name: 'Hackaday', url: 'https://hackaday.com/feed/' },
+        { type: 'fixed', name: 'TechXplore Robotics', url: 'https://techxplore.com/rss-feed/robotics-news/' },
+        { type: 'fixed', name: 'TechXplore Hardware', url: 'https://techxplore.com/rss-feed/hardware-news/' }
       ],
-      'Health & medicine': [
-        { type: 'fixed', name: 'The Conversation Health', url: 'https://theconversation.com/global/health/articles.atom' }
+      'Food systems & agritech': [
+        { type: 'fixed', name: 'AgFunderNews', url: 'https://agfundernews.com/feed' },
+        { type: 'fixed', name: 'Phys.org Agriculture & Plants', url: 'https://phys.org/rss-feed/biology-news/plants-animals/' }
+      ],
+      'Nutrition science & wellbeing': [
+        { type: 'fixed', name: 'The Conversation Health & Wellbeing', url: 'https://theconversation.com/global/health/articles.atom' },
+        { type: 'fixed', name: 'ScienceDaily Nutrition', url: 'https://www.sciencedaily.com/rss/health_medicine/nutrition.xml' },
+        { type: 'fixed', name: 'ScienceDaily Fitness & Wellbeing', url: 'https://www.sciencedaily.com/rss/health_medicine/fitness.xml' }
+      ],
+      'Tech & field implementation': [
+        { type: 'fixed', name: 'Phys.org Engineering', url: 'https://phys.org/rss-feed/technology-news/engineering/' },
+        { type: 'fixed', name: 'TechXplore Tech News', url: 'https://techxplore.com/rss-feed/' }
       ],
       'Marine & ocean conservation': [
         { type: 'fixed', name: 'Ocean Conservancy', url: 'https://oceanconservancy.org/feed/' },
         { type: 'fixed', name: 'Phys.org Oceanography', url: 'https://phys.org/rss-feed/earth-news/oceanography/' }
       ],
       'Community & grassroots ecology': [
-        { type: 'fixed', name: 'Mongabay India', url: 'https://india.mongabay.com/feed/' },
-        { type: 'fixed', name: 'Mongabay Global', url: 'https://news.mongabay.com/feed/' }
-      ],
-      'Tech & field implementation': [
-        { type: 'fixed', name: 'AgFunderNews', url: 'https://agfundernews.com/feed' },
-        { type: 'fixed', name: 'Phys.org Engineering', url: 'https://phys.org/rss-feed/technology-news/engineering/' }
+        { type: 'fixed', name: 'Phys.org Environment', url: 'https://phys.org/rss-feed/earth-news/environment/' },
+        { type: 'fixed', name: 'Phys.org Ecology', url: 'https://phys.org/rss-feed/biology-news/ecology/' }
       ]
     }
 
@@ -149,7 +169,7 @@ serve(async (req) => {
       if (!item) return false
       const text = `${item.title || ''} ${item.summary || ''}`.toLowerCase()
       const animalPattern = /\b(animal|animals|wildlife|fauna|fish|fishes|mammal|mammals|bird|birds|reptile|reptiles|amphibian|amphibians|primate|primates|shark|sharks|whale|whales|ray|rays|tiger|tigers|elephant|elephants|insect|insects|bear|bears|wolf|wolves|frog|frogs|turtle|turtles|coral|corals|zooplankton|crustacean|crustaceans|subterranean fishes)\b/i
-      const nonAnimalContext = /\b(patient|patients|clinical trial|human health|hospital|cancer|vaccine|blood|diagnostic|wearable|sensor|sensors|crop|crops|grain|wheat|rice|forestry|satellite|irrigation)\b/i
+      const nonAnimalContext = /\b(patient|patients|clinical trial|human health|hospital|cancer|vaccine|blood|diagnostic|wearable|sensor|sensors|crop|crops|grain|wheat|rice|forestry|satellite|irrigation|nutrition|diet|food|agritech|hardware|robot|interface|wellbeing|mental health|exercise)\b/i
       if (animalPattern.test(text) && !nonAnimalContext.test(text)) {
         return true
       }
@@ -171,30 +191,62 @@ serve(async (req) => {
     function normalizeToPillar(str?: string): CanonicalPillar | null {
       if (!str) return null
       const s = String(str).toLowerCase()
+
+      // 1. Hardware, sensors & human-machine interface
       if (
-        s.includes('biotech') ||
-        s.includes('genetic') ||
-        s.includes('cellular') ||
-        s.includes('phys.org biology') ||
-        s.includes('tissue engineering')
+        s.includes('hardware') ||
+        s.includes('sensor') ||
+        s.includes('hmi') ||
+        s.includes('human-machine') ||
+        s.includes('interface') ||
+        s.includes('robotics') ||
+        s.includes('robot') ||
+        s.includes('hackaday') ||
+        s.includes('techxplore hardware') ||
+        s.includes('techxplore robotics') ||
+        s.includes('embedded')
       ) {
-        return 'Biotechnology & genetic engineering'
+        return 'Hardware, sensors & human-machine interface'
       }
+
+      // 2. Food systems & agritech
       if (
+        s.includes('food') ||
+        s.includes('agritech') ||
+        s.includes('agfunder') ||
+        s.includes('agriculture') ||
+        s.includes('farming') ||
+        s.includes('hydroponic') ||
+        s.includes('vertical farm') ||
+        s.includes('crop') ||
+        s.includes('plants-animals')
+      ) {
+        return 'Food systems & agritech'
+      }
+
+      // 3. Nutrition science & wellbeing (also maps legacy Health & medicine)
+      if (
+        s.includes('nutrition') ||
+        s.includes('wellbeing') ||
+        s.includes('diet') ||
+        s.includes('fitness') ||
         s.includes('health') ||
         s.includes('medicine') ||
         s.includes('medical') ||
-        s.includes('vaccine') ||
-        s.includes('disease') ||
+        s.includes('metabolic') ||
+        s.includes('sciencedaily nutrition') ||
+        s.includes('sciencedaily fitness') ||
         s.includes('conversation health')
       ) {
-        return 'Health & medicine'
+        return 'Nutrition science & wellbeing'
       }
+
+      // 4. Marine & ocean conservation
       if (
         s.includes('marine') ||
         s.includes('ocean') ||
-        s.includes('hakai') ||
         s.includes('oceanography') ||
+        s.includes('hakai') ||
         s.includes('coastal') ||
         s.includes('coral') ||
         s.includes('fisheries') ||
@@ -202,30 +254,44 @@ serve(async (req) => {
       ) {
         return 'Marine & ocean conservation'
       }
+
+      // 5. Community & grassroots ecology
       if (
         s.includes('community') ||
         s.includes('grassroots') ||
+        s.includes('ecology') ||
+        s.includes('environment') ||
         s.includes('mongabay') ||
         s.includes('indigenous') ||
         s.includes('forest') ||
-        s.includes('biodiversity') ||
-        s.includes('wildlife')
+        s.includes('biodiversity')
       ) {
         return 'Community & grassroots ecology'
       }
+
+      // 6. Legacy fallback: map old Biotechnology & genetic engineering to Food systems & agritech
+      if (
+        s.includes('biotech') ||
+        s.includes('genetic') ||
+        s.includes('cellular') ||
+        s.includes('phys.org biology') ||
+        s.includes('tissue engineering')
+      ) {
+        return 'Food systems & agritech'
+      }
+
+      // 7. Tech & field implementation
       if (
         s.includes('tech') ||
+        s.includes('engineering') ||
+        s.includes('field implementation') ||
         s.includes('wildlabs') ||
         s.includes('innovation') ||
-        s.includes('agfunder') ||
-        s.includes('agriculture') ||
-        s.includes('hardware') ||
-        s.includes('sensor') ||
-        s.includes('telemetry') ||
-        s.includes('engineering')
+        s.includes('telemetry')
       ) {
         return 'Tech & field implementation'
       }
+
       return null
     }
 
@@ -233,11 +299,12 @@ serve(async (req) => {
     let activeSources = sources || []
     if (activeSources.length === 0) {
       activeSources = [
-        ...DEFAULT_FEEDS_BY_PILLAR['Biotechnology & genetic engineering'],
-        ...DEFAULT_FEEDS_BY_PILLAR['Health & medicine'],
+        ...DEFAULT_FEEDS_BY_PILLAR['Hardware, sensors & human-machine interface'],
+        ...DEFAULT_FEEDS_BY_PILLAR['Food systems & agritech'],
+        ...DEFAULT_FEEDS_BY_PILLAR['Nutrition science & wellbeing'],
+        ...DEFAULT_FEEDS_BY_PILLAR['Tech & field implementation'],
         ...DEFAULT_FEEDS_BY_PILLAR['Marine & ocean conservation'],
-        ...DEFAULT_FEEDS_BY_PILLAR['Community & grassroots ecology'],
-        ...DEFAULT_FEEDS_BY_PILLAR['Tech & field implementation']
+        ...DEFAULT_FEEDS_BY_PILLAR['Community & grassroots ecology']
       ]
     }
 
@@ -256,8 +323,12 @@ serve(async (req) => {
         .flatMap((b: any) => (b.items || []).map((i: any) => i.url).filter(Boolean))
     )
 
-    // Identify yesterday's (or most recent past day's) news coverage for anti-repeat logic
-    const mostRecentPastBrief = (pastBriefs || []).find((b: any) => b.date < today && Array.isArray(b.items))
+    // Inspect up to 5 past daily briefs with news items for anti-repeat & multi-day frequency tracking
+    const validPastBriefs = (pastBriefs || [])
+      .filter((b: any) => b.date < today && Array.isArray(b.items) && b.items.some((i: any) => i.type === 'news' || (!i.type && !i.hardware_opportunity_id)))
+      .slice(0, 5)
+
+    const mostRecentPastBrief = validPastBriefs[0]
     const previousNewsItems = (mostRecentPastBrief?.items || []).filter(
       (i: any) => i.type === 'news' || (!i.type && !i.hardware_opportunity_id)
     )
@@ -272,7 +343,34 @@ serve(async (req) => {
       if (p) yesterdayPillars.add(p)
     }
 
-    const freshPillars = CANONICAL_PILLARS.filter(p => !yesterdayPillars.has(p))
+    // Tally recentPillarCounts across the past 5 daily briefs
+    const recentPillarCounts: Record<string, number> = {}
+    for (const pillar of CANONICAL_PILLARS) {
+      recentPillarCounts[pillar] = 0
+    }
+
+    for (const brief of validPastBriefs) {
+      const items = (brief.items || []).filter(
+        (i: any) => i.type === 'news' || (!i.type && !i.hardware_opportunity_id)
+      )
+      for (const item of items) {
+        const p =
+          normalizeToPillar(item.pillar) ||
+          normalizeToPillar(item.category) ||
+          (item.source_name ? SOURCE_TO_PILLAR[item.source_name] : null) ||
+          normalizeToPillar(item.source_name || item.source)
+        if (p && recentPillarCounts[p] !== undefined) {
+          recentPillarCounts[p]++
+        }
+      }
+    }
+
+    const freshPillars = CANONICAL_PILLARS
+      .filter(p => !yesterdayPillars.has(p))
+      .sort((a, b) => (recentPillarCounts[a] || 0) - (recentPillarCounts[b] || 0))
+
+    const { lowestCountCategories } = await syncAndRotateWindow(supabaseClient, user.id, today)
+
     const previousCoverage = previousNewsItems
       .map((i: any) => `- ${i.category || i.pillar ? `[${i.pillar || i.category}] ` : ''}${i.title} (${i.source_name || i.source || 'News'})`)
       .join('\n')
@@ -297,12 +395,42 @@ serve(async (req) => {
     })
     const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000)
 
+    function isSafeFeedUrl(urlStr?: string): boolean {
+      if (!urlStr) return false
+      try {
+        const parsed = new URL(urlStr)
+        if (parsed.protocol !== 'https:') return false
+        const hostname = parsed.hostname.toLowerCase()
+        if (
+          hostname === 'localhost' ||
+          hostname.endsWith('.localhost') ||
+          hostname.endsWith('.local') ||
+          hostname === '127.0.0.1' ||
+          hostname === '0.0.0.0' ||
+          hostname === '::1' ||
+          hostname.startsWith('10.') ||
+          hostname.startsWith('192.168.') ||
+          hostname.startsWith('169.254.') ||
+          /^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname)
+        ) {
+          return false
+        }
+        return true
+      } catch {
+        return false
+      }
+    }
+
     const fetchFeedItems = async (
       sourceName: string,
       sourceUrl: string,
       targetPillar: CanonicalPillar,
       maxItems: number = 2
     ) => {
+      if (!isSafeFeedUrl(sourceUrl)) {
+        console.warn(`Blocked unsafe or non-https feed URL: ${sourceName} (${sourceUrl})`)
+        return
+      }
       try {
         const feed = await parser.parseURL(sourceUrl)
         let added = 0
@@ -335,11 +463,23 @@ serve(async (req) => {
 
     // Process user configured sources with per-pillar caps
     for (const source of activeSources) {
-      const pillar =
+      let pillar =
         SOURCE_TO_PILLAR[source.name] ||
         normalizeToPillar(source.name) ||
-        normalizeToPillar(source.url) ||
-        'Community & grassroots ecology'
+        normalizeToPillar(source.url)
+
+      if (!pillar) {
+        let minCount = Infinity
+        let minPillar: CanonicalPillar = CANONICAL_PILLARS[0]
+        for (const p of CANONICAL_PILLARS) {
+          const count = (itemsByPillar.get(p) || []).length
+          if (count < minCount) {
+            minCount = count
+            minPillar = p
+          }
+        }
+        pillar = minPillar
+      }
 
       const currentList = itemsByPillar.get(pillar) || []
       if (currentList.length >= 2) continue
@@ -407,7 +547,8 @@ serve(async (req) => {
       JSON.stringify(minifiedPool),
       previousCoverage,
       Array.from(yesterdayPillars),
-      freshPillars
+      freshPillars,
+      lowestCountCategories
     )
 
     let parsedItems: any[] = []
@@ -425,7 +566,8 @@ serve(async (req) => {
       llmItems: any[],
       candidatePool: CandidateItem[],
       usedYesterday: Set<CanonicalPillar>,
-      uncoveredPillars: CanonicalPillar[]
+      uncoveredPillars: CanonicalPillar[],
+      recentPillarCounts: Record<string, number> = {}
     ): CandidateItem[] {
       const selected: CandidateItem[] = []
       const selectedPillars = new Set<CanonicalPillar>()
@@ -443,7 +585,7 @@ serve(async (req) => {
       )
 
       // Anti-repeat constraint: If fresh pillars are available, limit yesterday's repeats
-      const maxYesterdayAllowed = Math.max(1, 3 - availableFreshPillars.length)
+      const maxYesterdayAllowed = Math.max(0, 3 - availableFreshPillars.length)
 
       const parseId = (id: any) => {
         if (typeof id === 'number') return id
@@ -511,8 +653,12 @@ serve(async (req) => {
       }
 
       // 2. Programmatic Backfill
-      // Pass A: Unrepresented fresh pillars from yesterday (anti-repeat rotation)
-      for (const freshPillar of (uncoveredPillars || [])) {
+      // Pass A: Unrepresented fresh pillars from yesterday sorted ascending by 5-day frequency count
+      const sortedFreshPillars = [...(uncoveredPillars || [])].sort(
+        (a, b) => (recentPillarCounts[a] || 0) - (recentPillarCounts[b] || 0)
+      )
+
+      for (const freshPillar of sortedFreshPillars) {
         if (selected.length >= 3) break
         if (selectedPillars.has(freshPillar)) continue
 
@@ -534,8 +680,12 @@ serve(async (req) => {
         }
       }
 
-      // Pass B: Any other unrepresented canonical pillar not yet selected today
-      for (const pillar of CANONICAL_PILLARS) {
+      // Pass B: Any other unrepresented canonical pillar not yet selected today, sorted ascending by 5-day frequency count
+      const remainingPillarsForB = CANONICAL_PILLARS
+        .filter(p => !selectedPillars.has(p))
+        .sort((a, b) => (recentPillarCounts[a] || 0) - (recentPillarCounts[b] || 0))
+
+      for (const pillar of remainingPillarsForB) {
         if (selected.length >= 3) break
         if (selectedPillars.has(pillar)) continue
 
@@ -558,7 +708,11 @@ serve(async (req) => {
       }
 
       // Pass C: Relax animal constraint if no non-animal candidate is available for unrepresented pillars
-      for (const pillar of CANONICAL_PILLARS) {
+      const remainingPillarsForC = CANONICAL_PILLARS
+        .filter(p => !selectedPillars.has(p))
+        .sort((a, b) => (recentPillarCounts[a] || 0) - (recentPillarCounts[b] || 0))
+
+      for (const pillar of remainingPillarsForC) {
         if (selected.length >= 3) break
         if (selectedPillars.has(pillar)) continue
 
@@ -607,7 +761,7 @@ serve(async (req) => {
       return selected
     }
 
-    const finalSelected = selectDiverseNewsItems(parsedItems, pool, yesterdayPillars, freshPillars)
+    const finalSelected = selectDiverseNewsItems(parsedItems, pool, yesterdayPillars, freshPillars, recentPillarCounts)
 
     const newsItems = finalSelected.map(item => ({
       title: item.title,
@@ -648,6 +802,10 @@ serve(async (req) => {
         })
         if (insertErr) throw insertErr
       }
+
+      // Increment category fetch counts in scout_category_tracker for selected news items
+      const selectedNewsCategories = newsItems.map(i => i.category || i.pillar).filter(Boolean)
+      await incrementCategoryFetchCounts(supabaseClient, user.id, selectedNewsCategories)
 
       return new Response(JSON.stringify({ success: true, items: newsItems }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

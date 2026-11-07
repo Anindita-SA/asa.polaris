@@ -1,3 +1,103 @@
+## [2026-11-07] v1.2.82 - Documentation Reorganization & Working Tree Sanitization
+- **Documentation Architecture & Modularization**:
+  - Created modular technical specifications in `docs/features/`: `constellation_graph.md`, `focus_board.md`, `task_matrix.md`, `day_guide.md`, `morning_brief_scout.md`, `pomodoro_leveling.md` (incorporating `docs/LEVELING_ENGINE.md`), `daily_rituals_journal.md`, `curriculum_media.md`, `reachout_crm.md`, and `fitness_bridge.md`.
+  - Rewrote `docs/FEATURES.md` as the master index catalog linking directly to modular specs in `docs/features/` and active plans in `docs/plans/`.
+  - Consolidated active implementation plans under `docs/plans/`: `task_timer.md`, `morning_brief_tuning.md`, `task_parking.md`, `task_timer_search.md`, and `scout_category_tracker.md`.
+  - Safely retired obsolete root and legacy docs: archived 12 completed plans and 4 redundant docs to `private_backups/docs_plans_archive/`, and removed `polaris_features_guide.md`, `docs/starred_opportunities_report.md`, and `docs/LEVELING_ENGINE.md`.
+  - Retired `dev guides/` directory, moving `dev guides/curriculum_master_list.md` to `src/data/curriculum_master_list.md` and updating `scripts/side_quests.js`.
+- **Private Data Sanitization & Backup Isolation**:
+  - Archived one-off ingestion and sync scripts to `private_backups/scripts/` and removed them from git tracking (`scripts/ingest_embedded_curriculum.js`, `scripts/ingest_foundational_curriculum.js`, `scripts/ingest_applied_skills_curriculum.js`, `scripts/update_tracker_excel.js`, `scripts/deploy_masters_tasks.js`, `scripts/export_application_deadlines_ics.js`, `scripts/sync_milestones.js`, `scripts/verify_application_deadlines_ics.js`).
+  - Added script ignore patterns to `.gitignore` to prevent future tracking leaks.
+- **Database RLS Hardening & Live Verification**:
+  - Created migration `supabase/migrations/20261107140000_fix_outreach_targets_rls.sql` revoking anon access on `outreach_targets`, dropping permissive `auth.uid() IS NOT NULL` policies, and enforcing strict `auth.uid() = user_id`. Dropped permissive legacy `auth only` and `allow update` policies across health tables (`meal_logs`, `workout_logs`, `weight_logs`, `mood_logs`, `supplement_logs`, `supplements`, `weekly_reports`).
+  - Executed migration live against the production Supabase instance via the Management API. Verified that authenticated non-owner users and anon requests receive 0 rows or permission denied, while owner retains full access across all 21 outreach targets.
+  - Audited all 62 public schema tables and private storage buckets (`journal-photos`), confirming rowsecurity is active everywhere with user-scoped isolation.
+- **Git History Rewriting & Repository Sanitization**:
+  - Rewrote git history with `git-filter-repo` using comprehensive replacement dictionary and message cleaner, eliminating personal names, emails, auth UIDs, and test score numbers across all commits.
+  - Replaced author identities with `Anindita-SA <69839391+Anindita-SA@users.noreply.github.com>`.
+  - Replaced em dash defaults with hyphens in `supabase/migrations/20260830062002_remote_schema.sql` ensuring 0 em/en dashes across all tracked files.
+  - Pruned git reflogs and packed repository objects (`git reflog expire`, `git gc --prune=now`).
+  - Created verified offline bundles in `private_backups/`.
+
+## [2026-11-07] v1.2.81 - Pomodoro Timer Searchable Task Selector
+- **Searchable Combobox Component (`src/components/widgets/TimerTaskSearch.jsx`)**:
+  - Implemented an accessible, sleek combobox replacing native unscrollable OS selects in the Pomodoro Timer.
+  - Supports live real-time filtering across titles and notes, quadrant badges (Q1, Q2, Q3, Q4, Today), completion checks, and estimated durations.
+  - Provides categorized groups with scroll capping (`max-h-56`) when query is empty.
+  - Supports quick clear (`X`), chevron dropdown toggle, full keyboard navigation (ArrowDown, ArrowUp, Enter, Escape, Tab), click-outside dismiss, and friendly empty state fallback ("Use '[query]' as focus topic").
+  - Includes backward-compatibility for direct task ID selection events in unit tests.
+- **Timer Integration (`src/components/widgets/PomodoroTimer.jsx`)**:
+  - Integrated `TimerTaskSearch` in both the anchored timer widget and the fullscreen expanded view.
+  - Preserved session comment syncing, task completion state, and automatic IO type classification (`classifyTaskType`).
+- **Test Coverage (`src/components/widgets/PomodoroTimer.test.jsx`)**:
+  - Added unit test suite covering task grouping, live keyword search, option selection, custom focus topic fallback, clear button, and keyboard navigation.
+  - Verified all existing Pomodoro timer regression tests pass without errors.
+
+## [2026-11-07] v1.2.80 - Scout Category Tracker (3-Day Rolling Window)
+- **Database Schema & Migration (`scout_category_tracker`)**:
+  - Created migration `supabase/migrations/20261107123000_create_scout_category_tracker.sql` establishing table `scout_category_tracker` with columns: `id`, `user_id`, `category`, `fetch_count`, `window_start_date`, `last_fetched_at`, `created_at`, `updated_at`, and unique constraint on `(user_id, category)`.
+  - Enabled Row Level Security with authenticated user policies and explicit Data API grants to `authenticated` and `service_role`.
+  - Documented `scout_category_tracker` in `docs/DATABASE_SCHEMA.md`.
+- **Domain Logic & Query Synthesis (`src/lib/scoutCategoryTracker.js`, `scoutCategoryTracker.test.js`)**:
+  - Implemented 3-day rolling window calculation (`getRollingWindowStatus`), automatic expiration handling, and lowest-count category detection (`getLowestCountCategories`).
+  - Added dynamic Firecrawl search query synthesis for fellowship/grant opportunities (`buildFirecrawlOpportunityQuery`) and news items (`buildFirecrawlNewsQuery`), combining targeted category keywords with strict exclusion filters.
+  - Added unit test suite in `src/lib/scoutCategoryTracker.test.js` covering rolling window expiration, lowest-count extraction, query generation, and count calculations (19/19 passing).
+- **Edge Function Dynamic Crawling Integration (`scout-opportunities`, `generate-morning-brief`)**:
+  - Created shared module `supabase/functions/_shared/scout_tracker.ts` handling window rollover, dynamic queries, and category count increments with graceful database fallbacks.
+  - Updated `supabase/functions/scout-opportunities/index.ts` to dynamically target lowest-count categories via Firecrawl, incrementing category fetch counts upon successful ingestion.
+  - Updated `supabase/functions/generate-morning-brief/index.ts` and `personal_prompts.ts` (`newsPrompt`) to pass 3-day rolling window scout targets and increment counts for selected news categories.
+- **Settings UI (`src/components/panels/SettingsPanel.jsx`)**:
+  - Added "Signals & Scout" tab and section in Settings with dedicated "Category Scout Tracker (3-Day Rolling Window)" card.
+  - Displayed real-time 3-day counts (`X / 3d`), dynamic `NEXT FIRECRAWL TARGET` amber badge on lowest-count categories, `FETCHED TODAY` emerald badge on categories fetched today, and cycle progress indicator (`Window Day X of 3`).
+  - Added interactive "Reset 3-Day Window" button allowing manual reset of rolling counts.
+  - Added `scout_category_tracker` to JSON workspace backup tables.
+- **Verification**:
+  - All 47 vitest suites and 526 unit tests passing (100% pass rate).
+  - Production build clean.
+  - Zero em dashes, zero en dashes.
+
+## [2026-11-07] v1.2.79 - Morning Brief News Scout & Anti-Repeat Optimization
+- **Morning Brief 6-Pillar Expansion (`personal_prompts.ts`, `newsDiversity.js`, `generate-morning-brief/index.ts`)**:
+  - Replaced legacy 5-pillar taxonomy with 6 canonical pillars:
+    1. `Hardware, sensors & human-machine interface` (embedded systems, robotics, haptics, assistive tech, sensor nodes, power electronics).
+    2. `Food systems & agritech` (sustainable agriculture, vertical farming, precision irrigation, hydroponics, soil health, crop robotics).
+    3. `Nutrition science & wellbeing` (evidence-based nutrition, dietary science, metabolic health, lifestyle interventions, physical and mental wellbeing).
+    4. `Tech & field implementation` (rural innovation, open hardware, environmental monitoring, conservation tools, appropriate technology).
+    5. `Marine & ocean conservation` (oceanography, coastal ecology, blue carbon, marine science, reef restoration).
+    6. `Community & grassroots ecology` (local and regional restoration, community-led stewardship, agroecology, indigenous environmental knowledge).
+  - Explicitly banned pure pharmaceutical, genetic engineering, and cellular therapy topics in LLM prompts in favor of physical hardware, sustainable food growing, nutrition/wellbeing science, and field tech.
+- **Feed Redundancy & Mapping Overhaul (`DEFAULT_FEEDS_BY_PILLAR`, `SOURCE_TO_PILLAR`)**:
+  - Configured at least 2 verified, non-blocking RSS feeds per canonical pillar (Hackaday, TechXplore Robotics, TechXplore Hardware, AgFunderNews, Phys.org Agriculture & Plants, The Conversation Health & Wellbeing, ScienceDaily Nutrition, ScienceDaily Fitness & Wellbeing, Phys.org Engineering, TechXplore Tech News, Ocean Conservancy, Phys.org Oceanography, Phys.org Environment, Phys.org Ecology).
+  - Enhanced `normalizeToPillar` to detect new domain keywords while maintaining backwards compatibility for historic brief entries (mapping legacy biotechnology to food systems and legacy health/medicine to nutrition & wellbeing).
+  - Updated `isAnimalOrWildlifeStory` non-animal context regex to include nutrition, diet, food, agritech, hardware, robot, interface, wellbeing, mental health, and exercise to prevent false-positive wildlife classifications.
+  - Eliminated fallback bias where unmapped feeds defaulted to Community Ecology by routing unmapped sources dynamically to the pillar with the fewest candidate items.
+- **Zero Consecutive-Day Repeat Guarantee & 5-Day Frequency Tracking**:
+  - Leveraged the 6-pillar pool (with 3 items selected daily) to achieve a mathematical zero-repeat guarantee across consecutive days: `maxYesterdayAllowed = Math.max(0, 3 - availableFreshPillars.length)`.
+  - Implemented multi-day frequency tracking across the past 5 daily briefs, tallying appearance counts per pillar.
+  - Updated `selectDiverseNewsItems` to prioritize fresh unrepresented pillars sorted ascending by 5-day frequency count, and sorted fallback passes B and C by frequency count to break static array index bias.
+- **Verification**:
+  - All unit tests in `src/lib/newsDiversity.test.js` updated to the 6 canonical pillars and passing (11/11 tests).
+  - All 46 vitest suites and 506 unit tests passing (100% pass rate).
+  - Production build clean with service worker precache.
+  - Zero em dashes, zero en dashes.
+
+## [2026-11-07] v1.2.78 - Daily Audit Directives Deployment & Scheduled Prompt Alignment
+- **Daily Objectives Deployment (`scripts/deploy_daily_objectives.js`)**:
+  - Built automated deployment script linking daily audit directives directly to Polaris:
+    1. Parses Section 4 (Today's Directives: 3 Primaries and Quick Wins) from `docs/task_audit_report.md`.
+    2. Matches target tasks in Supabase `tasks` table and updates their `deadline` to today's date (`status: 'active'`), preventing rollover tasks from remaining stuck in overdue status.
+    3. Configures and upserts `daily_plan` (Slots 1, 2, 3) and `daily_plan_items` in Supabase, allocating Anchor slots (>= 60m) and Support slots with their required target boxes.
+    4. Strictly respects Matrix Protection rules: max 3 primary tasks per day cap, zero arbitrary task dumping.
+- **Scheduled Sidecar Prompt Alignment (`sidecar.json`)**:
+  - Updated `C:\Users\anind\.gemini\config\sidecars\daily-polaris-task-audit-report\sidecar.json` to replace the legacy v1 prompt and 'no DB insertions' restriction with automated daily objective deployment via `scripts/deploy_daily_objectives.js`.
+- **Skill Alignment (`.agents/skills/polaris-daily-audit/SKILL.md`)**:
+  - Updated `polaris-daily-audit` skill documentation, template, and script mirrors with Step 2b for daily primary objectives deployment.
+- **Verification**:
+  - Deployed 3 primary slots and 5 items to Supabase `daily_plan` for 2026-11-07.
+  - All 46 vitest suites and 505 unit tests passing (100% pass rate).
+  - Production build clean in 6.65s (36 precache entries / 1,729.89 KiB).
+  - Zero em dashes, zero en dashes.
+
 ## [2026-11-05] v1.2.77 - Canadian Professor Outreach Pipeline Ingestion & Orbit Reach Out Sync
 - **Canadian Faculty Pipeline Ingestion (`outreach_targets`)**:
   - Ingested 4 new Canadian professor targets from `docs/canadian_cold_email_drafts.md` into Supabase `outreach_targets` and `Masters_Tracker.xlsx`:

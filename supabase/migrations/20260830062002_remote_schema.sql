@@ -182,7 +182,7 @@ CREATE TABLE "public"."custom_foods" (
   "sort_order"  integer                  DEFAULT 0,
   "active"      boolean                  DEFAULT true,
   "created_at"  timestamp with time zone DEFAULT now(),
-  "ai_grade"    text                     DEFAULT '—'::text,
+  "ai_grade"    text                     DEFAULT '-'::text,
   "health_tags" jsonb                    DEFAULT '[]'::jsonb,
   "fiber"       numeric                  DEFAULT 0,
   "iron"        numeric                  DEFAULT 0,
@@ -409,7 +409,7 @@ CREATE TABLE "public"."meal_logs" (
   "vitamin_d"   numeric                  DEFAULT 0,
   "vitamin_b12" numeric                  DEFAULT 0,
   "cost"        numeric                  DEFAULT 0,
-  "ai_grade"    text                     DEFAULT '—'::text,
+  "ai_grade"    text                     DEFAULT '-'::text,
   "health_tags" jsonb                    DEFAULT '[]'::jsonb,
   CONSTRAINT "meal_logs_pkey" PRIMARY KEY (id),
   "user_id"     uuid                     DEFAULT auth.uid()

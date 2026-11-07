@@ -56,14 +56,14 @@ export const CANONICAL_PARENTS = [
   },
   {
     key: 'vignesh',
-    title: 'Conducted EMI/EMC Filter Design & Simulation Paper (Dr. Vignesh Kumar)',
+    title: 'Conducted EMI/EMC Filter Design & Simulation Paper (Power Electronics Research)',
     category: 'academic',
     quadrant: 'urgent_important',
     deadline: '2026-11-10',
     milestone_id: '1586bc04-8175-4535-8007-0926e97f7cbe',
     mental_load: 'high',
     status: 'active',
-    notes: 'Canonical parent sprint task for simulation-based research paper on Dual Active Bridge (DAB) converter closed-loop control under Dr. Vignesh Kumar at NIT Trichy.'
+    notes: 'Canonical parent sprint task for simulation-based research paper on Dual Active Bridge (DAB) converter closed-loop control and conducted EMI filtering.'
   },
   {
     key: 'nptel',
@@ -99,7 +99,10 @@ export async function nestProjectTasks(supabaseClient = null, isDryRun = false) 
   // 2. Ensure the 4 canonical parent sprint tasks exist
   for (const pDef of CANONICAL_PARENTS) {
     let existingParent = tasks.find(t =>
-      t.title && t.title.trim().toLowerCase() === pDef.title.toLowerCase()
+      t.title && (
+        t.title.trim().toLowerCase() === pDef.title.toLowerCase() ||
+        (pDef.key === 'vignesh' && t.title.toLowerCase().includes('conducted emi/emc filter design'))
+      )
     );
 
     const parentPayload = {

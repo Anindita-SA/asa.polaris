@@ -4,7 +4,7 @@
 **Polaris**
 
 ## Target Audience
-Anindita-SA (Solo-developer / Single-user focus).
+Solo builder and researcher (Single-user personal productivity focus).
 
 ## Vision
 To create a "Life RPG" dashboard that merges productivity, personal development, and gamification into a single, beautiful, space-themed interface. It should act as a central command center for all aspects of life.

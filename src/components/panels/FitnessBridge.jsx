@@ -248,7 +248,7 @@ const FitnessBridge = ({ defaultSubTab = null }) => {
           <ReachOutView />
         ) : (
           <>
-            <p className="text-xs font-mono text-nova/60 mt-2">Polaris-Fit Bridge - last 14 days</p>
+            <p className="text-xs font-mono text-nova/60 mt-2">Health Bridge - last 14 days</p>
 
         {/* AI Verdict */}
         <div className="glass border border-pulsar/30 rounded-xl p-5 mb-2">

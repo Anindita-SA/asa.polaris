@@ -94,6 +94,7 @@ describe('SettingsPanel', () => {
     expect(screen.getByRole('button', { name: 'Triage & Matrix' })).toBeDefined()
     expect(screen.getByRole('button', { name: 'Reminders & Nudges' })).toBeDefined()
     expect(screen.getByRole('button', { name: 'Focus & Audio' })).toBeDefined()
+    expect(screen.getByRole('button', { name: 'Signals & Scout' })).toBeDefined()
     expect(screen.getByRole('button', { name: 'Data & Account' })).toBeDefined()
   })
 
@@ -190,8 +191,23 @@ describe('SettingsPanel', () => {
     expect(mockSignOut).toHaveBeenCalled()
   })
 
-  it('renders updated footer version v1.2.6', () => {
+  it('renders updated footer version v1.2.82', () => {
     render(<SettingsPanel open={true} onClose={vi.fn()} />)
-    expect(screen.getByText(/Polaris v1.2.6/)).toBeDefined()
+    expect(screen.getByText(/Polaris v1\.2\.82/)).toBeDefined()
+  })
+
+  it('renders Category Scout Tracker and allows resetting 3-day window', async () => {
+    render(<SettingsPanel open={true} onClose={vi.fn()} initialSection="scout" />)
+
+    expect(screen.getByText('Category Scout Tracker (3-Day Rolling Window)')).toBeDefined()
+    expect(screen.getByText('Hardware, sensors & human-machine interface')).toBeDefined()
+    expect(screen.getByText(/Window Day 1 of 3/)).toBeDefined()
+
+    const resetBtn = screen.getByRole('button', { name: /Reset 3-Day Window/i })
+    fireEvent.click(resetBtn)
+
+    await waitFor(() => {
+      expect(supabase.from).toHaveBeenCalledWith('scout_category_tracker')
+    })
   })
 })

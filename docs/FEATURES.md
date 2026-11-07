@@ -1,71 +1,48 @@
-# Polaris Features
+# Polaris Features Catalog
 
-Polaris is a comprehensive life-management and productivity RPG dashboard. Below is a breakdown of all its core features.
+Polaris is a comprehensive personal productivity and life-management RPG system. This catalog serves as the master index to detailed technical specifications and guides for each core capability.
 
-## 1. The Constellation Graph
-A 3D/2D interactive node-based map of your life's domains.
-*   **Root Node**: Polaris itself.
-*   **Domain Nodes**: Broad areas like Career, Academic, Self.
-*   **Subnodes & Topics**: Nested actionable items.
-*   **AI Task Breakdown**: Generate step-by-step action plans for any topic or subnode.
+---
 
-## 2. Focus Board & Backburner
-A workspace for prioritizing active projects.
-*   **Active Focus**: Max 3 items you are currently prioritizing. Includes Drag-and-Drop ranking.
-*   **Backburner**: A place to defer ideas safely. Captures a "Context Snapshot" so you don't lose your train of thought when you revisit it.
+## Core Systems & Modular Documentation
 
-## 3. Unified Daily Tasks, Master's Tracker, & Multi-Scope Goals
-A synchronized system for managing what you need to do today, this week, or this decade.
-*   **Eisenhower Matrix (Spatial)**: An interactive 2D spatial canvas to drag and organize tasks based on Urgency and Importance. Includes a Brain Dump sidebar.
-*   **Local Triage**: Untethered tasks in the Brain Dump are automatically categorized into Eisenhower quadrants using a local LLM (`qwen2.5:3b`).
-*   **Master's Application Tracking**: Syncs programs to the tasks table with `status = 'scheduled'`. Applications remain hidden until one week before they are due, maintaining focus.
-*   **Daily Tasks**: Your immediate checklist for the day. Shared seamlessly between the Matrix and Reminders Panel.
-*   **Surprise Me Randomizer**: A gamified dice-roll button that randomly selects an incomplete daily task or goal for you to tackle next.
-*   **Goals Engine**: Categorized by scope (daily, weekly, monthly, quarterly, yearly, decade). Completing long-term goals yields massive XP.
+### 1. [The Constellation Graph](features/constellation_graph.md)
+An interactive 2D/3D celestial canvas that maps life architecture into connected nodes. Supports nested domains, spring physics simulations, and AI-powered task breakdowns to turn abstract vision into concrete physical actions.
 
-## 4. Morning Brief & Scout Pipeline
-Automated content delivery for mornings.
-*   **News Scout**: Supabase Edge Function that fetches and summarizes positive climate and sustainability news, displayed via the `SparkPopup` on initial load.
-*   **Opportunity Scout**: Uses Firecrawl REST API + Groq to find hardware/engineering opportunities, strictly applying eligibility filters, and appends them to the daily brief.
-*   **Day Guide / Brief**: Unified dashboard view showing opportunities and news with a "Flag to Apply" button that auto-creates matrix tasks.
+### 2. [Focus Board & Backburner](features/focus_board.md)
+A high-discipline prioritization engine that caps active work at a strict maximum of 3 concurrent initiatives. Includes a structured Backburner to capture rich context snapshots and preserve deferred ideas without cognitive clutter.
 
-## 5. Pomodoro Timer & Leveling System
-A built-in productivity tracker that rewards your effort.
-*   **Persistent Pop-out Timer**: A floating Pomodoro timer that survives navigation and can pop out into its own dedicated PiP window using `window.open`. Supports infinite loop mode.
-*   **Level Progression**: Earn XP per minute of focus, and for completing tasks, rituals, and goals. Level up through ranks like *Stargazer* to *Da Vinci Inheritor*.
+### 3. [Task Matrix & 2D Spatial Canvas](features/task_matrix.md)
+A 2D spatial Eisenhower Matrix with continuous coordinates and an integrated Brain Dump capture bin. Supports multi-level next-action subtask drilldowns, automated background triage, and universal task parking.
 
-## 6. Daily Rituals & Journal
-Tools to bookend your day.
-*   **Ritual Stack**: Morning, Anytime, and Evening recurring habits that grant instant XP upon completion.
-*   **Journal Logs**: Save daily reflections to Supabase.
-*   **Year in Pixels**: A mood tracker visualizing your year in a grid.
+### 4. [Day Guide & Today Agenda](features/day_guide.md)
+The primary daily execution dashboard. Enforces the 3-primary task cap to prevent cognitive overload, coordinates timeboxed Pomodoro check-off blocks, runs loop-detection guards, and includes a gamified Surprise Me dice-roll task selector.
 
-## 7. Contacts, Nudges & Notifications
-A CRM for your personal life.
-*   **Reach Out**: Manage contacts categorized by tiers (Hearth, Parlour, Porch, Yard) with calculated overdue indicators to remind you to reconnect.
-*   **Nudges**: Custom recurring reminders (e.g., "Drink Water", "Stretch") that hook into the browser's Push Notification API via a custom Service Worker.
+### 5. [Morning Brief & Opportunity Scout](features/morning_brief_scout.md)
+An automated morning intelligence pipeline. Uses Supabase Edge Functions to deliver 3 curated positive climate/tech stories across 6 rotating pillars with a 5-day anti-repeat engine, alongside verified grants, fellowships, and hardware competition opportunities.
 
-## 8. Google Calendar & Tasks Integration
-*   **Google Calendar Sync**: View your real-time Google Calendar events in a beautiful, translucent, color-matched interface.
-*   **Google Tasks Sync**: Pull in your Google Tasks and merge them into your Polaris daily goals.
+### 6. [Pomodoro Timer & Leveling System](features/pomodoro_leveling.md)
+A timebox and task duration measurement engine paired with a lifelong 200-level quadratic leveling curve. Features an Always-on-Top Document Picture-in-Picture floating widget, wall-clock drift protection, 20 distinct rank tiers, and periodic sweep bonus awards.
 
-## 9. Curriculum & Media Log
-A hub for tracking learning and consumption.
-*   **Curriculum Shelf**: Track courses, books, and self-study topics.
-*   **Media Log**: Rate and review movies, shows, games, and books.
+### 7. [Daily Rituals & Journal](features/daily_rituals_journal.md)
+Morning, anytime, and evening habit stacks that award immediate XP and streak tracking. Complemented by daily reflection prompts, offline-first Dexie synchronization, and an interactive Year in Pixels mood tracker.
 
-## 10. Play View
-A zero-pressure leisure hub.
-*   **Mini-Games**: Embed or link out to relaxing web games. 
-*   **Zero Tracking**: No XP, no timers. Just a place to unwind.
+### 8. [Curriculum & Media Log](features/curriculum_media.md)
+A personal technical curriculum tracker covering foundational and applied engineering disciplines. Includes a structured Practice Score Tracker for standardized mock exams and an automated scholarly metadata scraper (arXiv, Crossref, OpenAlex).
 
-## 11. Timeline Graph
-A visual history of your milestones.
-*   **Milestones**: Log major life events, colored by category, plotted on a chronological timeline.
+### 9. [Reach Out Personal CRM & Nudges](features/reachout_crm.md)
+A relationship health manager organized across concentric intimacy rings (Hearth, Parlour, Porch, Yard). Tracks reachout cadences, highlights overdue connections, and fires gentle recurring background reminders using the Web Push Service Worker.
 
-## 12. Recurring Tasks
-Automated daily generation of recurring matrix tasks.
-*   **Template-Driven**: Define recurring task templates with priority quadrant, estimated duration, and notes.
-*   **Auto-Generation**: Templates auto-generate matrix tasks daily on Dashboard load.
-*   **Duplicate Prevention**: Checks existing daily entries to ensure each template generates only once per day.
-*   **State Tracking**: Updates template last generated timestamps automatically upon instantiation.
+### 10. [Fitness Bridge](features/fitness_bridge.md)
+Strength training set logger, nutrition tracker with calibrated macro estimates, weight and body composition trend analysis, and an empathetic AI mentor coach.
+
+---
+
+## Active Implementation Plans
+
+Active feature roadmaps and in-flight implementation plans are maintained in [`docs/plans/`](plans/):
+- [`docs/plans/task_timer.md`](plans/task_timer.md): Task timer and duration measurement engine with Document PiP and overtime guards.
+- [`docs/plans/morning_brief_tuning.md`](plans/morning_brief_tuning.md): Morning brief news scout and anti-repeat frequency tracking.
+- [`docs/plans/task_parking.md`](plans/task_parking.md): Universal task parking and triage immunity.
+- [`docs/plans/task_timer_search.md`](plans/task_timer_search.md): Task search and selection directly within the floating timer widget.
+- [`docs/plans/scout_category_tracker.md`](plans/scout_category_tracker.md): Scout category balance tracker and quota controls.
