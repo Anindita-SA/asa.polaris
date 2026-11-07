@@ -16,11 +16,11 @@ Dashboard (Main Entry)
 - **Progress Tab**: `ProgressDashboard` (Leveling/XP UI), `IOBalanceBar` (Stats).
 - **Goals Tab**: `GoalsPanel` (Multi-scope tracking).
 - **Timeline Tab**: `Timeline` (Milestone rendering).
-- **Journal Tab**: `Journal` (Logs), `DailyRitual` (Checklists), `DailyTasks`, `YearInPixels`.
+- **Journal Tab**: `Journal` (Logs), `MonthlyHabitGrid` (Habit tracker), `WinsBook` (Wins ledger), `YearInPixels` (Mood matrix).
 - **Calendar Tab**: `CalendarView` (GCal sync integration).
 - **Curriculum Tab**: `CurriculumView`, `CurriculumShelf`, `MediaLog`, `TopicCard`.
 - **Orbit Tab**: `RelationshipsView`, `FitnessBridge`, `PlayView`.
-- **Day Guide**: `MatrixCanvasView` (Eisenhower Matrix), `DayBriefView` (Morning Brief), `HardwareScoutPanel` (Opportunities).
+- **Day Guide**: `MatrixCanvasView` (Eisenhower Matrix), `DayBriefView` (Morning Brief), `BlueprintView` (Schedule & Cap), `TodaysTasksShuffle`, `HardwareScoutPanel` (Opportunities).
 
 ## Modals
 - `StatsModal`: In-depth breakdown of XP.
