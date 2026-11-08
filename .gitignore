@@ -4,6 +4,7 @@ dist/
 polaris-backup-*.json
 
 scratch/
+private_backups/
 
 # AI agent config
 GEMINI.md

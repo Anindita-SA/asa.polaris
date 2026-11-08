@@ -3,6 +3,21 @@
 RUBRIC BREAK: v2 starts here, earlier composite scores are v1 and not comparable.
 
 
+## Nov 8, 2026 - Task Parking & Deadline Source System (v1.2.84)
+- **What**: Implemented Task Parking & Deadline Source System (Phases 1-4):
+  1. Schema & Migration: Created migration `20261107170000_task_parking_and_deadline_source.sql` adding `parked` to `tasks.status` check constraint and `deadline_source` column (`manual`, `auto`). Documented in `docs/DATABASE_SCHEMA.md`.
+  2. Live DB Cleanup: Cleared undated parent bug on 3 curriculum tasks (`Embedded Systems & C Firmware Mastery`, `Foundational Disciplines: Intellectual Frameworks`, `Applied Skills: Engineering, Security, Design & Rhetoric`) setting `quadrant: null`.
+  3. Filter Immunity (Phase 3): Added Invariant 3b to `matrixNodeFilter.js` excluding parked tasks from the 2D quadrant canvas. Excluded parked tasks from `useWSJFScore.js` active candidates, `useNudgeScheduler.js` overdue checks, `RemindersPanel.jsx` candidate items, and `Timeline.jsx` subtasks.
+  4. Matrix UI Integration (Phase 4): In `MatrixCanvasView.jsx`, added Park/Unpark button next to Delete (hidden on child subtasks), Parked status in Details dropdown, amber PARKED badge in Backlog tray, standalone Unpark date picker modal with quick chips and mandatory deadline, last child completion popup modal with "Keep Parent Active" action, persistent ALL DONE badges (Backlog items, Canvas card pills, Subtasks header), and automatic `deadline_source: 'manual'` recording on creation and UI edits.
+- **Evidence**: Vitest running 48 test files with 567 unit tests (100% pass rate). Clean Vite production PWA build (36 precache entries / 1749.74 KiB). 0 em dashes, 0 en dashes, 0 CSS gradients.
+
+## Nov 8, 2026 - Daily Polaris Task Audit Report (Rubric v2, Plan Deployment)
+- **What**: Nineteenth Rubric v2 audit executed scoring Saturday Nov 7 (complete day) with independent dimension evaluation and zero composite aggregation. Evaluated 14 overdue tasks, 700 min capacity due in 14 days (28% capacity ratio, 18% unestimated), 9 meals logged yesterday (90.1g protein vs 65.3g target, 50.4g floor; 0 blackout days active, D4 maintained at 14/15 Good), 18 inbox leaking tasks, active outreach dispatch (Prof. Geza Joos Nov 5, Dr. Martin Ordonez Nov 6), and prioritized P0 critical path for Arul Daniel LOR dispatch and Dr. Vignesh Conducted EMI 50-ohm LISN Simulink modeling and CM/DM spectrum extraction.
+- **Scores (scored day 2026-11-07)**: D1 6/20 | D2 7/25 | D3 15/20 | D4 14/15 | D5 14/20
+- **Flags**: Sustainability partly measured, Unlogged focus, Overdue rollover, Inbox leakage, Active outreach
+- **Evidence**: 203 total tasks tracked (89 pending: 14 overdue, 5 today, 17 due in 14d; 114 completed); 18 milestones in 90d window, 21 outreach targets (15 drafted, 2 queued, 3 sent, 1 replied). 156 lines in docs/task_audit_report.md. 3 primaries deployed to daily_plan (0 arbitrary task insertions). 0 em dashes, 0 en dashes.
+
+
 ## Nov 7, 2026 - Dead Code Elimination & Repository Cleanup (v1.2.83)
 - **What**: Executed deep repository code audit and dead code elimination:
   1. Audited all 155 JS/JSX files in `src/` via dependency graph analysis, identifying and pruning 4 dead/unreferenced components: `src/components/TaskMatrix.jsx` (70KB legacy matrix component replaced by `MatrixCanvasView.jsx`), `src/components/widgets/MusicPlayer.jsx` (unmounted since August; replaced by Pomodoro audio), `src/hooks/useGoogleTasks.js` (deprecated Google Tasks OAuth sync), and `src/components/modals/NotificationSettingsModal.jsx` (redundant wrapper superseded by direct `SettingsPanel.jsx` routing).

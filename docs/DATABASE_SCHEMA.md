@@ -699,11 +699,12 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.<table_name> TO service_role;
 | canvas_x | float8 |  Nullable |
 | canvas_y | float8 |  Nullable |
 | `deadline` | `date` | Nullable |
+| `deadline_source` | `text` | Nullable, Default `'manual'` (manual \| auto) |
 | `estimated_minutes` | `int4` | Nullable |
 | `time_estimate_minutes` | `int4` | Nullable |
 | `mental_load` | `text` | Nullable (low \| medium \| high) |
 | `estimate_source` | `text` | Nullable (user \| ai) |
-| `status` | `text` | Not Null, Default `'inbox'` (inbox \| active \| in_progress \| scheduled \| done \| archived) |
+| `status` | `text` | Not Null, Default `'inbox'` (inbox \| active \| in_progress \| scheduled \| done \| archived \| parked) |
 | `position` | `int4` | Nullable, Subtask ordering within parent |
 | `box_unit` | `text` | Nullable, Default `'min'` |
 | `target_count` | `int4` | Nullable |

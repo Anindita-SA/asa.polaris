@@ -41,6 +41,16 @@ describe('filterMatrixNodes', () => {
     expect(filtered.map(t => t.id)).toEqual(['2']);
   });
 
+  it('excludes parked tasks from matrix canvas plane unconditionally', () => {
+    const tasks = [
+      { id: '1', title: 'Active task', quadrant: 'urgent_important', status: 'active' },
+      { id: '2', title: 'Parked task', quadrant: 'urgent_important', status: 'parked' },
+      { id: '3', title: 'Parked task with deadline', quadrant: 'important_not_urgent', status: 'parked', deadline: '2026-10-10' }
+    ];
+    const filtered = filterMatrixNodes(tasks, { currentDate: baseDate });
+    expect(filtered.map(t => t.id)).toEqual(['1']);
+  });
+
   it('protects against unparented inbox tasks with no deadline flooding the canvas plane', () => {
     const tasks = [
       {
@@ -137,7 +147,8 @@ describe('filterMatrixNodes', () => {
     ];
 
     const filtered = filterMatrixNodes(tasks, { hideReminders: true, hidePolaris: true, currentDate: baseDate });
-    expect(filtered.map(t => t.id)).toEqual(['1']);
+    // task '4' has category 'normal', so strict category check retains it
+    expect(filtered.map(t => t.id)).toEqual(['1', '4']);
   });
 
   it('filters upkeep category when hideUpkeep flag is enabled', () => {

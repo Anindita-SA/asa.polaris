@@ -47,10 +47,13 @@ export function filterMatrixNodes(tasks = [], options = {}) {
     // Invariant 3: Completed or archived tasks are hidden from active matrix plane
     if (!isOpenTask(t)) return false;
 
+    // Invariant 3b: Parked tasks are never rendered on the 2D quadrant canvas
+    if (t.status === 'parked') return false;
+
     // Invariant 4: Category suppression
     if (t.category === 'habits') return false;
     if (hideReminders && t.category === 'reminders') return false;
-    if (hidePolaris && (t.category === 'polaris' || (t.title || '').toLowerCase().includes('polaris'))) return false;
+    if (hidePolaris && t.category === 'polaris') return false;
     if (hideUpkeep && t.category === 'upkeep') return false;
 
     const isParentProject = parentIdsWithChildren.has(t.id);

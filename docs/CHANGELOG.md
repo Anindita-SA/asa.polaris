@@ -1,3 +1,30 @@
+## [2026-11-08] v1.2.84 - Task Parking & Deadline Source System
+- **Database Schema & Migrations (`tasks`)**:
+  - Added `'parked'` to `tasks.status` check constraint (`inbox | active | in_progress | scheduled | done | archived | parked`).
+  - Added `deadline_source` column to `tasks` (`text`, nullable, check in `'manual', 'auto'`).
+  - Created migration `supabase/migrations/20261107170000_task_parking_and_deadline_source.sql`.
+  - Documented new columns and status constraint in `docs/DATABASE_SCHEMA.md`.
+- **Matrix Node Filtering & Consumer Immunity**:
+  - `src/lib/matrixNodeFilter.js`: Added Invariant 3b excluding tasks with `status === 'parked'` from the 2D matrix plane regardless of deadline or quadrant.
+  - `src/hooks/useWSJFScore.js`: Excluded parked tasks from active candidate scoring pool.
+  - `src/hooks/useNudgeScheduler.js`: Excluded parked and archived tasks from overdue alert calculations.
+  - `src/components/panels/RemindersPanel.jsx`: Excluded parked tasks from overdue reminder candidate items.
+  - `src/components/panels/Timeline.jsx`: Excluded parked and archived tasks from milestone subtask timelines.
+- **MatrixCanvasView UI & Interaction**:
+  - Added Park Task / Unpark Task action button in Details drawer action bar, visible only on root tasks (hidden on child subtasks).
+  - Added "Parked" option with Archive icon in Details drawer status dropdown.
+  - Added amber `PARKED` badge on parked tasks in Backlog tray.
+  - Parent Park Cascade: Cascades status = 'parked' and quadrant = null to unfinished subtasks. Unfinished children with deadline_source = 'auto' lose their deadlines, while manual deadlines and completed/archived subtasks remain untouched.
+  - Parent Unpark: Immediately returns parent and unfinished subtasks to status = 'inbox', quadrant = null without opening date picker.
+  - Standalone Unpark Modal: Features quick date chips and a "No date" button to return tasks to the unassigned backlog with deadline: null.
+  - Backlog Tray Grouping: Grouped parked items in a dedicated collapsible "Parked Tasks" section with count badge and toggle.
+  - Last Child Completion Popup: Triggered when the final active subtask is completed. When parent is parked, presents "Keep parked", "Complete parent", and "Unpark" choices.
+  - Added persistent `ALL DONE` badge to Backlog items, Canvas card pills, and Details drawer subtasks header when 100% of a container's subtasks are completed.
+  - Configured task creation and UI deadline edits to record `deadline_source: 'manual'`.
+- **Database Cleanup & Script Hardening**:
+  - Cleared undated parent bug on the 3 curriculum tasks (`Embedded Systems & C Firmware Mastery`, `Foundational Disciplines: Intellectual Frameworks`, `Applied Skills: Engineering, Security, Design & Rhetoric`) setting `quadrant: null`.
+  - Hardened `scripts/lib/safe_supabase.js` and `scripts/task_triage.js` for safe database access.
+
 ## [2026-11-07] v1.2.83 - Dead Code Elimination & Repository Cleanup
 - **Dead Component and Hook Pruning (`src/`)**:
   - Removed deprecated, unreferenced `src/components/TaskMatrix.jsx` (70KB legacy matrix component replaced by `MatrixCanvasView.jsx`).

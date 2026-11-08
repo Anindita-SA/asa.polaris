@@ -359,6 +359,19 @@ describe('task_triage stale parent task detection and handling', () => {
     expect(staleParents[0].id).toBe('parent-stale');
   });
 
+  it('ignores parked parent tasks and parked child subtasks when detecting stale parents', () => {
+    const tasks = [
+      { id: 'parent-parked', title: 'Parked Parent Project', status: 'parked' },
+      { id: 'child-1', title: 'Parked Subtask 1', parent_task_id: 'parent-parked', status: 'inbox', created_at: '2026-09-01T10:00:00Z' },
+
+      { id: 'parent-with-parked-kids', title: 'Active Parent With Parked Subtasks', status: 'active' },
+      { id: 'child-2', title: 'Parked Subtask 2', parent_task_id: 'parent-with-parked-kids', status: 'parked', created_at: '2026-09-01T10:00:00Z' }
+    ];
+
+    const staleParents = detectStaleParentTasks(tasks, referenceDate);
+    expect(staleParents.length).toBe(0);
+  });
+
   it('handles stale parent tasks by incrementing skip_count and appending stale note', async () => {
     const staleParents = [
       { id: 'parent-1', title: 'Stale Application Parent', skip_count: 2, notes: 'Existing application notes.' },
@@ -514,6 +527,83 @@ describe('task_triage parent task urgency inheritance', () => {
     expect(result).toBeNull();
   });
 
+  it('evaluates parent quadrant as null when parent task has no deadline (deadline: null)', () => {
+    const parentTask = {
+      id: 'parent-undated',
+      title: 'Undated Curriculum Master Parent',
+      status: 'active',
+      quadrant: 'important_not_urgent',
+      deadline: null
+    };
+
+    const childSubtasks = [
+      {
+        id: 'child-1',
+        parent_task_id: 'parent-undated',
+        title: 'Child subtask 1',
+        status: 'active',
+        deadline: '2026-09-25'
+      }
+    ];
+
+    const result = evaluateParentTaskQuadrant(parentTask, childSubtasks, referenceDate);
+    expect(result).toBeNull();
+  });
+
+  it('evaluates parent quadrant as null when parent task is parked (status: parked)', () => {
+    const parentTask = {
+      id: 'parent-parked',
+      title: 'Parked Curriculum Parent',
+      status: 'parked',
+      quadrant: null,
+      deadline: '2026-10-01'
+    };
+
+    const childSubtasks = [
+      {
+        id: 'child-1',
+        parent_task_id: 'parent-parked',
+        title: 'Urgent child subtask',
+        status: 'active',
+        deadline: '2026-09-14'
+      }
+    ];
+
+    const result = evaluateParentTaskQuadrant(parentTask, childSubtasks, referenceDate);
+    expect(result).toBeNull();
+  });
+
+  it('ignores parked child subtasks when evaluating parent urgency', () => {
+    const parentTask = {
+      id: 'parent-with-parked-child',
+      title: 'Active Project With Parked Subtask',
+      status: 'active',
+      quadrant: 'urgent_important',
+      deadline: '2026-09-30' // > 3 days away
+    };
+
+    const childSubtasks = [
+      {
+        id: 'child-urgent-parked',
+        parent_task_id: 'parent-with-parked-child',
+        title: 'Parked subtask due tomorrow',
+        status: 'parked',
+        deadline: '2026-09-14'
+      },
+      {
+        id: 'child-active-far',
+        parent_task_id: 'parent-with-parked-child',
+        title: 'Active subtask due later',
+        status: 'active',
+        deadline: '2026-09-25'
+      }
+    ];
+
+    const result = evaluateParentTaskQuadrant(parentTask, childSubtasks, referenceDate);
+    // Because urgent child is parked, it is ignored; parent deadline is > 3 days away so result is important_not_urgent
+    expect(result).toBe('important_not_urgent');
+  });
+
   it('triages and updates parent task quadrant in database via triageParentTasksUrgency', async () => {
     const allTasks = [
       {
@@ -557,6 +647,125 @@ describe('task_triage parent task urgency inheritance', () => {
       }
     ]);
   });
+
+  it('clears quadrant to null when undated parent has important_not_urgent bug output', async () => {
+    const allTasks = [
+      {
+        id: 'parent-curriculum-bug',
+        title: 'Embedded Systems & C Firmware Mastery',
+        status: 'inbox',
+        quadrant: 'important_not_urgent',
+        deadline: null
+      },
+      {
+        id: 'child-curriculum-1',
+        parent_task_id: 'parent-curriculum-bug',
+        title: 'Set up toolchain',
+        status: 'inbox',
+        deadline: null
+      }
+    ];
+
+    const updatesRecorded = [];
+    const mockSupabase = {
+      from: vi.fn().mockReturnValue({
+        update: vi.fn().mockImplementation((payload) => ({
+          eq: vi.fn().mockImplementation((col1, taskId) => ({
+            eq: vi.fn().mockImplementation((col2, uid) => {
+              updatesRecorded.push({ taskId, payload, uid });
+              return Promise.resolve({ error: null });
+            })
+          }))
+        }))
+      })
+    };
+
+    const updates = await triageParentTasksUrgency(mockSupabase, 'user-999', allTasks, false, referenceDate);
+    expect(updates.length).toBe(1);
+    expect(updates[0].newQuadrant).toBeNull();
+    expect(updatesRecorded).toEqual([
+      {
+        taskId: 'parent-curriculum-bug',
+        payload: { quadrant: null },
+        uid: 'user-999'
+      }
+    ]);
+  });
+
+  it('preserves user hand-placed quadrant on undated parent task and does not wipe it', async () => {
+    const allTasks = [
+      {
+        id: 'parent-hand-placed',
+        title: 'Execute Cold Email Wave (Post-IELTS)',
+        status: 'active',
+        quadrant: 'urgent_important', // Hand-placed urgent_important, NOT the bug output
+        deadline: null
+      },
+      {
+        id: 'child-email-1',
+        parent_task_id: 'parent-hand-placed',
+        title: 'Send batch 1',
+        status: 'active',
+        deadline: null
+      }
+    ];
+
+    const updatesRecorded = [];
+    const mockSupabase = {
+      from: vi.fn().mockReturnValue({
+        update: vi.fn().mockImplementation((payload) => ({
+          eq: vi.fn().mockImplementation((col1, taskId) => ({
+            eq: vi.fn().mockImplementation((col2, uid) => {
+              updatesRecorded.push({ taskId, payload, uid });
+              return Promise.resolve({ error: null });
+            })
+          }))
+        }))
+      })
+    };
+
+    const updates = await triageParentTasksUrgency(mockSupabase, 'user-999', allTasks, false, referenceDate);
+    // Must NOT wipe the hand-placed quadrant
+    expect(updates.length).toBe(0);
+    expect(updatesRecorded.length).toBe(0);
+  });
+
+  it('ignores parked parent tasks in triageParentTasksUrgency', async () => {
+    const allTasks = [
+      {
+        id: 'parent-parked',
+        title: 'Foundational Disciplines',
+        status: 'parked',
+        quadrant: 'important_not_urgent',
+        deadline: null
+      },
+      {
+        id: 'child-1',
+        parent_task_id: 'parent-parked',
+        title: 'Read chapter 1',
+        status: 'inbox',
+        deadline: null
+      }
+    ];
+
+    const updatesRecorded = [];
+    const mockSupabase = {
+      from: vi.fn().mockReturnValue({
+        update: vi.fn().mockImplementation((payload) => ({
+          eq: vi.fn().mockImplementation((col1, taskId) => ({
+            eq: vi.fn().mockImplementation((col2, uid) => {
+              updatesRecorded.push({ taskId, payload, uid });
+              return Promise.resolve({ error: null });
+            })
+          }))
+        }))
+      })
+    };
+
+    const updates = await triageParentTasksUrgency(mockSupabase, 'user-999', allTasks, false, referenceDate);
+    expect(updates.length).toBe(0);
+    expect(updatesRecorded.length).toBe(0);
+  });
 });
 
 describe('filterTasksForTriage precedence and exclusion logic', () => {
@@ -574,7 +783,30 @@ describe('filterTasksForTriage precedence and exclusion logic', () => {
     expect(filtered.map(t => t.id)).toEqual(['standalone-task-1', 'standalone-task-2']);
   });
 
-  it('excludes deadline-less inbox brain dump tasks and curriculum tasks from unsorted triage', () => {
+  it('excludes parked tasks from unsorted triage regardless of deadline', () => {
+    const unsortedTasks = [
+      { id: 'parked-with-deadline', title: 'Parked task with date', status: 'parked', deadline: '2026-11-15' },
+      { id: 'parked-no-deadline', title: 'Parked task no date', status: 'parked', deadline: null },
+      { id: 'normal-active', title: 'Active task', status: 'active', deadline: '2026-11-15' }
+    ];
+
+    const filtered = filterTasksForTriage(unsortedTasks, new Set());
+    expect(filtered.map(t => t.id)).toEqual(['normal-active']);
+  });
+
+  it('excludes curriculum and opportunity tasks without deadline, but includes them when scheduled with a deadline', () => {
+    const unsortedTasks = [
+      { id: 'curriculum-undated', title: 'Curriculum Master Task', category: 'curriculum', status: 'inbox', deadline: null },
+      { id: 'curriculum-dated', title: 'Curriculum Sprint Module', category: 'curriculum', status: 'inbox', deadline: '2026-11-20' },
+      { id: 'opp-undated', title: 'Opportunistic Mentorship', category: 'opportunities', status: 'inbox', deadline: null },
+      { id: 'opp-dated', title: 'Scholarship Application', category: 'opportunities', status: 'inbox', deadline: '2026-11-25' }
+    ];
+
+    const filtered = filterTasksForTriage(unsortedTasks, new Set());
+    expect(filtered.map(t => t.id)).toEqual(['curriculum-dated', 'opp-dated']);
+  });
+
+  it('includes deadline-less inbox tasks in unsorted triage now that no-deadline filter is removed', () => {
     const unsortedTasks = [
       { id: 'inbox-brain-dump', title: 'Random idea captured', status: 'inbox', deadline: null },
       { id: 'curriculum-container', title: 'Applied Skills Track', category: 'curriculum', status: 'active', deadline: null },
@@ -583,6 +815,7 @@ describe('filterTasksForTriage precedence and exclusion logic', () => {
     ];
 
     const filtered = filterTasksForTriage(unsortedTasks, new Set());
-    expect(filtered.map(t => t.id)).toEqual(['scheduled-inbox-task', 'active-task']);
+    // inbox-brain-dump is now triaged (not excluded) because task parking protects backlogged tasks
+    expect(filtered.map(t => t.id)).toEqual(['inbox-brain-dump', 'scheduled-inbox-task', 'active-task']);
   });
 });

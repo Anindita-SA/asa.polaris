@@ -275,11 +275,11 @@ export function detectStaleParentTasks(allTasks = [], referenceDate = new Date()
   const staleParents = [];
 
   for (const task of allTasks) {
-    if (!isOpenTask(task)) continue;
+    if (!isOpenTask(task) || task.status === 'parked') continue;
     const children = childrenByParentId.get(task.id);
     if (!children || children.length === 0) continue;
 
-    const incompleteChildren = children.filter(c => isOpenTask(c));
+    const incompleteChildren = children.filter(c => isOpenTask(c) && c.status !== 'parked');
     if (incompleteChildren.length > 0) {
       const hasRecentActivity = children.some(c => {
         const ts = c.updated_at || c.created_at;
@@ -353,7 +353,7 @@ export async function handleStaleParentTasks(supabase, uid, staleParents = [], i
  * @returns {string|null} Evaluated quadrant ('urgent_important' | 'important_not_urgent' | null)
  */
 export function evaluateParentTaskQuadrant(parentTask, childSubtasks = [], referenceDate = new Date()) {
-  if (!parentTask) return null;
+  if (!parentTask || !parentTask.deadline || parentTask.status === 'parked') return null;
 
   const refDate = new Date(referenceDate);
   refDate.setHours(0, 0, 0, 0);
@@ -368,15 +368,15 @@ export function evaluateParentTaskQuadrant(parentTask, childSubtasks = [], refer
   };
 
   const isMoreThan3DaysAway = (deadline) => {
-    if (!deadline) return true;
+    if (!deadline) return false;
     const d = new Date(typeof deadline === 'string' && !deadline.includes('T') ? deadline + 'T00:00:00' : deadline);
-    if (isNaN(d.getTime())) return true;
+    if (isNaN(d.getTime())) return false;
     d.setHours(0, 0, 0, 0);
     const diffDays = Math.ceil((d.getTime() - refDate.getTime()) / (1000 * 60 * 60 * 24));
     return diffDays > 3;
   };
 
-  const incompleteSubtasks = (childSubtasks || []).filter(c => isOpenTask(c));
+  const incompleteSubtasks = (childSubtasks || []).filter(c => isOpenTask(c) && c.status !== 'parked');
   const hasUrgentIncompleteChild = incompleteSubtasks.some(c => isDueIn48h(c.deadline));
 
   // If any incomplete child subtask is due within 48h, evaluate parent quadrant as urgent_important
@@ -415,22 +415,45 @@ export async function triageParentTasksUrgency(supabase, uid, allTasks = [], isD
     }
   }
 
-  const parentTasks = allTasks.filter(t => !t.parent_task_id && isOpenTask(t) && childrenByParentId.has(t.id));
+  // Parked parent tasks have full immunity and are never modified by triage
+  const parentTasks = allTasks.filter(t => !t.parent_task_id && isOpenTask(t) && t.status !== 'parked' && childrenByParentId.has(t.id));
   const updates = [];
 
   for (const parent of parentTasks) {
     const children = childrenByParentId.get(parent.id) || [];
     const suggestedQuad = evaluateParentTaskQuadrant(parent, children, referenceDate);
-    if (suggestedQuad && suggestedQuad !== parent.quadrant) {
-      updates.push({ parent, newQuadrant: suggestedQuad });
+    if (suggestedQuad) {
+      if (suggestedQuad !== parent.quadrant) {
+        updates.push({ parent, newQuadrant: suggestedQuad, reason: 'urgency_inheritance' });
+      }
+    } else if (!parent.deadline) {
+      // evaluateParentTaskQuadrant returned null for an undated parent.
+      // Clear the quadrant only when the current value is important_not_urgent (the bug's output),
+      // so any quadrant placed by hand on an undated parent is preserved.
+      if (parent.quadrant === 'important_not_urgent') {
+        updates.push({ parent, newQuadrant: null, reason: 'clear_undated_parent_bug' });
+      }
     }
   }
 
   if (updates.length > 0) {
-    console.log(`Found ${updates.length} parent tasks requiring urgency inheritance updates.`);
+    console.log(`\n======================================================`);
+    console.log(`[triageParentTasksUrgency] SELECT PREVIEW OF AFFECTED PARENT ROWS (${updates.length} tasks):`);
+    console.log(`======================================================`);
+    console.table(updates.map(({ parent, newQuadrant, reason }) => ({
+      id: parent.id,
+      title: (parent.title || '').slice(0, 45),
+      status: parent.status,
+      deadline: parent.deadline || 'null',
+      current_quadrant: parent.quadrant || 'null',
+      new_quadrant: newQuadrant === null ? 'null (cleared)' : newQuadrant,
+      reason
+    })));
+    console.log(`======================================================\n`);
+
     for (const { parent, newQuadrant } of updates) {
       if (isDryRun) {
-        console.log(`[DRY RUN] Would update parent task ${parent.id} quadrant to ${newQuadrant}`);
+        console.log(`[DRY RUN] Would update parent task ${parent.id} quadrant: ${parent.quadrant} -> ${newQuadrant}`);
       } else {
         await supabase
           .from('tasks')
@@ -439,6 +462,8 @@ export async function triageParentTasksUrgency(supabase, uid, allTasks = [], isD
           .eq('user_id', uid);
       }
     }
+  } else {
+    console.log('[triageParentTasksUrgency] No parent tasks require urgency inheritance or quadrant clearing updates.');
   }
 
   return updates;
@@ -454,12 +479,15 @@ export async function triageParentTasksUrgency(supabase, uid, allTasks = [], isD
  */
 export function filterTasksForTriage(unsortedTasks = [], parentTaskIdsWithChildren = new Set()) {
   return (unsortedTasks || []).filter(t => {
+    // Strictly ignore parked tasks
+    if (t.status === 'parked') return false;
+    // Exclude parent tasks that have subtasks (they derive quadrant solely through urgency inheritance)
     if (parentTaskIdsWithChildren.has(t.id)) return false;
+    // Exclude habit category tasks
     if (t.category === 'habits') return false;
-    if (t.category === 'curriculum') return false;
-    // Matrix Protection: Do not triage deadline-less inbox brain dumps into quadrants
-    // Setting quadrant on a deadline: null task leaks it directly into active Day Guide views
-    if (t.status === 'inbox' && !t.deadline) return false;
+    // Strictly ignore curriculum and opportunities unless unparked with a deadline
+    if (t.category === 'curriculum' && !t.deadline) return false;
+    if (t.category === 'opportunities' && !t.deadline) return false;
     return true;
   });
 }
@@ -579,7 +607,7 @@ async function run() {
     // 1. Fetch user tasks for deduplication, stale parent detection, and urgency inheritance
     const { data: allUserTasks, error: userTasksErr } = await supabase
       .from('tasks')
-      .select('id, title, notes, source_template_id, status, quadrant, created_at, parent_task_id, skip_count, deadline, completion_count, completion_dates')
+      .select('id, title, notes, source_template_id, status, quadrant, created_at, parent_task_id, skip_count, deadline, deadline_source, completion_count, completion_dates')
       .eq('user_id', uid);
 
     if (userTasksErr) throw userTasksErr;

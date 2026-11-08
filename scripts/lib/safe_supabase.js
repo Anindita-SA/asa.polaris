@@ -111,6 +111,7 @@ export async function createSafeClient(scriptName, readMostly = false, isDryRun 
              'milestone_id',
              'parent_task_id',
              'deadline',
+             'deadline_source',
              'estimated_minutes',
              'time_estimate_minutes',
              'mental_load',
@@ -125,7 +126,17 @@ export async function createSafeClient(scriptName, readMostly = false, isDryRun 
         }
         if (isDryRun) {
           console.log(`[DRY-RUN] Would update ${tableName} with:`, payload);
-          return { eq: () => ({ error: null, data: [] }), in: () => ({ error: null, data: [] }) };
+          const mockChain = {
+            eq: () => mockChain,
+            in: () => mockChain,
+            is: () => mockChain,
+            neq: () => mockChain,
+            select: () => mockChain,
+            single: () => Promise.resolve({ error: null, data: payload }),
+            then: (resolve, reject) => Promise.resolve({ error: null, data: [] }).then(resolve, reject),
+            catch: (reject) => Promise.resolve({ error: null, data: [] }).catch(reject)
+          };
+          return mockChain;
         }
         logAudit({ script: scriptName, action: 'update', table: tableName, user_id: uid });
         return originalUpdate(payload);

@@ -56,7 +56,7 @@ const Timeline = ({ filterNodeId, onJumpToNode }) => {
 
     const { data: allTasks } = await offlineSelect('tasks', { user_id: user.id })
     const milestoneTasks = (allTasks || [])
-      .filter(t => t.milestone_id)
+      .filter(t => t.milestone_id && t.status !== 'parked' && t.status !== 'archived')
       .sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0))
 
     const grouped = {}

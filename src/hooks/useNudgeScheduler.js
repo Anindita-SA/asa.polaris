@@ -177,7 +177,7 @@ export const useNudgeScheduler = () => {
     }
 
     const rawOverdueTasks = (allTasksData || []).filter(task => {
-      if (task.status === 'done') return false;
+      if (task.status === 'done' || task.status === 'archived' || task.status === 'parked') return false;
       if (task.category === 'reminders') {
         return !task.deadline || task.deadline <= today;
       }

@@ -132,7 +132,7 @@ export function useWSJFScore() {
       );
 
       const activeTasks = (tasksRes.data || []).filter(t => 
-        isOpenTask(t) && (!t.milestone_id || !doneMilestoneIds.has(t.milestone_id))
+        isOpenTask(t) && t.status !== 'parked' && (!t.milestone_id || !doneMilestoneIds.has(t.milestone_id))
       );
 
       const scored = activeTasks.map((t) => {

@@ -53,6 +53,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { offlineSelect, offlineInsert, offlineUpdate, offlineDelete } from '../../lib/offlineApi';
 import { filterMatrixNodes } from '../../lib/matrixNodeFilter';
 import { isOpenTask } from '../../lib/taskState';
+import { playChime } from '../../lib/sound';
 import { 
   Plus, 
   Sparkles, 
@@ -87,7 +88,8 @@ import {
   ChevronUp,
   Bell,
   BellOff,
-  Wrench
+  Wrench,
+  X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -327,9 +329,28 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
     }
   }, [activeBrainDumpTab, selectedTaskId]);
 
+  // Task Parking & Unparking Date Picker State
+  const [unparkModalTask, setUnparkModalTask] = useState(null);
+  const [unparkDate, setUnparkDate] = useState('');
+
+  // Last Child Subtask Completion Popup State
+  const [lastChildPopup, setLastChildPopup] = useState(null);
+
+  useEffect(() => {
+    if (unparkModalTask) {
+      const today = new Date().toLocaleDateString('en-CA');
+      if (unparkModalTask.deadline && unparkModalTask.deadline >= today) {
+        setUnparkDate(unparkModalTask.deadline);
+      } else {
+        setUnparkDate(today);
+      }
+    }
+  }, [unparkModalTask]);
+
   // Brain Dump Search & Filters
   const [searchQuery, setSearchQuery] = useState('');
   const [brainDumpCollapsed, setBrainDumpCollapsed] = useState(false);
+  const [parkedBacklogCollapsed, setParkedBacklogCollapsed] = useState(false);
 
   // Canvas Pan & Zoom State
   const [zoom, setZoom] = useState(1);
@@ -577,7 +598,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
     try {
       const userId = user?.id || (await supabase.auth.getSession()).data?.session?.user?.id;
       if (!userId) return;
-      const newTask = { title, status: 'inbox', quadrant: null, user_id: userId, id: crypto.randomUUID(), created_at: new Date().toISOString() };
+      const newTask = { title, status: 'inbox', quadrant: null, user_id: userId, id: crypto.randomUUID(), created_at: new Date().toISOString(), deadline_source: 'manual' };
       const { error } = await offlineInsert('tasks', newTask);
       const data = newTask;
 
@@ -611,7 +632,8 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
         status: 'active',
         quadrant: targetParent?.quadrant || 'important_not_urgent',
         category: targetParent?.category || 'academic',
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
+        deadline_source: 'manual'
       };
       const { error } = await offlineInsert('tasks', newSub);
       if (error) throw error;
@@ -686,14 +708,18 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
 
   // Deploy task from Brain Dump onto 2D Matrix Plane (lands in quadrant stack list)
   const deployFromBrainDump = async (task, targetQuadrant = 'urgent_important') => {
+    const isParked = task.status === 'parked';
+    const newStatus = isParked ? 'inbox' : task.status;
     setTasks((prev) =>
       prev.map((t) =>
-        t.id === task.id ? { ...t, quadrant: targetQuadrant, canvasX: null, canvasY: null } : t
+        t.id === task.id ? { ...t, status: newStatus, quadrant: targetQuadrant, canvasX: null, canvasY: null } : t
       )
     );
 
     try {
-      const { error } = await offlineUpdate('tasks', { id: task.id }, { quadrant: targetQuadrant });
+      const updatePayload = { quadrant: targetQuadrant };
+      if (isParked) updatePayload.status = 'inbox';
+      const { error } = await offlineUpdate('tasks', { id: task.id }, updatePayload);
 
       if (error) throw error;
       if (onTasksChanged) onTasksChanged();
@@ -789,11 +815,22 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
 
     if (isSubtask) {
       if (isCompleting) {
-        const siblingSubtasks = tasks.filter(t => t.parent_task_id === task.parent_task_id && t.id !== task.id);
+        const siblingSubtasks = tasks.filter(t => t.parent_task_id === task.parent_task_id && t.id !== task.id && t.status !== 'archived');
         const allSiblingsDone = siblingSubtasks.every(t => t.status === 'done');
         if (allSiblingsDone) {
-          shouldUpdateParent = true;
-          parentNewStatus = 'done';
+          const parentTask = tasks.find(t => t.id === task.parent_task_id);
+          if (parentTask) {
+            setLastChildPopup({ parentTask, childTask: task });
+            try {
+              playChime('success');
+            } catch (e) {
+              // ignore audio failure
+            }
+            if (parentTask.status !== 'parked') {
+              shouldUpdateParent = true;
+              parentNewStatus = 'done';
+            }
+          }
         }
       } else {
         const parentTask = tasks.find(t => t.id === task.parent_task_id);
@@ -995,17 +1032,9 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
   }, [tasks, overlookDays, hideReminders, hidePolaris, hideUpkeep]);
 
   // Unsorted Brain Dump tasks (`quadrant === null` and open)
+  // Per Matrix Protection rules: never couple capture bin to presentation filters (hidePolaris, hideReminders, hideUpkeep)
   const brainDumpTasks = useMemo(() => {
     let result = tasks.filter((t) => !t.parent_task_id && t.quadrant === null && isOpenTask(t) && t.category !== 'habits');
-    if (hideReminders) {
-      result = result.filter(t => t.category !== 'reminders');
-    }
-    if (hidePolaris) {
-      result = result.filter(t => !(t.category === 'polaris' || (t.title || '').toLowerCase().includes('polaris')));
-    }
-    if (hideUpkeep) {
-      result = result.filter(t => t.category !== 'upkeep');
-    }
     if (searchQuery.trim()) {
       result = result.filter(t => (t.title || '').toLowerCase().includes(searchQuery.toLowerCase().trim()));
     }
@@ -1016,7 +1045,15 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
       return aCat - bCat;
     });
     return result;
-  }, [tasks, searchQuery, hideReminders, hidePolaris, hideUpkeep]);
+  }, [tasks, searchQuery]);
+
+  const activeBrainDumpTasks = useMemo(() => {
+    return brainDumpTasks.filter((t) => t.status !== 'parked');
+  }, [brainDumpTasks]);
+
+  const parkedBrainDumpTasks = useMemo(() => {
+    return brainDumpTasks.filter((t) => t.status === 'parked');
+  }, [brainDumpTasks]);
 
   // Completed Tasks list (`status === 'done'`)
   const completedTasks = useMemo(() => {
@@ -1024,15 +1061,88 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
   }, [tasks]);
 
   const updateTaskField = async (taskId, field, value) => {
-    setTasks((prev) =>
-      prev.map((t) => (t.id === taskId ? { ...t, [field]: value } : t))
-    );
+    let payload = { [field]: value };
+    const currentTask = tasks.find(t => t.id === taskId);
+    if (field === 'deadline') {
+      payload.deadline_source = 'manual';
+    } else if (field === 'status' && value === 'parked') {
+      payload.quadrant = null;
+    } else if (field === 'quadrant' && value !== null && currentTask?.status === 'parked') {
+      payload.status = 'inbox';
+    }
+
+    const currentTasks = tasks;
+    let childrenToPark = [];
+    if (field === 'status' && value === 'parked') {
+      childrenToPark = currentTasks.filter(t => t.parent_task_id === taskId && t.status !== 'done' && t.status !== 'archived');
+    }
+
+    setTasks((prev) => {
+      if (childrenToPark.length === 0) {
+        return prev.map((t) => (t.id === taskId ? { ...t, ...payload } : t));
+      }
+      const childPatches = new Map();
+      childrenToPark.forEach((child) => {
+        const patch = { status: 'parked', quadrant: null };
+        if (child.deadline_source === 'auto') {
+          patch.deadline = null;
+          patch.deadline_source = 'manual';
+        }
+        childPatches.set(child.id, patch);
+      });
+      return prev.map((t) => {
+        if (t.id === taskId) return { ...t, ...payload };
+        if (childPatches.has(t.id)) return { ...t, ...childPatches.get(t.id) };
+        return t;
+      });
+    });
+
     try {
-      const { error } = await offlineUpdate('tasks', { id: taskId }, { [field]: value });
+      const { error } = await offlineUpdate('tasks', { id: taskId }, payload);
       if (error) throw error;
+
+      if (childrenToPark.length > 0) {
+        for (const child of childrenToPark) {
+          const childPayload = { status: 'parked', quadrant: null };
+          if (child.deadline_source === 'auto') {
+            childPayload.deadline = null;
+            childPayload.deadline_source = 'manual';
+          }
+          await offlineUpdate('tasks', { id: child.id }, childPayload);
+        }
+      }
+
       if (onTasksChanged) onTasksChanged();
     } catch (err) {
       console.error('Error updating task field:', err);
+      fetchTasks();
+    }
+  };
+
+  const handleUnparkParent = async (parentTask, targetStatus = 'inbox') => {
+    const unfinishedChildren = tasks.filter(t => t.parent_task_id === parentTask.id && t.status !== 'done' && t.status !== 'archived');
+    const childIds = unfinishedChildren.map(c => c.id);
+
+    setTasks((prev) => prev.map((t) => {
+      if (t.id === parentTask.id) {
+        return { ...t, status: targetStatus, quadrant: null };
+      }
+      if (childIds.includes(t.id)) {
+        return { ...t, status: 'inbox', quadrant: null };
+      }
+      return t;
+    }));
+
+    try {
+      const { error } = await offlineUpdate('tasks', { id: parentTask.id }, { status: targetStatus, quadrant: null });
+      if (error) throw error;
+      for (const childId of childIds) {
+        await offlineUpdate('tasks', { id: childId }, { status: 'inbox', quadrant: null });
+      }
+      if (onTasksChanged) onTasksChanged();
+    } catch (err) {
+      console.error('Error unparking parent task:', err);
+      fetchTasks();
     }
   };
 
@@ -1165,6 +1275,155 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
     } catch (err) {
       console.error('Error toggling recurring task:', err);
     }
+  };
+
+  const renderBacklogTaskCard = (task) => {
+    const childTasks = sortSubtasks(tasks.filter(t => t.parent_task_id === task.id));
+    const incompleteSubtasks = childTasks.filter(t => isOpenTask(t));
+    const doneSubtasksCount = childTasks.filter(t => t.status === 'done').length;
+    const totalSubtasksCount = childTasks.filter(t => t.status !== 'archived').length;
+    const remainingMinutes = incompleteSubtasks.reduce((sum, t) => sum + (t.time_estimate_minutes || t.estimated_minutes || 0), 0);
+    const taskEstimate = task.time_estimate_minutes || task.estimated_minutes;
+
+    return (
+      <div
+        key={task.id}
+        onClick={() => {
+          setSelectedTaskId(task.id);
+          setActiveBrainDumpTab('details');
+        }}
+        className="group p-3 rounded-lg glass border border-pulsar/30 hover:border-gold/50 transition-all flex flex-col gap-1.5 shadow-sm cursor-pointer"
+      >
+        <div className="flex items-start justify-between gap-2">
+          <span className="text-xs font-['Inter'] text-starlight leading-snug">
+            {task.title}
+          </span>
+          <div className="flex items-center gap-1 shrink-0">
+            {task.status === 'parked' && (
+              <span className="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded font-bold bg-amber-950/80 text-amber-300 border border-amber-500/50">
+                PARKED
+              </span>
+            )}
+            {task.mental_load && (
+              <span className={`text-[9px] font-mono uppercase px-1.5 py-0.5 rounded font-bold shrink-0 ${
+                task.mental_load === 'low' ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/50' :
+                task.mental_load === 'high' ? 'bg-purple-950 text-purple-300 border border-purple-500/50' :
+                'bg-amber-950 text-amber-300 border border-amber-500/50'
+              }`}>
+                {task.mental_load === 'low' ? 'LOW LOAD' : task.mental_load === 'high' ? 'HIGH LOAD' : 'MED LOAD'}
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1.5 text-xs font-mono">
+          {taskEstimate && totalSubtasksCount === 0 && (
+            <span className="text-nova/60 bg-void/60 px-1.5 py-0.5 rounded border border-pulsar/40 text-[10px]">
+              {taskEstimate}m
+            </span>
+          )}
+          {totalSubtasksCount > 0 && (
+            <div className="flex items-center gap-1 text-[10px]">
+              <span className="bg-pulsar/20 text-nova/80 px-1.5 py-0.5 rounded flex items-center gap-1 border border-pulsar/30">
+                <List className="w-2.5 h-2.5" /> {doneSubtasksCount}/{totalSubtasksCount}
+              </span>
+              {doneSubtasksCount === totalSubtasksCount && (
+                <span className="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded font-bold bg-emerald-950 text-emerald-300 border border-emerald-500/50">
+                  ALL DONE
+                </span>
+              )}
+              {remainingMinutes > 0 && (
+                <span className="text-amber-400 border border-amber-500/30 bg-amber-950/40 px-1.5 py-0.5 rounded">
+                  {remainingMinutes}m
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+
+        {task.status === 'parked' ? (
+          <div className="flex items-center justify-between pt-1 border-t border-pulsar/30 text-xs font-mono">
+            <span className="text-amber-400 text-[10px] flex items-center gap-1 font-medium">
+              <Archive className="w-3 h-3 text-amber-400" />
+              Parked
+            </span>
+            <button
+              type="button"
+              onClick={async (e) => {
+                e.stopPropagation();
+                const isParent = tasks.some(t => t.parent_task_id === task.id);
+                if (isParent) {
+                  await handleUnparkParent(task, 'inbox');
+                } else {
+                  setUnparkModalTask(task);
+                }
+              }}
+              className="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 border border-emerald-500/30 text-[10px] font-bold flex items-center gap-1 transition-all cursor-pointer"
+              title="Unpark Task"
+            >
+              <Play className="w-2.5 h-2.5" />
+              Unpark
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between pt-1 border-t border-pulsar/30 text-xs font-mono">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="text-nova/60">Deploy:</span>
+              {autoQuadrantSuggest && (() => {
+                const suggestedQuad = computeSuggestedQuadrant(task);
+                if (suggestedQuad) {
+                  return (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deployFromBrainDump(task, suggestedQuad);
+                      }}
+                      className="px-1.5 py-0.5 rounded bg-gold/20 text-gold hover:bg-gold hover:text-void border border-gold/40 text-[9px] font-mono font-bold flex items-center gap-1 transition-all shrink-0 cursor-pointer"
+                      title={`Click to deploy to suggested ${QUADRANT_SHORT_NAMES[suggestedQuad]}`}
+                    >
+                      <Sparkles className="w-2.5 h-2.5" />
+                      <span>{QUADRANT_SHORT_NAMES[suggestedQuad]}</span>
+                    </button>
+                  );
+                }
+                return null;
+              })()}
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={(e) => { e.stopPropagation(); deployFromBrainDump(task, 'urgent_important'); }}
+                className="px-1.5 py-0.5 rounded bg-gold/15 text-gold hover:bg-gold hover:text-void transition-all font-bold"
+                title="Deploy to Urgent & Important"
+              >
+                U+I
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); deployFromBrainDump(task, 'important_not_urgent'); }}
+                className="px-1.5 py-0.5 rounded bg-pulsar/15 text-pulsar hover:bg-pulsar hover:text-void transition-all font-bold"
+                title="Deploy to Important (Schedule)"
+              >
+                Imp
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); deployFromBrainDump(task, 'urgent_not_important'); }}
+                className="px-1.5 py-0.5 rounded bg-aurora/15 text-aurora hover:bg-aurora hover:text-void transition-all font-bold"
+                title="Deploy to Urgent (Quick Wins)"
+              >
+                Urg
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); deployFromBrainDump(task, 'neither'); }}
+                className="px-1.5 py-0.5 rounded bg-dim/15 text-nova/60 hover:bg-dim hover:text-void transition-all font-bold"
+                title="Deploy to Neither (Backburner)"
+              >
+                Nei
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -1331,7 +1590,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                           const activeSubtask = computeActiveSubtask(incompleteSubtasks);
                           const hasUrgentSubtask = incompleteSubtasks.some(s => isDueWithin48h(s.deadline));
                           const doneSubtasksCount = childTasks.filter(t => t.status === 'done').length;
-                          const totalSubtasksCount = childTasks.length;
+                          const totalSubtasksCount = childTasks.filter(t => t.status !== 'archived').length;
                           const remainingMinutes = incompleteSubtasks.reduce((sum, t) => sum + (t.time_estimate_minutes || t.estimated_minutes || 0), 0);
                           const isExpanded = expandedTasks.has(task.id);
                           const taskEstimate = task.time_estimate_minutes || task.estimated_minutes;
@@ -1490,7 +1749,18 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                                     className="ml-1 bg-pulsar/20 text-nova/80 hover:text-starlight hover:bg-pulsar/40 px-1.5 py-0.5 rounded flex items-center gap-1 border border-pulsar/30 transition-colors pointer-events-auto"
                                     title="Toggle Subtasks"
                                   >
-                                    {isExpanded ? <ChevronDown className="w-3 h-3" /> : <><List className="w-3 h-3" /> {doneSubtasksCount}/{totalSubtasksCount}</>}
+                                    {isExpanded ? (
+                                      <ChevronDown className="w-3 h-3" />
+                                    ) : (
+                                      <>
+                                        <List className="w-3 h-3" /> {doneSubtasksCount}/{totalSubtasksCount}
+                                        {doneSubtasksCount === totalSubtasksCount && (
+                                          <span className="text-[9px] font-mono uppercase px-1 py-0.2 rounded font-bold bg-emerald-950 text-emerald-300 border border-emerald-500/50 shrink-0">
+                                            ALL DONE
+                                          </span>
+                                        )}
+                                      </>
+                                    )}
                                   </button>
                                 )}
 
@@ -1861,6 +2131,11 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                     {totalSubtasksCount > 0 && (
                       <span className="bg-pulsar/20 text-nova/80 px-1.5 py-0.5 rounded flex items-center gap-1 border border-pulsar/30 text-[9px]">
                         <List className="w-2.5 h-2.5" /> {doneSubtasksCount}/{totalSubtasksCount}
+                        {doneSubtasksCount === totalSubtasksCount && (
+                          <span className="text-[9px] font-mono uppercase px-1 py-0.2 rounded font-bold bg-emerald-950 text-emerald-300 border border-emerald-500/50 shrink-0">
+                            ALL DONE
+                          </span>
+                        )}
                       </span>
                     )}
 
@@ -2000,116 +2275,39 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                       Brain Dump is clear! Type above to capture thoughts.
                     </div>
                   ) : (
-                    brainDumpTasks.map((task) => {
-                      const childTasks = sortSubtasks(tasks.filter(t => t.parent_task_id === task.id));
-                      const incompleteSubtasks = childTasks.filter(t => isOpenTask(t));
-                      const doneSubtasksCount = childTasks.filter(t => t.status === 'done').length;
-                      const totalSubtasksCount = childTasks.filter(t => t.status !== 'archived').length;
-                      const remainingMinutes = incompleteSubtasks.reduce((sum, t) => sum + (t.time_estimate_minutes || t.estimated_minutes || 0), 0);
-                      const taskEstimate = task.time_estimate_minutes || task.estimated_minutes;
-
-                      return (
-                        <div
-                          key={task.id}
-                          onClick={() => {
-                            setSelectedTaskId(task.id);
-                            setActiveBrainDumpTab('details');
-                          }}
-                          className="group p-3 rounded-lg glass border border-pulsar/30 hover:border-gold/50 transition-all flex flex-col gap-1.5 shadow-sm cursor-pointer"
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <span className="text-xs font-['Inter'] text-starlight leading-snug">
-                              {task.title}
-                            </span>
-                            {task.mental_load && (
-                              <span className={`text-[9px] font-mono uppercase px-1.5 py-0.5 rounded font-bold shrink-0 ${
-                                task.mental_load === 'low' ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/50' :
-                                task.mental_load === 'high' ? 'bg-purple-950 text-purple-300 border border-purple-500/50' :
-                                'bg-amber-950 text-amber-300 border border-amber-500/50'
-                              }`}>
-                                {task.mental_load === 'low' ? 'LOW LOAD' : task.mental_load === 'high' ? 'HIGH LOAD' : 'MED LOAD'}
-                              </span>
-                            )}
-                          </div>
-
-                          <div className="flex items-center gap-1.5 text-xs font-mono">
-                            {taskEstimate && totalSubtasksCount === 0 && (
-                              <span className="text-nova/60 bg-void/60 px-1.5 py-0.5 rounded border border-pulsar/40 text-[10px]">
-                                {taskEstimate}m
-                              </span>
-                            )}
-                            {totalSubtasksCount > 0 && (
-                              <div className="flex items-center gap-1 text-[10px]">
-                                <span className="bg-pulsar/20 text-nova/80 px-1.5 py-0.5 rounded flex items-center gap-1 border border-pulsar/30">
-                                  <List className="w-2.5 h-2.5" /> {doneSubtasksCount}/{totalSubtasksCount}
-                                </span>
-                                {remainingMinutes > 0 && (
-                                  <span className="text-amber-400 border border-amber-500/30 bg-amber-950/40 px-1.5 py-0.5 rounded">
-                                    {remainingMinutes}m
-                                  </span>
-                                )}
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="flex items-center justify-between pt-1 border-t border-pulsar/30 text-xs font-mono">
-                            <div className="flex items-center gap-1.5 min-w-0">
-                              <span className="text-nova/60">Deploy:</span>
-                              {autoQuadrantSuggest && (() => {
-                                const suggestedQuad = computeSuggestedQuadrant(task);
-                                if (suggestedQuad) {
-                                  return (
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        deployFromBrainDump(task, suggestedQuad);
-                                      }}
-                                      className="px-1.5 py-0.5 rounded bg-gold/20 text-gold hover:bg-gold hover:text-void border border-gold/40 text-[9px] font-mono font-bold flex items-center gap-1 transition-all shrink-0 cursor-pointer"
-                                      title={`Click to deploy to suggested ${QUADRANT_SHORT_NAMES[suggestedQuad]}`}
-                                    >
-                                      <Sparkles className="w-2.5 h-2.5" />
-                                      <span>{QUADRANT_SHORT_NAMES[suggestedQuad]}</span>
-                                    </button>
-                                  );
-                                }
-                                return null;
-                              })()}
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <button
-                                onClick={(e) => { e.stopPropagation(); deployFromBrainDump(task, 'urgent_important'); }}
-                                className="px-1.5 py-0.5 rounded bg-gold/15 text-gold hover:bg-gold hover:text-void transition-all font-bold"
-                                title="Deploy to Urgent & Important"
-                              >
-                                U+I
-                              </button>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); deployFromBrainDump(task, 'important_not_urgent'); }}
-                                className="px-1.5 py-0.5 rounded bg-pulsar/15 text-pulsar hover:bg-pulsar hover:text-void transition-all font-bold"
-                                title="Deploy to Important (Schedule)"
-                              >
-                                Imp
-                              </button>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); deployFromBrainDump(task, 'urgent_not_important'); }}
-                                className="px-1.5 py-0.5 rounded bg-aurora/15 text-aurora hover:bg-aurora hover:text-void transition-all font-bold"
-                                title="Deploy to Urgent (Quick Wins)"
-                              >
-                                Urg
-                              </button>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); deployFromBrainDump(task, 'neither'); }}
-                                className="px-1.5 py-0.5 rounded bg-dim/15 text-nova/60 hover:bg-dim hover:text-void transition-all font-bold"
-                                title="Deploy to Neither (Backburner)"
-                              >
-                                Nei
-                              </button>
-                            </div>
-                          </div>
+                    <>
+                      {activeBrainDumpTasks.length === 0 && parkedBrainDumpTasks.length === 0 && (
+                        <div className="p-6 text-center text-xs text-nova/60 italic border border-dashed border-pulsar/30 rounded-xl font-['Inter']">
+                          Brain Dump is clear! Type above to capture thoughts.
                         </div>
-                      );
-                    })
+                      )}
+
+                      {activeBrainDumpTasks.map((task) => renderBacklogTaskCard(task))}
+
+                      {parkedBrainDumpTasks.length > 0 && (
+                        <div className="pt-2">
+                          <button
+                            type="button"
+                            onClick={() => setParkedBacklogCollapsed(prev => !prev)}
+                            className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-void/40 border border-pulsar/30 hover:border-pulsar/50 transition-colors text-xs font-medium text-starlight cursor-pointer"
+                          >
+                            <div className="flex items-center gap-1.5">
+                              <Archive className="w-3.5 h-3.5 text-amber-400" />
+                              <span>Parked Tasks</span>
+                              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/30">
+                                {parkedBrainDumpTasks.length}
+                              </span>
+                            </div>
+                            <ChevronDown className={`w-3.5 h-3.5 text-nova/60 transition-transform ${parkedBacklogCollapsed ? '' : 'rotate-180'}`} />
+                          </button>
+                          {!parkedBacklogCollapsed && (
+                            <div className="mt-2 space-y-2">
+                              {parkedBrainDumpTasks.map((task) => renderBacklogTaskCard(task))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               </>
@@ -2180,6 +2378,16 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                     {/* Top Badges & Actions Strip */}
                     <div className="flex items-center justify-between gap-2 flex-wrap">
                       <div className="flex items-center gap-2 flex-wrap">
+                        {selectedTask.status === 'parked' && (
+                          <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded font-bold tracking-wider bg-amber-950/80 text-amber-300 border border-amber-500/50">
+                            PARKED
+                          </span>
+                        )}
+                        {selectedSubtasks.filter(t => t.status !== 'archived').length > 0 && selectedSubtasks.filter(t => t.status !== 'archived').every(t => t.status === 'done') && (
+                          <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded font-bold tracking-wider bg-emerald-950 text-emerald-300 border border-emerald-500/50">
+                            ALL DONE
+                          </span>
+                        )}
                         {selectedTask.mental_load && (
                           <span className={`text-[10px] font-mono uppercase px-2.5 py-1 rounded font-bold tracking-wider ${
                             selectedTask.mental_load === 'low' ? 'bg-emerald-950 text-emerald-300 border border-emerald-500' :
@@ -2295,6 +2503,8 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                               <Calendar className="w-3.5 h-3.5 text-pulsar shrink-0" />
                             ) : selectedTask.status === 'inbox' ? (
                               <Inbox className="w-3.5 h-3.5 text-nova/60 shrink-0" />
+                            ) : selectedTask.status === 'parked' ? (
+                              <Archive className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                             ) : (
                               <Flame className="w-3.5 h-3.5 text-pulsar shrink-0" />
                             )}
@@ -2302,7 +2512,8 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                               {selectedTask.status === 'in_progress' ? 'Prog' :
                                selectedTask.status === 'done' ? 'Done' :
                                selectedTask.status === 'scheduled' ? 'Schd' :
-                               selectedTask.status === 'inbox' ? 'Inbox' : 'Active'}
+                               selectedTask.status === 'inbox' ? 'Inbox' :
+                               selectedTask.status === 'parked' ? 'Parked' : 'Active'}
                             </span>
                           </div>
                           <ChevronDown className={`w-3 h-3 text-nova/60 shrink-0 transition-transform ${statusDropdownOpen ? 'rotate-180' : ''}`} />
@@ -2324,12 +2535,27 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                                   { value: 'active', label: 'Active', icon: Flame, color: 'text-pulsar' },
                                   { value: 'in_progress', label: 'In Progress', icon: Zap, color: 'text-amber-400' },
                                   { value: 'scheduled', label: 'Scheduled', icon: Calendar, color: 'text-pulsar' },
+                                  { value: 'parked', label: 'Parked', icon: Archive, color: 'text-amber-400' },
                                   { value: 'done', label: 'Done', icon: CheckCircle2, color: 'text-emerald' }
                                 ].map(option => (
                                   <button
                                     key={option.value}
                                     type="button"
-                                    onClick={() => {
+                                    onClick={async () => {
+                                      if (selectedTask.status === 'parked' && option.value !== 'parked') {
+                                        const isParent = tasks.some(t => t.parent_task_id === selectedTask.id);
+                                        const isChild = !!selectedTask.parent_task_id;
+                                        if (isParent) {
+                                          setStatusDropdownOpen(false);
+                                          await handleUnparkParent(selectedTask, option.value);
+                                          return;
+                                        }
+                                        if (!isChild) {
+                                          setStatusDropdownOpen(false);
+                                          setUnparkModalTask(selectedTask);
+                                          return;
+                                        }
+                                      }
                                       updateTaskField(selectedTask.id, 'status', option.value);
                                       setStatusDropdownOpen(false);
                                     }}
@@ -2358,6 +2584,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                           <input
                             type="number"
                             min="0"
+                            key={`est-${selectedTask.id}-${selectedTask.time_estimate_minutes ?? selectedTask.estimated_minutes ?? ''}`}
                             defaultValue={selectedTask.time_estimate_minutes != null ? selectedTask.time_estimate_minutes : (selectedTask.estimated_minutes != null ? selectedTask.estimated_minutes : '')}
                             onBlur={(e) => handleEstimateChange(selectedTask.id, e.target.value)}
                             className="bg-transparent w-full outline-none font-mono text-starlight min-w-0"
@@ -2372,6 +2599,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                         <div className="bg-void/40 border border-pulsar/40 rounded-lg px-2 py-1.5 text-xs flex items-center gap-1 focus-within:border-pulsar/50 transition-colors">
                           <Calendar className="w-3.5 h-3.5 text-pulsar shrink-0" />
                           <input
+                            key={`deadline-${selectedTask.id}-${selectedTask.deadline || 'none'}`}
                             type="date"
                             defaultValue={selectedTask.deadline || ''}
                             onBlur={(e) => updateTaskField(selectedTask.id, 'deadline', e.target.value || null)}
@@ -2434,9 +2662,16 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                     {/* Subtasks Section */}
                     <div className="mt-2 space-y-2">
                       <div className="flex items-center justify-between">
-                        <h4 className="text-[10px] uppercase tracking-wider font-bold text-nova/60 font-mono">
-                          Subtasks ({selectedSubtasks.filter(t => t.status === 'done').length}/{selectedSubtasks.filter(t => t.status !== 'archived').length})
-                        </h4>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-[10px] uppercase tracking-wider font-bold text-nova/60 font-mono">
+                            Subtasks ({selectedSubtasks.filter(t => t.status === 'done').length}/{selectedSubtasks.filter(t => t.status !== 'archived').length})
+                          </h4>
+                          {selectedSubtasks.filter(t => t.status !== 'archived').length > 0 && selectedSubtasks.filter(t => t.status !== 'archived').every(t => t.status === 'done') && (
+                            <span className="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded font-bold bg-emerald-950 text-emerald-300 border border-emerald-500/50">
+                              ALL DONE
+                            </span>
+                          )}
+                        </div>
                       </div>
 
                       <form onSubmit={handleAddSubtask} className="flex items-center gap-1.5">
@@ -2515,7 +2750,7 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
 
                                         {st.deadline && (
                                           <span className={`inline-flex items-center gap-1 px-1.5 py-0.2 rounded font-mono text-[9px] shrink-0 ${
-                                            st.deadline.slice(0, 10) < new Date().toISOString().slice(0, 10)
+                                            (st.status !== 'parked' && selectedTask.status !== 'parked' && st.deadline.slice(0, 10) < new Date().toISOString().slice(0, 10))
                                               ? 'text-red-400 bg-red-950/40 border border-red-500/30'
                                               : st.deadline.slice(0, 10) === new Date().toISOString().slice(0, 10)
                                               ? 'text-amber-300 bg-amber-950/40 border border-amber-500/30'
@@ -2605,8 +2840,45 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
                         </div>
                       )}
                     </div>
-                    {/* Delete Task Button */}
-                    <div className="pt-4 mt-2 border-t border-pulsar/30 flex justify-end">
+                    {/* Action Buttons: Park/Unpark & Delete Task */}
+                    <div className="pt-4 mt-2 border-t border-pulsar/30 flex items-center justify-between">
+                      {!selectedTask.parent_task_id ? (
+                        selectedTask.status === 'parked' ? (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              setStatusDropdownOpen(false);
+                              const isParent = tasks.some(t => t.parent_task_id === selectedTask.id);
+                              if (isParent) {
+                                await handleUnparkParent(selectedTask);
+                              } else {
+                                setUnparkModalTask(selectedTask);
+                              }
+                            }}
+                            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 transition-colors cursor-pointer"
+                            title="Unpark Task"
+                          >
+                            <Play className="w-3.5 h-3.5" />
+                            Unpark Task
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              setStatusDropdownOpen(false);
+                              await updateTaskField(selectedTask.id, 'status', 'parked');
+                            }}
+                            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 transition-colors cursor-pointer"
+                            title="Park Task"
+                          >
+                            <Archive className="w-3.5 h-3.5" />
+                            Park Task
+                          </button>
+                        )
+                      ) : (
+                        <div />
+                      )}
+
                       <button
                         type="button"
                         onClick={(e) => {
@@ -2635,6 +2907,269 @@ export default function MatrixCanvasView({ onTasksChanged, refreshTrigger }) {
           </div>
         )}
       </aside>
+
+      {/* Standalone Unpark Date Picker Modal */}
+      {unparkModalTask && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-void/80 backdrop-blur-sm"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setUnparkModalTask(null);
+          }}
+        >
+          <div className="bg-[#0b101e] border border-pulsar/40 rounded-xl p-5 w-full max-w-sm space-y-4 shadow-2xl text-starlight">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Play className="w-4 h-4 text-emerald-400" />
+                <h3 className="text-sm font-display font-semibold text-starlight">Unpark Task</h3>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setUnparkModalTask(null)}
+                className="text-nova/60 hover:text-starlight p-1 cursor-pointer"
+                aria-label="Close unpark modal"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-nova/80 leading-relaxed">
+              Assign a mandatory deadline to return <span className="text-starlight font-medium font-sans">"{unparkModalTask.title}"</span> to your active workflow.
+            </p>
+
+            {/* Quick date presets */}
+            <div className="flex flex-wrap gap-1.5">
+              {[
+                { label: 'Today', days: 0 },
+                { label: 'Tomorrow', days: 1 },
+                { label: 'In 3 Days', days: 3 },
+                { label: 'Next Week', days: 7 }
+              ].map((preset) => {
+                const d = new Date();
+                d.setDate(d.getDate() + preset.days);
+                const dateStr = d.toLocaleDateString('en-CA');
+                const isSelected = unparkDate === dateStr;
+                return (
+                  <button
+                    key={preset.label}
+                    type="button"
+                    onClick={() => setUnparkDate(dateStr)}
+                    className={`px-2 py-1 rounded text-[11px] font-mono border transition-all cursor-pointer ${
+                      isSelected
+                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50'
+                        : 'bg-void/40 text-nova/70 border-pulsar/30 hover:border-pulsar/50'
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-mono uppercase tracking-wider text-nova/60 mb-1">
+                Deadline Date
+              </label>
+              <input
+                type="date"
+                value={unparkDate}
+                min={new Date().toLocaleDateString('en-CA')}
+                onChange={(e) => setUnparkDate(e.target.value)}
+                className="w-full bg-void/50 border border-pulsar/40 rounded-lg px-3 py-2 text-xs text-starlight outline-none focus:border-emerald-500/50 font-mono cursor-pointer"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-pulsar/30">
+              <button
+                type="button"
+                onClick={() => setUnparkModalTask(null)}
+                className="px-3 py-1.5 rounded-lg text-xs text-nova/60 hover:text-starlight hover:bg-void transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const taskId = unparkModalTask.id;
+                  setUnparkModalTask(null);
+
+                  setTasks(prev => prev.map(t => t.id === taskId ? {
+                    ...t,
+                    status: 'inbox',
+                    deadline: null,
+                    deadline_source: 'manual',
+                    quadrant: null
+                  } : t));
+
+                  try {
+                    const { error } = await offlineUpdate('tasks', { id: taskId }, {
+                      status: 'inbox',
+                      deadline: null,
+                      deadline_source: 'manual',
+                      quadrant: null
+                    });
+                    if (error) throw error;
+                    if (onTasksChanged) onTasksChanged();
+                  } catch (err) {
+                    console.error('Error unparking task with no date:', err);
+                    fetchTasks();
+                  }
+                }}
+                className="px-3 py-1.5 rounded-lg text-xs font-mono text-nova/70 hover:text-starlight hover:bg-void/60 border border-pulsar/30 transition-colors cursor-pointer"
+              >
+                No date
+              </button>
+              <button
+                type="button"
+                disabled={!unparkDate}
+                onClick={async () => {
+                  const taskId = unparkModalTask.id;
+                  const chosenDate = unparkDate;
+                  setUnparkModalTask(null);
+
+                  setTasks(prev => prev.map(t => t.id === taskId ? {
+                    ...t,
+                    status: 'inbox',
+                    deadline: chosenDate,
+                    deadline_source: 'manual',
+                    quadrant: null
+                  } : t));
+
+                  try {
+                    const { error } = await offlineUpdate('tasks', { id: taskId }, {
+                      status: 'inbox',
+                      deadline: chosenDate,
+                      deadline_source: 'manual',
+                      quadrant: null
+                    });
+                    if (error) throw error;
+                    if (onTasksChanged) onTasksChanged();
+                  } catch (err) {
+                    console.error('Error unparking task:', err);
+                    fetchTasks();
+                  }
+                }}
+                className="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-void bg-emerald-400 hover:bg-emerald-300 disabled:opacity-40 transition-colors cursor-pointer"
+              >
+                Unpark & Schedule
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Last Child Completion Popup Modal */}
+      {lastChildPopup && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-void/80 backdrop-blur-sm"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setLastChildPopup(null);
+          }}
+        >
+          <div className="bg-[#0b101e] border border-emerald-500/40 rounded-xl p-5 w-full max-w-sm space-y-4 shadow-2xl text-starlight">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                <h3 className="text-sm font-display font-semibold text-starlight">All Subtasks Completed!</h3>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setLastChildPopup(null)}
+                className="text-nova/60 hover:text-starlight p-1 cursor-pointer"
+                aria-label="Close completion popup"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-nova/80 leading-relaxed">
+              You finished the last subtask for <span className="text-starlight font-medium font-sans">"{lastChildPopup.parentTask.title}"</span>.
+            </p>
+
+            {lastChildPopup.parentTask.status === 'parked' ? (
+              <>
+                <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg flex items-center gap-2 text-xs text-amber-300 font-mono">
+                  <Archive className="w-4 h-4 text-amber-400 shrink-0" />
+                  <span>Parent project is currently parked.</span>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-pulsar/30">
+                  <button
+                    type="button"
+                    onClick={() => setLastChildPopup(null)}
+                    className="px-3 py-1.5 rounded-lg text-xs font-mono text-nova/70 hover:text-starlight hover:bg-void/60 border border-pulsar/30 transition-colors cursor-pointer"
+                  >
+                    Keep parked
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const parentId = lastChildPopup.parentTask.id;
+                      setLastChildPopup(null);
+                      setTasks(prev => prev.map(t => t.id === parentId ? { ...t, status: 'done' } : t));
+                      try {
+                        await offlineUpdate('tasks', { id: parentId }, { status: 'done' });
+                        if (onTasksChanged) onTasksChanged();
+                      } catch (err) {
+                        console.error('Error completing parent task:', err);
+                        fetchTasks();
+                      }
+                    }}
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 transition-colors cursor-pointer"
+                  >
+                    Complete parent
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const parentTask = lastChildPopup.parentTask;
+                      setLastChildPopup(null);
+                      await handleUnparkParent(parentTask, 'inbox');
+                    }}
+                    className="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-void bg-emerald-400 hover:bg-emerald-300 transition-colors cursor-pointer"
+                  >
+                    Unpark
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg flex items-center gap-2 text-xs text-emerald-300 font-mono">
+                  <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>Parent project marked complete.</span>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-pulsar/30">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const parentId = lastChildPopup.parentTask.id;
+                      setLastChildPopup(null);
+                      setTasks(prev => prev.map(t => t.id === parentId ? { ...t, status: 'active' } : t));
+                      try {
+                        await offlineUpdate('tasks', { id: parentId }, { status: 'active' });
+                        if (onTasksChanged) onTasksChanged();
+                      } catch (err) {
+                        console.error('Error reopening parent task:', err);
+                        fetchTasks();
+                      }
+                    }}
+                    className="px-3 py-1.5 rounded-lg text-xs font-mono text-nova/70 hover:text-starlight hover:bg-void/60 border border-pulsar/30 transition-colors cursor-pointer"
+                  >
+                    Keep Parent Active
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLastChildPopup(null)}
+                    className="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-void bg-emerald-400 hover:bg-emerald-300 transition-colors cursor-pointer"
+                  >
+                    Done
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -400,7 +400,7 @@ const RemindersPanel = ({ onOpenDayGuide }) => {
 
   // 1. Non-focus tasks: quick wins (<= 15 min), same-day deadline, overdue, neglected
   tasks.forEach(t => {
-    if (t.category === 'habits') return
+    if (t.category === 'habits' || t.status === 'parked') return
     if (focusTaskIds.has(t.id)) return
 
     const isOverdueOrDueToday = Boolean(t.deadline && t.deadline <= todayStr)

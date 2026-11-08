@@ -211,7 +211,8 @@ async function main() {
     .from('tasks')
     .update({
       deadline: todayStr,
-      status: 'active'
+      status: 'active',
+      deadline_source: 'auto'
     })
     .in('id', updateIds)
     .eq('user_id', userId);

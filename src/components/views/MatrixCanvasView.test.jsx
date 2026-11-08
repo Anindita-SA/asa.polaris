@@ -1421,6 +1421,882 @@ describe('MatrixCanvasView', () => {
       expect(screen.queryByText('Read 10 pages a day')).toBeNull();
     });
   });
+
+  describe('Task Parking, Deadline Source and Completion Popup UI', () => {
+    it('parks task via button next to Delete, setting status to parked and quadrant to null', async () => {
+      render(<MatrixCanvasView />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Deploy Polaris Alpha')).toBeDefined();
+      });
+
+      // Open task details
+      fireEvent.click(screen.getByText('Deploy Polaris Alpha'));
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Park Task/i })).toBeDefined();
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: /Park Task/i }));
+
+      await waitFor(() => {
+        expect(offlineApi.offlineUpdate).toHaveBeenCalledWith(
+          'tasks',
+          { id: 'task-1' },
+          { status: 'parked', quadrant: null }
+        );
+      });
+    });
+
+    it('hides Park/Unpark button when viewing a child subtask in details', async () => {
+      dbTasks.push({
+        id: 'parent-nested',
+        user_id: mockUser.id,
+        title: 'Hardware Project',
+        status: 'active',
+        quadrant: 'urgent_important'
+      });
+      dbTasks.push({
+        id: 'child-nested-1',
+        parent_task_id: 'parent-nested',
+        user_id: mockUser.id,
+        title: 'Soldering Step',
+        status: 'active',
+        position: 0
+      });
+
+      render(<MatrixCanvasView />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Hardware Project')).toBeDefined();
+      });
+
+      fireEvent.click(screen.getByText('Hardware Project'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Soldering Step')).toBeDefined();
+      });
+
+      // Drill down into child subtask
+      fireEvent.click(screen.getByText('Soldering Step'));
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Soldering Step')).toBeDefined();
+      });
+
+      // Park/Unpark button must be hidden on child subtasks
+      expect(screen.queryByRole('button', { name: /Park Task/i })).toBeNull();
+      expect(screen.queryByRole('button', { name: /Unpark Task/i })).toBeNull();
+    });
+
+    it('selects Parked from status dropdown and clears quadrant', async () => {
+      render(<MatrixCanvasView />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Deploy Polaris Alpha')).toBeDefined();
+      });
+
+      fireEvent.click(screen.getByText('Deploy Polaris Alpha'));
+
+      const statusSection = screen.getByText('Status').closest('div');
+      const statusButton = within(statusSection).getByRole('button');
+      fireEvent.click(statusButton);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Parked/i })).toBeDefined();
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: /Parked/i }));
+
+      await waitFor(() => {
+        expect(offlineApi.offlineUpdate).toHaveBeenCalledWith(
+          'tasks',
+          { id: 'task-1' },
+          { status: 'parked', quadrant: null }
+        );
+      });
+    });
+
+    it('renders PARKED badge in backlog for parked tasks', async () => {
+      dbTasks.push({
+        id: 'parked-task-item',
+        user_id: mockUser.id,
+        title: 'Archived Idea On Hold',
+        status: 'parked',
+        quadrant: null,
+        category: 'normal'
+      });
+
+      render(<MatrixCanvasView />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Archived Idea On Hold')).toBeDefined();
+      });
+
+      expect(screen.getByText('PARKED')).toBeDefined();
+    });
+
+    it('unparks task via standalone unpark date picker modal with deadline_source manual', async () => {
+      dbTasks.push({
+        id: 'parked-to-unpark',
+        user_id: mockUser.id,
+        title: 'Reactivate Project',
+        status: 'parked',
+        quadrant: null,
+        category: 'normal'
+      });
+
+      render(<MatrixCanvasView />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Reactivate Project')).toBeDefined();
+      });
+
+      fireEvent.click(screen.getByText('Reactivate Project'));
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Unpark Task/i })).toBeDefined();
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: /Unpark Task/i }));
+
+      // Modal should appear
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: /Unpark Task/i })).toBeDefined();
+      });
+
+      // Quick chip: Tomorrow
+      const tomorrowBtn = screen.getByRole('button', { name: /Tomorrow/i });
+      fireEvent.click(tomorrowBtn);
+
+      const submitBtn = screen.getByRole('button', { name: /Unpark & Schedule/i });
+      fireEvent.click(submitBtn);
+
+      await waitFor(() => {
+        expect(offlineApi.offlineUpdate).toHaveBeenCalledWith(
+          'tasks',
+          { id: 'parked-to-unpark' },
+          expect.objectContaining({
+            status: 'inbox',
+            deadline_source: 'manual',
+            quadrant: null
+          })
+        );
+      });
+    });
+
+    it('editing deadline in details writes deadline_source manual', async () => {
+      render(<MatrixCanvasView />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Deploy Polaris Alpha')).toBeDefined();
+      });
+
+      fireEvent.click(screen.getByText('Deploy Polaris Alpha'));
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('2026-09-30')).toBeDefined();
+      });
+
+      const deadlineInput = screen.getByDisplayValue('2026-09-30');
+      fireEvent.change(deadlineInput, { target: { value: '2026-11-25' } });
+      fireEvent.blur(deadlineInput);
+
+      await waitFor(() => {
+        expect(offlineApi.offlineUpdate).toHaveBeenCalledWith(
+          'tasks',
+          { id: 'task-1' },
+          { deadline: '2026-11-25', deadline_source: 'manual' }
+        );
+      });
+    });
+
+    it('completing last child subtask triggers completion popup and displays persistent ALL DONE marker', async () => {
+      dbTasks.push({
+        id: 'parent-project-all-done',
+        user_id: mockUser.id,
+        title: 'Robotics Sprint',
+        status: 'active',
+        quadrant: 'urgent_important'
+      });
+      dbTasks.push({
+        id: 'robot-sub-1',
+        parent_task_id: 'parent-project-all-done',
+        user_id: mockUser.id,
+        title: 'Step 1: Motor Mount',
+        status: 'done',
+        position: 0
+      });
+      dbTasks.push({
+        id: 'robot-sub-2',
+        parent_task_id: 'parent-project-all-done',
+        user_id: mockUser.id,
+        title: 'Step 2: Wiring Harness',
+        status: 'active',
+        position: 1
+      });
+
+      render(<MatrixCanvasView />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Robotics Sprint')).toBeDefined();
+      });
+
+      fireEvent.click(screen.getByText('Robotics Sprint'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Step 2: Wiring Harness')).toBeDefined();
+      });
+
+      // Mark the 2nd (and final) subtask done
+      const step2Card = screen.getByText('Step 2: Wiring Harness').closest('.group');
+      const checkBtn = within(step2Card).getByRole('button', { name: /Mark complete/i });
+      fireEvent.click(checkBtn);
+
+      // Last child completion popup must appear
+      await waitFor(() => {
+        expect(screen.getByText('All Subtasks Completed!')).toBeDefined();
+      });
+
+      // Persistent ALL DONE marker is visible
+      expect(screen.getAllByText('ALL DONE').length).toBeGreaterThan(0);
+
+      // Click "Keep Parent Active" in popup
+      const keepActiveBtn = screen.getByRole('button', { name: /Keep Parent Active/i });
+      fireEvent.click(keepActiveBtn);
+
+      await waitFor(() => {
+        expect(offlineApi.offlineUpdate).toHaveBeenCalledWith(
+          'tasks',
+          { id: 'parent-project-all-done' },
+          { status: 'active' }
+        );
+      });
+
+      // ALL DONE marker remains persistent
+      expect(screen.getAllByText('ALL DONE').length).toBeGreaterThan(0);
+    });
+
+    it('triggers last child popup and marks parent complete when remaining siblings are archived', async () => {
+      dbTasks.push({
+        id: 'parent-with-archived-sibling',
+        user_id: mockUser.id,
+        title: 'Power Electronics Prototype',
+        status: 'active',
+        quadrant: 'urgent_important'
+      });
+      dbTasks.push({
+        id: 'proto-sub-archived',
+        parent_task_id: 'parent-with-archived-sibling',
+        user_id: mockUser.id,
+        title: 'Deprecated PCB Revision',
+        status: 'archived',
+        position: 0
+      });
+      dbTasks.push({
+        id: 'proto-sub-active',
+        parent_task_id: 'parent-with-archived-sibling',
+        user_id: mockUser.id,
+        title: 'Active Assembly Step',
+        status: 'active',
+        position: 1
+      });
+
+      render(<MatrixCanvasView />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Power Electronics Prototype')).toBeDefined();
+      });
+
+      // Canvas card should show 0/1 instead of 0/2 because archived task is excluded
+      expect(screen.getByText('0/1')).toBeDefined();
+
+      fireEvent.click(screen.getByText('Power Electronics Prototype'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Active Assembly Step')).toBeDefined();
+      });
+
+      const subCard = screen.getByText('Active Assembly Step').closest('.group');
+      const checkBtn = within(subCard).getByRole('button', { name: /Mark complete/i });
+      fireEvent.click(checkBtn);
+
+      // Popup triggers even though one sibling is archived
+      await waitFor(() => {
+        expect(screen.getByText('All Subtasks Completed!')).toBeDefined();
+      });
+
+      expect(screen.getAllByText('ALL DONE').length).toBeGreaterThan(0);
+    });
+
+    it('retains unassigned polaris, reminder, and upkeep tasks in brain dump tray regardless of presentation filters', async () => {
+      dbTasks.push({
+        id: 'unassigned-polaris-item',
+        user_id: mockUser.id,
+        title: 'Refactor Polaris Logger',
+        category: 'polaris',
+        status: 'inbox',
+        quadrant: null
+      });
+      dbTasks.push({
+        id: 'unassigned-upkeep-item',
+        user_id: mockUser.id,
+        title: 'Sort workshop bench',
+        category: 'upkeep',
+        status: 'inbox',
+        quadrant: null
+      });
+      dbTasks.push({
+        id: 'unassigned-reminder-item',
+        user_id: mockUser.id,
+        title: 'Pay hostel mess fee',
+        category: 'reminders',
+        status: 'inbox',
+        quadrant: null
+      });
+
+      render(<MatrixCanvasView />);
+
+      // Both should appear in backlog tray (brain dump)
+      await waitFor(() => {
+        expect(screen.getByText('Refactor Polaris Logger')).toBeDefined();
+        expect(screen.getByText('Sort workshop bench')).toBeDefined();
+        expect(screen.getByText('Pay hostel mess fee')).toBeDefined();
+      });
+    });
+
+    it('cascades park on parent task: unfinished children follow to parked, auto deadlines cleared, manual deadlines kept, parent deadline kept', async () => {
+      dbTasks.push({
+        id: 'parent-cascade-1',
+        user_id: mockUser.id,
+        title: 'Hardware Sensor Array',
+        status: 'active',
+        quadrant: 'urgent_important',
+        deadline: '2026-12-15',
+        deadline_source: 'manual'
+      });
+      dbTasks.push({
+        id: 'child-auto-deadline',
+        parent_task_id: 'parent-cascade-1',
+        user_id: mockUser.id,
+        title: 'Auto Deadline Calibration',
+        status: 'active',
+        deadline: '2026-12-15',
+        deadline_source: 'auto',
+        position: 0
+      });
+      dbTasks.push({
+        id: 'child-manual-deadline',
+        parent_task_id: 'parent-cascade-1',
+        user_id: mockUser.id,
+        title: 'Manual Pinout Wiring',
+        status: 'in_progress',
+        deadline: '2026-11-20',
+        deadline_source: 'manual',
+        position: 1
+      });
+      dbTasks.push({
+        id: 'child-already-done',
+        parent_task_id: 'parent-cascade-1',
+        user_id: mockUser.id,
+        title: 'Schematic Review',
+        status: 'done',
+        deadline: '2026-11-05',
+        deadline_source: 'manual',
+        position: 2
+      });
+      dbTasks.push({
+        id: 'child-already-archived',
+        parent_task_id: 'parent-cascade-1',
+        user_id: mockUser.id,
+        title: 'Deprecated Power Header',
+        status: 'archived',
+        deadline: '2026-10-10',
+        deadline_source: 'auto',
+        position: 3
+      });
+
+      render(<MatrixCanvasView />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Hardware Sensor Array')).toBeDefined();
+      });
+
+      fireEvent.click(screen.getByText('Hardware Sensor Array'));
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Park Task/i })).toBeDefined();
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: /Park Task/i }));
+
+      await waitFor(() => {
+        // Parent task updated to parked and quadrant null (retaining deadline)
+        expect(offlineApi.offlineUpdate).toHaveBeenCalledWith(
+          'tasks',
+          { id: 'parent-cascade-1' },
+          { status: 'parked', quadrant: null }
+        );
+
+        // Child with deadline_source === 'auto' cleared to null with manual source
+        expect(offlineApi.offlineUpdate).toHaveBeenCalledWith(
+          'tasks',
+          { id: 'child-auto-deadline' },
+          { status: 'parked', quadrant: null, deadline: null, deadline_source: 'manual' }
+        );
+
+        // Child with deadline_source === 'manual' keeps its deadline untouched
+        expect(offlineApi.offlineUpdate).toHaveBeenCalledWith(
+          'tasks',
+          { id: 'child-manual-deadline' },
+          { status: 'parked', quadrant: null }
+        );
+
+        // Done child must NOT be touched
+        expect(offlineApi.offlineUpdate).not.toHaveBeenCalledWith(
+          'tasks',
+          { id: 'child-already-done' },
+          expect.anything()
+        );
+
+        // Archived child must NOT be touched
+        expect(offlineApi.offlineUpdate).not.toHaveBeenCalledWith(
+          'tasks',
+          { id: 'child-already-archived' },
+          expect.anything()
+        );
+      });
+    });
+
+    it('unparks parent task and its unfinished children immediately to inbox without opening date picker', async () => {
+      dbTasks.push({
+        id: 'parent-parked-unpark',
+        user_id: mockUser.id,
+        title: 'Solar Converter Sprint',
+        status: 'parked',
+        quadrant: null
+      });
+      dbTasks.push({
+        id: 'child-parked-1',
+        parent_task_id: 'parent-parked-unpark',
+        user_id: mockUser.id,
+        title: 'PCB Thermal Analysis',
+        status: 'parked',
+        quadrant: null,
+        position: 0
+      });
+      dbTasks.push({
+        id: 'child-done-1',
+        parent_task_id: 'parent-parked-unpark',
+        user_id: mockUser.id,
+        title: 'Component Sourcing',
+        status: 'done',
+        quadrant: null,
+        position: 1
+      });
+      dbTasks.push({
+        id: 'child-archived-1',
+        parent_task_id: 'parent-parked-unpark',
+        user_id: mockUser.id,
+        title: 'Deprecated Spec Review',
+        status: 'archived',
+        quadrant: null,
+        position: 2
+      });
+
+      render(<MatrixCanvasView />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Solar Converter Sprint')).toBeDefined();
+      });
+
+      fireEvent.click(screen.getByText('Solar Converter Sprint'));
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Unpark Task/i })).toBeDefined();
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: /Unpark Task/i }));
+
+      // Date picker modal must NOT open
+      expect(screen.queryByRole('heading', { name: /Unpark Task/i })).toBeNull();
+
+      await waitFor(() => {
+        expect(offlineApi.offlineUpdate).toHaveBeenCalledWith(
+          'tasks',
+          { id: 'parent-parked-unpark' },
+          { status: 'inbox', quadrant: null }
+        );
+        expect(offlineApi.offlineUpdate).toHaveBeenCalledWith(
+          'tasks',
+          { id: 'child-parked-1' },
+          { status: 'inbox', quadrant: null }
+        );
+        expect(offlineApi.offlineUpdate).not.toHaveBeenCalledWith(
+          'tasks',
+          { id: 'child-done-1' },
+          expect.anything()
+        );
+        expect(offlineApi.offlineUpdate).not.toHaveBeenCalledWith(
+          'tasks',
+          { id: 'child-archived-1' },
+          expect.anything()
+        );
+      });
+    });
+
+    it('unparks standalone task with No date button setting deadline to null', async () => {
+      dbTasks.push({
+        id: 'standalone-to-unpark-nodate',
+        user_id: mockUser.id,
+        title: 'Standalone Backlog Idea',
+        status: 'parked',
+        quadrant: null,
+        category: 'normal'
+      });
+
+      render(<MatrixCanvasView />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Standalone Backlog Idea')).toBeDefined();
+      });
+
+      fireEvent.click(screen.getByText('Standalone Backlog Idea'));
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Unpark Task/i })).toBeDefined();
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: /Unpark Task/i }));
+
+      // Modal must appear for standalone task
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: /Unpark Task/i })).toBeDefined();
+      });
+
+      // Click "No date" button
+      const noDateBtn = screen.getByRole('button', { name: /No date/i });
+      fireEvent.click(noDateBtn);
+
+      await waitFor(() => {
+        expect(offlineApi.offlineUpdate).toHaveBeenCalledWith(
+          'tasks',
+          { id: 'standalone-to-unpark-nodate' },
+          {
+            status: 'inbox',
+            deadline: null,
+            deadline_source: 'manual',
+            quadrant: null
+          }
+        );
+      });
+
+      // Modal is closed
+      expect(screen.queryByRole('heading', { name: /Unpark Task/i })).toBeNull();
+    });
+
+    it('offers Keep parked, Complete parent, and Unpark options when completing last child of a parked parent', async () => {
+      dbTasks.push({
+        id: 'parked-parent-finish',
+        user_id: mockUser.id,
+        title: 'Parked Master Thesis',
+        status: 'parked',
+        quadrant: null
+      });
+      dbTasks.push({
+        id: 'thesis-sub-1',
+        parent_task_id: 'parked-parent-finish',
+        user_id: mockUser.id,
+        title: 'Introduction Draft',
+        status: 'done',
+        position: 0
+      });
+      dbTasks.push({
+        id: 'thesis-sub-2',
+        parent_task_id: 'parked-parent-finish',
+        user_id: mockUser.id,
+        title: 'Final Conclusion Review',
+        status: 'active',
+        position: 1
+      });
+
+      render(<MatrixCanvasView />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Parked Master Thesis')).toBeDefined();
+      });
+
+      fireEvent.click(screen.getByText('Parked Master Thesis'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Final Conclusion Review')).toBeDefined();
+      });
+
+      // Mark the 2nd (final) subtask done
+      const stepCard = screen.getByText('Final Conclusion Review').closest('.group');
+      const checkBtn = within(stepCard).getByRole('button', { name: /Mark complete/i });
+      fireEvent.click(checkBtn);
+
+      // Popup appears with parked parent specific options
+      await waitFor(() => {
+        expect(screen.getByText('All Subtasks Completed!')).toBeDefined();
+        expect(screen.getByText('Parent project is currently parked.')).toBeDefined();
+        expect(screen.getByRole('button', { name: /Keep parked/i })).toBeDefined();
+        expect(screen.getByRole('button', { name: /Complete parent/i })).toBeDefined();
+        expect(screen.getByRole('button', { name: /^Unpark$/i })).toBeDefined();
+      });
+
+      // Persistent ALL DONE marker is visible
+      expect(screen.getAllByText('ALL DONE').length).toBeGreaterThan(0);
+
+      // Click "Complete parent"
+      const completeParentBtn = screen.getByRole('button', { name: /Complete parent/i });
+      fireEvent.click(completeParentBtn);
+
+      await waitFor(() => {
+        expect(offlineApi.offlineUpdate).toHaveBeenCalledWith(
+          'tasks',
+          { id: 'parked-parent-finish' },
+          { status: 'done' }
+        );
+      });
+    });
+
+    it('handles Keep parked and Unpark actions when completing last child of a parked parent', async () => {
+      // 1. Test "Keep parked" option
+      dbTasks.push({
+        id: 'parked-parent-keep',
+        user_id: mockUser.id,
+        title: 'Hardware Research Paper',
+        status: 'parked',
+        quadrant: null
+      });
+      dbTasks.push({
+        id: 'paper-sub-1',
+        parent_task_id: 'parked-parent-keep',
+        user_id: mockUser.id,
+        title: 'Review References',
+        status: 'active',
+        position: 0
+      });
+
+      const { unmount } = render(<MatrixCanvasView />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Hardware Research Paper')).toBeDefined();
+      });
+
+      fireEvent.click(screen.getByText('Hardware Research Paper'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Review References')).toBeDefined();
+      });
+
+      const subCard = screen.getByText('Review References').closest('.group');
+      const checkBtn = within(subCard).getByRole('button', { name: /Mark complete/i });
+      fireEvent.click(checkBtn);
+
+      await waitFor(() => {
+        expect(screen.getByText('All Subtasks Completed!')).toBeDefined();
+      });
+
+      const keepParkedBtn = screen.getByRole('button', { name: /Keep parked/i });
+      fireEvent.click(keepParkedBtn);
+
+      // Popup closed
+      expect(screen.queryByText('All Subtasks Completed!')).toBeNull();
+      // Parent was NOT marked done
+      expect(offlineApi.offlineUpdate).not.toHaveBeenCalledWith(
+        'tasks',
+        { id: 'parked-parent-keep' },
+        { status: 'done' }
+      );
+      // Persistent ALL DONE marker is still present
+      expect(screen.getAllByText('ALL DONE').length).toBeGreaterThan(0);
+
+      unmount();
+
+      // 2. Test "Unpark" option in popup
+      dbTasks.push({
+        id: 'parked-parent-unpark-choice',
+        user_id: mockUser.id,
+        title: 'Thesis Manuscript Submission',
+        status: 'parked',
+        quadrant: null
+      });
+      dbTasks.push({
+        id: 'thesis-final-sub',
+        parent_task_id: 'parked-parent-unpark-choice',
+        user_id: mockUser.id,
+        title: 'Supervisor Approval',
+        status: 'active',
+        position: 0
+      });
+
+      render(<MatrixCanvasView />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Thesis Manuscript Submission')).toBeDefined();
+      });
+
+      fireEvent.click(screen.getByText('Thesis Manuscript Submission'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Supervisor Approval')).toBeDefined();
+      });
+
+      const finalCard = screen.getByText('Supervisor Approval').closest('.group');
+      const finalCheck = within(finalCard).getByRole('button', { name: /Mark complete/i });
+      fireEvent.click(finalCheck);
+
+      await waitFor(() => {
+        expect(screen.getByText('All Subtasks Completed!')).toBeDefined();
+      });
+
+      const unparkBtn = screen.getByRole('button', { name: /^Unpark$/i });
+      fireEvent.click(unparkBtn);
+
+      await waitFor(() => {
+        expect(offlineApi.offlineUpdate).toHaveBeenCalledWith(
+          'tasks',
+          { id: 'parked-parent-unpark-choice' },
+          { status: 'inbox', quadrant: null }
+        );
+      });
+    });
+
+    it('unparks parked task directly from Backlog tray card', async () => {
+      dbTasks.push({
+        id: 'parked-tray-task',
+        user_id: mockUser.id,
+        title: 'Shelved Circuit Simulation',
+        status: 'parked',
+        quadrant: null
+      });
+
+      render(<MatrixCanvasView />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Shelved Circuit Simulation')).toBeDefined();
+      });
+
+      const taskCard = screen.getByText('Shelved Circuit Simulation').closest('.group');
+      const unparkBtn = within(taskCard).getByRole('button', { name: /^Unpark$/i });
+      fireEvent.click(unparkBtn);
+
+      // Standalone modal opens
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: /Unpark Task/i })).toBeDefined();
+      });
+
+      const noDateBtn = screen.getByRole('button', { name: /No date/i });
+      fireEvent.click(noDateBtn);
+
+      await waitFor(() => {
+        expect(offlineApi.offlineUpdate).toHaveBeenCalledWith(
+          'tasks',
+          { id: 'parked-tray-task' },
+          {
+            status: 'inbox',
+            deadline: null,
+            deadline_source: 'manual',
+            quadrant: null
+          }
+        );
+      });
+    });
+
+    it('unparks standalone task with existing future deadline via Status dropdown opening date picker modal', async () => {
+      dbTasks.push({
+        id: 'parked-with-future-dl',
+        user_id: mockUser.id,
+        title: 'Autonomous Drone Flight Test',
+        status: 'parked',
+        quadrant: null,
+        deadline: '2026-12-30',
+        deadline_source: 'manual'
+      });
+
+      render(<MatrixCanvasView />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Autonomous Drone Flight Test')).toBeDefined();
+      });
+
+      fireEvent.click(screen.getByText('Autonomous Drone Flight Test'));
+
+      const statusSection = screen.getByText('Status').closest('div');
+      const statusButton = within(statusSection).getByRole('button');
+      fireEvent.click(statusButton);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Active/i })).toBeDefined();
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: /Active/i }));
+
+      // Date picker modal opens despite future deadline
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: /Unpark Task/i })).toBeDefined();
+      });
+
+      const noDateBtn = screen.getByRole('button', { name: /No date/i });
+      fireEvent.click(noDateBtn);
+
+      await waitFor(() => {
+        expect(offlineApi.offlineUpdate).toHaveBeenCalledWith(
+          'tasks',
+          { id: 'parked-with-future-dl' },
+          {
+            status: 'inbox',
+            deadline: null,
+            deadline_source: 'manual',
+            quadrant: null
+          }
+        );
+      });
+    });
+
+    it('groups parked tasks in a collapsible section with item count badge and toggle in backlog tray', async () => {
+      dbTasks.push({
+        id: 'active-item-tray',
+        user_id: mockUser.id,
+        title: 'Active Immediate Work',
+        status: 'inbox',
+        quadrant: null
+      });
+      dbTasks.push({
+        id: 'parked-item-tray-1',
+        user_id: mockUser.id,
+        title: 'On-Hold Long Term Strategy',
+        status: 'parked',
+        quadrant: null
+      });
+
+      render(<MatrixCanvasView />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Active Immediate Work')).toBeDefined();
+        expect(screen.getByText('Parked Tasks')).toBeDefined();
+        expect(screen.getByText('On-Hold Long Term Strategy')).toBeDefined();
+      });
+
+      // Toggle parked section collapsed
+      const toggleParkedBtn = screen.getByRole('button', { name: /Parked Tasks/i });
+      fireEvent.click(toggleParkedBtn);
+
+      // Parked item should be hidden
+      expect(screen.queryByText('On-Hold Long Term Strategy')).toBeNull();
+
+      // Active item remains visible
+      expect(screen.getByText('Active Immediate Work')).toBeDefined();
+
+      // Toggle back expanded
+      fireEvent.click(toggleParkedBtn);
+      expect(screen.getByText('On-Hold Long Term Strategy')).toBeDefined();
+    });
+  });
 });
+
 
 
