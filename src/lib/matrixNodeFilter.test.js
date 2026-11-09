@@ -41,7 +41,7 @@ describe('filterMatrixNodes', () => {
     expect(filtered.map(t => t.id)).toEqual(['2']);
   });
 
-  it('excludes parked tasks from matrix canvas plane unconditionally', () => {
+  it('excludes parked tasks from matrix canvas plane by default (showParked: false)', () => {
     const tasks = [
       { id: '1', title: 'Active task', quadrant: 'urgent_important', status: 'active' },
       { id: '2', title: 'Parked task', quadrant: 'urgent_important', status: 'parked' },
@@ -49,6 +49,16 @@ describe('filterMatrixNodes', () => {
     ];
     const filtered = filterMatrixNodes(tasks, { currentDate: baseDate });
     expect(filtered.map(t => t.id)).toEqual(['1']);
+  });
+
+  it('includes parked tasks on matrix canvas plane when showParked is true', () => {
+    const tasks = [
+      { id: '1', title: 'Active task', quadrant: 'urgent_important', status: 'active' },
+      { id: '2', title: 'Parked task', quadrant: 'urgent_important', status: 'parked' },
+      { id: '3', title: 'Parked task with deadline', quadrant: 'important_not_urgent', status: 'parked', deadline: '2026-10-10' }
+    ];
+    const filtered = filterMatrixNodes(tasks, { showParked: true, currentDate: baseDate });
+    expect(filtered.map(t => t.id)).toEqual(['1', '2', '3']);
   });
 
   it('protects against unparented inbox tasks with no deadline flooding the canvas plane', () => {

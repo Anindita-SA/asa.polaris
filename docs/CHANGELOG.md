@@ -1,3 +1,21 @@
+## [2026-11-10] v1.2.85 - Task Parking UI, Sidebar Tabs & Dedicated Filters
+- **Matrix Canvas Toolbar Filter**:
+  - Added dedicated Pause icon filter toggle in the top canvas toolbar with live parked items count badge.
+  - Persisted filter toggle state in localStorage as `polaris_matrix_show_parked`.
+  - Integrated `showParked` option into `src/lib/matrixNodeFilter.js` (Invariant 3b), allowing parked tasks on 2D quadrant canvas when filter is enabled, and hiding them when disabled by default.
+- **Sidebar Tabs & Views**:
+  - Restructured sidebar navigation into 5 dedicated top tabs with live counts: `Tasks` (active deployed tasks grouped by quadrant Q1-Q4), `Backlog` (unassigned capture bin), `Parked` (all parked tasks across the board), `Done` (completed tasks), and `Details` (selected task details).
+  - Added top "Back" button in Details drawer returning to previous tab.
+  - Retained collapsible parked tasks section in Backlog tray for 100% backward compatibility.
+- **1-Click Park & Unpark Action Buttons**:
+  - Added 1-click Pause icon button directly on all task cards and pills (canvas pills, deployed quadrant list cards, backlog cards, and Details drawer action bar).
+  - High-visibility amber styling when parked (`text-amber-400 bg-amber-500/20 border-amber-500/40`), subdued outline when active (`text-nova/40 hover:text-amber-400 hover:bg-amber-500/10`). Hidden on child subtasks.
+  - 1-click on active task immediately parks it (cascading to unfinished child tasks).
+  - 1-click on parked task unparks it (immediate unpark to inbox for parent containers; unpark date picker modal with "No date" button for standalone tasks).
+- **Test Suite & Verification**:
+  - Added unit test coverage in `src/lib/matrixNodeFilter.test.js` and `src/components/views/MatrixCanvasView.test.jsx`.
+  - Added subtask progress and mental load badge support for Parked tab cards, stable tab count badges during search filtering, and drawer deletion return navigation. All 48 test suites and 576 unit tests pass cleanly.
+
 ## [2026-11-08] v1.2.84 - Task Parking & Deadline Source System
 - **Database Schema & Migrations (`tasks`)**:
   - Added `'parked'` to `tasks.status` check constraint (`inbox | active | in_progress | scheduled | done | archived | parked`).

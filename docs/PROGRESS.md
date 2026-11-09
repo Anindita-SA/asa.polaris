@@ -3,6 +3,32 @@
 RUBRIC BREAK: v2 starts here, earlier composite scores are v1 and not comparable.
 
 
+## Nov 10, 2026 - Task Parking UI, Dedicated Filters & Sidebar Tabs (v1.2.85)
+- **What**: Delivered comprehensive UI interaction suite for task parking and dedicated filters across Polaris Matrix Canvas:
+  1. Top Canvas Filter: Added dedicated Pause toggle button with live count badge in canvas toolbar, persisting state to localStorage (`polaris_matrix_show_parked`). Updated `filterMatrixNodes` (Invariant 3b) with `showParked` option.
+  2. Sidebar Tab Suite: Built 5 mobile-friendly list tabs in sidebar (`Tasks` grouped by Q1-Q4, `Backlog`, `Parked` listing all parked tasks, `Done`, and `Details` with Back navigation). Retained collapsible parked section in Backlog tray for 100% backward compatibility.
+  3. 1-Click Park & Unpark Action: Added 1-click Pause icon button directly on task cards (canvas pills, quadrant lists, backlog cards, and Details drawer) with amber parked state and subdued active state. Hidden on child subtasks. Integrated parent cascading and standalone date picker unparking.
+  4. Testing & Hardening: Added comprehensive unit tests in `matrixNodeFilter.test.js` and `MatrixCanvasView.test.jsx`.
+- **Evidence**: Vitest test suite running 48 test files with 576 unit tests (100% pass rate). Clean Vite production PWA build with 36 precache entries (1761.85 KiB). Schema drift check passed with 0 errors. Bumped package.json to 1.2.85. 0 em dashes, 0 en dashes, 0 CSS gradients across all touched files.
+
+
+## Nov 9, 2026 - Academic Submissions Completed & Quiet Mode Configured
+- **What**: Completed writing deliverables for today: marked Robotics assignment writing and Winter vacation stay permit form as completed in tasks and daily_plan (100% done boxes for Nov 9). Created consolidated single errand for tomorrow (Nov 10): campus print shop check, physical submissions, Dr. Vignesh stay permit signature, and department inquiry regarding Prof. Arul Daniel return date. Silenced notification nagging by muting recurring system nudges (Posture, Break, Water) in nudges table, parking 3 master curriculum containers, and resetting all task skip counts to 0.
+- **Evidence**: 2 tasks marked done; daily_plan for Nov 9 completed (5/5 boxes); 1 new errand task created and scheduled to Nov 10 Slot 1; 3 nudges muted (active=false); 0 overdue tasks; 0 em dashes, 0 en dashes.
+
+
+## Nov 9, 2026 - Endsem Crunch Freeze & Propranolol Recovery Mode
+- **What**: Activated Endsem Crunch Freeze in response to exam crunch, Diwali faculty break, and acute propranolol fatigue. Deleted orphaned Dr. Philip Sandwell task from tasks and plan items. Marked preliminary SOP draft task as completed. Parked 37 non-endsem tasks (DAB conducted EMI simulation, CHAARG PCB layout and case study, Agri Solar paper, outreach batches, and portfolio redesigns) removing them from Day Guide and active Matrix Canvas. Created 2 focused endsem survival tasks (Robotics assignment submission, Winter vacation stay permit signature from Dr. Vignesh Kumar) and reset today's daily_plan to 2 low-pressure survival slots (Slot 3 cleared).
+- **Evidence**: 37 tasks transitioned to status 'parked'; orphaned Sandwell task deleted; SOP task marked done; 2 new tasks inserted; daily_plan slots reset to 2 items; 0 em dashes, 0 en dashes.
+
+
+## Nov 9, 2026 - Daily Polaris Task Audit Report (Rubric v2, Plan Deployment)
+- **What**: Twentieth Rubric v2 audit executed scoring Sunday Nov 8 (complete day) with independent dimension evaluation and zero composite aggregation. Evaluated 19 overdue tasks, 590 min capacity due in 14 days (23% capacity ratio, 23% unestimated), 8 meals logged yesterday (96.2g protein vs 65.3g target, 50.4g floor; 0 blackout days active, D4 maintained at 14/15 Good), 18 inbox leaking tasks, active outreach dispatch (Prof. Geza Joos Nov 5, Dr. Martin Ordonez Nov 6), and prioritized P0 critical path for Arul Daniel LOR dispatch and Dr. Vignesh Conducted EMI 50-ohm LISN Simulink modeling and CM/DM spectrum extraction.
+- **Scores (scored day 2026-11-08)**: D1 6/20 | D2 7/25 | D3 15/20 | D4 14/15 | D5 14/20
+- **Flags**: Sustainability partly measured, Unlogged focus, Overdue rollover, Inbox leakage, Active outreach
+- **Evidence**: 206 total tasks tracked (92 pending: 19 overdue, 3 today, 13 due in 14d; 114 completed); 18 milestones in 90d window, 20 outreach targets (14 drafted, 2 queued, 3 sent, 1 replied). 158 lines in docs/task_audit_report.md. 3 primaries deployed to daily_plan (0 arbitrary task insertions). 0 em dashes, 0 en dashes.
+
+
 ## Nov 8, 2026 - Task Parking & Deadline Source System (v1.2.84)
 - **What**: Implemented Task Parking & Deadline Source System (Phases 1-4):
   1. Schema & Migration: Created migration `20261107170000_task_parking_and_deadline_source.sql` adding `parked` to `tasks.status` check constraint and `deadline_source` column (`manual`, `auto`). Documented in `docs/DATABASE_SCHEMA.md`.

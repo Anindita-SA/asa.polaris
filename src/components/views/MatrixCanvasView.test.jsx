@@ -2296,6 +2296,238 @@ describe('MatrixCanvasView', () => {
       expect(screen.getByText('On-Hold Long Term Strategy')).toBeDefined();
     });
   });
+  describe('Dedicated Parked Filter, Sidebar Tabs and 1-Click Pause UI', () => {
+    it('switches to Tasks tab and renders active tasks grouped by quadrant', async () => {
+      render(<MatrixCanvasView />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Deploy Polaris Alpha')).toBeDefined();
+      });
+
+      // Click Tasks tab in sidebar tablist
+      const tasksTab = screen.getByRole('tab', { name: /Tasks/i });
+      fireEvent.click(tasksTab);
+
+      // Verify quadrant sections exist
+      await waitFor(() => {
+        expect(screen.getAllByText('Urgent & Important').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Important, Not Urgent').length).toBeGreaterThan(0);
+      });
+
+      // Verify deployed task card renders inside Tasks tab
+      expect(screen.getAllByText('Deploy Polaris Alpha').length).toBeGreaterThan(0);
+    });
+
+    it('switches to Parked tab and renders all parked tasks across quadrants and backlog', async () => {
+      dbTasks.push({
+        id: 'parked-standalone-tab',
+        user_id: mockUser.id,
+        title: 'Future Robotics Experiment',
+        status: 'parked',
+        quadrant: null,
+        category: 'normal'
+      });
+      dbTasks.push({
+        id: 'parked-quadrant-tab',
+        user_id: mockUser.id,
+        title: 'Parked Solar Simulation',
+        status: 'parked',
+        quadrant: 'important_not_urgent',
+        category: 'academic'
+      });
+
+      render(<MatrixCanvasView />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('tab', { name: /Parked/i })).toBeDefined();
+      });
+
+      // Switch to Parked tab
+      const parkedTab = screen.getByRole('tab', { name: /Parked/i });
+      fireEvent.click(parkedTab);
+
+      await waitFor(() => {
+        expect(screen.getByText('Future Robotics Experiment')).toBeDefined();
+        expect(screen.getByText('Parked Solar Simulation')).toBeDefined();
+      });
+    });
+
+    it('1-clicks Pause button on active task card to directly park it', async () => {
+      render(<MatrixCanvasView />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Review EE lecture slides')).toBeDefined();
+      });
+
+      // Find the pause park button for 'Review EE lecture slides' in the Backlog
+      const pauseBtn = screen.getByRole('button', { name: /Park "Review EE lecture slides"/i });
+      fireEvent.click(pauseBtn);
+
+      await waitFor(() => {
+        expect(offlineApi.offlineUpdate).toHaveBeenCalledWith(
+          'tasks',
+          { id: 'task-2' },
+          expect.objectContaining({ status: 'parked', quadrant: null })
+        );
+      });
+    });
+
+    it('toggles canvas toolbar Pause filter button and persists to localStorage', async () => {
+      render(<MatrixCanvasView />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Show paused tasks on canvas/i })).toBeDefined();
+      });
+
+      const filterBtn = screen.getByRole('button', { name: /Show paused tasks on canvas/i });
+      fireEvent.click(filterBtn);
+
+      expect(localStorage.getItem('polaris_matrix_show_parked')).toBe('true');
+      expect(screen.getByRole('button', { name: /Hide paused tasks on canvas/i })).toBeDefined();
+
+      fireEvent.click(screen.getByRole('button', { name: /Hide paused tasks on canvas/i }));
+      expect(localStorage.getItem('polaris_matrix_show_parked')).toBe('false');
+    });
+
+    it('navigates from Parked tab into Details and clicking Back returns to Parked tab', async () => {
+      dbTasks.push({
+        id: 'parked-nav-task',
+        user_id: mockUser.id,
+        title: 'Deep Learning Exploration',
+        status: 'parked',
+        quadrant: null
+      });
+
+      render(<MatrixCanvasView />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('tab', { name: /Parked/i })).toBeDefined();
+      });
+
+      // Switch to Parked tab
+      fireEvent.click(screen.getByRole('tab', { name: /Parked/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText('Deep Learning Exploration')).toBeDefined();
+      });
+
+      // Click task to open Details drawer
+      fireEvent.click(screen.getByText('Deep Learning Exploration'));
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Back to previous view/i })).toBeDefined();
+        expect(screen.getByDisplayValue('Deep Learning Exploration')).toBeDefined();
+      });
+
+      // Click Back button
+      fireEvent.click(screen.getByRole('button', { name: /Back to previous view/i }));
+
+      // Should be back on Parked tab
+      await waitFor(() => {
+        expect(screen.getByRole('tab', { name: /Parked/i }).getAttribute('aria-selected')).toBe('true');
+      });
+    });
+
+    it('renders subtask progress and mental load badge for parent tasks in Parked tab', async () => {
+      dbTasks.push({
+        id: 'parked-parent-meta',
+        user_id: mockUser.id,
+        title: 'Robotics Kinematics Suite',
+        status: 'parked',
+        quadrant: null,
+        mental_load: 'high'
+      });
+      dbTasks.push({
+        id: 'parked-child-meta-1',
+        parent_task_id: 'parked-parent-meta',
+        user_id: mockUser.id,
+        title: 'Forward Kinematics Derivation',
+        status: 'done'
+      });
+      dbTasks.push({
+        id: 'parked-child-meta-2',
+        parent_task_id: 'parked-parent-meta',
+        user_id: mockUser.id,
+        title: 'Inverse Kinematics Solver',
+        status: 'parked'
+      });
+
+      render(<MatrixCanvasView />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('tab', { name: /Parked/i })).toBeDefined();
+      });
+
+      fireEvent.click(screen.getByRole('tab', { name: /Parked/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText('Robotics Kinematics Suite')).toBeDefined();
+      });
+
+      // Verify mental load and subtask stats render on the card in Parked tab
+      expect(screen.getByText(/HIGH LOAD/i)).toBeDefined();
+      expect(screen.getByText(/1\/2/)).toBeDefined();
+    });
+
+    it('returns to Parked tab when deleting a task from Details drawer', async () => {
+      const originalConfirm = window.confirm;
+      window.confirm = () => true;
+
+      dbTasks.push({
+        id: 'parked-delete-task',
+        user_id: mockUser.id,
+        title: 'Temporary Research Topic',
+        status: 'parked',
+        quadrant: null
+      });
+
+      render(<MatrixCanvasView />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('tab', { name: /Parked/i })).toBeDefined();
+      });
+
+      fireEvent.click(screen.getByRole('tab', { name: /Parked/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText('Temporary Research Topic')).toBeDefined();
+      });
+
+      fireEvent.click(screen.getByText('Temporary Research Topic'));
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Delete Task/i })).toBeDefined();
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: /Delete Task/i }));
+
+      // Should return to Parked tab
+      await waitFor(() => {
+        expect(screen.getByRole('tab', { name: /Parked/i }).getAttribute('aria-selected')).toBe('true');
+      });
+
+      window.confirm = originalConfirm;
+    });
+
+    it('maintains stable Backlog tab count badge while searching', async () => {
+      render(<MatrixCanvasView />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('tab', { name: /Backlog/i })).toBeDefined();
+      });
+
+      const backlogTab = screen.getByRole('tab', { name: /Backlog/i });
+      const initialBadgeText = backlogTab.textContent;
+
+      // Type search filter
+      const searchInput = screen.getByPlaceholderText(/Search backlog/i);
+      fireEvent.change(searchInput, { target: { value: 'nonexistent-task-query' } });
+
+      // Tab badge should remain stable reflecting total unassigned active tasks
+      expect(backlogTab.textContent).toBe(initialBadgeText);
+    });
+  });
+
 });
 
 

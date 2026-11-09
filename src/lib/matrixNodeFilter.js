@@ -10,6 +10,7 @@ import { isOpenTask } from './taskState';
  * @param {boolean} [options.hideReminders=false] - Whether to suppress reminder category tasks
  * @param {boolean} [options.hidePolaris=false] - Whether to suppress internal polaris category tasks
  * @param {boolean} [options.hideUpkeep=false] - Whether to suppress upkeep category tasks
+ * @param {boolean} [options.showParked=false] - Whether to allow parked tasks on the canvas plane
  * @param {Date|string|number} [options.currentDate=new Date()] - Reference date for deadline calculations
  * @returns {Array} Filtered list of tasks eligible to render on the 2D matrix canvas plane
  */
@@ -21,6 +22,7 @@ export function filterMatrixNodes(tasks = [], options = {}) {
     hideReminders = false,
     hidePolaris = false,
     hideUpkeep = false,
+    showParked = false,
     currentDate = new Date()
   } = options;
 
@@ -47,8 +49,8 @@ export function filterMatrixNodes(tasks = [], options = {}) {
     // Invariant 3: Completed or archived tasks are hidden from active matrix plane
     if (!isOpenTask(t)) return false;
 
-    // Invariant 3b: Parked tasks are never rendered on the 2D quadrant canvas
-    if (t.status === 'parked') return false;
+    // Invariant 3b: Parked tasks are excluded unless showParked is explicitly enabled
+    if (!showParked && t.status === 'parked') return false;
 
     // Invariant 4: Category suppression
     if (t.category === 'habits') return false;
