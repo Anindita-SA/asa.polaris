@@ -1,4 +1,4 @@
-import 'dotenv/config';
+import './lib/env_loader.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -47,6 +47,88 @@ export function classifyTaskHeuristically(task, activeGoals = []) {
  * @param {Array} allActiveTasks - List of active tasks from DB
  * @returns {{ keptTasks: Array, duplicateTaskIds: Array }}
  */
+/**
+ * Escapes markdown special characters in strings (SEC-14).
+ * Prevents Markdown injection and layout disruption in generated triage reports.
+ *
+ * @param {string} text - Raw unescaped text
+ * @returns {string} - Text with markdown characters escaped
+ */
+export function escapeMarkdown(text) {
+  if (!text || typeof text !== 'string') return '';
+  return text
+    .replace(/\\/g, '\\\\')
+    .replace(/`/g, '\\`')
+    .replace(/\*/g, '\\*')
+    .replace(/_/g, '\\_')
+    .replace(/\{/g, '\\{')
+    .replace(/\}/g, '\\}')
+    .replace(/\[/g, '\\[')
+    .replace(/\]/g, '\\]')
+    .replace(/\(/g, '\\(')
+    .replace(/\)/g, '\\)')
+    .replace(/#/g, '\\#')
+    .replace(/\+/g, '\\+')
+    .replace(/-/g, '\\-')
+    .replace(/\./g, '\\.')
+    .replace(/!/g, '\\!')
+    .replace(/\|/g, '\\|')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+/**
+ * Sanitizes AI-proposed task titles (Step 8).
+ * Strips URLs, rejects placeholder phrases, removes prefixes, and rejects
+ * candidates that duplicate the original title or violate length constraints.
+ *
+ * @param {string} proposedTitle - Raw candidate title from LLM
+ * @param {string} [originalTitle] - Original task title for comparison
+ * @returns {string|null} - Sanitized title suggestion, or null if rejected
+ */
+export function sanitizeProposedTitle(proposedTitle, originalTitle) {
+  if (!proposedTitle || typeof proposedTitle !== 'string') return null;
+
+  // 1. Strip URLs
+  let sanitized = proposedTitle
+    .replace(/https?:\/\/[^\s]+/gi, '')
+    .replace(/www\.[^\s]+/gi, '')
+    .trim();
+
+  // 2. Reject placeholder text
+  const PLACEHOLDER_PATTERNS = [
+    /^refined\s*title\s*here$/i,
+    /^auto-refine$/i,
+    /^auto-refinement:?$/i,
+    /^new\s*title$/i,
+    /^placeholder$/i,
+    /^title\s*here$/i,
+    /^untitled$/i,
+    /^click\s*here/i,
+  ];
+  for (const pattern of PLACEHOLDER_PATTERNS) {
+    if (pattern.test(sanitized)) return null;
+  }
+
+  // 3. Remove auto prefixes
+  sanitized = sanitized
+    .replace(/^(auto-refinement?:\s*)+/i, '')
+    .replace(/^quick\s+admin\s+task:\s*/i, '')
+    .trim();
+
+  // 4. Reject if empty or identical to original title
+  if (!sanitized || (originalTitle && sanitized.toLowerCase() === originalTitle.trim().toLowerCase())) {
+    return null;
+  }
+
+  // 5. Length bounds (3 to 255 chars)
+  if (sanitized.length < 3 || sanitized.length > 255) {
+    return null;
+  }
+
+  return sanitized;
+}
+
 export function deduplicateActiveTasks(allActiveTasks = []) {
   if (!allActiveTasks || allActiveTasks.length <= 1) {
     return { keptTasks: allActiveTasks ? [...allActiveTasks] : [], duplicateTaskIds: [] };
@@ -692,7 +774,8 @@ async function run() {
     if (triageReport.classifiedTasks.length > 0) {
       reportMd += `\n## Classified Tasks\n`;
       for (const ct of triageReport.classifiedTasks) {
-        reportMd += `- **[${ct.quadrant}]** ${ct.title}\n  > *Reasoning:* ${ct.reasoning}\n\n`;
+        const proposed = ct.proposed_title ? `\n  > *Proposed Title (Suggestion Only):* ${escapeMarkdown(ct.proposed_title)}` : '';
+        reportMd += `- **[${ct.quadrant}]** ${escapeMarkdown(ct.original_title || ct.title)}${proposed}\n  > *Reasoning:* ${ct.reasoning}\n\n`;
       }
     }
     fs.writeFileSync(reportPath, reportMd, 'utf8');
@@ -737,7 +820,8 @@ async function run() {
     if (triageReport.classifiedTasks.length > 0) {
       reportMd += `\n## Classified Tasks\n`;
       for (const ct of triageReport.classifiedTasks) {
-        reportMd += `- **[${ct.quadrant}]** ${ct.title}\n  > *Reasoning:* ${ct.reasoning}\n\n`;
+        const proposed = ct.proposed_title ? `\n  > *Proposed Title (Suggestion Only):* ${escapeMarkdown(ct.proposed_title)}` : '';
+        reportMd += `- **[${ct.quadrant}]** ${escapeMarkdown(ct.original_title || ct.title)}${proposed}\n  > *Reasoning:* ${ct.reasoning}\n\n`;
       }
     }
     fs.writeFileSync(reportPath, reportMd, 'utf8');
@@ -783,11 +867,11 @@ async function run() {
     // 4. Build Prompt
     const currentDate = new Date().toISOString().split('T')[0];
     const refineInstructions = autoRefineEnabled 
-      ? `\n      - Auto-Refinement: The user brain-dumps messy tasks. You MAY fix typos, expand acronyms, or rephrase the title to be actionable. Add a 'title' property to your returned JSON object for that task if you refine it.`
+      ? `\n      - Title Refinement (Suggestion Only): suggest a clear, concise, actionable title for poorly written items. DO NOT write or replace title directly. Provide 'proposed_title' property if a refined title is suggested.`
       : `\n      - STRICT POLICY: DO NOT alter or return the task title. Return ONLY the classification.`;
 
     const jsonExample = autoRefineEnabled 
-      ? `[{"id": "uuid-here", "quadrant": "quadrant-name", "reasoning": "Brief 1-sentence explanation", "title": "Refined title here"}]`
+      ? `[{"id": "uuid-here", "quadrant": "quadrant-name", "reasoning": "Brief 1-sentence explanation", "proposed_title": "Clear actionable title"}]`
       : `[{"id": "uuid-here", "quadrant": "quadrant-name", "reasoning": "Brief 1-sentence explanation"}]`;
 
     const tasksToClassify = unsortedTasks.map(t => ({
@@ -909,9 +993,7 @@ async function run() {
     
     const updatePromises = validItems.map(async (item) => {
       const payload = { quadrant: item.quadrant };
-      if (autoRefineEnabled && item.title) {
-        payload.title = item.title;
-      }
+      // Step 8: Title refinement is suggestion only and never mutates tasks.title in DB without explicit user accept.
       const updateChain = supabase.from('tasks').update(payload);
       if (isDryRun) {
         updateChain.eq('id', item.id);
@@ -932,9 +1014,11 @@ async function run() {
     
     const taskMap = new Map(unsortedTasks.map(t => [t.id, t.title]));
     triageReport.classifiedTasks = validItems.map(item => ({
+      original_title: taskMap.get(item.id) || item.id,
+      proposed_title: sanitizeProposedTitle(item.proposed_title || item.title, taskMap.get(item.id)),
       title: taskMap.get(item.id) || item.id,
       quadrant: item.quadrant,
-      reasoning: item.reasoning || 'No reasoning provided.'
+      reasoning: escapeMarkdown(item.reasoning || 'No reasoning provided.')
     }));
 
     // Log items that were skipped because they were invalid
@@ -969,7 +1053,8 @@ async function run() {
     if (triageReport.classifiedTasks.length > 0) {
       reportMd += `\n## Classified Tasks\n`;
       for (const ct of triageReport.classifiedTasks) {
-        reportMd += `- **[${ct.quadrant}]** ${ct.title}\n  > *Reasoning:* ${ct.reasoning}\n\n`;
+        const proposed = ct.proposed_title ? `\n  > *Proposed Title (Suggestion Only):* ${escapeMarkdown(ct.proposed_title)}` : '';
+        reportMd += `- **[${ct.quadrant}]** ${escapeMarkdown(ct.original_title || ct.title)}${proposed}\n  > *Reasoning:* ${ct.reasoning}\n\n`;
       }
     }
     fs.writeFileSync(reportPath, reportMd, 'utf8');

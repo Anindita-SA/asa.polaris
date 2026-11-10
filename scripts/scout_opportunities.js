@@ -1,6 +1,6 @@
 import { createSafeClient } from './lib/safe_supabase.js';
 import { generateWithFallbackNode } from './lib/llm_utils.js';
-import 'dotenv/config';
+import './lib/env_loader.js';
 
 export const config = {
   groqApiKey: process.env.GROQ_API_KEY || process.env.VITE_GROQ_API_KEY || null,

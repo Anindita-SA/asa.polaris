@@ -1,6 +1,6 @@
 node_modules/
 dist/
-.env
+.env*
 polaris-backup-*.json
 
 scratch/
@@ -17,8 +17,7 @@ AGENTS.md
 local_tasks_sync.json
 local_tasks_archive.json
 
-# Agent Secrets
-.env.agent
+# Agent Secrets (covered by .env*)
 
 # Ignored personal and temporary files
 *.sql

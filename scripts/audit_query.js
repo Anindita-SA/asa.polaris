@@ -8,7 +8,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import 'dotenv/config';
+import './lib/env_loader.js';
 import { createClient } from '@supabase/supabase-js';
 
 async function main() {

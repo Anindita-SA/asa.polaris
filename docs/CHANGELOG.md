@@ -1,3 +1,18 @@
+## [2026-11-10] v1.2.86 - Secrets Hardening & Repository Isolation Architecture
+- **Masked Env Inspector Utility**:
+  - Created `scripts/show_env.js` which parses `.env` files and displays variable names, character lengths, and the last 4 characters only (`NAME: [N chars] ...suffix`).
+  - Completely eliminates accidental plaintext secret leaks in agent terminal logs and audits.
+- **External Secrets Isolation Architecture**:
+  - Implemented `scripts/lib/env_loader.js` to decouple sensitive administrative credentials (Supabase service role keys, Google OAuth tokens) from the workspace.
+  - Automatically loads from external folders outside the workspace (`E:\secrets\.env`, `E:\secrets\polaris.env`, or `POLARIS_SECRETS_PATH`) when available.
+  - Updated `scripts/lib/safe_supabase.js` and `scripts/audit_query.js` to utilize `env_loader.js`.
+  - Hardened `safe_supabase.js`: auto-creates `scripts/logs/` directory to prevent ENOENT crashes, and added `pomodoro_logs`, `io_logs`, and `wins` to strict allowlist.
+- **Project Discipline & Security Rules**:
+  - Added `.agent/rules/secrets-masking.md` and updated `GEMINI.md` with explicit security rules prohibiting direct reads of `.env*` files via shell commands or file tools.
+  - Broadened `.gitignore` to match all `.env*` variants.
+- **Leaked Backup Bundle & Snapshot Sanitization**:
+  - Permanently deleted historical backup files in `private_backups/` containing exposed keys: `polaris_wip_snapshot/.env`, `polaris_wip_snapshot/.env.agent`, `polaris_full_backup.bundle`, `polaris_rewritten_history.bundle`, and `polaris_with_sanitized_commit.bundle`.
+
 ## [2026-11-10] v1.2.85 - Task Parking UI, Sidebar Tabs & Dedicated Filters
 - **Matrix Canvas Toolbar Filter**:
   - Added dedicated Pause icon filter toggle in the top canvas toolbar with live parked items count badge.

@@ -3,6 +3,24 @@
 RUBRIC BREAK: v2 starts here, earlier composite scores are v1 and not comparable.
 
 
+## Nov 10, 2026 - Secrets Hardening & Repository Isolation Architecture (v1.2.86)
+- **What**: Delivered architectural secrets hardening and isolation suite to eliminate credential exposure in agent workflows:
+  1. Masked Env Tool: Created `scripts/show_env.js` safely masking all variables (`[N chars] ...suffix`), outputting zero plaintext secrets.
+  2. External Secrets Isolation: Built `scripts/lib/env_loader.js` supporting external secret files (`E:\secrets\.env`, `E:\secrets\polaris.env`, or `POLARIS_SECRETS_PATH`). Updated `scripts/lib/safe_supabase.js` and `scripts/audit_query.js` to load from external storage when available.
+  3. Safe Wrapper Hardening: Updated `safe_supabase.js` to automatically ensure directory existence for `scripts/logs/` and expanded table allowlist to include `pomodoro_logs`, `io_logs`, and `wins`.
+  4. Project Discipline Rules: Created `.agent/rules/secrets-masking.md` and updated `GEMINI.md` with explicit rules banning direct `.env*` reads via shell or file tools and mandating masked tool inspection.
+  5. Repository Protection: Updated `.gitignore` to match all `.env*` file patterns.
+  6. Leaked Artifacts Purge: Deleted 5 exposed files in `private_backups/` (`polaris_wip_snapshot/.env`, `polaris_wip_snapshot/.env.agent`, `polaris_full_backup.bundle`, `polaris_rewritten_history.bundle`, and `polaris_with_sanitized_commit.bundle`).
+- **Evidence**: Vitest running 48 test suites with 576 unit tests (100% pass rate). Clean Vite production PWA build with 36 precache entries (1760.52 KiB). `scripts/show_env.js` tested and verified (0 plaintext secrets exposed). ImplementationAuditor (8/8 YES) and SecurityAuditor passed. Bumped package.json to 1.2.86. 0 em dashes, 0 en dashes, 0 CSS gradients across all created and edited files.
+
+
+## Nov 10, 2026 - Daily Polaris Task Audit Report (Rubric v2, Plan Deployment)
+- **What**: Twenty-first Rubric v2 audit executed scoring Monday Nov 9 (complete day) with independent dimension evaluation and zero composite aggregation. Evaluated 0 overdue tasks, 45 min capacity due in 14 days (2% capacity ratio, 33% unestimated), 2 meals logged yesterday (10.0g protein vs 65.3g target, 50.4g floor; 0 blackout days active, D4 at 5/15 Poor triggering Output at cost flag), 16 inbox leaking tasks, active outreach dispatch (Prof. Geza Joos Nov 5, Dr. Martin Ordonez Nov 6), and prioritized P0 critical path for Portfolio Site placeholders replacement and campus administrative submissions.
+- **Scores (scored day 2026-11-09)**: D1 14/20 | D2 7/25 | D3 15/20 | D4 5/15 | D5 17/20
+- **Flags**: Sustainability partly measured, Output at cost, Unlogged focus, Inbox leakage, Active outreach
+- **Evidence**: 168 total tasks tracked (51 pending: 0 overdue, 2 today pre-deploy, 3 due in 14d; 117 completed); 18 milestones in 90d window, 20 outreach targets (14 drafted, 2 queued, 3 sent, 1 replied). 125 lines in docs/task_audit_report.md. 3 primaries deployed to daily_plan (0 arbitrary task insertions). 0 em dashes, 0 en dashes.
+
+
 ## Nov 10, 2026 - Task Parking UI, Dedicated Filters & Sidebar Tabs (v1.2.85)
 - **What**: Delivered comprehensive UI interaction suite for task parking and dedicated filters across Polaris Matrix Canvas:
   1. Top Canvas Filter: Added dedicated Pause toggle button with live count badge in canvas toolbar, persisting state to localStorage (`polaris_matrix_show_parked`). Updated `filterMatrixNodes` (Invariant 3b) with `showParked` option.

@@ -90,40 +90,46 @@ export async function generateWithFallbackNode(prompt, groqApiKey = null, gemini
   const finalGroqKey = groqApiKey || (typeof process !== 'undefined' ? (process.env.GROQ_API_KEY || process.env.VITE_GROQ_API_KEY) : null);
   const finalGeminiKey = geminiApiKey || (typeof process !== 'undefined' ? (process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY) : null);
 
-  if (preferredModel && finalGeminiKey) {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000);
-    try {
-      const geminiPayload = {
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: {
-          responseMimeType: asJson ? "application/json" : "text/plain",
-          maxOutputTokens: maxOut || 4096
+  // 1. Primary: Try Gemini cascade (gemini-3.1-flash-lite -> gemini-3.8-flash -> gemini-3.7-flash -> gemini-flash-lite-latest -> gemini-flash-latest)
+  if (finalGeminiKey) {
+    const geminiModels = preferredModel ? [preferredModel] : ['gemini-3.1-flash-lite', 'gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-flash-lite-latest', 'gemini-flash-latest'];
+    for (const model of geminiModels) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 12000);
+      try {
+        const geminiPayload = {
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          generationConfig: {
+            responseMimeType: asJson ? "application/json" : "text/plain",
+            maxOutputTokens: maxOut || 2048
+          }
+        };
+
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${finalGeminiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(geminiPayload),
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        if (res.ok) {
+          const data = await res.json();
+          const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (content) {
+            return cleanLlmContent(content, asJson);
+          }
+        } else {
+          console.warn(`Gemini candidate ${model} failed:`, res.status, await res.text());
         }
-      };
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${preferredModel}:generateContent`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': finalGeminiKey },
-        body: JSON.stringify(geminiPayload),
-        signal: controller.signal
-      });
-      clearTimeout(timeoutId);
-      if (res.ok) {
-        const data = await res.json();
-        const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (content) {
-          return cleanLlmContent(content, asJson);
-        }
-      } else {
-        console.warn(`Preferred Gemini model ${preferredModel} failed:`, res.status, await res.text());
+      } catch (err) {
+        clearTimeout(timeoutId);
+        console.error(`Gemini error on ${model}:`, err);
       }
-    } catch (err) {
-      clearTimeout(timeoutId);
-      console.error(`Preferred Gemini model error on ${preferredModel}:`, err);
     }
   }
 
-  // 1. Try Groq with 2-model candidate list and 6s timeout
+  // 2. Fallback: Try Groq with 2-model candidate list and 6s timeout
   if (finalGroqKey) {
     let topModel = 'qwen/qwen3.8-27b';
     try {
@@ -168,45 +174,6 @@ export async function generateWithFallbackNode(prompt, groqApiKey = null, gemini
       } catch (err) {
         clearTimeout(timeoutId);
         console.error(`Groq error on ${candidate}:`, err);
-      }
-    }
-  }
-
-  // 2. Fallback to Gemini cascade (gemini-3.8-flash -> gemini-3.5-flash -> gemini-flash-latest with 8s timeout)
-  if (finalGeminiKey) {
-    const geminiModels = ['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-flash-latest'];
-    for (const model of geminiModels) {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
-      try {
-        const geminiPayload = {
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          generationConfig: {
-            responseMimeType: asJson ? "application/json" : "text/plain",
-            maxOutputTokens: maxOut || 1024
-          }
-        };
-
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': finalGeminiKey },
-          body: JSON.stringify(geminiPayload),
-          signal: controller.signal
-        });
-        clearTimeout(timeoutId);
-
-        if (res.ok) {
-          const data = await res.json();
-          const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (content) {
-            return cleanLlmContent(content, asJson);
-          }
-        } else {
-          console.warn(`Gemini candidate ${model} fallback failed:`, res.status, await res.text());
-        }
-      } catch (err) {
-        clearTimeout(timeoutId);
-        console.error(`Gemini error on ${model}:`, err);
       }
     }
   }

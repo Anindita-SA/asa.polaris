@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import 'dotenv/config';
+import './env_loader.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -27,11 +27,18 @@ const ALLOWED_TABLES = [
   'practice_scores',
   'meal_logs',
   'calendar_events',
-  'brief_sources'
+  'brief_sources',
+  'pomodoro_logs',
+  'io_logs',
+  'wins'
 ];
 
 
 function logAudit(entry) {
+  const dir = path.dirname(AUDIT_LOG_PATH);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
   const line = JSON.stringify({ ts: new Date().toISOString(), ...entry }) + '\n';
   fs.appendFileSync(AUDIT_LOG_PATH, line, 'utf8');
 }

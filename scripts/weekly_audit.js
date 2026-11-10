@@ -1,4 +1,4 @@
-import 'dotenv/config';
+import './lib/env_loader.js';
 import fs from 'fs';
 import path from 'path';
 import { createSafeClient } from './lib/safe_supabase.js';

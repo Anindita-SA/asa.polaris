@@ -3,7 +3,7 @@ import { generateWithFallbackNode } from './lib/llm_utils.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import 'dotenv/config';
+import './lib/env_loader.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
